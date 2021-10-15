@@ -52,7 +52,7 @@ from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
 
 
-from antistasi_serverlog_statistic.regex.regex_pattern import TokenRegexPattern
+from antistasi_logbook.regex.regex_pattern import TokenRegexPattern
 
 # endregion[Imports]
 

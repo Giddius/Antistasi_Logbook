@@ -51,8 +51,8 @@ from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from rich.panel import Panel
 from importlib.machinery import SourceFileLoader
-from antistasi_serverlog_statistic.utilities.nextcloud import get_username
-from antistasi_serverlog_statistic.utilities.rich_styles import PANEL_BORDER_STYLE, PANEL_STYLE
+from antistasi_logbook.utilities.nextcloud import get_username
+from antistasi_logbook.utilities.rich_styles import PANEL_BORDER_STYLE, PANEL_STYLE
 # endregion[Imports]
 
 # region [TODO]

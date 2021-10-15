@@ -9,7 +9,7 @@ from threading import Lock
 # * Gid Imports ----------------------------------------------------------------------------------------->
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_serverlog_statistic.storage.gidsql.db_action_base import GidSqliteActionBase
+from antistasi_logbook.storage.gidsql.db_action_base import GidSqliteActionBase
 from contextlib import nullcontext
 # endregion [Imports]
 

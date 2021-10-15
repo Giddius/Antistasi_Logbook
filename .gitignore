@@ -153,3 +153,4 @@ misc/
 /antistasi_serverlog_statistic/nextcloud.env
 /tools/create_venv_logs
 */workspace.code-workspace
+/.vscode

@@ -51,12 +51,12 @@ from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
 from webdav4.client import Client as WebdavClient
-from antistasi_serverlog_statistic.utilities.nextcloud import get_nextcloud_options, DEFAULT_BASE_FOLDER, DEFAULT_SUB_FOLDER_NAME, get_webdav_client, DEFAULT_LOG_FOLDER_TEMPLATE, get_username
+from antistasi_logbook.utilities.nextcloud import get_nextcloud_options, DEFAULT_BASE_FOLDER, DEFAULT_SUB_FOLDER_NAME, get_webdav_client, DEFAULT_LOG_FOLDER_TEMPLATE, get_username
 from dotenv import load_dotenv, find_dotenv
 from icecream import ic
 from gidapptools.general_helper.timing import time_func
-from antistasi_serverlog_statistic.utilities.path_utilities import clean_path, RemotePath
-from antistasi_serverlog_statistic.webdav.remote_item import RemoteItem, RemoteFolder, RemoteFile, RemoteItemType, RemoteAntistasiLogFile, RemoteAntistasiLogFolder
+from antistasi_logbook.utilities.path_utilities import clean_path, RemotePath
+from antistasi_logbook.webdav.remote_item import RemoteItem, RemoteFolder, RemoteFile, RemoteItemType, RemoteAntistasiLogFile, RemoteAntistasiLogFolder
 from mimetypes import common_types, types_map
 import atexit
 from gidapptools.general_helper.timing import time_execution, time_func
@@ -65,17 +65,17 @@ from gidapptools.general_helper.conversion import human2bytes
 from queue import Queue
 
 from collections import deque
-from antistasi_serverlog_statistic.webdav.info_item import InfoItem
+from antistasi_logbook.webdav.info_item import InfoItem
 import antistasi_serverlog_statistic
 from gidapptools.meta_data import app_meta, get_meta_item, get_meta_paths
 from threading import RLock
 from rich import print as rprint
-from antistasi_serverlog_statistic.items.base_item import AbstractBaseItem
-from antistasi_serverlog_statistic.items.server import Server
-from antistasi_serverlog_statistic.storage.storage_db import StorageDB
+from antistasi_logbook.items.base_item import AbstractBaseItem
+from antistasi_logbook.items.server import Server
+from antistasi_logbook.storage.storage_db import StorageDB
 if TYPE_CHECKING:
     from gidapptools.meta_data.meta_print.meta_print_item import MetaPrint
-    from antistasi_serverlog_statistic.items.log_file import LogFile
+    from antistasi_logbook.items.log_file import LogFile
     from gidapptools.meta_data.interface import MetaPaths
 # endregion[Imports]
 

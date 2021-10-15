@@ -52,13 +52,13 @@ from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from sortedcontainers import SortedList
 from importlib.machinery import SourceFileLoader
-from antistasi_serverlog_statistic.items.enums import LogLevel, PunishmentAction
-from antistasi_serverlog_statistic.regex.regex_keeper import RegexKeeper
-from antistasi_serverlog_statistic.items.entries.raw_entry import RawEntry
-from antistasi_serverlog_statistic.items.entries.base_entry import BaseEntry
+from antistasi_logbook.items.enums import LogLevel, PunishmentAction
+from antistasi_logbook.regex.regex_keeper import RegexKeeper
+from antistasi_logbook.items.entries.raw_entry import RawEntry
+from antistasi_logbook.items.entries.base_entry import BaseEntry
 if TYPE_CHECKING:
-    from antistasi_serverlog_statistic.items.log_file import LogFile
-    from antistasi_serverlog_statistic.items.entries.entry_line import EntryLine
+    from antistasi_logbook.items.log_file import LogFile
+    from antistasi_logbook.items.entries.entry_line import EntryLine
 # endregion[Imports]
 
 # region [TODO]

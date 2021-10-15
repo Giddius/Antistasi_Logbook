@@ -53,8 +53,8 @@ from importlib.machinery import SourceFileLoader
 from gidapptools.general_helper.dict_helper import replace_dict_keys
 from weakref import proxy
 if TYPE_CHECKING:
-    from antistasi_serverlog_statistic.webdav.webdav_manager import WebdavManager
-    from antistasi_serverlog_statistic.storage.storage_db import StorageDB
+    from antistasi_logbook.webdav.webdav_manager import WebdavManager
+    from antistasi_logbook.storage.storage_db import StorageDB
 # endregion[Imports]
 
 # region [TODO]

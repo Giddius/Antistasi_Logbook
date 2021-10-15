@@ -57,11 +57,11 @@ from gidapptools.meta_data import get_meta_info, get_meta_paths, get_meta_item
 from gidapptools.meta_data.interface import app_meta
 from dotenv import load_dotenv
 from gidapptools.general_helper.timing import time_execution
-from antistasi_serverlog_statistic.webdav.webdav_manager import WebdavManager
-from antistasi_serverlog_statistic.items.base_item import AbstractBaseItem
+from antistasi_logbook.webdav.webdav_manager import WebdavManager
+from antistasi_logbook.items.base_item import AbstractBaseItem
 
-from antistasi_serverlog_statistic.storage.storage_db import StorageDB
-from antistasi_serverlog_statistic.updater import Updater
+from antistasi_logbook.storage.storage_db import StorageDB
+from antistasi_logbook.updater import Updater
 import atexit
 # endregion[Imports]
 

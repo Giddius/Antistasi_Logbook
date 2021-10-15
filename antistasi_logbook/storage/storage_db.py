@@ -52,21 +52,21 @@ from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
 from rich.console import Console as RichConsole, ConsoleOptions
 from rich import inspect as rinspect
-from antistasi_serverlog_statistic.storage.gidsql.facade import GidSqliteDatabase
+from antistasi_logbook.storage.gidsql.facade import GidSqliteDatabase
 from gidapptools.general_helper.dict_helper import replace_dict_keys
 from gidapptools.general_helper.timing import time_func
 from threading import Lock, RLock
 from functools import lru_cache
 from string import printable, ascii_letters, digits
-from antistasi_serverlog_statistic.storage.gidsql.db_reader import Fetch
-from antistasi_serverlog_statistic.items.enums import DBItemAction
+from antistasi_logbook.storage.gidsql.db_reader import Fetch
+from antistasi_logbook.items.enums import DBItemAction
 import sqlparse
 import atexit
-from antistasi_serverlog_statistic.utilities.path_utilities import RemotePath
-from antistasi_serverlog_statistic.items.enums import LogLevel, PunishmentAction
+from antistasi_logbook.utilities.path_utilities import RemotePath
+from antistasi_logbook.items.enums import LogLevel, PunishmentAction
 if TYPE_CHECKING:
-    from antistasi_serverlog_statistic.items.base_item import AbstractBaseItem
-    from antistasi_serverlog_statistic.storage.gidsql.script_handling import GidSqliteScriptProvider
+    from antistasi_logbook.items.base_item import AbstractBaseItem
+    from antistasi_logbook.storage.gidsql.script_handling import GidSqliteScriptProvider
 
 # endregion[Imports]
 

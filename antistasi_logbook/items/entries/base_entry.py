@@ -50,13 +50,13 @@ from urllib.parse import urlparse
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
-from antistasi_serverlog_statistic.items.log_file import LogFile, AbstractBaseItem, DbRowToItemConverter, DBItemAction
-from antistasi_serverlog_statistic.items.enums import LogLevel, PunishmentAction
+from antistasi_logbook.items.log_file import LogFile, AbstractBaseItem, DbRowToItemConverter, DBItemAction
+from antistasi_logbook.items.enums import LogLevel, PunishmentAction
 if TYPE_CHECKING:
-    from antistasi_serverlog_statistic.parsing.parser import ParseContext
-    from antistasi_serverlog_statistic.items.entries.raw_entry import RawEntry
+    from antistasi_logbook.parsing.parser import ParseContext
+    from antistasi_logbook.items.entries.raw_entry import RawEntry
 
-    from antistasi_serverlog_statistic.storage.storage_db import StorageDB
+    from antistasi_logbook.storage.storage_db import StorageDB
 # endregion[Imports]
 
 # region [TODO]

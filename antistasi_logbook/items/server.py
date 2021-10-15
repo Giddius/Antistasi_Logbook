@@ -69,16 +69,16 @@ from rich.text import Text
 from rich.console import Console as RichConsole, ConsoleOptions, RenderResult, Group
 from rich.pretty import Pretty, pprint, pretty_repr
 from rich.segment import Segment, Segments, SegmentLines
-from antistasi_serverlog_statistic.utilities.rich_styles import PANEL_BORDER_STYLE, PANEL_STYLE
-from antistasi_serverlog_statistic.utilities.path_utilities import RemotePath
-from antistasi_serverlog_statistic.webdav.remote_item import RemoteAntistasiLogFolder, RemoteAntistasiLogFile
-from antistasi_serverlog_statistic.items.log_file import LogFile
-from antistasi_serverlog_statistic.items.base_item import AbstractBaseItem, DbRowToItemConverter
-from antistasi_serverlog_statistic.items.enums import DBItemAction
+from antistasi_logbook.utilities.rich_styles import PANEL_BORDER_STYLE, PANEL_STYLE
+from antistasi_logbook.utilities.path_utilities import RemotePath
+from antistasi_logbook.webdav.remote_item import RemoteAntistasiLogFolder, RemoteAntistasiLogFile
+from antistasi_logbook.items.log_file import LogFile
+from antistasi_logbook.items.base_item import AbstractBaseItem, DbRowToItemConverter
+from antistasi_logbook.items.enums import DBItemAction
 if TYPE_CHECKING:
     from gidapptools.meta_data.meta_print.meta_print_item import MetaPrint
     from gidapptools.meta_data.interface import MetaPaths
-    from antistasi_serverlog_statistic.webdav.webdav_manager import WebdavManager
+    from antistasi_logbook.webdav.webdav_manager import WebdavManager
 
 # endregion[Imports]
 

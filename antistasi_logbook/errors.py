@@ -78,7 +78,7 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 
 if TYPE_CHECKING:
-    from antistasi_serverlog_statistic.utilities.date_time_utilities import DatetimeDuration
+    from antistasi_logbook.utilities.date_time_utilities import DatetimeDuration
 
 
 class BaseAntistasiServerlogStatisticsError(Exception):

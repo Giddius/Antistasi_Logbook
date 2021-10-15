@@ -1,13 +1,13 @@
 import pytest
-from antistasi_serverlog_statistic.updater import Updater, WebdavManager
-from antistasi_serverlog_statistic.items.base_item import AbstractBaseItem
+from antistasi_logbook.updater import Updater, WebdavManager
+from antistasi_logbook.items.base_item import AbstractBaseItem
 import inspect
 from typing import TYPE_CHECKING
 from pathlib import Path
 from ..data import FAKE_LOG_FILES_PATHS
 if TYPE_CHECKING:
-    from antistasi_serverlog_statistic.storage.storage_db import StorageDB
-    from antistasi_serverlog_statistic.updater import Updater
+    from antistasi_logbook.storage.storage_db import StorageDB
+    from antistasi_logbook.updater import Updater
 
 found_log_files_result_dict = {}
 for k, v in FAKE_LOG_FILES_PATHS.items():

@@ -12,10 +12,10 @@ from threading import Lock
 import sqlite3
 from datetime import datetime, timedelta, timezone
 
-from antistasi_serverlog_statistic.storage.gidsql.phrasers import GidSqliteInserter
-from antistasi_serverlog_statistic.storage.gidsql.db_reader import Fetch, GidSqliteReader
-from antistasi_serverlog_statistic.storage.gidsql.db_writer import GidSQLiteWriter
-from antistasi_serverlog_statistic.storage.gidsql.script_handling import GidSqliteScriptProvider
+from antistasi_logbook.storage.gidsql.phrasers import GidSqliteInserter
+from antistasi_logbook.storage.gidsql.db_reader import Fetch, GidSqliteReader
+from antistasi_logbook.storage.gidsql.db_writer import GidSQLiteWriter
+from antistasi_logbook.storage.gidsql.script_handling import GidSqliteScriptProvider
 from pathlib import Path
 from sortedcontainers import SortedList
 # endregion[Imports]

@@ -53,18 +53,18 @@ from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
 from weakref import proxy
 from threading import Lock
-from antistasi_serverlog_statistic.utilities.path_utilities import RemotePath
-from antistasi_serverlog_statistic.items.base_item import AbstractBaseItem, DbRowToItemConverter
-from antistasi_serverlog_statistic.items.enums import DBItemAction
-from antistasi_serverlog_statistic.items.entries.entry_line import EntryLine
+from antistasi_logbook.utilities.path_utilities import RemotePath
+from antistasi_logbook.items.base_item import AbstractBaseItem, DbRowToItemConverter
+from antistasi_logbook.items.enums import DBItemAction
+from antistasi_logbook.items.entries.entry_line import EntryLine
 
 if TYPE_CHECKING:
-    from antistasi_serverlog_statistic.items.server import Server
-    from antistasi_serverlog_statistic.webdav.webdav_manager import WebdavManager
-    from antistasi_serverlog_statistic.webdav.remote_item import RemoteAntistasiLogFile
-    from antistasi_serverlog_statistic.storage.storage_db import StorageDB
-    from antistasi_serverlog_statistic.items.game_map import GameMap
-    from antistasi_serverlog_statistic.regex.regex_keeper import RegexKeeper
+    from antistasi_logbook.items.server import Server
+    from antistasi_logbook.webdav.webdav_manager import WebdavManager
+    from antistasi_logbook.webdav.remote_item import RemoteAntistasiLogFile
+    from antistasi_logbook.storage.storage_db import StorageDB
+    from antistasi_logbook.items.game_map import GameMap
+    from antistasi_logbook.regex.regex_keeper import RegexKeeper
 # endregion[Imports]
 
 # region [TODO]

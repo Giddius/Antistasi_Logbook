@@ -7,7 +7,7 @@ import logging
 
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_serverlog_statistic.storage.gidsql.exceptions import GidSqliteSemiColonError, GidSqliteNoTableNameError, GidSqliteColumnAlreadySetError
+from antistasi_logbook.storage.gidsql.exceptions import GidSqliteSemiColonError, GidSqliteNoTableNameError, GidSqliteColumnAlreadySetError
 
 # endregion[Imports]
 

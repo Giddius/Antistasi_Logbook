@@ -50,12 +50,12 @@ from urllib.parse import urlparse
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
-from antistasi_serverlog_statistic.webdav.webdav_manager import WebdavManager
-from antistasi_serverlog_statistic.items.log_file import LogFile
-from antistasi_serverlog_statistic.items.server import Server
-from antistasi_serverlog_statistic.items.game_map import GameMap
-from antistasi_serverlog_statistic.storage.storage_db import StorageDB
-from antistasi_serverlog_statistic.parsing.parser import Parser
+from antistasi_logbook.webdav.webdav_manager import WebdavManager
+from antistasi_logbook.items.log_file import LogFile
+from antistasi_logbook.items.server import Server
+from antistasi_logbook.items.game_map import GameMap
+from antistasi_logbook.storage.storage_db import StorageDB
+from antistasi_logbook.parsing.parser import Parser
 from gidapptools.general_helper.timing import time_func
 import atexit
 from threading import Thread, Event, Condition, Lock, RLock, Semaphore, Barrier

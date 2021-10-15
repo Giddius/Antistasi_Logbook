@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Union
 from datetime import datetime, timezone, timedelta, tzinfo
 from functools import total_ordering
-from antistasi_serverlog_statistic.errors import DurationTimezoneError
+from antistasi_logbook.errors import DurationTimezoneError
 import attr
 import tzlocal
 from gidapptools.general_helper.string_helper import replace_by_dict, extract_by_map

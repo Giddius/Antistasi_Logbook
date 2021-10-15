@@ -1,14 +1,14 @@
 import pytest
 from unittest.mock import Mock
-from antistasi_serverlog_statistic.storage.storage_db import StorageDB
-from antistasi_serverlog_statistic.storage import THIS_FILE_DIR as STORAGE_MODULE_DIR
-from antistasi_serverlog_statistic.items.base_item import AbstractBaseItem
+from antistasi_logbook.storage.storage_db import StorageDB
+from antistasi_logbook.storage import THIS_FILE_DIR as STORAGE_MODULE_DIR
+from antistasi_logbook.items.base_item import AbstractBaseItem
 import inspect
-from antistasi_serverlog_statistic.updater import Updater, WebdavManager
+from antistasi_logbook.updater import Updater, WebdavManager
 from pathlib import Path
 import shutil
 from typing import Any, Union
-from antistasi_serverlog_statistic.updater import Updater
+from antistasi_logbook.updater import Updater
 import json
 from datetime import datetime, timezone, timedelta
 from ..data import FAKE_INFO_DATA, FAKE_LS_DATA, FAKE_LOG_FILES_PATHS

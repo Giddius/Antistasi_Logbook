@@ -52,20 +52,20 @@ from weakref import proxy, WeakMethod
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from itertools import chain
 from importlib.machinery import SourceFileLoader
-from antistasi_serverlog_statistic.utilities.path_utilities import RemotePath
+from antistasi_logbook.utilities.path_utilities import RemotePath
 from gidapptools.general_helper.conversion import bytes2human
 from gidapptools.general_helper.date_time import DatetimeFmt
 from gidapptools.general_helper.enums import MiscEnum
-from antistasi_serverlog_statistic.data.content_types import ContentType
-from antistasi_serverlog_statistic.utilities.rich_styles import PANEL_BORDER_STYLE, PANEL_STYLE
-from antistasi_serverlog_statistic.webdav.info_item import InfoItem
+from antistasi_logbook.data.content_types import ContentType
+from antistasi_logbook.utilities.rich_styles import PANEL_BORDER_STYLE, PANEL_STYLE
+from antistasi_logbook.webdav.info_item import InfoItem
 from rich.panel import Panel
 from rich.padding import Padding
 from rich import box
-from antistasi_serverlog_statistic.utilities.enums import RemoteItemType
+from antistasi_logbook.utilities.enums import RemoteItemType
 import attr
 if TYPE_CHECKING:
-    from antistasi_serverlog_statistic.webdav.webdav_manager import WebdavManager, WebdavClient
+    from antistasi_logbook.webdav.webdav_manager import WebdavManager, WebdavClient
 # endregion[Imports]
 
 # region [TODO]

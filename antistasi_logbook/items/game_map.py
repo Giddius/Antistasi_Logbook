@@ -50,8 +50,8 @@ from urllib.parse import urlparse
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
-from antistasi_serverlog_statistic.items.base_item import AbstractBaseItem, DbRowToItemConverter
-from antistasi_serverlog_statistic.items.enums import DBItemAction
+from antistasi_logbook.items.base_item import AbstractBaseItem, DbRowToItemConverter
+from antistasi_logbook.items.enums import DBItemAction
 
 # endregion[Imports]
 

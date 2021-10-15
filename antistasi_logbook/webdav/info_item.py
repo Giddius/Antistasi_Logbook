@@ -51,11 +51,11 @@ from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
 from gidapptools.general_helper.timing import time_func
-from antistasi_serverlog_statistic.data.misc import LOG_FILE_DATE_REGEX
+from antistasi_logbook.data.misc import LOG_FILE_DATE_REGEX
 import attr
-from antistasi_serverlog_statistic.utilities.enums import RemoteItemType
-from antistasi_serverlog_statistic.data.content_types import ContentType
-from antistasi_serverlog_statistic.utilities.path_utilities import RemotePath
+from antistasi_logbook.utilities.enums import RemoteItemType
+from antistasi_logbook.data.content_types import ContentType
+from antistasi_logbook.utilities.path_utilities import RemotePath
 from gidapptools.general_helper.dict_helper import replace_dict_keys
 # endregion[Imports]
 

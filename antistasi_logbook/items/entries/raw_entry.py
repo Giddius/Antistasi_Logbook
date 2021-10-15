@@ -52,7 +52,7 @@ from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
 
 if TYPE_CHECKING:
-    from antistasi_serverlog_statistic.items.entries.entry_line import EntryLine
+    from antistasi_logbook.items.entries.entry_line import EntryLine
 # endregion[Imports]
 
 # region [TODO]
