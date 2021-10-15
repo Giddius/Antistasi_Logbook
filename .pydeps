@@ -1,0 +1,9 @@
+[pydeps]
+max_bacon = 2
+cluster=True
+verbose = 0
+pylib=False
+keep_target_cluster=True
+noise_level=100
+max_cluster_size=1
+exclude=
