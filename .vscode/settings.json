@@ -1,6 +1,0 @@
-{
-    "python.pythonPath": ".venv\\Scripts\\python.exe",
-    "python.testing.pytestArgs": ["test"],
-    "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true
-}
