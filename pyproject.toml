@@ -1,0 +1,66 @@
+[build-system]
+build-backend = "flit_core.buildapi"
+requires = ["flit_core >=3.2,<4"]
+
+[project]
+name = "antistasi_logbook"
+authors = [{ name = "antistasi_tools" }]
+classifiers = ["License :: OSI Approved :: MIT License"]
+license = { file = "LICENSE" }
+readme = "README.md"
+dynamic = ['version', 'description']
+requires-python = ">=3.9"
+dependencies = ["webdavclient3==3.14.5"]
+
+[project.urls]
+Source = "https://github.com/Giddius/Antistasi_Logbook"
+
+[project.scripts]
+
+[project.optional-dependencies]
+
+[tool.flit.sdist]
+exclude = [
+    "misc",
+    "temp",
+    "docs",
+    "tools",
+    ".pydeps",
+    "tests",
+    ".gitattributes",
+    ".gitignore",
+    ".editorconfig",
+    "planning.todo",
+    "tasks.py",
+]
+
+[tool.autopep8]
+ignore = ["E402", "E501"]
+max-line-length = 250
+
+[tool.isort]
+balanced_wrapping = true
+ensure_newline_before_comments = true
+group_by_package = true
+import_heading_firstparty = "* Local Imports --------------------------------------------------------------------------------------->"
+import_heading_gid = "* Gid Imports ----------------------------------------------------------------------------------------->"
+import_heading_pyqt = "* PyQt5 Imports --------------------------------------------------------------------------------------->"
+import_heading_stdlib = "* Standard Library Imports ---------------------------------------------------------------------------->"
+import_heading_thirdparty = "* Third Party Imports --------------------------------------------------------------------------------->"
+known_gid = ["gidtools", "gidlogger", "gidqtutils", "gidviewmodels"]
+known_pyqt = ["PyQt5"]
+length_sort = true
+line_length = 200
+lines_after_imports = 1
+sections = [
+    "FUTURE",
+    "STDLIB",
+    "THIRDPARTY",
+    "PYQT",
+    "GID",
+    "FIRSTPARTY",
+    "LOCALFOLDER",
+]
+
+[tool.pytest.ini_options]
+addopts = "-rP -vv --durations=0 --show-capture=all --color=auto --code-highlight=yes"

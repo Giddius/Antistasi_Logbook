@@ -1,0 +1,21 @@
+=====================================================================
+== C:\TCAFiles\Users\AntiDev\2438\arma3server_x64.exe
+== "C:\TCAFiles\Users\AntiDev\2438\arma3server_x64.exe" -port=2362   -MaxMem= -filePatching -collection= "-servermod=" "-mod=@CBAA3;" -profiles=ARMAHOSTS -config=ARMAHOSTS\server\server.cfg -cfg=ARMAHOSTS\server\basic.cfg "-name=armahosts" -Server
+
+Original output filename: Arma3Retail_Server_x64
+Exe timestamp: 2021/02/18 22:21:04
+Current time:  2021/03/10 11:43:51
+
+Type: Public
+Build: Stable
+Version: 2.02.147284
+
+Allocator: C:\TCAFiles\Users\AntiDev\2438\Dll\tbb4malloc_bi_x64.dll [2017.0.0.0] [2017.0.0.0]
+PhysMem: 128 GiB, VirtMem : 131072 GiB, AvailPhys : 76 GiB, AvailVirt : 131068 GiB, AvailPage : 54 GiB
+=====================================================================
+
+11:43:51 SteamAPI initialization failed. Steam features won't be accessible!
+11:43:51 Initializing stats manager.
+11:43:51 Stats config disabled.
+11:43:51 sessionID: 4abe03cf4778f7e3ace45edf757f3a15424c6fa9
+11:43:57 Warning Message: Addon 'cba_common' requires addon 'A3_Data_F_AoW_Loadorder'

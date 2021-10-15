@@ -1,0 +1,20 @@
+=====================================================================
+== C:\TCAFiles\Users\Antistasi\2433\arma3server_x64.exe
+== "C:\TCAFiles\Users\Antistasi\2433\arma3server_x64.exe" -port=2312   -MaxMem=16384 -filePatching -collection= "-servermod=@members;@utility;@TaskForceEnforcer;" "-mod=@ace;@ACECompatRHSArmedForcesoftheRussianFederation;@ACECompatRHSGREF;@ACECompatRHSUnitedStatesArmedForces;@CBAA3;@RHSAFRF;@RHSGREF;@RHSUSAF;@TaskForceArrowheadRadioBETA;@RKSLStudiosAttachmentsv302;@3CBBAFEquipment;@3CBBAFUnits;@3CBBAFUnitsACEcompatibility;@3CBBAFUnitsRHScompatibility;@3CBBAFVehicles;@3CBBAFVehiclesRHSreskins;@3CBBAFVehiclesServicingextension;@3CBBAFWeapons;@3CBBAFWeaponsRHSammocompatibility;@3CBFactions;@EnhancedMovement;@ZeusEnhanced;@ZeusEnhancedACE3Compatibility;@VETUnflipping;@CUPTerrainsCore;@VirolahtiValtatie7;@GruppeAdlerTrenches" -profiles=ARMAHOSTS -config=ARMAHOSTS\server\server.cfg -cfg=ARMAHOSTS\server\basic.cfg "-name=armahosts" -Server -O=2 -H=2 
+
+Original output filename: Arma3Retail_Server_x64
+Exe timestamp: 2021/09/30 12:39:26
+Current time:  2021/10/08 20:03:54
+
+Type: Public
+Build: Stable
+Version: 2.06.148221
+
+Allocator: C:\TCAFiles\Users\Antistasi\2433\Dll\tbb4malloc_bi_x64.dll [2017.0.0.0] [2017.0.0.0]
+PhysMem: 128 GiB, VirtMem : 131072 GiB, AvailPhys : 99 GiB, AvailVirt : 131068 GiB, AvailPage : 112 GiB, PageSize : 4.0 KiB/2.0 MiB/HasLockMemory
+=====================================================================
+
+20:03:54 SteamAPI initialization failed. Steam features won't be accessible!
+20:03:54 Initializing stats manager.
+20:03:54 Stats config disabled.
+20:03:54 sessionID: 21dd386042062739c0241094be258ffb45c4b371
