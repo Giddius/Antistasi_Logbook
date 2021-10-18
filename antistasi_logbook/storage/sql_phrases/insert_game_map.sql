@@ -1,6 +1,7 @@
 INSERT
     OR REPLACE INTO "GameMap_tbl" (
-        "id" "name",
+        "item_id",
+        "name",
         "full_name",
         "official",
         "dlc",

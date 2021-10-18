@@ -1,6 +1,6 @@
 INSERT
     OR REPLACE INTO "LogRecord_tbl" (
-        "id",
+        "item_id",
         "record_class",
         "recorded_at",
         "log_file",

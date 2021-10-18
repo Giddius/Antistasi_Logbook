@@ -70,7 +70,7 @@ log = logging.getLogger(__name__)
 
 # region [Constants]
 if app_meta.is_setup is False:
-    import antistasi_serverlog_statistic
+    import antistasi_logbook
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 META_PATHS = get_meta_paths()
 META_INFO = get_meta_info()

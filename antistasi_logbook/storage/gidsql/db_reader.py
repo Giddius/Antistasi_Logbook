@@ -63,9 +63,10 @@ class GidSqliteReader(GidSqliteActionBase):
         conn = sqlite.connect(self.db_loc, isolation_level=None, detect_types=sqlite.PARSE_DECLTYPES)
         if row_factory is not None:
             conn.row_factory = row_factory
-        cursor = conn.cursor()
+
         try:
-            self._execute_pragmas(cursor)
+            self._execute_pragmas(conn)
+            cursor = conn.cursor()
             if variables is not None:
                 cursor.execute(sql_phrase, variables)
                 if self.log_execution is True:

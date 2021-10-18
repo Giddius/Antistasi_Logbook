@@ -20,3 +20,4 @@ pympler
 paramiko[all]
 cairosvg
 datasette[rich]
+pylint

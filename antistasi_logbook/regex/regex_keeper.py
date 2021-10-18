@@ -51,7 +51,9 @@ from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
 from antistasi_logbook.regex.regex_pattern import RegexPattern
-
+from antistasi_logbook.items.enums import LogLevel
+import pyparsing as pp
+import pyparsing.common as ppc
 # endregion[Imports]
 
 # region [TODO]
@@ -75,10 +77,75 @@ def multiline_to_single_line(in_string: str) -> str:
     return r"".join([line.lstrip() for line in in_string.splitlines()])
 
 
+def regex_groups_to_datetime(prefix: str = None, tz: timezone = timezone.utc):
+    def _inner(match_token: re.Match):
+        match_token = match_token[0]
+        if prefix is None:
+            kwargs = {k: int(v) for k, v in match_token.groupdict().items()}
+        else:
+            kwargs = {k.removeprefix(prefix): int(v) for k, v in match_token.groupdict().items() if k.startswith(prefix)}
+        return datetime(tzinfo=tz, **kwargs)
+    return _inner
+
+
+UTC_DATETIME_REGEX_STRING = multiline_to_single_line(r"""
+                                    \s?
+                                    (?P<utc_year>\d{4})
+                                    [^\d]
+                                    (?P<utc_month>[01]?\d)
+                                    [^\d]
+                                    (?P<utc_day>[0-3]?\d)
+                                    [^\d]
+                                    (?P<utc_hour>[0-2\s]?\d)
+                                    [^\d]
+                                    (?P<utc_minute>[0-6]\d)
+                                    [^\d]
+                                    (?P<utc_second>[0-6]\d)
+                                    [^\d]
+                                    (?P<utc_microsecond>\d+)""")
+
+LOCAL_DATETIME_REGEX_STRING = multiline_to_single_line(r"""
+                                            ^
+                                            (?P<local_year>\d{4})
+                                            [^\d]
+                                            (?P<local_month>[01]?\d)
+                                            [^\d]
+                                            (?P<local_day>[0-3]?\d)
+                                            \,\s+
+                                            (?P<local_hour>[0-2\s]?\d)
+                                            [^\d]
+                                            (?P<local_minute>[0-6]\d)
+                                            [^\d]
+                                            (?P<local_second>[0-6]\d)""")
+
+
+class AntistasiEntryGrammar:
+    parts_separator = pp.Suppress('|')
+    antistasi_indicator = pp.Suppress("Antistasi")
+    utc_datetime = pp.Regex(re.compile(UTC_DATETIME_REGEX_STRING), as_match=True)("utc_created_at").set_parse_action(regex_groups_to_datetime(prefix="utc_", tz=timezone.utc))
+    _local_datetime = pp.Regex(re.compile(LOCAL_DATETIME_REGEX_STRING), as_match=True)
+    file_part = pp.Keyword("File:").suppress() + pp.Word(pp.printables.replace('|', ''))("file")
+    message_part = pp.OneOrMore(pp.Word(pp.printables.replace('|', '')))("message")
+
+    @classmethod
+    def get_local_time_with_tz(cls, local_timezone: timezone) -> pp.ParserElement:
+        return cls._local_datetime("local_created_at").set_parse_action(regex_groups_to_datetime(prefix="local_", tz=local_timezone))
+
+    @classmethod
+    def get_log_level_grammar(cls, log_level_values) -> pp.ParserElement:
+        return pp.one_of(log_level_values, as_keyword=True)("log_level")
+
+    @classmethod
+    def get_grammar(cls, local_timezone: timezone, log_level_values=None) -> pp.ParserElement:
+        return cls.get_local_time_with_tz(local_timezone=local_timezone) + cls.utc_datetime + cls.parts_separator + pp.OneOrMore(cls.antistasi_indicator | cls.file_part | cls.get_log_level_grammar(LogLevel.all_possible_names) | cls.message_part)
+
+
 class RegexKeeper:
     only_time = RegexPattern(r"^([0-2\s]?\d)[^\d]([0-6]\d)[^\d]([0-6]\d)")
 
-    local_datetime = RegexPattern(multiline_to_single_line(r"""^(?P<local_year>\d{4})
+    local_datetime = RegexPattern(multiline_to_single_line(r"""
+                                            ^
+                                            (?P<local_year>\d{4})
                                             [^\d]
                                             (?P<local_month>[01]?\d)
                                             [^\d]
@@ -90,7 +157,8 @@ class RegexKeeper:
                                             [^\d]
                                             (?P<local_second>[0-6]\d)"""))
 
-    utc_datetime = RegexPattern(multiline_to_single_line(r"""\s
+    utc_datetime = RegexPattern(multiline_to_single_line(r"""
+                                    \s?
                                     (?P<utc_year>\d{4})
                                     [^\d]
                                     (?P<utc_month>[01]?\d)

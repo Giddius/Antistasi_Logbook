@@ -105,6 +105,7 @@ class AbstractBaseItem(ABC):
             possible_id = self.database.get_id(self)
             if possible_id is not None:
                 possible_id = possible_id[0]
+
             self._item_id = possible_id
         return self._item_id
 

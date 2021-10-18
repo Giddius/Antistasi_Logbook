@@ -1,6 +1,6 @@
 INSERT
     OR REPLACE INTO "Server_tbl" (
-        "id",
+        "item_id",
         "name",
         "remote_path",
         "comments",

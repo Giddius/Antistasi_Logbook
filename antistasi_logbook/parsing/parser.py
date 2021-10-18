@@ -55,9 +55,13 @@ from importlib.machinery import SourceFileLoader
 from antistasi_logbook.items.enums import LogLevel, PunishmentAction
 from antistasi_logbook.regex.regex_keeper import RegexKeeper
 from antistasi_logbook.items.entries.raw_entry import RawEntry
-from antistasi_logbook.items.entries.base_entry import BaseEntry
+from antistasi_logbook.items.entries.base_entry import BaseEntry, EntryFamily
+from antistasi_logbook.utilities.misc import get_subclasses_recursive
+from antistasi_logbook.items.entries.message import Message
+from dataclasses import dataclass
+from antistasi_logbook.items.log_file import LogFile
 if TYPE_CHECKING:
-    from antistasi_logbook.items.log_file import LogFile
+
     from antistasi_logbook.items.entries.entry_line import EntryLine
 # endregion[Imports]
 
@@ -78,6 +82,40 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 # endregion[Constants]
 
 
+@dataclass
+class TempEntry:
+    log_file: LogFile
+    recorded_at: datetime
+    message: Message
+    start: int
+    end: int
+    record_class: str
+    log_level: LogLevel = LogLevel.NO_LEVEL
+    punishment_action: PunishmentAction = PunishmentAction.NO_ACTION
+    logged_from: str = None
+    called_by: str = None
+    client: str = None
+    comments: str = None
+
+    @classmethod
+    def from_parser(cls, context: "ParseContext", raw_entry: "RawEntry", record_class: type) -> "BaseEntry":
+        log_file = context.log_file
+        if raw_entry.parsed_data.get("utc_year") is not None:
+            recorded_at = datetime(tzinfo=timezone.utc, **{k.removeprefix('utc_'): int(v) for k, v in raw_entry.parsed_data.items() if k.startswith('utc_')})
+        else:
+            recorded_at = datetime(tzinfo=context.log_file.local_timezone, **{k.removeprefix('local_'): int(v) for k, v in raw_entry.parsed_data.items() if k.startswith('local_')}).astimezone(tz=timezone.utc)
+        message = raw_entry.parsed_data.get('message', "")
+        log_level = raw_entry.parsed_data.get("log_level", LogLevel.NO_LEVEL)
+        start = raw_entry.start
+        end = raw_entry.end
+        punishment_action = raw_entry.parsed_data.get("punishment_action")
+        logged_from = raw_entry.parsed_data.get("file")
+        called_by = raw_entry.parsed_data.get("called_by")
+        client = raw_entry.parsed_data.get("client")
+        message = message = raw_entry.parsed_data.get('message').strip(' "')
+        return cls(log_file=log_file, recorded_at=recorded_at, message=message, start=start, end=end, record_class=record_class.__name__, log_level=LogLevel(log_level), punishment_action=PunishmentAction(punishment_action), logged_from=logged_from, called_by=called_by, client=client, comments=None)
+
+
 class LineCache(deque):
 
     def is_empty(self) -> bool:
@@ -90,16 +128,18 @@ class LineCache(deque):
 
 
 class ParseContext:
+    __slots__ = ("log_file", "_line_generator", "_current_line", "header_entry", "initializing_lines", "cache", "after_server_init_lines", "entries", "_cur_line_num")
 
     def __init__(self, log_file: "LogFile") -> None:
         self.log_file = log_file
         self._line_generator: Generator["EntryLine", None, None] = None
-        self._current_line: "EntryLine" = None
+        self._current_line: "EntryLine" = ...
         self.header_entry: RawEntry = None
         self.initializing_lines: list["EntryLine"] = None
         self.cache: LineCache["EntryLine"] = LineCache()
         self.after_server_init_lines: bool = False
         self.entries: list["BaseEntry"] = []
+        self._cur_line_num: int = None
 
     @property
     def line_generator(self) -> Generator["EntryLine", None, None]:
@@ -109,12 +149,15 @@ class ParseContext:
 
     @property
     def current_line(self) -> "EntryLine":
-        if self._current_line is None:
+        if self._current_line is ...:
             self.advance_line()
+
         return self._current_line
 
     def advance_line(self) -> None:
         self._current_line = next(self.line_generator, None)
+        if self._current_line is not None:
+            self._cur_line_num = self._current_line.start
 
     def cache_current_line(self) -> None:
         self.cache.append(self.current_line)
@@ -123,17 +166,27 @@ class ParseContext:
         return RawEntry(self.cache.dump())
 
     def update_last_parsed_line_number(self):
-        self.log_file.last_parsed_line_number = self.current_line.start - 1
+        self.log_file.last_parsed_line_number = self._cur_line_num
 
     def set_header_lines(self) -> None:
         self.header_entry = self.dump_cache()
         self.log_file.header_text = self.header_entry.unformatted_content
 
+    def add_entry(self, entry: "BaseEntry") -> None:
+
+        self.entries.append(entry)
+        if len(self.entries) >= 9999999:
+            BaseEntry.many_entries_to_db(self.entries)
+            self.entries.clear()
+
     def close(self) -> None:
         if self.entries:
-            db = BaseEntry.database
-            db.insert_many_items([entry for entry in self.entries if entry])
+            BaseEntry.many_entries_to_db(self.entries)
+            self.entries.clear()
+
         self.line_generator.close()
+        self.update_last_parsed_line_number()
+
         self.log_file.to_db()
 
 
@@ -154,18 +207,18 @@ class EntryFactory:
 
     @cached_property
     def all_antistasi_entry_classes(self) -> tuple[type]:
-        return tuple(entry_class for entry_class in self.all_entry_classes if 'antistasi' in entry_class.___entry_family___)
+        return tuple(entry_class for entry_class in self.all_entry_classes if EntryFamily.ANTISTASI in entry_class.___entry_family___)
 
     @cached_property
     def all_generic_entry_classes(self) -> tuple[type]:
-        return tuple(entry_class for entry_class in self.all_entry_classes if "generic" in entry_class.___entry_family___)
+        return tuple(entry_class for entry_class in self.all_entry_classes if EntryFamily.GENERIC in entry_class.___entry_family___)
 
     def is_antistasi_entry(self, raw_entry: RawEntry) -> bool:
-        return self.antistasi_entry_indicator in raw_entry.content
+        return self.antistasi_entry_indicator.casefold() in raw_entry.content.casefold()
 
     def _collect_entry_classes(self) -> tuple[type]:
         all_base_classes = [self.entry_base_class] + self.extra_entry_classes
-        all_concrete_entry_classes = SortedList(key=lambda x: x[1])
+        all_concrete_entry_classes = SortedList(key=lambda x: -x[1])
 
         def _handle_class(in_class: type, level: int = 0) -> list[type]:
             concrete_entry_classes = []
@@ -193,7 +246,7 @@ class EntryFactory:
 
     def new_entry(self, context: ParseContext, raw_entry: RawEntry) -> BaseEntry:
         entry_class = self.determine_entry_class(context, raw_entry)
-        return entry_class.from_parser(context=context, raw_entry=raw_entry)
+        return TempEntry.from_parser(context=context, raw_entry=raw_entry, record_class=entry_class)
 
 
 class Parser:
@@ -206,13 +259,14 @@ class Parser:
 
     @property
     def default_antistasi_entry_data(self) -> dict[str, Union[None, list]]:
-        default_entry_data = {key: None for key in self.regex_keeper.antistasi_entry.group_names if not key.startswith('local_') and key not in {'identifier'}}
+        default_entry_data = {key: None for key in self.regex_keeper.antistasi_entry.group_names() if not key.startswith('local_') and key not in {'identifier'}}
         default_entry_data['message'] = []
         return default_entry_data
 
     def _parse_antistasi_entry(self, raw_entry: RawEntry) -> Optional[dict[str, Any]]:
         # TODO: REFRACTOR THIS !!! Maybe use the subclass of re.Scanner or use Pyparsing.
-        data = self.default_antistasi_entry_data
+        data = self.default_antistasi_entry_data.copy()
+
         for part in raw_entry.content.split('|'):
             part = part.strip()
             part_match = self.regex_keeper.antistasi_entry.search(part)
@@ -220,10 +274,11 @@ class Parser:
                 for key, value in part_match.groupdict().items():
                     if value:
                         if key == 'message':
-                            data[key].append(value)
+                            data["message"].append(value)
                         else:
                             data[key] = value
-        data['message'] = '||'.join(data['message']).replace('\n', '')
+        data["message"] = '||'.join(i.strip() for i in data["message"])
+
         return data
 
     def _parse_generic_entry(self, raw_entry: RawEntry) -> Optional[dict[str, Any]]:
@@ -237,27 +292,23 @@ class Parser:
     def _process_new_record(self, context: ParseContext):
         raw_entry = context.dump_cache()
 
-        if raw_entry.is_antistasi_entry is True:
+        if self.entry_factory.is_antistasi_entry(raw_entry) is True:
+
             raw_entry.is_antistasi_entry = True
             raw_entry.parsed_data = self._parse_antistasi_entry(raw_entry)
-            if context.log_file.created_at is None:
-                context.log_file.set_utc_created_at(data=raw_entry.parsed_data.copy())
+
         else:
             raw_entry.parsed_data = self._parse_generic_entry(raw_entry)
-
-        if context.after_server_init_lines is False and raw_entry.is_antistasi_entry is False:
-            self._check_for_mod_data(context, raw_entry)
-
-        if context.after_server_init_lines is False and raw_entry.is_antistasi_entry is True:
-            context.after_server_init_lines = True
 
         if raw_entry.parsed_data is None and self.raise_on_unparseable_entry is True:
             # TODO: Custom Error!
             raise RuntimeError(f"Unable to parse raw entry:\n{raw_entry.unformatted_content!r}.")
 
-        entry = self.entry_factory.new_entry(context, raw_entry)
-        context.entries.append(entry)
-        context.update_last_parsed_line_number()
+        try:
+            entry = self.entry_factory.new_entry(context, raw_entry)
+            context.add_entry(entry)
+        except Exception as error:
+            print(error)
 
     def parse_header_lines(self, context: ParseContext):
 
@@ -287,14 +338,19 @@ class Parser:
         context = ParseContext(log_file=log_file_item)
         print(f"Starting to parse {log_file_item.name!r}")
         try:
-            if context.log_file.last_parsed_line_number is None or context.log_file.last_parsed_line_number == 0:
-                print(f"Starting to parse HEADER_TEXT for {log_file_item.name!r}")
-                self.parse_header_lines(context=context)
-            print(f"Starting to parse ENTRIES for {log_file_item.name!r}")
-            self.parse_entries(context=context)
+            with context.log_file.download_lock:
+                context.log_file.search_utc_created_at(self.regex_keeper)
+                if context.log_file.unparsable is True:
+                    return
+                if context.log_file.last_parsed_line_number is None or context.log_file.last_parsed_line_number == 0:
+                    print(f"Starting to parse HEADER_TEXT for {log_file_item.name!r}")
+                    self.parse_header_lines(context=context)
+                print(f"Starting to parse ENTRIES for {log_file_item.name!r}")
+                self.parse_entries(context=context)
         finally:
             print(f"finished parsing {log_file_item.name!r} of server {log_file_item.server.name!r}")
             context.close()
+            print(f"context for {log_file_item.name!r} closed.")
 # region[Main_Exec]
 
 

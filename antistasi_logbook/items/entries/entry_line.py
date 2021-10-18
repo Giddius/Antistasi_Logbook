@@ -72,13 +72,12 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 
 class EntryLine(UserString):
+    __slots__ = ("content", "start", "data")
+
     def __init__(self, content: str, start: int) -> None:
         self.content = content
         self.start = start
-
-    @property
-    def data(self) -> str:
-        return self.content
+        self.data = self.content
 
 
 # region[Main_Exec]

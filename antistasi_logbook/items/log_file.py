@@ -57,7 +57,9 @@ from antistasi_logbook.utilities.path_utilities import RemotePath
 from antistasi_logbook.items.base_item import AbstractBaseItem, DbRowToItemConverter
 from antistasi_logbook.items.enums import DBItemAction
 from antistasi_logbook.items.entries.entry_line import EntryLine
-
+from antistasi_logbook.utilities.locks import DownloadRlock
+from pypika import Query, Table, SQLLiteQuery
+from pytz import all_timezones_set
 if TYPE_CHECKING:
     from antistasi_logbook.items.server import Server
     from antistasi_logbook.webdav.webdav_manager import WebdavManager
@@ -90,7 +92,7 @@ class LogFile(AbstractBaseItem):
     ___db_phrases___: dict[str, Union[dict[str, str], str]] = {DBItemAction.GET: {"by_id": "get_log_file_by_id",
                                                                                   "by_server": "get_log_file_by_server"},
                                                                DBItemAction.INSERT: "insert_log_file"}
-    ___db_insert_parameter___: dict[str, str] = {"id": "item_id",
+    ___db_insert_parameter___: dict[str, str] = {"item_id": "item_id",
                                                  "name": "name",
                                                  "server": "server.item_id",
                                                  "remote_path": "remote_path",
@@ -101,10 +103,10 @@ class LogFile(AbstractBaseItem):
                                                  "finished": "finished",
                                                  "game_map": "game_map.item_id",
                                                  "header_text": "header_text",
-                                                 "unparsable": "unparsable",
+                                                 "utc_offset": "utc_offset",
                                                  "comments": "comments"}
 
-    locks: dict[tuple[str, str], Lock] = {}
+    download_locks: dict[tuple[str, str], DownloadRlock] = {}
     file_name_regex = re.compile(r"""
                                     (?P<prefix>[a-z0-9]+)
                                     .
@@ -136,6 +138,7 @@ class LogFile(AbstractBaseItem):
                  finished: bool = False,
                  game_map: Union[int, "GameMap"] = None,
                  header_text: str = None,
+                 utc_offset: int = None,
                  unparsable: bool = None,
                  comments: str = None) -> None:
         self.name = name
@@ -150,50 +153,74 @@ class LogFile(AbstractBaseItem):
         self.header_text = header_text
         self.unparsable = unparsable
         self._item_id = item_id
+        self.utc_offset = utc_offset
         self.comments = comments
         self._file_name_info: dict[str, Any] = None
-        self._lock = None
+        self._download_lock = None
+        self.local_timezone: timezone = None
 
     @property
     def ___db_get_id_parameter__(self) -> dict[str, Any]:
         return {"name": self.name, "server": self.server.item_id}
 
     @property
-    def lock(self) -> Lock:
-        if self._lock is None:
-            if (self.server.name, self.name) not in self.locks:
-                self.locks[(self.server.name, self.name)] = Lock()
-            self._lock = self.locks.get((self.server.name, self.name))
-        return self._lock
+    def download_lock(self) -> Lock:
+        if self._download_lock is None:
+            if (self.server.name, self.name) not in self.download_locks:
+                self.download_locks[(self.server.name, self.name)] = DownloadRlock(self)
+            self._download_lock = self.download_locks.get((self.server.name, self.name))
+        return self._download_lock
+
+    @property
+    def keep_downloaded_file(self) -> bool:
+        return False
 
     def get_line_generator(self) -> Generator[EntryLine, None, None]:
-        with self.lock:
-            with self.download():
-                with self.local_path.open(encoding='utf-8', errors='ignore') as f:
-                    last_parsed_line_number = 0 if self.last_parsed_line_number is None else self.last_parsed_line_number
-                    current_line_number = 0
-                    for line in f:
-                        current_line_number += 1
-                        line = line.rstrip()
-                        if line != '' and current_line_number > last_parsed_line_number:
+        with self.download_lock:
+            with self.local_path.open(encoding='utf-8', errors='ignore') as f:
+                last_parsed_line_number = 0 if self.last_parsed_line_number is None else self.last_parsed_line_number
+                current_line_number = 0
+                for line in f:
+                    current_line_number += 1
+                    line = line.rstrip().replace(">>>", "")
+                    if line != '' and current_line_number > last_parsed_line_number:
 
-                            yield EntryLine(line.rstrip(), current_line_number)
+                        yield EntryLine(line.rstrip(), current_line_number)
 
     @property
     def file_name_info(self) -> dict[str, Any]:
         if self._file_name_info is None:
             match_data = self.file_name_regex.match(self.name)
-            local_created_at = datetime(**{key: int(value) for key, value in match_data.groupdict() if key not in {"prefix", "architecture"}})
+            local_created_at = datetime(**{key: int(value) for key, value in match_data.groupdict().items() if key not in {"prefix", "architecture"}})
             self._file_name_info = {"prefix": match_data.group("prefix"), "architecture": match_data.group("architecture"), "local_created_at": local_created_at}
         return self._file_name_info
 
-    def set_utc_created_at(self, data: dict[str, Any]) -> None:
-        first_utc_datetime: datetime = datetime(tzinfo=timezone.utc, **{key.removeprefix("utc_"): int(value) for key, value in data.items() if key.startswith('utc_')})
+    def search_utc_created_at(self, regex_keeper: "RegexKeeper") -> None:
+        if self.created_at is not None:
+            return
+        with self.download_lock:
+            with self.local_path.open('r', encoding='utf-8', errors='ignore') as f:
+                for line in f:
+                    line = line.rstrip()
+                    utc_match = regex_keeper.full_datetime.search(line)
+                    if utc_match:
+                        break
+        if utc_match is None:
+            self.unparsable = True
+            print(f"{self.name!r} is unparsable")
+            return
+
+        first_utc_datetime: datetime = datetime(tzinfo=timezone.utc, **{key.removeprefix('utc_'): int(value) for key, value in utc_match.groupdict().items() if key.startswith('utc_')})
         local_created_time: datetime = self.file_name_info.get("local_created_at").replace(tzinfo=timezone.utc)
         offset = first_utc_datetime - local_created_time
-        offset_hours = timedelta(hours=offset.total_seconds() // (60 * 60))
-        local_timezone = timezone(offset=offset_hours)
-        self.created_at = local_created_time.replace(tzinfo=local_timezone).astimezone(tz=timezone.utc)
+        offset_hours = offset.total_seconds() // (60 * 60)
+        if offset_hours > 24:
+            offset_hours = offset_hours - 24
+
+        self.utc_offset = offset_hours
+        self.local_timezone = timezone(offset=timedelta(hours=self.utc_offset))
+        self.created_at = local_created_time.replace(tzinfo=self.local_timezone).astimezone(tz=timezone.utc)
+        print(f"{self.utc_offset=}")
 
     @property
     def server(self) -> "Server":
@@ -224,14 +251,11 @@ class LogFile(AbstractBaseItem):
     def from_remote_log_file(cls, server: "Server", remote_log_file: "RemoteAntistasiLogFile") -> "LogFile":
 
         log_file = cls(item_id=None, name=remote_log_file.name, server=server, remote_path=remote_log_file.remote_path, size=remote_log_file.remote_size, modified_at=remote_log_file.modified_at, created_at=remote_log_file.created_at)
-        log_file.to_db()
+        log_file._item_id = log_file.to_db()
         return log_file
 
-    @contextmanager
     def download(self) -> None:
         self.webdav_manager.download(self)
-        yield
-        self.local_path.unlink(missing_ok=True)
 
     def update_from_remote_log_file(self, remote_log_file: "RemoteAntistasiLogFile", server: "Server" = None):
         self.size = remote_log_file.remote_size
@@ -241,10 +265,9 @@ class LogFile(AbstractBaseItem):
         self.to_db()
 
     def to_db(self):
-        result = self.database.insert_item(self)
-        if result is False:
-            # TODO: Custom Error!
-            raise RuntimeError(f"Inserting {self.name!r} of {self.server.name!r} into db, was FAILED!")
+
+        return self.database.insert_item(self, (self.item_id, self.name, self.server.item_id, self.remote_path, self.size, self.modified_at, self.created_at,
+                                                self.last_parsed_line_number, self.finished, self.game_map, self.header_text, self.utc_offset, self.comments))
 
     def __eq__(self, o: object) -> bool:
         if isinstance(o, self.__class__):

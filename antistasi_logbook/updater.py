@@ -111,12 +111,12 @@ class Updater(Thread):
     def _update_server(self, server: "Server"):
         list(self.thread_pool.map(self.parser.parse_log_file, server.update()))
 
-    @time_func()
     def _update(self) -> None:
         with self.update_lock:
 
             for server in self.webdav_manager.get_server_folder().values():
-                self._update_server(server)
+                if server.name == "Mainserver_1":
+                    self._update_server(server)
 
     def run(self) -> None:
         with self.update_requested_condition:

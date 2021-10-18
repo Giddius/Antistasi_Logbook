@@ -154,3 +154,5 @@ misc/
 /tools/create_venv_logs
 */workspace.code-workspace
 /.vscode
+
+/antistasi_logbook/storage/storage.db

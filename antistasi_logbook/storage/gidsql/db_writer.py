@@ -36,43 +36,37 @@ class GidSQLiteWriter(GidSqliteActionBase):
 
         conn = sqlite.connect(self.db_loc, isolation_level=None, detect_types=sqlite.PARSE_DECLTYPES)
 
-        cursor = conn.cursor()
         outcome = True
-        try:
-            self._execute_pragmas(cursor)
-            if variables is not None:
-                if isinstance(variables, str):
-                    cursor.execute(sql_phrase, (variables,))
-                    if self.log_execution is True:
-                        _log_sql_phrase = ' '.join(sql_phrase.replace('\n', ' ').split())
-                        _log_args = textwrap.shorten(str(variables), width=200, placeholder='...')
-                        log.debug("Executed sql phrase '%s' with args %s successfully", _log_sql_phrase, _log_args)
-                elif isinstance(variables, tuple):
-                    cursor.execute(sql_phrase, variables)
-                    if self.log_execution is True:
-                        _log_sql_phrase = ' '.join(sql_phrase.replace('\n', ' ').split())
-                        _log_args = textwrap.shorten(str(variables), width=200, placeholder='...')
-                        log.debug("Executed sql phrase '%s' with args %s successfully", _log_sql_phrase, _log_args)
-                elif isinstance(variables, list):
-                    cursor.executemany(sql_phrase, variables)
-                    if self.log_execution is True:
-                        _log_sql_phrase = ' '.join(sql_phrase.replace('\n', ' ').split())
-                        _log_args = textwrap.shorten(str(variables), width=200, placeholder='...')
-                        log.debug("ExecutedMany sql phrase from '%s' with arg-iterable %s successfully", _log_sql_phrase, _log_args)
-            else:
-                cursor.executescript(sql_phrase)
+
+        self._execute_pragmas(conn)
+        cursor = conn.cursor()
+        if variables is not None:
+            if isinstance(variables, str):
+                cursor.execute(sql_phrase, (variables,))
                 if self.log_execution is True:
                     _log_sql_phrase = ' '.join(sql_phrase.replace('\n', ' ').split())
-                    log.debug("ExecutedScript sql phrase '%s' successfully", _log_sql_phrase)
-            conn.commit()
-        except sqlite.Error as error:
-            outcome = False
-            _log_sql_phrase = ' '.join(sql_phrase.replace('\n', ' ').split())
-            _log_args = textwrap.shorten(str(variables), width=200, placeholder='...')
-            self._handle_error(error, _log_sql_phrase, _log_args)
-
-        finally:
-            conn.close()
+                    _log_args = textwrap.shorten(str(variables), width=200, placeholder='...')
+                    log.debug("Executed sql phrase '%s' with args %s successfully", _log_sql_phrase, _log_args)
+            elif isinstance(variables, tuple):
+                cursor.execute(sql_phrase, variables)
+                if self.log_execution is True:
+                    _log_sql_phrase = ' '.join(sql_phrase.replace('\n', ' ').split())
+                    _log_args = textwrap.shorten(str(variables), width=200, placeholder='...')
+                    log.debug("Executed sql phrase '%s' with args %s successfully", _log_sql_phrase, _log_args)
+            elif isinstance(variables, list):
+                cursor.executemany(sql_phrase, variables)
+                if self.log_execution is True:
+                    _log_sql_phrase = ' '.join(sql_phrase.replace('\n', ' ').split())
+                    _log_args = textwrap.shorten(str(variables), width=200, placeholder='...')
+                    log.debug("ExecutedMany sql phrase from '%s' with arg-iterable %s successfully", _log_sql_phrase, _log_args)
+        else:
+            cursor.executescript(sql_phrase)
+            if self.log_execution is True:
+                _log_sql_phrase = ' '.join(sql_phrase.replace('\n', ' ').split())
+                log.debug("ExecutedScript sql phrase '%s' successfully", _log_sql_phrase)
+        cursor.close()
+        conn.commit()
+        conn.close()
 
         return outcome
 

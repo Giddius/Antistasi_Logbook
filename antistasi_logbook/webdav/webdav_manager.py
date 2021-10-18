@@ -66,7 +66,7 @@ from queue import Queue
 
 from collections import deque
 from antistasi_logbook.webdav.info_item import InfoItem
-import antistasi_serverlog_statistic
+import antistasi_logbook
 from gidapptools.meta_data import app_meta, get_meta_item, get_meta_paths
 from threading import RLock
 from rich import print as rprint
@@ -140,7 +140,7 @@ class WebdavManager:
 
     _always_exclude_folder_names: list[str] = ['.vscode']
     _default_client: WebdavClient = None
-    download_semaphore = Semaphore(4)
+    download_semaphore = Semaphore(10)
     _remote_folder_cache: dict[RemotePath:Union[RemoteFolder, RemoteAntistasiLogFolder]] = {}
 
     def __init__(self, log_folder_remote_path: Path, database: StorageDB, client: WebdavClient = None) -> None:

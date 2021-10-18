@@ -106,7 +106,7 @@ class Server(AbstractBaseItem):
     ___db_phrases___: dict[str, Union[dict[str, str], str]] = {DBItemAction.GET: {"by_id": "get_server_by_id",
                                                                                   "all": "get_server"},
                                                                DBItemAction.INSERT: "insert_server"}
-    ___db_insert_parameter___: dict[str, str] = {"id": "item_id", "name": "name", "remote_path": "remote_path", "local_path": "local_path", "comments": "comments"}
+    ___db_insert_parameter___: dict[str, str] = {"item_id": "item_id", "name": "name", "remote_path": "remote_path", "local_path": "local_path", "comments": "comments"}
     remote_item_class = RemoteAntistasiLogFolder
 
     def __init__(self,
@@ -139,11 +139,15 @@ class Server(AbstractBaseItem):
             self._log_files = collected_log_items
         return self._log_files
 
+    @property
+    def log_file_time_limit(self) -> datetime:
+        return datetime.now(tz=timezone.utc) - timedelta(weeks=2)
+
     def __len__(self) -> int:
         return len(self.log_files)
 
     def get_remote_log_files(self) -> list[RemoteAntistasiLogFile]:
-        return self.remote_item.all_non_hc_log_files
+        return (item for item in self.remote_item.all_non_hc_log_files if item.modified_at >= self.log_file_time_limit)
 
     def update(self) -> Generator["LogFile", None, None]:
 
@@ -162,7 +166,8 @@ class Server(AbstractBaseItem):
 
         finished_log_file_names = {name for name, item in self.log_files.items() if item.finished is True}
         local_log_files = {name: log_file for name, log_file in self.log_files.items() if name not in finished_log_file_names}
-        for remote_log_file in self.get_remote_log_files():
+        for remote_log_file in reversed(list(self.get_remote_log_files())):
+
             if remote_log_file.name in finished_log_file_names:
                 continue
             local_log_file = local_log_files.pop(remote_log_file.name, None)
@@ -174,10 +179,12 @@ class Server(AbstractBaseItem):
 
             elif remote_log_file.remote_size < local_log_file.size:
                 raise RuntimeError(f'\n{"-"*25}\nSOMETHINGS WRONG WITH SIZE COMPARISON, REMOTE SIZE IS SMALLER THAN LOCAL SIZE {remote_log_file.remote_size=} < {local_log_file.size}\n{"-"*25}\n')
+            sleep(0.5)
         for name, log_file in local_log_files.items():
             if log_file.modified_at <= (datetime.now(tz=timezone.utc) + timedelta(hours=6)):
                 log_file.finished = True
                 log_file.to_db()
+
     # def __repr__(self) -> str:
     #     attr_text = ', '.join(f"{attr_name}={attr_value!r}" for attr_name, attr_value in (vars(self)).items() if not attr_name.startswith('_'))
     #     return f"{self.__class__.__name__}({attr_text})"

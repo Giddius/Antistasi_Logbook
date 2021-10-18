@@ -22,8 +22,12 @@ def find_name_version_pairs(in_data: str) -> dict[str, str]:
     for line in in_data.splitlines():
         line = line.strip()
         if line:
-            name, version = line.split()
-            _out[name] = version
+            try:
+                name, version = line.split()
+
+                _out[name] = version
+            except ValueError:
+                print(f"{line=}")
     return _out
 
 

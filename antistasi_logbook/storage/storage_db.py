@@ -84,6 +84,8 @@ if TYPE_CHECKING:
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 CONSOLE = RichConsole(soft_wrap=True, record=True)
+
+RETURN_ID_PHRASE = """select case changes() WHEN 0 THEN last_insert_rowid() else Null end;"""
 # endregion[Constants]
 
 
@@ -178,6 +180,12 @@ class StorageDB:
         self.db.startup_db()
         self.insert_parameter_converter = InsertParameterConverter(self.db.scripter)
 
+    @contextmanager
+    def connect(self):
+        with sqlite3.connect(self.db_path, isolation_level=None, detect_types=sqlite3.PARSE_DECLTYPES, check_same_thread=True) as connection:
+            self.db.writer._execute_pragmas(connection)
+            yield connection
+
     def exists_table(self, name: str) -> bool:
         query = "SELECT 1 FROM sqlite_master WHERE type='table' and name = ?"
         return self.query(phrase=query, variables=(name,), fetch=Fetch.One) is not None
@@ -225,10 +233,16 @@ class StorageDB:
 
         return self.query(phrase=phrase, row_factory=row_factory, variables=variables)
 
-    def insert_item(self, item: "AbstractBaseItem") -> bool:
+    def insert_item(self, item: "AbstractBaseItem", variables=None) -> Optional[int]:
         phrase = item.___db_phrases___[DBItemAction.INSERT]
-        variables = self.insert_parameter_converter.handle_insert_params(phrase=phrase, item=item)
-        return self.write(phrase=phrase, variables=variables)
+        if variables is None:
+            variables = self.insert_parameter_converter.handle_insert_params(phrase=phrase, item=item)
+        phrase = self.db.scripter.get(phrase, phrase)
+        with self.connect() as connection:
+            connection.execute(phrase, variables)
+            changes = connection.execute("SELECT changes()", tuple()).fetchone()[0]
+            if changes != 0:
+                return connection.execute("SELECT last_insert_rowid()", tuple()).fetchone()[0]
 
     def insert_many_items(self, items: Iterable["AbstractBaseItem"]) -> bool:
         phrase = items[0].___db_phrases___[DBItemAction.INSERT]
@@ -238,7 +252,7 @@ class StorageDB:
     def get_id(self, item: "AbstractBaseItem") -> None:
         table_name = self._check_safety_table_name(item.___db_table_name___, check_exists=True)
         if hasattr(item, "___db_get_id_parameter__"):
-            phrase = f'SELECT "id" FROM {table_name} WHERE '
+            phrase = f'SELECT "item_id" FROM {table_name} WHERE '
             conditions = []
             variables = []
             for k, v in item.___db_get_id_parameter__.items():
@@ -249,7 +263,7 @@ class StorageDB:
             variables = tuple(variables)
         else:
             variables = (item.name,)
-            phrase = f'SELECT "id" FROM {table_name} WHERE "name"=?'
+            phrase = f'SELECT "item_id" FROM {table_name} WHERE "name"=?'
 
         return self.query(phrase=phrase, variables=variables, fetch=Fetch.One)
 

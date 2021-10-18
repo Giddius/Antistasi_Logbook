@@ -41,10 +41,14 @@ class GidSqliteScriptProvider:
     def setup_scripts(self):
         # sourcery skip: inline-immediately-returned-variable, list-comprehension
         setup_scripts = []
+        base_setup_script = None
         for _file in os.scandir(self.script_folder):
             if os.path.isfile(_file.path) is True and _file.name.endswith('.sql') and _file.name.startswith(self.setup_prefix):
-                setup_scripts.append(Path(_file.path).read_text(encoding='utf-8', errors='ignore'))
-        return setup_scripts
+                if _file.name.removeprefix(self.setup_prefix).split('.')[0] == 'base':
+                    base_setup_script = Path(_file.path).read_text(encoding='utf-8', errors='ignore')
+                else:
+                    setup_scripts.append(Path(_file.path).read_text(encoding='utf-8', errors='ignore'))
+        return [script for script in [base_setup_script] + setup_scripts if script is not None]
 
     def __getitem__(self, key):
         _file = self.scripts.get(key, None)

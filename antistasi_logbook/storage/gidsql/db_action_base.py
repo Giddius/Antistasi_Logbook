@@ -59,10 +59,17 @@ class GidSqliteActionBase:
 
         raise sqlite.Error(error)
 
-    def _execute_pragmas(self, in_cursor):
+    def _execute_pragmas(self, in_connection: sqlite.Connection):
         if self.pragmas is not None and self.pragmas != '':
-            in_cursor.executescript(self.pragmas)
-            log.debug("Executed pragmas '%s' successfully", self.pragmas)
+            cursor = in_connection.cursor()
+            for pragma in self.pragmas.split(';'):
+                pragma = pragma.strip()
+                if not pragma:
+                    continue
+                cursor.execute(pragma)
+
+                log.debug("Executed pragma '%s' successfully", pragma)
+            cursor.close()
 
     def __repr__(self):
         return f"{self.__class__.__name__} ('{self.db_loc}')"

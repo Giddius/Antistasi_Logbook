@@ -50,9 +50,10 @@ from urllib.parse import urlparse
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
-
+from antistasi_logbook.items.base_item import AbstractBaseItem, DbRowToItemConverter
 if TYPE_CHECKING:
-    from antistasi_logbook.items.entries.entry_line import EntryLine
+    from antistasi_logbook.webdav.webdav_manager import WebdavManager
+    from antistasi_logbook.storage.storage_db import StorageDB
 # endregion[Imports]
 
 # region [TODO]
@@ -72,26 +73,27 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 # endregion[Constants]
 
 
-class RawEntry:
-    __slots__ = ("lines", "is_antistasi_entry", "parsed_data", "start", "end", "content")
+class Message:
+    database: "StorageDB" = None
 
-    def __init__(self, lines: Iterable["EntryLine"]) -> None:
-        self.lines = list(lines)
-        self.is_antistasi_entry = False
-        self.parsed_data: dict[str, Any] = None
-        self.start = min(line.start for line in self.lines if line)
-        self.end = max(line.start for line in self.lines if line)
-        self.content = ' '.join(line.content.strip() for line in self.lines if line.content)
+    def __init__(self,
+                 item_id: Optional[int],
+                 message: str) -> None:
+        self._item_id = item_id
+        self.message = message
 
     @property
-    def unformatted_content(self) -> str:
-        return '\n'.join(line.content for line in self.lines)
+    def item_id(self) -> Optional[int]:
+        if self._item_id is None:
+            with self.database.connect() as connection:
+                cursor = connection.cursor()
+                cursor.execute("""SELECT "item_id" FROM "Message_tbl" WHERE "message"=?""", (self.message,))
+                result = cursor.fetchone()
+                self._item_id = result[0]
+        return self._item_id
 
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(start={self.start!r}, end={self.end!r}, content={self.content!r}, is_antistasi_entry={self.is_antistasi_entry!r}, lines={self.lines!r})"
+
 # region[Main_Exec]
-
-
 if __name__ == '__main__':
     pass
 
