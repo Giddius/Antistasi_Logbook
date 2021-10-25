@@ -36,7 +36,7 @@ from pprint import pprint, pformat
 from pathlib import Path
 from string import Formatter, digits, printable, whitespace, punctuation, ascii_letters, ascii_lowercase, ascii_uppercase
 from timeit import Timer
-from typing import TYPE_CHECKING, Union, Callable, Iterable, Optional, Mapping, Any, IO, TextIO, BinaryIO, Hashable, Generator, Literal, TypeVar, TypedDict, AnyStr
+from typing import TYPE_CHECKING, Union, Callable, Iterable, Optional, Mapping, Any, IO, TextIO, BinaryIO, Hashable, Generator, Literal, TypeVar, TypedDict, AnyStr, Protocol
 from zipfile import ZipFile, ZIP_LZMA
 from datetime import datetime, timezone, timedelta
 from tempfile import TemporaryDirectory
@@ -54,7 +54,7 @@ from gidapptools.general_helper.dict_helper import replace_dict_keys
 from weakref import proxy
 if TYPE_CHECKING:
     from antistasi_logbook.webdav.webdav_manager import WebdavManager
-    from antistasi_logbook.storage.storage_db import StorageDB
+    from antistasi_logbook.storage.sqlite_database import GidSQLiteDatabase
 # endregion[Imports]
 
 # region [TODO]
@@ -95,9 +95,44 @@ class DbRowToItemConverter:
         return self.create_object_from_row(cursor=cursor, row=row)
 
 
+class AlternativeConstructor(Protocol):
+
+    def __call__(self, **kwds: Any) -> "AbstractBaseItem":
+        ...
+
+
+class BaseRowFactory:
+
+    def __init__(self, klass: type["AbstractBaseItem"], constructor: AlternativeConstructor = None) -> None:
+        self.klass = klass
+        self.constructor = self.klass if constructor is None else constructor
+
+    @cached_property
+    def _constructor_kwarg_names(self) -> tuple[str]:
+        return tuple(name for name, obj in inspect.signature(self.constructor).parameters.items() if obj.kind is not obj.VAR_KEYWORD)
+
+    def get_row_dict(self, cursor: sqlite3.Cursor, row: tuple[Any]) -> dict[str, Any]:
+        return {desc[0]: row[idx] for idx, desc in enumerate(cursor.description)}
+
+    def object_from_row(self, cursor: sqlite3.Cursor, row: tuple[Any], **kwargs: Any) -> "AbstractBaseItem":
+        row_dict = self.get_row_dict(cursor=cursor, row=row)
+        full_kwargs = row_dict | kwargs
+        return self.constructor(**full_kwargs)
+
+    def __call__(self, cursor: sqlite3.Cursor, row: tuple[Any], **kwargs: Any) -> "AbstractBaseItem":
+        return self.object_from_row(cursor=cursor, row=row, **kwargs)
+
+
 class AbstractBaseItem(ABC):
     webdav_manager: "WebdavManager" = None
-    database: "StorageDB" = None
+    database: "GidSQLiteDatabase" = None
+    ___row_factory___: BaseRowFactory = None
+
+    @classmethod
+    def ___get_db_row_factory___(cls) -> "BaseRowFactory":
+        if cls.___row_factory___ is None:
+            cls.___row_factory___ = BaseRowFactory(cls)
+        return cls.___row_factory___
 
     @property
     def item_id(self) -> Optional[int]:
@@ -118,11 +153,6 @@ class AbstractBaseItem(ABC):
     def set_database(cls, database: "StorageDB"):
         cls.database = database
         return cls
-
-    @classmethod
-    @abstractmethod
-    def ___get_db_row_factory___(cls, **kwargs) -> DbRowToItemConverter:
-        ...
 
 
 # region[Main_Exec]

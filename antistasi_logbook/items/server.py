@@ -73,7 +73,7 @@ from antistasi_logbook.utilities.rich_styles import PANEL_BORDER_STYLE, PANEL_ST
 from antistasi_logbook.utilities.path_utilities import RemotePath
 from antistasi_logbook.webdav.remote_item import RemoteAntistasiLogFolder, RemoteAntistasiLogFile
 from antistasi_logbook.items.log_file import LogFile
-from antistasi_logbook.items.base_item import AbstractBaseItem, DbRowToItemConverter
+from antistasi_logbook.items.base_item import AbstractBaseItem, BaseRowFactory
 from antistasi_logbook.items.enums import DBItemAction
 if TYPE_CHECKING:
     from gidapptools.meta_data.meta_print.meta_print_item import MetaPrint
@@ -102,11 +102,6 @@ META_PATHS: "MetaPaths" = get_meta_paths()
 
 
 class Server(AbstractBaseItem):
-    ___db_table_name___: str = "Server_tbl"
-    ___db_phrases___: dict[str, Union[dict[str, str], str]] = {DBItemAction.GET: {"by_id": "get_server_by_id",
-                                                                                  "all": "get_server"},
-                                                               DBItemAction.INSERT: "insert_server"}
-    ___db_insert_parameter___: dict[str, str] = {"item_id": "item_id", "name": "name", "remote_path": "remote_path", "local_path": "local_path", "comments": "comments"}
     remote_item_class = RemoteAntistasiLogFolder
 
     def __init__(self,
@@ -125,8 +120,8 @@ class Server(AbstractBaseItem):
         self._log_files: dict[str, "LogFile"] = None
 
     @classmethod
-    def ___get_db_row_factory___(cls) -> DbRowToItemConverter:
-        return DbRowToItemConverter(cls)
+    def get_all_server(cls) -> tuple("Server"):
+        return cls.database.read("get_all_server.sql", row_factory=cls.___get_db_row_factory___())
 
     @property
     def log_files(self) -> dict[str, "LogFile"]:

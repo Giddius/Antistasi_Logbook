@@ -50,7 +50,7 @@ from urllib.parse import urlparse
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
-from antistasi_logbook.items.log_file import LogFile, AbstractBaseItem, DbRowToItemConverter, DBItemAction
+from antistasi_logbook.items.log_file import LogFile, AbstractBaseItem, BaseRowFactory, DBItemAction
 from antistasi_logbook.items.entries.message import Message
 from antistasi_logbook.items.enums import LogLevel, PunishmentAction
 if TYPE_CHECKING:
@@ -122,7 +122,6 @@ class BaseEntry(AbstractBaseItem):
 
     ___entry_family___: EntryFamily = EntryFamily.GENERIC | EntryFamily.ANTISTASI
 
-    _db_row_factory: DbRowToItemConverter = None
     __slots__ = ("_item_id",
                  "_log_file",
                  "recorded_at",
@@ -241,12 +240,6 @@ class BaseEntry(AbstractBaseItem):
     @classmethod
     def check(cls, context: "ParseContext", raw_entry: "RawEntry") -> bool:
         ...
-
-    @classmethod
-    def ___get_db_row_factory___(cls, **kwargs) -> DbRowToItemConverter:
-        if cls._db_row_factory is None:
-            cls._db_row_factory = DbRowToItemConverter(cls.from_db_row)
-        return cls._db_row_factory
 
     @property
     def ___db_get_id_parameter__(self) -> dict[str, Any]:

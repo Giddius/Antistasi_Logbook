@@ -63,7 +63,7 @@ from gidapptools.general_helper.timing import time_execution, time_func
 from threading import Semaphore, Thread
 from gidapptools.general_helper.conversion import human2bytes
 from queue import Queue
-
+from httpx import Limits, Timeout
 from collections import deque
 from antistasi_logbook.webdav.info_item import InfoItem
 import antistasi_logbook
@@ -72,7 +72,7 @@ from threading import RLock
 from rich import print as rprint
 from antistasi_logbook.items.base_item import AbstractBaseItem
 from antistasi_logbook.items.server import Server
-from antistasi_logbook.storage.storage_db import StorageDB
+
 if TYPE_CHECKING:
     from gidapptools.meta_data.meta_print.meta_print_item import MetaPrint
     from antistasi_logbook.items.log_file import LogFile
@@ -141,21 +141,13 @@ class WebdavManager:
     _always_exclude_folder_names: list[str] = ['.vscode']
     _default_client: WebdavClient = None
     download_semaphore = Semaphore(10)
-    _remote_folder_cache: dict[RemotePath:Union[RemoteFolder, RemoteAntistasiLogFolder]] = {}
 
-    def __init__(self, log_folder_remote_path: Path, database: StorageDB, client: WebdavClient = None) -> None:
+    def __init__(self, log_folder_remote_path: Path, client: WebdavClient = None) -> None:
         self._client = client
-        self.database = database
-        self._add_manager_to_objects()
         self.log_folder_path = RemotePath(log_folder_remote_path)
-
+        self._remote_folder_cache: dict[RemotePath:Union[RemoteFolder, RemoteAntistasiLogFolder]] = {}
         self.downloads = []
         atexit.register(self.client.http.close)
-
-    def _add_manager_to_objects(self) -> None:
-        RemoteItem.set_webdav_manager(self)
-        AbstractBaseItem.set_webdav_manager(self)
-        AbstractBaseItem.set_database(self.database)
 
     def ls(self, path: Union[Path, str, RemotePath], klass: RemoteItem = None) -> Generator[Union[RemoteFile, RemoteFolder, RemoteAntistasiLogFile, RemoteAntistasiLogFolder], None, None]:
         path = RemotePath(path)
@@ -166,7 +158,7 @@ class WebdavManager:
             # if info["etag"] not in {item["etag"] for item in stored_ls_data[str(path)]}:
             #     stored_ls_data[str(path)].append(info.copy())
             info_item = InfoItem.from_webdav_info(info)
-            item = RemoteItem.make(info_item, klass=klass)
+            item = RemoteItem.make(manager=self, info=info_item, klass=klass)
             if item.is_dir() and item.name.casefold() in self.always_exclude_folder_names:
                 continue
             if item.is_dir() is True:
@@ -186,10 +178,7 @@ class WebdavManager:
             return self._remote_folder_cache[path]
 
         info_item = self.info(path=path)
-        return RemoteItem.make(info=info_item, klass=klass)
-
-    def get_server_folder(self) -> dict[str, Server]:
-        return {server.name: server for server in self.database.get_items(Server)}
+        return RemoteItem.make(manager=self, info=info_item, klass=klass)
 
     @ property
     def client(self) -> WebdavClient:
@@ -197,6 +186,12 @@ class WebdavManager:
             return self.default_client
 
         return self._client
+
+    @classmethod
+    def from_remote_type(cls, base_url: str, log_folder: RemotePath, login: str, password: str) -> "WebdavManager":
+        base_url = f"{base_url}/{login}/"
+        client = WebdavClient(base_url=base_url, auth=(login, password), retry=True, timeout=Timeout(20), limits=Limits(max_connections=10, max_keepalive_connections=5, keepalive_expiry=20))
+        return cls(log_folder_remote_path=log_folder, client=client)
 
     @ classmethod
     @ property

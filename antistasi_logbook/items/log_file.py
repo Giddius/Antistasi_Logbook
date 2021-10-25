@@ -54,7 +54,7 @@ from importlib.machinery import SourceFileLoader
 from weakref import proxy
 from threading import Lock
 from antistasi_logbook.utilities.path_utilities import RemotePath
-from antistasi_logbook.items.base_item import AbstractBaseItem, DbRowToItemConverter
+from antistasi_logbook.items.base_item import AbstractBaseItem, BaseRowFactory, AlternativeConstructor
 from antistasi_logbook.items.enums import DBItemAction
 from antistasi_logbook.items.entries.entry_line import EntryLine
 from antistasi_logbook.utilities.locks import DownloadRlock
@@ -88,23 +88,6 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 @total_ordering
 class LogFile(AbstractBaseItem):
-    ___db_table_name___: str = "LogFile_tbl"
-    ___db_phrases___: dict[str, Union[dict[str, str], str]] = {DBItemAction.GET: {"by_id": "get_log_file_by_id",
-                                                                                  "by_server": "get_log_file_by_server"},
-                                                               DBItemAction.INSERT: "insert_log_file"}
-    ___db_insert_parameter___: dict[str, str] = {"item_id": "item_id",
-                                                 "name": "name",
-                                                 "server": "server.item_id",
-                                                 "remote_path": "remote_path",
-                                                 "size": "size",
-                                                 "modified_at": "modified_at",
-                                                 "created_at": "created_at",
-                                                 "last_parsed_line_number": "last_parsed_line_number",
-                                                 "finished": "finished",
-                                                 "game_map": "game_map.item_id",
-                                                 "header_text": "header_text",
-                                                 "utc_offset": "utc_offset",
-                                                 "comments": "comments"}
 
     download_locks: dict[tuple[str, str], DownloadRlock] = {}
     file_name_regex = re.compile(r"""
@@ -158,10 +141,6 @@ class LogFile(AbstractBaseItem):
         self._file_name_info: dict[str, Any] = None
         self._download_lock = None
         self.local_timezone: timezone = None
-
-    @property
-    def ___db_get_id_parameter__(self) -> dict[str, Any]:
-        return {"name": self.name, "server": self.server.item_id}
 
     @property
     def download_lock(self) -> Lock:
@@ -238,10 +217,6 @@ class LogFile(AbstractBaseItem):
     @game_map.setter
     def game_map(self, value: str) -> None:
         self._game_map = value
-
-    @classmethod
-    def ___get_db_row_factory___(cls) -> DbRowToItemConverter:
-        return DbRowToItemConverter(cls)
 
     @property
     def local_path(self) -> Optional[Path]:

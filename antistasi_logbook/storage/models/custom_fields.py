@@ -50,8 +50,10 @@ from urllib.parse import urlparse
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
-
-
+from peewee import Model, TextField, IntegerField, BooleanField, AutoField, DateTimeField, ForeignKeyField, SQL, BareField, SqliteDatabase, Field
+from antistasi_logbook.utilities.path_utilities import RemotePath
+from antistasi_logbook.items.enums import LogLevel, PunishmentAction
+import attr
 # endregion[Imports]
 
 # region [TODO]
@@ -71,7 +73,52 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 # endregion[Constants]
 
 
-# region[Main_Exec]
+@attr.s(slots=True, auto_attribs=True, auto_detect=True, frozen=True)
+class Version:
+    major: int = attr.ib()
+    minor: int = attr.ib()
+    patch: int = attr.ib()
+
+    def __str__(self) -> str:
+        return f"{self.major}.{self.minor}.{self.patch}"
+
+
+class RemotePathField(Field):
+    field_type = "REMOTEPATH"
+
+    def db_value(self, value: RemotePath) -> Optional[str]:
+        if value is not None:
+            return value._path.as_posix()
+
+    def python_value(self, value) -> Optional[RemotePath]:
+        if value is not None:
+            return RemotePath(value)
+
+
+class PathField(Field):
+    field_type = "PATH"
+
+    def db_value(self, value: Path) -> Optional[str]:
+        if value is not None:
+            return value.as_posix()
+
+    def python_value(self, value) -> Optional[Path]:
+        if value is not None:
+            return Path(value)
+
+
+class VersionField(Field):
+    field_type = "VERSION"
+
+    def db_value(self, value: Version):
+        if value is not None:
+            return str(value)
+
+    def python_value(self, value) -> Version:
+        return Version(*value.split('.'))
+
+
+        # region[Main_Exec]
 if __name__ == '__main__':
     pass
 

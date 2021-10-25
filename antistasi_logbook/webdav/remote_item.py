@@ -97,13 +97,14 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 
 class RemoteItem:
-    webdav_manager: "WebdavManager" = None
+
     item_type: RemoteItemType = None
 
-    def __init__(self, name: str, modified_at: datetime, remote_path: RemotePath, etag: str, original_info_item: InfoItem, **unwanted_kwargs) -> None:
+    def __init__(self, name: str, modified_at: datetime, remote_path: RemotePath, webdav_manager: "WebdavManager", etag: str, original_info_item: InfoItem, **unwanted_kwargs) -> None:
         self.name = name
         self.modified_at = modified_at
         self.remote_path = remote_path
+        self.webdav_manager = webdav_manager
         self.etag = etag
         self.original_info_item = original_info_item
 
@@ -132,25 +133,25 @@ class RemoteItem:
         )
 
     @classmethod
-    def make(cls, info: InfoItem, klass: "RemoteItem" = None) -> Union["RemoteFolder", "RemoteFile", "RemoteAntistasiLogFolder", "RemoteAntistasiLogFile"]:
+    def make(cls, manager: "WebdavManager", info: InfoItem, klass: "RemoteItem" = None) -> Union["RemoteFolder", "RemoteFile", "RemoteAntistasiLogFolder", "RemoteAntistasiLogFile"]:
         def _make_directory(in_info: InfoItem) -> Union[RemoteFolder, RemoteAntistasiLogFolder]:
-            return RemoteFolder(**in_info.as_dict(), original_info_item=in_info)
+            return RemoteFolder(webdav_manager=manager, **in_info.as_dict(), original_info_item=in_info)
 
         def _make_file(in_info: InfoItem) -> Union[RemoteFile, RemoteAntistasiLogFile]:
             if in_info.content_type is ContentType.TEXT and in_info.name.casefold().startswith(cls.log_file_name_prefix):
-                return RemoteAntistasiLogFile(**in_info.as_dict(), original_info_item=in_info)
+                return RemoteAntistasiLogFile(webdav_manager=manager, **in_info.as_dict(), original_info_item=in_info)
 
-            return RemoteFile(**in_info.as_dict(), original_info_item=in_info)
+            return RemoteFile(webdav_manager=manager, **in_info.as_dict(), original_info_item=in_info)
         if klass is not None:
-            return klass(**info.as_dict(), original_info_item=info)
+            return klass(webdav_manager=manager, **info.as_dict(), original_info_item=info)
         if info.type is RemoteItemType.FILE:
             return _make_file(info)
         elif info.type is RemoteItemType.DIRECTORY:
             return _make_directory(info)
 
     @classmethod
-    def from_path(cls, path: Union[Path, str, RemotePath]) -> Union["RemoteFolder", "RemoteFile", "RemoteAntistasiLogFolder", "RemoteAntistasiLogFile"]:
-        return cls.webdav_manager.get_remote_item(path=path, klass=cls)
+    def from_path(cls, manager: "WebdavManager", path: Union[Path, str, RemotePath]) -> Union["RemoteFolder", "RemoteFile", "RemoteAntistasiLogFolder", "RemoteAntistasiLogFile"]:
+        return manager.get_remote_item(path=path, klass=cls)
 
     @classmethod
     def set_webdav_manager(cls, manager: "WebdavManager") -> None:
@@ -242,7 +243,7 @@ class RemoteAntistasiLogFolder(RemoteFolder):
 
     @property
     def main_log_folder(self) -> RemoteFolder:
-        return self.from_path(path=self.remote_path.joinpath('Server'))
+        return self.from_path(manager=self.webdav_manager, path=self.remote_path.joinpath('Server'))
 
     @property
     def hc_folder(self) -> list[RemoteFolder]:
@@ -273,11 +274,11 @@ class RemoteFile(RemoteItem):
 
     item_type: RemoteItemType = RemoteItemType.FILE
 
-    def __init__(self, name: str, modified_at: datetime, remote_path: str, etag: str, remote_size: int, content_type: ContentType, original_info_item: InfoItem, **unwanted_kwargs) -> None:
+    def __init__(self, name: str, modified_at: datetime, remote_path: str, webdav_manager: "WebdavManager", etag: str, remote_size: int, content_type: ContentType, original_info_item: InfoItem, **unwanted_kwargs) -> None:
         self.remote_size = remote_size
         self.content_type = content_type
 
-        super().__init__(name=name, modified_at=modified_at, remote_path=remote_path, etag=etag, original_info_item=original_info_item, **unwanted_kwargs)
+        super().__init__(name=name, modified_at=modified_at, remote_path=remote_path, webdav_manager=webdav_manager, etag=etag, original_info_item=original_info_item, **unwanted_kwargs)
 
     @ property
     def remote_size_pretty(self) -> str:
@@ -309,8 +310,8 @@ class RemoteFile(RemoteItem):
 
 class RemoteAntistasiLogFile(RemoteFile):
 
-    def __init__(self, name: str, modified_at: datetime, remote_path: str, etag: str, remote_size: int, content_type: ContentType, original_info_item: InfoItem, created_at: datetime = None, **unwanted_kwargs) -> None:
-        super().__init__(name=name, modified_at=modified_at, remote_path=remote_path, etag=etag, remote_size=remote_size, content_type=content_type, original_info_item=original_info_item, **unwanted_kwargs)
+    def __init__(self, name: str, modified_at: datetime, remote_path: str, webdav_manager: "WebdavManager", etag: str, remote_size: int, content_type: ContentType, original_info_item: InfoItem, created_at: datetime = None, **unwanted_kwargs) -> None:
+        super().__init__(name=name, modified_at=modified_at, remote_path=remote_path, webdav_manager=webdav_manager, etag=etag, remote_size=remote_size, content_type=content_type, original_info_item=original_info_item, **unwanted_kwargs)
         self.created_at = created_at
 
     @ cached_property

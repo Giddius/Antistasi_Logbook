@@ -60,7 +60,7 @@ from gidapptools.general_helper.timing import time_execution
 from antistasi_logbook.webdav.webdav_manager import WebdavManager
 from antistasi_logbook.items.base_item import AbstractBaseItem
 from antistasi_logbook.items.entries.message import Message
-from antistasi_logbook.storage.storage_db import StorageDB
+from antistasi_logbook.storage.sqlite_database import GidSQLiteDatabase
 from antistasi_logbook.updater import Updater
 import atexit
 # endregion[Imports]
@@ -99,8 +99,8 @@ def main():
     load_dotenv(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_ServerLog_Statistic\antistasi_serverlog_statistic\nextcloud.env")
     for item in AbstractBaseItem.__subclasses__():
         if inspect.isabstract(item) is False:
-            StorageDB.register_item(item)
-    db = StorageDB()
+            GidSQLiteDatabase.registry.register_with_subclasses(item)
+    db = GidSQLiteDatabase()
     Message.database = db
     web_dav = WebdavManager(log_folder_remote_path="Antistasi_Community_Logs", database=db)
     updater = Updater(timedelta(seconds=10000), db, web_dav, thread_pool=ThreadPoolExecutor(10))
