@@ -70,12 +70,12 @@ import antistasi_logbook
 from gidapptools.meta_data import app_meta, get_meta_item, get_meta_paths
 from threading import RLock
 from rich import print as rprint
-from antistasi_logbook.items.base_item import AbstractBaseItem
-from antistasi_logbook.items.server import Server
-
+import yarl
+from antistasi_logbook.errors import MissingLoginError
+from antistasi_logbook.utilities.path_utilities import url_to_path
+from antistasi_logbook.utilities.enums import RemoteItemType
 if TYPE_CHECKING:
-    from gidapptools.meta_data.meta_print.meta_print_item import MetaPrint
-    from antistasi_logbook.items.log_file import LogFile
+
     from gidapptools.meta_data.interface import MetaPaths
 # endregion[Imports]
 
@@ -92,143 +92,74 @@ if TYPE_CHECKING:
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
-META_PRINT: "MetaPrint" = get_meta_item('meta_print')
+
 META_PATHS: "MetaPaths" = get_meta_paths()
 atexit.register(META_PATHS.clean_up)
 # endregion[Constants]
 
 
-class NoThreadPoolExecutor:
+class AbstractRemoteStorageManager(ABC):
 
-    def map(self, func, items):
-        return map(func, items)
+    @abstractmethod
+    def get_files(self, folder_path: RemotePath) -> Generator:
+        ...
 
-    def shutdown(self):
-        return
-
-
-# LS_SAVE_JSON = THIS_FILE_DIR.joinpath('fake_ls_data.json')
-# if LS_SAVE_JSON.exists() is False:
-#     LS_SAVE_JSON.write_text('{}', encoding='utf-8', errors='ignore')
-# LS_SAVE_LOCK = RLock()
+    @abstractmethod
+    def get_info(self, file_path: RemotePath) -> InfoItem:
+        ...
 
 
-# @contextmanager
-# def save_ls_values():
-#     with LS_SAVE_LOCK:
-#         data = json.loads(LS_SAVE_JSON.read_text(encoding='utf-8', errors='ignore'))
-#         yield data
-#         with LS_SAVE_JSON.open('w', encoding='utf-8', errors='ignore') as f:
-#             json.dump(data, f, sort_keys=True, indent=4, default=str)
+class LocalManager(AbstractRemoteStorageManager):
+
+    def __init__(self, base_url: yarl.URL, login: str, password: str) -> None:
+        try:
+            self.path = url_to_path(base_url)
+        except AssertionError:
+            self.path = Path.cwd()
+
+    def get_files(self, folder_path: Path) -> Generator:
+        return (self.get_info(file) for file in folder_path.iterdir() if file.is_file())
+
+    def get_info(self, file_path: Path) -> InfoItem:
+        stat = file_path.stat()
+        info = {"size": stat.st_size,
+                "created_at": stat.st_ctime,
+                "modified_at": stat.st_mtime,
+                "name": file_path.stem}
+        return info
 
 
-# INFO_SAVE_LOCK = RLock()
-# INFO_SAVE_JSON = THIS_FILE_DIR.joinpath('fake_info_data.json')
-# INFO_SAVE_JSON.write_text('{}', encoding='utf-8', errors='ignore')
+class WebdavManager(AbstractRemoteStorageManager):
+    _extra_base_url_parts = ["dev_drive", "remote.php", "dav", "files"]
 
+    def __init__(self, base_url: yarl.URL, login: str, password: str) -> None:
+        self.raw_base_url = base_url
+        self.login = login
+        self.password = password
+        self.full_base_url = self._make_full_base_url()
+        self._client: WebdavClient = None
 
-# @contextmanager
-# def save_info_values():
-#     with INFO_SAVE_LOCK:
-#         data = json.loads(INFO_SAVE_JSON.read_text(encoding='utf-8', errors='ignore'))
-#         yield data
-#         with INFO_SAVE_JSON.open('w', encoding='utf-8', errors='ignore') as f:
-#             json.dump(data, f, sort_keys=True, indent=4, default=str)
-
-
-class WebdavManager:
-
-    _always_exclude_folder_names: list[str] = ['.vscode']
-    _default_client: WebdavClient = None
-    download_semaphore = Semaphore(10)
-
-    def __init__(self, log_folder_remote_path: Path, client: WebdavClient = None) -> None:
-        self._client = client
-        self.log_folder_path = RemotePath(log_folder_remote_path)
-        self._remote_folder_cache: dict[RemotePath:Union[RemoteFolder, RemoteAntistasiLogFolder]] = {}
-        self.downloads = []
-        atexit.register(self.client.http.close)
-
-    def ls(self, path: Union[Path, str, RemotePath], klass: RemoteItem = None) -> Generator[Union[RemoteFile, RemoteFolder, RemoteAntistasiLogFile, RemoteAntistasiLogFolder], None, None]:
-        path = RemotePath(path)
-        # with save_ls_values() as stored_ls_data:
-        #     if str(path) not in stored_ls_data:
-        #         stored_ls_data[str(path)] = []
-        for info in self.client.ls(path=path):
-            # if info["etag"] not in {item["etag"] for item in stored_ls_data[str(path)]}:
-            #     stored_ls_data[str(path)].append(info.copy())
-            info_item = InfoItem.from_webdav_info(info)
-            item = RemoteItem.make(manager=self, info=info_item, klass=klass)
-            if item.is_dir() and item.name.casefold() in self.always_exclude_folder_names:
-                continue
-            if item.is_dir() is True:
-                self._remote_folder_cache[item.remote_path] = item
-
-            yield item
-
-    def info(self, path: Union[Path, str, RemotePath]) -> InfoItem:
-        path = RemotePath(path)
-        # with save_info_values() as stored_info_data:
-        info = self.client.info(path=path)
-        # stored_info_data[str(path)] = info.copy()
-        return InfoItem.from_webdav_info(info)
-
-    def get_remote_item(self, path: Union[Path, str, RemotePath], klass: RemoteItem = None) -> RemoteItem:
-        if path in self._remote_folder_cache:
-            return self._remote_folder_cache[path]
-
-        info_item = self.info(path=path)
-        return RemoteItem.make(manager=self, info=info_item, klass=klass)
-
-    @ property
+    @property
     def client(self) -> WebdavClient:
         if self._client is None:
-            return self.default_client
-
+            self._client = WebdavClient(base_url=str(self.full_base_url), auth=(self.login, self.password))
         return self._client
 
-    @classmethod
-    def from_remote_type(cls, base_url: str, log_folder: RemotePath, login: str, password: str) -> "WebdavManager":
-        base_url = f"{base_url}/{login}/"
-        client = WebdavClient(base_url=base_url, auth=(login, password), retry=True, timeout=Timeout(20), limits=Limits(max_connections=10, max_keepalive_connections=5, keepalive_expiry=20))
-        return cls(log_folder_remote_path=log_folder, client=client)
+    def _make_full_base_url(self) -> yarl.URL:
+        extra_parts = '/'.join([str(part) for part in self._extra_base_url_parts if part not in self.raw_base_url.parts])
+        return self.raw_base_url.join(yarl.URL(extra_parts))
 
-    @ classmethod
-    @ property
-    def always_exclude_folder_names(cls) -> set[str]:
-        return {item.casefold() for item in cls._always_exclude_folder_names}
+    def get_files(self, folder_path: RemotePath) -> Generator:
+        for item in self.client.ls(folder_path):
+            info = InfoItem.from_webdav_info(item)
+            if info.content_type is RemoteItemType.DIRECTORY:
+                continue
+            yield info
 
-    @ classmethod
-    @ property
-    def default_client(cls) -> WebdavClient:
-
-        def _create_client() -> WebdavClient:
-            return get_webdav_client()
-
-        if cls._default_client is None:
-            cls._default_client = _create_client()
-        return cls._default_client
-
-    @ classmethod
-    def set_default_client(cls, client: WebdavClient) -> None:
-        cls._default_client = client
-
-    def _download(self, remote_path: RemotePath, local_path: Path):
-        with self.download_semaphore:
-            print(f"downloading {local_path.stem!r} to {local_path.as_posix()!r}.")
-            self.client.download_file(remote_path, local_path, chunk_size=human2bytes("1 mb"))
-
-    def download(self, file: Union[RemoteFile, "LogFile"], random_start_delay: int = None) -> RemoteFile:
-
-        if random_start_delay is not None:
-            sleep(random.randint(0, random_start_delay))
-
-        file.local_path.parent.mkdir(exist_ok=True, parents=True)
-
-        self._download(file.remote_path, file.local_path)
-
-        return file
-    # region[Main_Exec]
+    def get_info(self, file_path: RemotePath) -> InfoItem:
+        info = self.client.info(file_path)
+        return InfoItem.from_webdav_info(info)
+# region[Main_Exec]
 
 
 if __name__ == '__main__':

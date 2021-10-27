@@ -1,25 +1,21 @@
 INSERT
-    OR IGNORE INTO "RemoteType" ("name", "id")
+    OR IGNORE INTO "RemoteStorage" ("name", "id", "base_url", "manager_type")
 VALUES
-    ("local", 0);
+    ("local_files", 0, "--LOCAL--", "LocalManager");
 
 INSERT
-    OR IGNORE INTO "RemoteType" (
+    OR IGNORE INTO "RemoteStorage" (
         "name",
         "id",
-        "log_folder",
         "base_url",
-        "login",
-        "password"
+        "manager_type"
     )
 VALUES
     (
-        "webdav",
+        "community_webdav",
         1,
-        "Antistasi_Community_Logs",
-        "https://antistasi.de/dev_drive/remote.php/dav/files",
-        "Giddi",
-        "erZPi-dCKpH-2baKg-cHZtK-zjBxE"
+        "https://antistasi.de",
+        "WebdavManager"
     );
 
 INSERT
@@ -68,61 +64,61 @@ values
     ("DAMAGE", 2);
 
 INSERT
-    OR IGNORE INTO "Server" ("name", "remote_path", "remote_type")
+    OR IGNORE INTO "Server" ("name", "remote_path", "remote_storage")
 values
     ("NO_SERVER", "NO_PATH", 0);
 
 INSERT
-    OR IGNORE INTO "Server" ("name", "remote_path", "remote_type")
+    OR IGNORE INTO "Server" ("name", "remote_path", "remote_storage")
 values
     (
         "Mainserver_1",
-        "Antistasi_Community_Logs/Mainserver_1",
+        "Antistasi_Community_Logs/Mainserver_1/Server",
         1
     );
 
 INSERT
-    OR IGNORE INTO "Server" ("name", "remote_path", "remote_type")
+    OR IGNORE INTO "Server" ("name", "remote_path", "remote_storage")
 values
     (
         "Mainserver_2",
-        "Antistasi_Community_Logs/Mainserver_2",
+        "Antistasi_Community_Logs/Mainserver_2/Server",
         1
     );
 
 INSERT
-    OR IGNORE INTO "Server" ("name", "remote_path", "remote_type")
+    OR IGNORE INTO "Server" ("name", "remote_path", "remote_storage")
 values
     (
         "Testserver_1",
-        "Antistasi_Community_Logs/Testserver_1",
+        "Antistasi_Community_Logs/Testserver_1/Server",
         1
     );
 
 INSERT
-    OR IGNORE INTO "Server" ("name", "remote_path", "remote_type")
+    OR IGNORE INTO "Server" ("name", "remote_path", "remote_storage")
 values
     (
         "Testserver_2",
-        "Antistasi_Community_Logs/Testserver_2",
+        "Antistasi_Community_Logs/Testserver_2/Server",
         1
     );
 
 INSERT
-    OR IGNORE INTO "Server" ("name", "remote_path", "remote_type")
+    OR IGNORE INTO "Server" ("name", "remote_path", "remote_storage")
 values
     (
         "Testserver_3",
-        "Antistasi_Community_Logs/Testserver_3",
+        "Antistasi_Community_Logs/Testserver_3/Server",
         1
     );
 
 INSERT
-    OR IGNORE INTO "Server" ("name", "remote_path", "remote_type")
+    OR IGNORE INTO "Server" ("name", "remote_path", "remote_storage")
 values
     (
         "Eventserver",
-        "Antistasi_Community_Logs/Eventserver",
+        "Antistasi_Community_Logs/Eventserver/Server",
         1
     );
 

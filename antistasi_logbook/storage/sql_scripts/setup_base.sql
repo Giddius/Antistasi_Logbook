@@ -8,14 +8,14 @@ CREATE TABLE IF NOT EXISTS "PunishmentAction" (
     "name" TEXT UNIQUE NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS "RemoteType" (
+CREATE TABLE IF NOT EXISTS "RemoteStorage" (
     "id" INTEGER PRIMARY KEY,
     "name" TEXT UNIQUE NOT NULL,
-    "base_url" TEXT,
-    "log_folder" REMOTEPATH,
+    "base_url" URL,
     "login" TEXT,
     "password" TEXT,
-    UNIQUE("base_url", "login", "password")
+    "manager_type" TEXT NOT NULL,
+    UNIQUE("base_url", "login", "password", "manager_type")
 );
 
 CREATE TABLE IF NOT EXISTS "Server" (
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS "Server" (
     "local_path" PATH UNIQUE,
     "name" TEXT UNIQUE NOT NULL,
     "remote_path" REMOTEPATH UNIQUE,
-    "remote_type" INTEGER NOT NULL DEFAULT 0 REFERENCES "RemoteType" ("id") ON DELETE CASCADE,
+    "remote_storage" INTEGER NOT NULL DEFAULT 0 REFERENCES "RemoteStorage" ("id") ON DELETE CASCADE,
     "comments" TEXT
 );
 

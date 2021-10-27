@@ -53,7 +53,7 @@ from urllib.parse import urlparse
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
-
+import yarl
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Union, TYPE_CHECKING
 import logging
@@ -81,13 +81,26 @@ if TYPE_CHECKING:
     from antistasi_logbook.utilities.date_time_utilities import DatetimeDuration
 
 
-class BaseAntistasiServerlogStatisticsError(Exception):
+class BaseAntistasiLogBookError(Exception):
     """
     Base Error for antistasi_serverlog_statistics package.
     """
 
 
-class DurationTimezoneError(BaseAntistasiServerlogStatisticsError):
+class BaseRemoteStorageError(BaseAntistasiLogBookError):
+    ...
+
+
+class MissingLoginError(BaseRemoteStorageError):
+
+    def __init__(self, base_url: yarl.URL, typus: type) -> None:
+        self.base_url = base_url
+        self.typus = typus
+        self.msg = f"No Login stored for {self.typus.__name__!r} with base_url {self.base_url}."
+        super().__init__(self.msg)
+
+
+class DurationTimezoneError(BaseAntistasiLogBookError):
     def __init__(self, duration_item: "DatetimeDuration", start_tz: Optional[timezone], end_tz: Optional[timezone], message: str) -> None:
         self.duration_item = duration_item
         self.start_tz = start_tz

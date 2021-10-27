@@ -25,7 +25,8 @@ import platform
 import importlib
 import subprocess
 import inspect
-
+from antistasi_logbook import setup
+setup()
 from time import sleep, process_time, process_time_ns, perf_counter, perf_counter_ns
 from io import BytesIO, StringIO
 from abc import ABC, ABCMeta, abstractmethod
@@ -53,8 +54,15 @@ from importlib.machinery import SourceFileLoader
 from peewee import Model, TextField, IntegerField, BooleanField, AutoField, DateTimeField, ForeignKeyField, SQL, BareField, SqliteDatabase, Field
 from playhouse.sqlite_ext import SqliteExtDatabase
 from playhouse.sqliteq import SqliteQueueDatabase
+import yarl
 from gidapptools.gid_signal.interface import get_signal
+from gidapptools.meta_data.interface import get_meta_paths, MetaPaths, get_meta_config
+
 from antistasi_logbook.storage.models.models import database, Server
+from antistasi_logbook.webdav.webdav_manager import AbstractRemoteStorageManager, LocalManager, WebdavManager
+
+if TYPE_CHECKING:
+    from gidapptools.gid_config.interface import GidIniConfig
 # endregion[Imports]
 
 # region [TODO]
@@ -70,7 +78,8 @@ from antistasi_logbook.storage.models.models import database, Server
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
-
+META_PATHS: MetaPaths = get_meta_paths()
+CONFIG: "GidIniConfig" = get_meta_config().get_config('general')
 # endregion[Constants]
 
 FIND_INT_REGEX = re.compile(r"\d+")
@@ -157,7 +166,7 @@ class GidSQLiteScriptLoader:
         return f"{self.__class__.__name__}(script_folder={self.script_folder.as_posix()!r}, setup_prefix={self.setup_prefix!r})"
 
 
-class GidSqliteQueueDatabase(SqliteQueueDatabase):
+class GidSqliteQueueDatabase(SqliteExtDatabase):
     default_pragmas = {
         "cache_size": -1024 * 64,
         "journal_mode": "wal",
@@ -168,17 +177,22 @@ class GidSqliteQueueDatabase(SqliteQueueDatabase):
     default_extensions = {"json_contains": True,
                           "regexp_function": True}
 
+    default_db_name = "storage.db"
+    default_db_path = META_PATHS.db_dir if os.getenv('IS_DEV', 'false') == "false" else THIS_FILE_DIR
+
+    default_script_folder = THIS_FILE_DIR.joinpath("sql_scripts")
+
     def __init__(self,
-                 database_path: Path,
-                 script_folder: Path,
+                 database_path: Path = None,
+                 script_folder: Path = None,
                  use_gevent=False,
                  autostart=True,
                  queue_max_size=None,
                  results_timeout=None,
                  pragmas=None,
                  extensions=None):
-        self.path = Path(database_path)
-        self.script_folder = Path(script_folder)
+        self.path = self.default_db_path.joinpath(self.default_db_name) if database_path is None else Path(database_path)
+        self.script_folder = self.default_script_folder if script_folder is None else Path(script_folder)
         self.script_provider = GidSQLiteScriptLoader(self.script_folder)
         self.started_up = False
         extensions = self.default_extensions if extensions is None else extensions
@@ -194,29 +208,37 @@ class GidSqliteQueueDatabase(SqliteQueueDatabase):
 class GidSQLiteDatabase(SqliteExtDatabase):
     default_pragmas = {
         "cache_size": -1024 * 64,
-        "journal_mode": "wal",
-        "synchronous": 0,
+        "journal_mode": "OFF",
+        "synchronous": "OFF",
         "ignore_check_constraints": 0,
         "foreign_keys": 1
     }
 
     default_extensions = {"json_contains": True,
                           "regexp_function": True}
+    default_db_name = "storage.db"
+    default_db_path = META_PATHS.db_dir if os.getenv('IS_DEV', 'false') == "false" else THIS_FILE_DIR
+
+    default_script_folder = THIS_FILE_DIR.joinpath("sql_scripts")
 
     def __init__(self,
-                 database_path: Path,
-                 script_folder: Path,
+                 database_path: Path = None,
+                 script_folder: Path = None,
                  pragmas=None,
                  extensions=None):
-        self.path = Path(database_path)
-        self.script_folder = Path(script_folder)
+        self.path = self.default_db_path.joinpath(self.default_db_name) if database_path is None else Path(database_path)
+
+        self.script_folder = self.default_script_folder if script_folder is None else Path(script_folder)
         self.script_provider = GidSQLiteScriptLoader(self.script_folder)
         extensions = self.default_extensions if extensions is None else extensions
         pragmas = self.default_pragmas if pragmas is None else pragmas
 
-        super().__init__(make_db_path(self.path), pragmas=pragmas, autoconnect=True, ** extensions)
+        super().__init__(make_db_path(self.path), pragmas=pragmas, autoconnect=True, thread_safe=True, ** extensions)
 
     def start_up_db(self) -> None:
+        self.path.parent.mkdir(exist_ok=True, parents=True)
+        self.script_folder.mkdir(exist_ok=True, parents=True)
+
         conn = sqlite3.connect(self.path)
         for script in self.script_provider.get_setup_scripts():
 
@@ -226,12 +248,8 @@ class GidSQLiteDatabase(SqliteExtDatabase):
 
 # region[Main_Exec]
 if __name__ == '__main__':
-    from rich import inspect as rinspect
-    db = GidSQLiteDatabase(THIS_FILE_DIR.joinpath('storage.db'), THIS_FILE_DIR.joinpath("sql_scripts"))
-    db.start_up_db()
-    database.initialize(db)
-    for i in Server.select():
-        if i.remote_type.name != "local":
-            print(i.get_log_files())
-
+    x = GidSQLiteDatabase()
+    x.start_up_db()
+    x.path.unlink(missing_ok=True)
+    print(CONFIG.set("folder", "local_storage_folder", THIS_FILE_DIR))
 # endregion[Main_Exec]

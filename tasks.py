@@ -344,7 +344,8 @@ class ModelsCode:
     unknown_field_regex = re.compile(r"^\s+(?P<attr_name>\w+)\s*\=\s*UnknownField\((?P<field_kwargs>(\w+\=\w+\,?\s?)+)\)\s*\#\s*(?P<unknown_type>[A-z]+)", re.MULTILINE)
     extra_field_types = {"REMOTEPATH": "RemotePathField",
                          "PATH": "PathField",
-                         "VERSION": "VersionField"}
+                         "VERSION": "VersionField",
+                         "URL": "URLField"}
 
     def __init__(self, text: str) -> None:
         self.original_text = text
@@ -355,9 +356,7 @@ class ModelsCode:
 
     def _replace_imports(self) -> None:
         new_import_lines = ["from peewee import Model, TextField, IntegerField, BooleanField, AutoField, DateTimeField, ForeignKeyField, SQL, BareField, SqliteDatabase, Field, DatabaseProxy",
-                            "from .custom_fields import RemotePathField,PathField,VersionField",
-                            "from playhouse.sqlite_ext import SqliteExtDatabase",
-                            "from playhouse.sqliteq import SqliteQueueDatabase"]
+                            "from .custom_fields import RemotePathField, PathField, VersionField, URLField"]
         self.text = self.text.replace("from peewee import *", '\n'.join(new_import_lines))
 
     def _replace_db_instance(self) -> None:
@@ -389,6 +388,7 @@ class UnknownField(object):
         for idx, line in enumerate(self.text.splitlines()):
 
             if idx > 3 and "ForeignKeyField" in line:
+
                 line = line.rstrip(')') + ', lazy_load=True)'
             new_text.append(line)
         self.text = '\n'.join(new_text)

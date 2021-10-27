@@ -1,0 +1,8 @@
+{
+    "updater": {
+        "update_intervall": { "converter": "integer" },
+        "max_update_time_frame_days": { "converter": "integer" }
+    },
+    "folder": { "local_storage_folder": { "converter": "path" } },
+    "downloading": { "keep_downloaded_files": { "converter": "bool" } }
+}

@@ -3,11 +3,14 @@ __version__ = '0.1.0'
 
 from gidapptools.meta_data import setup_meta_data
 import logging
-
+from pathlib import Path
 logging.basicConfig(level=logging.INFO)
 
+
+THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 import os
 
 
-setup_meta_data(__file__, use_output_numbering=True, use_rule_seperator=True, use_extra_newline_pre=True, use_extra_newline_post=True)
+def setup():
+    setup_meta_data(__file__, configs_to_create=[THIS_FILE_DIR.joinpath("data", "general_config.ini")], spec_to_create=[THIS_FILE_DIR.joinpath("data", "general_configspec.json")])
