@@ -56,27 +56,31 @@ from dotenv import load_dotenv, find_dotenv
 from icecream import ic
 from gidapptools.general_helper.timing import time_func
 from antistasi_logbook.utilities.path_utilities import clean_path, RemotePath
-from antistasi_logbook.webdav.remote_item import RemoteItem, RemoteFolder, RemoteFile, RemoteItemType, RemoteAntistasiLogFile, RemoteAntistasiLogFolder
 from mimetypes import common_types, types_map
 import atexit
 from gidapptools.general_helper.timing import time_execution, time_func
 from threading import Semaphore, Thread
+from antistasi_logbook.utilities.enums import RemoteItemType
 from gidapptools.general_helper.conversion import human2bytes
 from queue import Queue
 from httpx import Limits, Timeout
 from collections import deque
-from antistasi_logbook.webdav.info_item import InfoItem
+from antistasi_logbook.updating.info_item import InfoItem
 import antistasi_logbook
-from gidapptools.meta_data import app_meta, get_meta_item, get_meta_paths
+from gidapptools.general_helper.conversion import human2bytes
+from gidapptools import get_meta_item, get_meta_paths, get_meta_config
 from threading import RLock
 from rich import print as rprint
 import yarl
+import httpx
 from antistasi_logbook.errors import MissingLoginError
 from antistasi_logbook.utilities.path_utilities import url_to_path
-from antistasi_logbook.utilities.enums import RemoteItemType
+
 if TYPE_CHECKING:
 
     from gidapptools.meta_data.interface import MetaPaths
+    from gidapptools.gid_config.meta_factory import GidIniConfig
+    from antistasi_logbook.storage.models.models import RemoteStorage, LogFile
 # endregion[Imports]
 
 # region [TODO]
@@ -94,7 +98,8 @@ if TYPE_CHECKING:
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 META_PATHS: "MetaPaths" = get_meta_paths()
-atexit.register(META_PATHS.clean_up)
+CONFIG: "GidIniConfig" = get_meta_config().get_config('general')
+
 # endregion[Constants]
 
 
@@ -107,6 +112,14 @@ class AbstractRemoteStorageManager(ABC):
     @abstractmethod
     def get_info(self, file_path: RemotePath) -> InfoItem:
         ...
+
+    @abstractmethod
+    def download_file(self, log_file: "LogFile") -> "LogFile":
+        ...
+
+    @classmethod
+    def from_remote_storage_item(cls, remote_storage_item: "RemoteStorage") -> "AbstractRemoteStorageManager":
+        return cls(base_url=remote_storage_item.base_url, login=remote_storage_item.login, password=remote_storage_item.password)
 
 
 class LocalManager(AbstractRemoteStorageManager):
@@ -128,9 +141,15 @@ class LocalManager(AbstractRemoteStorageManager):
                 "name": file_path.stem}
         return info
 
+    def download_file(self, log_file: "LogFile") -> "LogFile":
+        return log_file
+
 
 class WebdavManager(AbstractRemoteStorageManager):
     _extra_base_url_parts = ["dev_drive", "remote.php", "dav", "files"]
+
+    download_semaphores: dict[yarl.URL, Semaphore] = {}
+    config_name = 'webdav'
 
     def __init__(self, base_url: yarl.URL, login: str, password: str) -> None:
         self.raw_base_url = base_url
@@ -138,27 +157,64 @@ class WebdavManager(AbstractRemoteStorageManager):
         self.password = password
         self.full_base_url = self._make_full_base_url()
         self._client: WebdavClient = None
+        self.download_semaphore = self._get_download_semaphore()
+        CONFIG.config.changed_signal.connect(self.reset_client)
+
+    def _get_download_semaphore(self) -> Semaphore:
+        download_semaphore = self.download_semaphores.get(self.full_base_url)
+        if download_semaphore is None:
+            download_semaphore = Semaphore(self.max_connections)
+            self.download_semaphores[self.full_base_url] = download_semaphore
+        return download_semaphore
+
+    def reset_client(self, config: "GidIniConfig") -> None:
+        print("client reset called")
+        self._client = None
+
+    @property
+    def max_connections(self) -> Optional[int]:
+        return CONFIG.get(self.config_name, "max_concurrent_connections", default=100)
 
     @property
     def client(self) -> WebdavClient:
+        if any([self.login is None, self.password is None]):
+            # Todo: Custom Error
+            raise RuntimeError(f"login and password can not be None for {self.__class__.__name__!r}.")
+
         if self._client is None:
-            self._client = WebdavClient(base_url=str(self.full_base_url), auth=(self.login, self.password))
+            self._client = WebdavClient(base_url=str(self.full_base_url), auth=(self.login, self.password), limits=httpx.Limits(max_connections=self.max_connections, max_keepalive_connections=20), timeout=httpx.Timeout(timeout=30.0))
         return self._client
 
     def _make_full_base_url(self) -> yarl.URL:
         extra_parts = '/'.join([str(part) for part in self._extra_base_url_parts if part not in self.raw_base_url.parts])
-        return self.raw_base_url.join(yarl.URL(extra_parts))
+        base_url = self.raw_base_url / extra_parts / self.login
+        return base_url
 
     def get_files(self, folder_path: RemotePath) -> Generator:
         for item in self.client.ls(folder_path):
             info = InfoItem.from_webdav_info(item)
-            if info.content_type is RemoteItemType.DIRECTORY:
+            if info.type is RemoteItemType.DIRECTORY:
                 continue
             yield info
 
     def get_info(self, file_path: RemotePath) -> InfoItem:
         info = self.client.info(file_path)
         return InfoItem.from_webdav_info(info)
+
+    def download_file(self, log_file: "LogFile") -> "LogFile":
+        download_url = log_file.download_url
+        local_path = log_file.local_path
+        chunk_size = CONFIG.get("downloading", "chunk_size", default=None)
+        chunk_size = human2bytes(chunk_size) if chunk_size is not None else None
+        with self.download_semaphore:
+            print(f"downloading {log_file!r}")
+
+            result = self.client.http.get(str(download_url), auth=(self.login, self.password))
+            with local_path.open("wb") as f:
+                for chunk in result.iter_bytes(chunk_size=chunk_size):
+                    f.write(chunk)
+            log_file.is_downloaded = True
+            return log_file
 # region[Main_Exec]
 
 

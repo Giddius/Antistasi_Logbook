@@ -13,4 +13,4 @@ import os
 
 
 def setup():
-    setup_meta_data(__file__, configs_to_create=[THIS_FILE_DIR.joinpath("data", "general_config.ini")], spec_to_create=[THIS_FILE_DIR.joinpath("data", "general_configspec.json")])
+    setup_meta_data(__file__, configs_to_create=[THIS_FILE_DIR.joinpath("data", "general_config.ini")], spec_to_create=[THIS_FILE_DIR.joinpath("data", "general_configspec.json")], file_changed_parameter="changed_time")

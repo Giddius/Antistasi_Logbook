@@ -51,9 +51,11 @@ from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
 from antistasi_logbook.regex.regex_pattern import RegexPattern
-from antistasi_logbook.items.enums import LogLevel
+
 import pyparsing as pp
 import pyparsing.common as ppc
+if TYPE_CHECKING:
+    from antistasi_logbook.storage.models.models import LogRecord
 # endregion[Imports]
 
 # region [TODO]
@@ -155,7 +157,7 @@ class RegexKeeper:
                                             [^\d]
                                             (?P<local_minute>[0-6]\d)
                                             [^\d]
-                                            (?P<local_second>[0-6]\d)"""))
+                                            (?P<local_second>[0-6]\d)"""), re.MULTILINE)
 
     utc_datetime = RegexPattern(multiline_to_single_line(r"""
                                     \s?
@@ -171,7 +173,7 @@ class RegexKeeper:
                                     [^\d]
                                     (?P<utc_second>[0-6]\d)
                                     [^\d]
-                                    (?P<utc_microsecond>\d+)"""))
+                                    (?P<utc_microsecond>\d+)"""), re.MULTILINE)
 
     antistasi_identifier = RegexPattern(r"(?P<identifier>Antistasi)")
 
@@ -189,7 +191,7 @@ class RegexKeeper:
 
     end_mod_table = only_time + RegexPattern(r"\s*\=+$")
 
-    game_map = local_datetime + RegexPattern(r"\s+Mission world\:\s(?P<game_map>.*)")
+    game_map = local_datetime + RegexPattern(r"\s+Mission world\:\s(?P<game_map>.*)", re.MULTILINE)
 
     def __init__(self, log_level_values: Iterable[str] = None, punishment_action_values: Iterable[str] = None) -> None:
         self.log_level = RegexPattern(r"(?P<log_level>)")
@@ -296,7 +298,7 @@ class LogRegex:
         entry_dict['message'] = []
         return entry_dict
 
-    def _parse_antistasi_entry(self, entry: "LogEntry") -> dict[str, str]:
+    def _parse_antistasi_entry(self, entry: "LogRecord") -> dict[str, str]:
         _out = self._get_default_entry_dict()
         for part in entry.content.split('|'):
             part = part.strip()
@@ -311,12 +313,12 @@ class LogRegex:
         _out['message'] = '||'.join(_out['message']).replace('\n', '')
         return _out
 
-    def _parse_generic_entry(self, entry: "LogEntry") -> dict[str, str]:
+    def _parse_generic_entry(self, entry: "LogRecord") -> dict[str, str]:
         entry_match = self.generic_entry.search(entry.content)
         if entry_match:
             return entry_match.groupdict()
 
-    def parse_entry(self, entry: "LogEntry"):
+    def parse_entry(self, entry: "LogRecord"):
         if '| Antistasi |' in entry.content:
             return self._parse_antistasi_entry(entry=entry)
         else:

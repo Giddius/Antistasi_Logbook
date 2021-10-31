@@ -156,3 +156,4 @@ misc/
 /.vscode
 
 /antistasi_logbook/storage/storage.db
+/antistasi_logbook/dev_temp

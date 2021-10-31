@@ -54,7 +54,7 @@ from peewee import Model, TextField, IntegerField, BooleanField, AutoField, Date
 from antistasi_logbook.utilities.path_utilities import RemotePath
 import httpx
 import yarl
-from antistasi_logbook.webdav.webdav_manager import AbstractRemoteStorageManager, LocalManager, WebdavManager
+
 import attr
 # endregion[Imports]
 
@@ -73,12 +73,6 @@ import attr
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 # endregion[Constants]
-
-
-remote_manager_registry: dict[str, type[AbstractRemoteStorageManager]] = {}
-
-remote_manager_registry[LocalManager.__name__] = LocalManager
-remote_manager_registry[WebdavManager.__name__] = WebdavManager
 
 
 @attr.s(slots=True, auto_attribs=True, auto_detect=True, frozen=True)
@@ -122,7 +116,9 @@ class VersionField(Field):
         if value is not None:
             return str(value)
 
-    def python_value(self, value) -> Version:
+    def python_value(self, value) -> Optional[Version]:
+        if value is None:
+            return None
         return Version(*value.split('.'))
 
 
@@ -139,7 +135,20 @@ class URLField(Field):
         return str(value)
 
     def python_value(self, value):
-        return yarl.URL(value)
+        if value is not None:
+            return yarl.URL(value)
+
+
+class BetterDateTimeField(Field):
+    field_type = 'DATETIME'
+
+    def db_value(self, value: Optional[datetime]):
+        if value is not None:
+            return value.isoformat()
+
+    def python_value(self, value):
+        if value is not None:
+            return datetime.fromisoformat(value)
 
 
 # region[Main_Exec]

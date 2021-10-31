@@ -58,8 +58,8 @@ import yarl
 from gidapptools.gid_signal.interface import get_signal
 from gidapptools.meta_data.interface import get_meta_paths, MetaPaths, get_meta_config
 
-from antistasi_logbook.storage.models.models import database, Server
-from antistasi_logbook.webdav.webdav_manager import AbstractRemoteStorageManager, LocalManager, WebdavManager
+from antistasi_logbook.storage.models.models import database, Server, RemoteStorage
+from antistasi_logbook.updating.remote_managers import AbstractRemoteStorageManager, LocalManager, WebdavManager
 
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
@@ -80,6 +80,7 @@ if TYPE_CHECKING:
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 META_PATHS: MetaPaths = get_meta_paths()
 CONFIG: "GidIniConfig" = get_meta_config().get_config('general')
+CONFIG.config.load()
 # endregion[Constants]
 
 FIND_INT_REGEX = re.compile(r"\d+")
@@ -235,10 +236,11 @@ class GidSQLiteDatabase(SqliteExtDatabase):
 
         super().__init__(make_db_path(self.path), pragmas=pragmas, autoconnect=True, thread_safe=True, ** extensions)
 
-    def start_up_db(self) -> None:
+    def start_up_db(self, overwrite: bool = False) -> None:
         self.path.parent.mkdir(exist_ok=True, parents=True)
         self.script_folder.mkdir(exist_ok=True, parents=True)
-
+        if overwrite is True:
+            self.path.unlink(missing_ok=True)
         conn = sqlite3.connect(self.path)
         for script in self.script_provider.get_setup_scripts():
 
@@ -248,8 +250,23 @@ class GidSQLiteDatabase(SqliteExtDatabase):
 
 # region[Main_Exec]
 if __name__ == '__main__':
+    from antistasi_logbook.updating.updater import Updater
+    from dotenv import load_dotenv
+    from antistasi_logbook.parsing.parser import Parser
+    updater = Updater(parser=Parser())
+    updater.register_remote_manager_class(WebdavManager)
+    updater.register_remote_manager_class(LocalManager)
     x = GidSQLiteDatabase()
-    x.start_up_db()
-    x.path.unlink(missing_ok=True)
-    print(CONFIG.set("folder", "local_storage_folder", THIS_FILE_DIR))
+    database.initialize(x)
+    x.start_up_db(overwrite=True)
+    load_dotenv(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\antistasi_logbook\nextcloud.env")
+    web_dav_rem = RemoteStorage.get_by_id(1)
+    web_dav_rem.login = os.getenv("NEXTCLOUD_USERNAME")
+    web_dav_rem.password = os.getenv("NEXTCLOUD_PASSWORD")
+    web_dav_rem.save()
+    for server in Server.select():
+        updater(server)
+    x.close()
+
+
 # endregion[Main_Exec]

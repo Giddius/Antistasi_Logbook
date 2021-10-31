@@ -97,7 +97,7 @@ class InfoItem:
     modified_at: datetime = attr.ib()
     content_type: ContentType = attr.ib(default=None, converter=ContentType)
     display_name: str = attr.ib(default=None)
-    remote_size: int = attr.ib(default=None)
+    size: int = attr.ib(default=None)
     content_language: str = attr.ib(default=None)
     raw_info: dict[str, Any] = attr.ib()
 
@@ -109,7 +109,7 @@ class InfoItem:
     def from_webdav_info(cls, webdav_info: dict[str, Any]) -> "InfoItem":
         webdav_info = webdav_info.copy()
         raw_info = webdav_info.copy()
-        webdav_info = replace_dict_keys(webdav_info, ('name', 'remote_path'), ('created', 'raw_created_at'), ('modified', 'modified_at'), ("content_length", "remote_size"))
+        webdav_info = replace_dict_keys(webdav_info, ('name', 'remote_path'), ('created', 'raw_created_at'), ('modified', 'modified_at'), ("content_length", "size"))
         webdav_info.pop('href')
         webdav_info['raw_info'] = raw_info
         return cls(**webdav_info)

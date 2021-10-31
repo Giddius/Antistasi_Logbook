@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS "Server" (
     "name" TEXT UNIQUE NOT NULL,
     "remote_path" REMOTEPATH UNIQUE,
     "remote_storage" INTEGER NOT NULL DEFAULT 0 REFERENCES "RemoteStorage" ("id") ON DELETE CASCADE,
+    "update_enabled" BOOL NOT NULL DEFAULT 1,
     "comments" TEXT
 );
 
@@ -35,6 +36,7 @@ CREATE TABLE IF NOT EXISTS "GameMap" (
     "dlc" TEXT,
     "map_image_high_resolution_path" PATH,
     "map_image_low_resolution_path" PATH,
+    "workshop_link" URL,
     "comments" TEXT
 );
 
