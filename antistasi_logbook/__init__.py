@@ -1,4 +1,5 @@
 """Antistasi_Serverlog_Statistics"""
+
 __version__ = '0.1.0'
 
 from gidapptools.meta_data import setup_meta_data

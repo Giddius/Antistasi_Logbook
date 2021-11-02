@@ -54,6 +54,7 @@ from importlib.machinery import SourceFileLoader
 from peewee import Model, TextField, IntegerField, BooleanField, AutoField, DateTimeField, ForeignKeyField, SQL, BareField, SqliteDatabase, Field
 from playhouse.sqlite_ext import SqliteExtDatabase
 from playhouse.sqliteq import SqliteQueueDatabase
+from playhouse.pool import PooledSqliteExtDatabase
 import yarl
 from gidapptools.gid_signal.interface import get_signal
 from gidapptools.meta_data.interface import get_meta_paths, MetaPaths, get_meta_config
@@ -208,7 +209,7 @@ class GidSqliteQueueDatabase(SqliteExtDatabase):
 
 class GidSQLiteDatabase(SqliteExtDatabase):
     default_pragmas = {
-        "cache_size": -1024 * 64,
+        "cache_size": -1 * 64000,
         "journal_mode": "OFF",
         "synchronous": "OFF",
         "ignore_check_constraints": 0,
@@ -234,7 +235,7 @@ class GidSQLiteDatabase(SqliteExtDatabase):
         extensions = self.default_extensions if extensions is None else extensions
         pragmas = self.default_pragmas if pragmas is None else pragmas
 
-        super().__init__(make_db_path(self.path), pragmas=pragmas, autoconnect=True, thread_safe=True, ** extensions)
+        super().__init__(make_db_path(self.path), pragmas=pragmas, autoconnect=True, thread_safe=True, check_same_thread=False, ** extensions)
 
     def start_up_db(self, overwrite: bool = False) -> None:
         self.path.parent.mkdir(exist_ok=True, parents=True)

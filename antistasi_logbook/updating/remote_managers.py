@@ -182,7 +182,7 @@ class WebdavManager(AbstractRemoteStorageManager):
             raise RuntimeError(f"login and password can not be None for {self.__class__.__name__!r}.")
 
         if self._client is None:
-            self._client = WebdavClient(base_url=str(self.full_base_url), auth=(self.login, self.password), limits=httpx.Limits(max_connections=self.max_connections, max_keepalive_connections=20), timeout=httpx.Timeout(timeout=30.0))
+            self._client = WebdavClient(base_url=str(self.full_base_url), auth=(self.login, self.password), retry=True, limits=httpx.Limits(max_connections=self.max_connections, max_keepalive_connections=20), timeout=httpx.Timeout(timeout=60.0))
         return self._client
 
     def _make_full_base_url(self) -> yarl.URL:
@@ -214,7 +214,7 @@ class WebdavManager(AbstractRemoteStorageManager):
                 for chunk in result.iter_bytes(chunk_size=chunk_size):
                     f.write(chunk)
             log_file.is_downloaded = True
-            return log_file
+            return local_path
 # region[Main_Exec]
 
 

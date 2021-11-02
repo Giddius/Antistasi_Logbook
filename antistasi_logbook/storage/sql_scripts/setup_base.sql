@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS "Server" (
     "remote_path" REMOTEPATH UNIQUE,
     "remote_storage" INTEGER NOT NULL DEFAULT 0 REFERENCES "RemoteStorage" ("id") ON DELETE CASCADE,
     "update_enabled" BOOL NOT NULL DEFAULT 1,
-    "comments" TEXT
+    "comments" TEXT,
+    "marked" BOOL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS "GameMap" (
@@ -37,20 +38,29 @@ CREATE TABLE IF NOT EXISTS "GameMap" (
     "map_image_high_resolution_path" PATH,
     "map_image_low_resolution_path" PATH,
     "workshop_link" URL,
-    "comments" TEXT
+    "comments" TEXT,
+    "marked" BOOL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS "Mod" (
     "id" INTEGER PRIMARY KEY AUTOINCREMENT,
-    "full_path" PATH UNIQUE,
-    "hash" TEXT UNIQUE,
-    "hashShort" TEXT UNIQUE,
-    "link" TEXT UNIQUE,
-    "mod_dir" TEXT UNIQUE NOT NULL,
-    "name" TEXT UNIQUE NOT NULL,
+    "full_path" PATH,
+    "hash" TEXT,
+    "hash_short" TEXT,
+    "link" TEXT,
+    "mod_dir" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
     "default" BOOL NOT NULL DEFAULT 0,
     "official" BOOL NOT NULL DEFAULT 0,
-    "comments" TEXT
+    "comments" TEXT,
+    "marked" BOOL DEFAULT 0,
+    UNIQUE(
+        "name",
+        "mod_dir",
+        "full_path",
+        "hash",
+        "hash_short"
+    )
 );
 
 CREATE TABLE IF NOT EXISTS "LogFile" (
@@ -62,12 +72,15 @@ CREATE TABLE IF NOT EXISTS "LogFile" (
     "created_at" DATETIME,
     "finished" BOOL DEFAULT 0,
     "header_text" TEXT,
+    "startup_text" TEXT,
     "last_parsed_line_number" INTEGER DEFAULT 0,
     "utc_offset" INT,
     "version" VERSION,
     "game_map" INTEGER REFERENCES "GameMap" ("id") ON DELETE CASCADE,
     "server" INTEGER NOT NULL REFERENCES "Server" ("id") ON DELETE CASCADE,
+    "unparsable" BOOL DEFAULT 0,
     "comments" TEXT,
+    "marked" BOOL DEFAULT 0,
     UNIQUE("name", "server", "remote_path")
 );
 
@@ -102,5 +115,6 @@ CREATE TABLE IF NOT EXISTS "LogRecord" (
     "punishment_action" INTEGER DEFAULT 0 REFERENCES "PunishmentAction" ("id") ON DELETE CASCADE,
     "record_class" INTEGER NOT NULL REFERENCES "RecordClass" ("id") ON DELETE CASCADE,
     "comments" TEXT,
+    "marked" BOOL DEFAULT 0,
     UNIQUE("start", "end", "log_file", "record_class")
 );

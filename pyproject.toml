@@ -14,7 +14,8 @@ dependencies = [
     "httpx==0.20.0",
     "webdav4==0.9.3",
     "peewee==3.14.4",
-    "yarl==1.7.0"
+    "yarl==1.7.0",
+    "python-dateutil==2.8.2"
 ]
 
 [project.urls]

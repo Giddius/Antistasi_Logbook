@@ -36,7 +36,7 @@ from pprint import pprint, pformat
 from pathlib import Path
 from string import Formatter, digits, printable, whitespace, punctuation, ascii_letters, ascii_lowercase, ascii_uppercase
 from timeit import Timer
-from typing import TYPE_CHECKING, Union, Callable, Iterable, Optional, Mapping, Any, IO, TextIO, BinaryIO, Hashable, Generator, Literal, TypeVar, TypedDict, AnyStr
+from typing import TYPE_CHECKING, Union, Callable, Iterable, Optional, Mapping, Any, IO, TextIO, BinaryIO, Hashable, Generator, Literal, TypeVar, TypedDict, AnyStr, ClassVar
 from zipfile import ZipFile, ZIP_LZMA
 from datetime import datetime, timezone, timedelta
 from tempfile import TemporaryDirectory
@@ -54,8 +54,8 @@ from peewee import Model, TextField, IntegerField, BooleanField, AutoField, Date
 from antistasi_logbook.utilities.path_utilities import RemotePath
 import httpx
 import yarl
-
-import attr
+from antistasi_logbook.utilities.misc import Version
+from dateutil.tz import tzoffset
 # endregion[Imports]
 
 # region [TODO]
@@ -73,16 +73,6 @@ import attr
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 # endregion[Constants]
-
-
-@attr.s(slots=True, auto_attribs=True, auto_detect=True, frozen=True)
-class Version:
-    major: int = attr.ib()
-    minor: int = attr.ib()
-    patch: int = attr.ib()
-
-    def __str__(self) -> str:
-        return f"{self.major}.{self.minor}.{self.patch}"
 
 
 class RemotePathField(Field):
@@ -119,7 +109,7 @@ class VersionField(Field):
     def python_value(self, value) -> Optional[Version]:
         if value is None:
             return None
-        return Version(*value.split('.'))
+        return Version.from_string(value)
 
 
 class URLField(Field):
@@ -149,6 +139,21 @@ class BetterDateTimeField(Field):
     def python_value(self, value):
         if value is not None:
             return datetime.fromisoformat(value)
+
+
+class TzOffsetField(Field):
+    field_type = "TZOFFSET"
+
+    def db_value(self, value: Optional[tzoffset]) -> Optional[str]:
+        if value is not None:
+            return f"{value.tzname(None)}||{value.utcoffset(None).total_seconds()}"
+
+    def python_value(self, value: Optional[str]):
+        if value is not None:
+            name, seconds = value.split('||')
+            seconds = int(seconds)
+            delta = timedelta(seconds=seconds)
+            return tzoffset(name, delta)
 
 
 # region[Main_Exec]

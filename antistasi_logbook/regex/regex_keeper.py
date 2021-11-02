@@ -193,6 +193,9 @@ class RegexKeeper:
 
     game_map = local_datetime + RegexPattern(r"\s+Mission world\:\s(?P<game_map>.*)", re.MULTILINE)
 
+    game_file = local_datetime + RegexPattern(r"\s+Mission file\:\s(?P<game_file>.*)", re.MULTILINE)
+    continued_record = local_datetime + RegexPattern(r"\s+\>\>\>\s?(?P<content>.*)")
+
     def __init__(self, log_level_values: Iterable[str] = None, punishment_action_values: Iterable[str] = None) -> None:
         self.log_level = RegexPattern(r"(?P<log_level>)")
         self.punishment_action = RegexPattern(r"(?P<punishment_action>)")

@@ -1,13 +1,21 @@
 from peewee import Model, TextField, IntegerField, BooleanField, AutoField, DateTimeField, ForeignKeyField, SQL, BareField, SqliteDatabase, Field, DatabaseProxy
-from .custom_fields import RemotePathField, PathField, VersionField, URLField, BetterDateTimeField
-from typing import TYPE_CHECKING, Generator, Hashable, Iterable, Optional, TextIO
+from .custom_fields import RemotePathField, PathField, VersionField, URLField, BetterDateTimeField, TzOffsetField
+from typing import TYPE_CHECKING, Generator, Hashable, Iterable, Optional, TextIO, Union
 from pathlib import Path
 from io import TextIOWrapper
 from gidapptools import get_meta_paths, get_meta_config
 from functools import cached_property
+import shutil
 from yarl import URL
+from datetime import datetime, timedelta, timezone
+from dateutil.tz import tzoffset, tzlocal, gettz, datetime_ambiguous, resolve_imaginary, datetime_exists, UTC
+from dateutil.tzwin import tzres, tzwin, tzwinlocal
 from contextlib import contextmanager
 from rich.console import Console as RichConsole
+from antistasi_logbook.utilities.misc import Version
+from antistasi_logbook.data.misc import LOG_FILE_DATE_REGEX
+from dateutil.tz import tzoffset, UTC
+from antistasi_logbook.utilities.locks import DB_LOCK
 if TYPE_CHECKING:
     from antistasi_logbook.updating.remote_managers import AbstractRemoteStorageManager, InfoItem
     from gidapptools.gid_config.meta_factory import GidIniConfig
@@ -61,6 +69,7 @@ class GameMap(BaseModel):
     map_image_low_resolution_path = PathField(null=True)
     workshop_link = URLField(null=True)
     comments = TextField(null=True)
+    marked = BooleanField(constraints=[SQL("DEFAULT 0")])
 
     class Meta:
         table_name = 'GameMap'
@@ -87,6 +96,7 @@ class Server(BaseModel):
     remote_storage = ForeignKeyField(column_name='remote_storage', constraints=[SQL("DEFAULT 0")], field='id', model=RemoteStorage, lazy_load=True)
     update_enabled = BooleanField(constraints=[SQL("DEFAULT 0")])
     comments = TextField(null=True)
+    marked = BooleanField(constraints=[SQL("DEFAULT 0")])
     remote_manager_cache: dict[str, "AbstractRemoteStorageManager"] = {}
 
     class Meta:
@@ -132,12 +142,15 @@ class LogFile(BaseModel):
     created_at = BetterDateTimeField(null=True)
     finished = BooleanField(constraints=[SQL("DEFAULT 0")], null=True)
     header_text = TextField(null=True)
+    startup_text = TextField(null=True)
     last_parsed_line_number = IntegerField(constraints=[SQL("DEFAULT 0")], null=True)
-    utc_offset = IntegerField(null=True)
+    utc_offset = TzOffsetField(null=True)
     version = VersionField(null=True)
     game_map = ForeignKeyField(column_name='game_map', field='id', model=GameMap, null=True, lazy_load=True)
     server = ForeignKeyField(column_name='server', field='id', model=Server, lazy_load=True, backref="log_files")
+    unparsable = BooleanField(null=True)
     comments = TextField(null=True)
+    marked = BooleanField(constraints=[SQL("DEFAULT 0")])
 
     class Meta:
         table_name = 'LogFile'
@@ -149,9 +162,41 @@ class LogFile(BaseModel):
         super().__init__(*args, **kwargs)
         self.is_downloaded = False
 
-    def add_game_map(self, short_name: str) -> None:
-        game_map_item = GameMap.get_or_none(GameMap.name == short_name)
-        if game_map_item is None:
+    @property
+    def name_datetime(self) -> Optional[datetime]:
+        if match := LOG_FILE_DATE_REGEX.search(self.name):
+            datetime_kwargs = {k: int(v) for k, v in match.groupdict().items()}
+            return datetime(tzinfo=UTC, **datetime_kwargs)
+
+    def set_first_datetime(self, full_datetime: Optional[tuple[datetime, datetime]]) -> None:
+        if full_datetime is None:
+            self.utc_offset = full_datetime
+            return
+        difference_seconds = (full_datetime[0] - full_datetime[1]).total_seconds()
+        offset_timedelta = timedelta(hours=difference_seconds // (60 * 60))
+        if offset_timedelta.days > 0:
+            offset_timedelta = timedelta(hours=(difference_seconds // (60 * 60)) - 24)
+
+        offset = tzoffset(self.name, offset_timedelta)
+        self.created_at = self.name_datetime.astimezone(offset)
+        self.utc_offset = offset
+
+    def set_version(self, version: Union[str, "Version", tuple]) -> None:
+        if isinstance(version, Version) or version is None:
+            self.version = version
+
+        elif isinstance(version, str):
+            self.version = Version.from_string(version)
+
+        elif isinstance(version, tuple):
+            self.version = Version(*version)
+
+    def set_game_map(self, short_name: str) -> None:
+        if short_name is None:
+            return
+        try:
+            game_map_item = GameMap.select().where(GameMap.name == short_name)[0]
+        except IndexError:
             game_map_item = GameMap(name=short_name, full_name=f"PLACE_HOLDER {short_name}")
             game_map_item.save()
 
@@ -172,41 +217,59 @@ class LogFile(BaseModel):
     def keep_downloaded_files(self) -> bool:
         return CONFIG.get("downloading", "keep_downloaded_files", default=False)
 
+    def download(self) -> Path:
+        return self.server.remote_manager.download_file(self)
+
     @contextmanager
-    def open(self) -> TextIOWrapper:
+    def open(self, cleanup: bool = True) -> TextIOWrapper:
         try:
             if self.is_downloaded is False:
-                self.server.remote_manager.download_file(self)
+                self.download()
             with self.local_path.open('r', encoding='utf-8', errors='ignore') as f:
 
                 yield f
         finally:
-            self._cleanup()
+            if cleanup is True:
+                self._cleanup()
 
     def _cleanup(self) -> None:
         if self.is_downloaded is True and self.keep_downloaded_files is False:
-            log.debug(f'deleting local-file of log_file_item [b]{self.name!r}[/b] from path [u]{self.local_path.as_posix()!r}[/u]')
             self.local_path.unlink(missing_ok=True)
+            log.debug(f'deleted local-file of log_file_item [b]{self.name!r}[/b] from path [u]{self.local_path.as_posix()!r}[/u]')
+            self.is_downloaded = False
+
+    def get_mods(self) -> Optional[list["Mod"]]:
+        _out = [mod.mod for mod in self.mods]
+        if not _out:
+            return None
+        return _out
+
+    def __rich__(self):
+        return f"[u b green]{self.server.name}/{self.name}[/u b green]"
 
 
 class Mod(BaseModel):
-    full_path = PathField(null=True, unique=True)
-    hash = TextField(null=True, unique=True)
-    hash_short = TextField(column_name='hashShort', null=True, unique=True)
-    link = TextField(null=True, unique=True)
-    mod_dir = TextField(unique=True)
-    name = TextField(unique=True)
+    full_path = PathField(null=True)
+    hash = TextField(null=True)
+    hash_short = TextField(null=True)
+    link = TextField(null=True)
+    mod_dir = TextField()
+    name = TextField()
     default = BooleanField(constraints=[SQL("DEFAULT 0")])
     official = BooleanField(constraints=[SQL("DEFAULT 0")])
     comments = TextField(null=True)
+    marked = BooleanField(constraints=[SQL("DEFAULT 0")])
 
     class Meta:
         table_name = 'Mod'
+        indexes = (
+            (('name', 'mod_dir', "full_path", "hash", "hash_short"), True),
+        )
 
 
 class LogFileAndModJoin(BaseModel):
-    log_file = ForeignKeyField(column_name='log_file_id', field='id', model=LogFile, lazy_load=True)
-    mod = ForeignKeyField(column_name='mod_id', field='id', model=Mod, lazy_load=True)
+    log_file = ForeignKeyField(column_name='log_file_id', field='id', model=LogFile, lazy_load=True, backref="mods")
+    mod = ForeignKeyField(column_name='mod_id', field='id', model=Mod, lazy_load=True, backref="log_files")
 
     class Meta:
         table_name = 'LogFile_and_Mod_join'
@@ -214,6 +277,10 @@ class LogFileAndModJoin(BaseModel):
             (('log_file', 'mod'), True),
         )
         primary_key = False
+
+    @property
+    def name(self) -> str:
+        return self.mod.name
 
 
 class LogLevel(BaseModel):
@@ -250,6 +317,7 @@ class LogRecord(BaseModel):
     punishment_action = ForeignKeyField(column_name='punishment_action', constraints=[SQL("DEFAULT 0")], field='id', model=PunishmentAction, null=True, lazy_load=True)
     record_class = ForeignKeyField(column_name='record_class', field='id', model=RecordClass, lazy_load=True)
     comments = TextField(null=True)
+    marked = BooleanField(constraints=[SQL("DEFAULT 0")])
 
     class Meta:
         table_name = 'LogRecord'
