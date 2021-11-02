@@ -57,11 +57,11 @@ from playhouse.sqliteq import SqliteQueueDatabase
 from playhouse.pool import PooledSqliteExtDatabase
 import yarl
 from gidapptools.gid_signal.interface import get_signal
-from gidapptools.meta_data.interface import get_meta_paths, MetaPaths, get_meta_config
+from gidapptools.meta_data.interface import get_meta_paths, MetaPaths, get_meta_config, get_meta_info
 
 from antistasi_logbook.storage.models.models import database, Server, RemoteStorage
 from antistasi_logbook.updating.remote_managers import AbstractRemoteStorageManager, LocalManager, WebdavManager
-
+from rich.console import Console as RichConsole
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
 # endregion[Imports]
@@ -80,6 +80,7 @@ if TYPE_CHECKING:
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 META_PATHS: MetaPaths = get_meta_paths()
+META_INFO = get_meta_info()
 CONFIG: "GidIniConfig" = get_meta_config().get_config('general')
 CONFIG.config.load()
 # endregion[Constants]
@@ -259,7 +260,7 @@ if __name__ == '__main__':
     updater.register_remote_manager_class(LocalManager)
     x = GidSQLiteDatabase()
     database.initialize(x)
-    x.start_up_db(overwrite=True)
+    x.start_up_db(overwrite=False)
     load_dotenv(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\antistasi_logbook\nextcloud.env")
     web_dav_rem = RemoteStorage.get_by_id(1)
     web_dav_rem.login = os.getenv("NEXTCLOUD_USERNAME")
@@ -267,6 +268,8 @@ if __name__ == '__main__':
     web_dav_rem.save()
     for server in Server.select():
         updater(server)
+    console = RichConsole(soft_wrap=True)
+    x.execute_sql("VACUUM")
     x.close()
 
 

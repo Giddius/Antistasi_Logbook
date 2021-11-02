@@ -50,12 +50,19 @@ from urllib.parse import urlparse
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
-from peewee import Model, TextField, IntegerField, BooleanField, AutoField, DateTimeField, ForeignKeyField, SQL, BareField, SqliteDatabase, Field
+from peewee import Model, TextField, IntegerField, BooleanField, AutoField, DateTimeField, ForeignKeyField, SQL, BareField, SqliteDatabase, Field, BlobField
 from antistasi_logbook.utilities.path_utilities import RemotePath
+from playhouse.fields import CompressedField
 import httpx
 import yarl
 from antistasi_logbook.utilities.misc import Version
 from dateutil.tz import tzoffset
+from hashlib import blake2b
+from PIL import Image
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+import base64
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 # endregion[Imports]
 
 # region [TODO]
@@ -151,12 +158,129 @@ class TzOffsetField(Field):
     def python_value(self, value: Optional[str]):
         if value is not None:
             name, seconds = value.split('||')
-            seconds = int(seconds)
+            seconds = int(seconds.split('.')[0])
             delta = timedelta(seconds=seconds)
             return tzoffset(name, delta)
 
 
+class CompressedTextField(CompressedField):
+
+    def db_value(self, value: str):
+        if value is not None:
+            value = value.encode(encoding='utf-8', errors='ignore')
+            return super().db_value(value)
+
+    def python_value(self, value):
+        if value is not None:
+            value: bytes = super().python_value(value)
+            return value.decode(encoding='utf-8', errors='ignore')
+
+
+class CompressedImageField(CompressedField):
+
+    def __init__(self, return_as: Union[Literal["pil_image"], Literal['bytes'], Literal['qt_image']] = "pil_image", **kwargs):
+        super().__init__(**kwargs)
+        return_func_table = {"pil_image": self.return_as_pil_image,
+                             "bytes": self.return_as_bytes,
+                             "qt_image": self.return_as_not_implemented}
+        self.return_as = return_func_table.get(return_as, self.return_as_not_implemented)
+
+    @staticmethod
+    def image_to_byte_array(image: Image.Image):
+        with BytesIO() as bf:
+            image.save(bf, format=image.format)
+            imgByteArr = bf.getvalue()
+            return imgByteArr
+
+    @staticmethod
+    def return_as_pil_image(data: bytes) -> Image.Image:
+        with BytesIO() as bf:
+            bf.write(data)
+            bf.seek(0)
+            image = Image.open(bf)
+            image.load()
+            return image
+
+    @staticmethod
+    def return_as_bytes(data: bytes) -> bytes:
+        return data
+
+    @staticmethod
+    def return_as_not_implemented(data: bytes) -> NotImplemented:
+        return NotImplemented
+
+    def db_value(self, value: Union[bytes, Path, Image.Image]):
+        if value is not None:
+            if isinstance(value, Path):
+                bytes_value = self.image_to_byte_array(Image.open(value))
+            elif isinstance(value, Image.Image):
+                bytes_value = self.image_to_byte_array(value)
+            elif isinstance(value, bytes):
+                bytes_value = value
+            return super().db_value(bytes_value)
+
+    def python_value(self, value):
+        if value is not None:
+            bytes_value = super().python_value(value)
+            return self.return_as(bytes_value)
+
+
+class LoginField(BlobField):
+
+    @property
+    def fallback_env_name(self) -> str:
+        return f"{self.model.name}_login"
+
+    @property
+    def key(self) -> bytes:
+        raw_key = os.environ["USERDOMAIN"].encode(encoding='utf-8', errors='ignore')
+        kdf = PBKDF2HMAC(algorithm=hashes.SHA256(),
+                         length=32,
+                         salt=os.getlogin().encode(encoding='utf-8', errors='ignore'),
+                         iterations=100000)
+        return base64.urlsafe_b64encode(kdf.derive(raw_key))
+
+    def db_value(self, value: str):
+        if value is not None:
+            fernet = Fernet(self.key)
+            return fernet.encrypt(value.encode(encoding='utf-8', errors='ignore'))
+
+    def python_value(self, value):
+        if value is not None:
+            fernet = Fernet(self.key)
+            return fernet.decrypt(value).decode(encoding='utf-8', errors='ignore')
+        return os.getenv(self.fallback_env_name, None)
+
+
+class PasswordField(BlobField):
+
+    @property
+    def fallback_env_name(self) -> str:
+        return f"{self.model.name}_password"
+
+    @property
+    def key(self) -> bytes:
+        raw_key = os.environ["USERDOMAIN"].encode(encoding='utf-8', errors='ignore')
+        kdf = PBKDF2HMAC(algorithm=hashes.SHA256(),
+                         length=32,
+                         salt=b"1",
+                         iterations=100000)
+        return base64.urlsafe_b64encode(kdf.derive(raw_key))
+
+    def db_value(self, value: str):
+        if value is not None:
+            fernet = Fernet(self.key)
+            return fernet.encrypt(value.encode(encoding='utf-8', errors='ignore'))
+
+    def python_value(self, value):
+        if value is not None:
+            fernet = Fernet(self.key)
+            return fernet.decrypt(value).decode(encoding='utf-8', errors='ignore')
+        return os.getenv(self.fallback_env_name, None)
+
+
 # region[Main_Exec]
 if __name__ == '__main__':
+
     pass
 # endregion[Main_Exec]

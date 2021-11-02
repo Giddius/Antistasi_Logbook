@@ -299,7 +299,6 @@ class Parser:
             context.advance_line()
         context.set_startup_text()
 
-    @time_func()
     def parse_entries(self, context: ParsingContext) -> None:
         while context.current_line is not ...:
             if self.regex_keeper.local_datetime.match(context.current_line.content):
@@ -319,10 +318,12 @@ class Parser:
             log.info("getting meta_data")
             if self._get_log_file_meta_data(context=context) is False or context.unparsable is True:
                 return
-            log.info("parsing header text of", log_file)
-            self._parse_header_text(context)
-            log.info(f"parsing startup entries of", log_file)
-            self._parse_startup_entries(context)
+            if context.log_file.header_text is None:
+                log.info("parsing header text of", log_file)
+                self._parse_header_text(context)
+            if context.log_file.startup_text is None:
+                log.info(f"parsing startup entries of", log_file)
+                self._parse_startup_entries(context)
             log.info(f"parsing entries of", log_file)
             self.parse_entries(context)
 

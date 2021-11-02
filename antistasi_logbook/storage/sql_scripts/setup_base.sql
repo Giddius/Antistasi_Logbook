@@ -12,8 +12,8 @@ CREATE TABLE IF NOT EXISTS "RemoteStorage" (
     "id" INTEGER PRIMARY KEY,
     "name" TEXT UNIQUE NOT NULL,
     "base_url" URL,
-    "login" TEXT,
-    "password" TEXT,
+    "login" BLOB,
+    "password" BLOB,
     "manager_type" TEXT NOT NULL,
     UNIQUE("base_url", "login", "password", "manager_type")
 );
@@ -35,8 +35,9 @@ CREATE TABLE IF NOT EXISTS "GameMap" (
     "name" TEXT UNIQUE NOT NULL,
     "official" BOOL NOT NULL DEFAULT 0,
     "dlc" TEXT,
-    "map_image_high_resolution_path" PATH,
-    "map_image_low_resolution_path" PATH,
+    "map_image_high_resolution_path" BLOB,
+    "map_image_low_resolution_path" BLOB,
+    "coordinates" JSON,
     "workshop_link" URL,
     "comments" TEXT,
     "marked" BOOL DEFAULT 0
@@ -71,8 +72,8 @@ CREATE TABLE IF NOT EXISTS "LogFile" (
     "size" INTEGER NOT NULL,
     "created_at" DATETIME,
     "finished" BOOL DEFAULT 0,
-    "header_text" TEXT,
-    "startup_text" TEXT,
+    "header_text" BLOB,
+    "startup_text" BLOB,
     "last_parsed_line_number" INTEGER DEFAULT 0,
     "utc_offset" INT,
     "version" VERSION,

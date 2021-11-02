@@ -1,5 +1,7 @@
 from peewee import Model, TextField, IntegerField, BooleanField, AutoField, DateTimeField, ForeignKeyField, SQL, BareField, SqliteDatabase, Field, DatabaseProxy
-from .custom_fields import RemotePathField, PathField, VersionField, URLField, BetterDateTimeField, TzOffsetField
+
+from playhouse.sqlite_ext import JSONField, JSONPath
+from .custom_fields import RemotePathField, PathField, VersionField, URLField, BetterDateTimeField, TzOffsetField, CompressedTextField, CompressedImageField, LoginField, PasswordField
 from typing import TYPE_CHECKING, Generator, Hashable, Iterable, Optional, TextIO, Union
 from pathlib import Path
 from io import TextIOWrapper
@@ -65,8 +67,9 @@ class GameMap(BaseModel):
     name = TextField(unique=True)
     official = BooleanField(constraints=[SQL("DEFAULT 0")])
     dlc = TextField(null=True)
-    map_image_high_resolution_path = PathField(null=True)
-    map_image_low_resolution_path = PathField(null=True)
+    map_image_high_resolution_path = CompressedImageField(null=True)
+    map_image_low_resolution_path = CompressedImageField(null=True)
+    coordinates = JSONField(null=True)
     workshop_link = URLField(null=True)
     comments = TextField(null=True)
     marked = BooleanField(constraints=[SQL("DEFAULT 0")])
@@ -78,8 +81,8 @@ class GameMap(BaseModel):
 class RemoteStorage(BaseModel):
     name = TextField(unique=True)
     base_url = URLField(null=True)
-    login = TextField(null=True)
-    password = TextField(null=True)
+    login = LoginField(null=True)
+    password = PasswordField(null=True)
     manager_type = TextField()
 
     class Meta:
@@ -141,8 +144,8 @@ class LogFile(BaseModel):
     size = IntegerField()
     created_at = BetterDateTimeField(null=True)
     finished = BooleanField(constraints=[SQL("DEFAULT 0")], null=True)
-    header_text = TextField(null=True)
-    startup_text = TextField(null=True)
+    header_text = CompressedTextField(null=True)
+    startup_text = CompressedTextField(null=True)
     last_parsed_line_number = IntegerField(constraints=[SQL("DEFAULT 0")], null=True)
     utc_offset = TzOffsetField(null=True)
     version = VersionField(null=True)
