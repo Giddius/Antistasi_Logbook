@@ -18,9 +18,11 @@ from antistasi_logbook.utilities.misc import Version
 from antistasi_logbook.data.misc import LOG_FILE_DATE_REGEX
 from dateutil.tz import tzoffset, UTC
 from antistasi_logbook.utilities.locks import DB_LOCK
+from time import sleep
 if TYPE_CHECKING:
     from antistasi_logbook.updating.remote_managers import AbstractRemoteStorageManager, InfoItem
     from gidapptools.gid_config.meta_factory import GidIniConfig
+    from antistasi_logbook.parsing.record_class_manager import RECORD_CLASS_TYPE
 
 
 CONSOLE = RichConsole(soft_wrap=True)
@@ -197,6 +199,7 @@ class LogFile(BaseModel):
     def set_game_map(self, short_name: str) -> None:
         if short_name is None:
             return
+
         try:
             game_map_item = GameMap.select().where(GameMap.name == short_name)[0]
         except IndexError:
@@ -214,6 +217,8 @@ class LogFile(BaseModel):
 
     @cached_property
     def local_path(self) -> Path:
+        if self.server.name == "NO_SERVER":
+            return Path(self.remote_path)
         return self.server.full_local_path.joinpath(self.remote_path.name)
 
     @property
@@ -299,6 +304,10 @@ class RecordClass(BaseModel):
     class Meta:
         table_name = 'RecordClass'
 
+    @cached_property
+    def record_class(self) -> "RECORD_CLASS_TYPE":
+        return self._meta.database.record_class_manager.get_by_name(self.name)
+
 
 class PunishmentAction(BaseModel):
     name = TextField(unique=True)
@@ -308,13 +317,14 @@ class PunishmentAction(BaseModel):
 
 
 class LogRecord(BaseModel):
-    end = IntegerField()
     start = IntegerField()
+    end = IntegerField()
     message = TextField()
     recorded_at = BetterDateTimeField()
-    called_by = TextField(null=True)
+    called_by = ForeignKeyField(column_name='called_by', field='id', model=AntstasiFunction, lazy_load=True, null=True)
     client = TextField(null=True)
-    logged_from = TextField(null=True)
+    is_antistasi_record = BooleanField(constraints=[SQL("DEFAULT 0")])
+    logged_from = ForeignKeyField(column_name='logged_from', field='id', model=AntstasiFunction, lazy_load=True, null=True)
     log_file = ForeignKeyField(column_name='log_file', field='id', model=LogFile, lazy_load=True)
     log_level = ForeignKeyField(column_name='log_level', constraints=[SQL("DEFAULT 0")], field='id', model=LogLevel, null=True, lazy_load=True)
     punishment_action = ForeignKeyField(column_name='punishment_action', constraints=[SQL("DEFAULT 0")], field='id', model=PunishmentAction, null=True, lazy_load=True)
@@ -327,6 +337,9 @@ class LogRecord(BaseModel):
         indexes = (
             (('start', 'end', 'log_file', 'record_class'), True),
         )
+
+    def to_record_class(self) -> "RECORD_CLASS_TYPE":
+        return self.record_class.record_class.from_log_record(self)
 
 
 class SqliteSequence(BaseModel):

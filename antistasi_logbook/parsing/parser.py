@@ -56,12 +56,19 @@ from gidapptools.general_helper.timing import time_func, time_execution
 from antistasi_logbook.parsing.parsing_context import ParsingContext, RecordLine
 from antistasi_logbook.utilities.misc import Version, ModItem
 from dateutil.tz import UTC
+from gidapptools.general_helper.timing import time_func
 from gidapptools.general_helper.enums import MiscEnum
 from rich.console import Console as RichConsole
+from antistasi_logbook.parsing.record_class_manager import RecordClassManager
+from antistasi_logbook.storage.models.models import LogFile, RecordClass, LogRecord, LogLevel, PunishmentAction, AntstasiFunction
+from antistasi_logbook.records.enums import PunishmentActionEnum
+from dateutil.tz import UTC
+from antistasi_logbook.utilities.locks import DB_LOCK
+from threading import RLock
 if TYPE_CHECKING:
 
-    from antistasi_logbook.storage.models.models import LogFile
     from antistasi_logbook.records.abstract_record import AbstractRecord
+    from antistasi_logbook.storage.database import GidSQLiteDatabase
 # endregion[Imports]
 
 # region [TODO]
@@ -227,21 +234,91 @@ class MetaFinder:
 
 
 class RawRecord:
-    __slots__ = ("lines", "is_antistasi_record", "start", "end", "content")
+    antistasi_file_model_lock = RLock()
+    _all_log_levels: tuple[LogLevel] = None
+    _all_punishment_actions: tuple[PunishmentAction] = None
+    __slots__ = ("lines", "is_antistasi_record", "start", "end", "content", "parsed_data", "record_class", "log_file")
 
-    def __init__(self, lines: Iterable["RecordLine"]) -> None:
+    def __init__(self, lines: Iterable["RecordLine"], log_file: "LogFile") -> None:
         self.lines = tuple(lines)
-        self.is_antistasi_record = any("| Antistasi |" in line.content for line in lines)
-        self.start = min(line.start for line in self.lines)
-        self.end = max(line.start for line in self.lines)
-        self.content = ' '.join(line.content.lstrip(" >>>").rstrip() for line in self.lines if line.content)
+        self.log_file = log_file
+        self.is_antistasi_record: bool = any("| Antistasi |" in line.content for line in lines)
+        self.start: int = min(line.start for line in self.lines)
+        self.end: int = max(line.start for line in self.lines)
+        self.content: str = ' '.join(line.content.lstrip(" >>>").rstrip() for line in self.lines if line.content)
+        self.parsed_data: dict[str, Any] = None
+        self.record_class: "RecordClass" = None
 
     @property
     def unformatted_content(self) -> str:
         return '\n'.join(line.content for line in self.lines)
 
+    @property
+    def all_log_levels(self) -> tuple[LogLevel]:
+        if self.__class__._all_log_levels is None:
+            self.__class__._all_log_levels = tuple(LogLevel.select())
+        return self.__class__._all_log_levels
+
+    @property
+    def all_punishment_actions(self) -> tuple[PunishmentAction]:
+        if self.__class__._all_punishment_actions is None:
+            self.__class__._all_punishment_actions = tuple(PunishmentAction.select())
+        return self.__class__._all_punishment_actions
+
+    def _parse_generic_entry(self, regex_keeper: RegexKeeper) -> dict[str, Any]:
+        match = regex_keeper.generic_entry.match(self.content)
+        recorded_at_kwargs = {k.removeprefix('local_'): int(v) for k, v in match.groupdict().items() if k.startswith('local_')} | {'tzinfo': self.log_file.utc_offset}
+        recorded_at = datetime(**recorded_at_kwargs).astimezone(UTC)
+        message = match.group("message")
+        return {"message": message, "recorded_at": recorded_at}
+
+    def _parse_antistasi_entry(self, regex_keeper: RegexKeeper) -> dict[str, Any]:
+        datetime_part, antistasi_indicator_part, log_level_part, file_part, *other_parts = self.content.split('|')
+        recorded_at_kwargs = {k.removeprefix("utc_"): int(v) for k, v in regex_keeper.full_datetime.match(datetime_part).groupdict().items() if k.startswith("utc_")} | {"tzinfo": UTC}
+        _out = {}
+        _out["recorded_at"] = datetime(**recorded_at_kwargs)
+        _out["log_level"] = [l for l in self.all_log_levels if l.name == log_level_part.strip().upper()][0]
+        with self.antistasi_file_model_lock:
+            item, created = AntstasiFunction.get_or_create(name=file_part.removeprefix("File:").strip())
+
+            _out["logged_from"] = item
+        to_pop = []
+        for idx, part in enumerate(other_parts):
+            part = part.strip()
+
+            if part.startswith('Called By:'):
+                with self.antistasi_file_model_lock:
+                    item, created = AntstasiFunction.get_or_create(name=part.removeprefix("Called By:").strip())
+
+                _out["called_by"] = item
+                to_pop.append(idx)
+            elif part.startswith("Client:"):
+                _out['client'] = part.removeprefix("Client:").strip()
+                to_pop.append(idx)
+            elif part in PunishmentActionEnum.__members__:
+                _out["punishment_action"] = [p for p in self.all_punishment_actions if p.name == part.strip().upper()][0]
+                to_pop.append(idx)
+
+        rest = [p for idx, p in enumerate(other_parts) if idx not in to_pop]
+        _out["message"] = '|'.join(rest).strip()
+
+        return _out
+
+    def parse(self, regex_keeper: RegexKeeper) -> None:
+        if self.is_antistasi_record is False:
+            self.parsed_data = self._parse_generic_entry(regex_keeper=regex_keeper)
+        else:
+            self.parsed_data = self._parse_antistasi_entry(regex_keeper=regex_keeper)
+
+    def determine_record_class(self, record_class_manager: RecordClassManager) -> None:
+        self.record_class = record_class_manager.determine_record_class(self)
+
+    def as_log_record(self) -> "LogRecord":
+
+        return LogRecord(start=self.start, end=self.end, is_antistasi_record=self.is_antistasi_record, log_file=self.log_file, record_class=self.record_class, **self.parsed_data)
+
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(start={self.start!r}, end={self.end!r}, content={self.content!r}, is_antistasi_record={self.is_antistasi_entry!r}, lines={self.lines!r})"
+        return f"{self.__class__.__name__}(start={self.start!r}, end={self.end!r}, content={self.content!r}, is_antistasi_record={self.is_antistasi_record!r}, lines={self.lines!r})"
 
 
 class RecordProcessor:
@@ -255,13 +332,16 @@ class Parser:
     log_file_data_scan_chunk_initial = 104997
     log_file_data_scan_chunk_increase = 27239
 
-    def __init__(self, regex_keeper: "RegexKeeper" = None) -> None:
+    def __init__(self, database: "GidSQLiteDatabase", regex_keeper: "RegexKeeper" = None) -> None:
+        self.database = database
         self.regex_keeper = RegexKeeper() if regex_keeper is None else regex_keeper
-        self.records = []
 
     def _process_record(self, context: "ParsingContext") -> None:
-        raw_record = RawRecord(context.line_cache.dump())
-        self.records.append(raw_record)
+        raw_record = RawRecord(context.line_cache.dump(), log_file=context.log_file)
+        raw_record.parse(self.regex_keeper)
+        raw_record.determine_record_class(self.database.record_class_manager)
+        log_record = raw_record.as_log_record()
+        context.add_record(log_record)
 
     def _get_log_file_meta_data(self, context: ParsingContext) -> bool:
         with context.log_file.open(cleanup=False) as file:
@@ -314,7 +394,7 @@ class Parser:
             context.advance_line()
 
     def __call__(self, log_file: "LogFile") -> Any:
-        with ParsingContext(log_file=log_file, auto_download=True) as context:
+        with ParsingContext(log_file=log_file, database=self.database, auto_download=True) as context:
             log.info("getting meta_data")
             if self._get_log_file_meta_data(context=context) is False or context.unparsable is True:
                 return
@@ -322,15 +402,13 @@ class Parser:
                 log.info("parsing header text of", log_file)
                 self._parse_header_text(context)
             if context.log_file.startup_text is None:
-                log.info(f"parsing startup entries of", log_file)
+                log.info("parsing startup entries of", log_file)
                 self._parse_startup_entries(context)
-            log.info(f"parsing entries of", log_file)
+            log.info("parsing entries of", log_file)
             self.parse_entries(context)
 
-        self.records.clear()
 
 # region[Main_Exec]
-
 
 if __name__ == '__main__':
     pass

@@ -53,13 +53,14 @@ from importlib.machinery import SourceFileLoader
 import attr
 from traceback import print_tb
 import peewee
-from threading import Lock
+from threading import Lock, RLock
 from gidapptools.general_helper.enums import MiscEnum
-from antistasi_logbook.storage.models.models import LogFile, Mod, LogFileAndModJoin
+from antistasi_logbook.storage.models.models import LogFile, Mod, LogFileAndModJoin, LogRecord
 from antistasi_logbook.utilities.locks import DB_LOCK
 if TYPE_CHECKING:
 
     from antistasi_logbook.parsing.parser import MetaFinder
+    from antistasi_logbook.storage.database import GidSQLiteDatabase
 # endregion[Imports]
 
 # region [TODO]
@@ -103,12 +104,16 @@ LINE_ITERATOR_TYPE = Generator[RecordLine, None, None]
 
 
 class ParsingContext:
-    mod_entry_lock = Lock()
+    mod_model_lock = RLock()
+    game_map_model_lock = RLock()
 
-    def __init__(self, log_file: "LogFile", auto_download: bool = False) -> None:
+    def __init__(self, log_file: "LogFile", database: "GidSQLiteDatabase", auto_download: bool = False, record_insert_batch_size: int = 1000) -> None:
         self.log_file = log_file
+        self.database = database
+        self.record_insert_batch_size = record_insert_batch_size
         self.auto_download = auto_download
         self.line_cache = LineCache()
+        self.record_storage: list["LogRecord"] = []
         self._line_iterator: LINE_ITERATOR_TYPE = None
         self._current_line: RecordLine = None
         self._current_line_number = 0
@@ -117,32 +122,46 @@ class ParsingContext:
     def unparsable(self) -> bool:
         return self.log_file.unparsable
 
+    @cached_property
+    def bulk_create_batch_size(self) -> int:
+        return 32766 // len(LogRecord._meta.columns)
+
+    def add_record(self, record: "LogRecord") -> None:
+        self.record_storage.append(record)
+
+        if len(self.record_storage) >= self.record_insert_batch_size:
+            LogRecord.bulk_create(self.record_storage, self.bulk_create_batch_size)
+            self.record_storage.clear()
+
     def set_unparsable(self) -> None:
         print(f"setting {self.log_file.name!r} of {self.log_file.server.name!r} to unparsable")
         self.log_file.unparsable = True
 
     def set_found_meta_data(self, finder: "MetaFinder") -> None:
         if finder.game_map is not MiscEnum.DEFAULT:
-            self.log_file.set_game_map(finder.game_map)
+            with self.game_map_model_lock:
+                self.log_file.set_game_map(finder.game_map)
         if finder.version is not MiscEnum.DEFAULT:
             self.log_file.set_version(finder.version)
         if finder.full_datetime is not MiscEnum.DEFAULT:
             self.log_file.set_first_datetime(finder.full_datetime)
         if finder.mods is not None and finder.mods is not MiscEnum.DEFAULT:
-            self.log_file.save()
 
             for mod_item in finder.mods:
-                try:
-                    mod_entry = Mod.select().where(*[getattr(Mod, k) == v for k, v in mod_item.as_dict().items() if k in {'name', 'mod_dir', "full_path", "hash", "hash_short"}])[0]
-                except IndexError:
-                    mod_entry = Mod(**mod_item.as_dict())
-                    mod_entry.save()
 
-                try:
-                    x = LogFileAndModJoin.select().where(LogFileAndModJoin.log_file == self.log_file, LogFileAndModJoin.mod == mod_entry)[0]
-                except IndexError:
-                    x = LogFileAndModJoin(log_file=self.log_file, mod=mod_entry)
-                    x.save()
+                with self.mod_model_lock:
+                    try:
+                        mod_entry = Mod.select().where(*[getattr(Mod, k) == v for k, v in mod_item.as_dict().items() if k in {'name', 'mod_dir', "full_path", "hash", "hash_short"}])[0]
+                    except IndexError:
+                        mod_entry = Mod(**mod_item.as_dict())
+                        mod_entry.save()
+
+                with self.mod_model_lock:
+                    try:
+                        x = LogFileAndModJoin.select().where(LogFileAndModJoin.log_file == self.log_file, LogFileAndModJoin.mod == mod_entry)[0]
+                    except IndexError:
+                        x = LogFileAndModJoin(log_file=self.log_file, mod=mod_entry)
+                        x.save()
 
     def set_header_text(self) -> None:
         if self.line_cache.is_empty() is False:
@@ -193,13 +212,13 @@ class ParsingContext:
     def __exit__(self, exception_type: type = None, exception_value: BaseException = None, traceback: Any = None) -> None:
 
         if all(i is None for i in [exception_type, exception_value, traceback]):
+            if len(self.record_storage) > 0:
+                LogRecord.bulk_create(self.record_storage, 32766 // len(LogRecord._meta.columns))
+                self.record_storage.clear()
+            if self.unparsable is False:
+                self.log_file.last_parsed_line_number = self._current_line_number
             self.log_file.save()
-        else:
 
-            print(f"error with {self.log_file.name!r} of {self.log_file.server.name!r}")
-            print(f"{exception_type=}")
-            print(f"{exception_value=}")
-            print_tb(traceback)
         self.close()
 
 

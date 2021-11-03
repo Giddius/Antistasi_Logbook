@@ -64,6 +64,21 @@ values
     ("DAMAGE", 2);
 
 INSERT
+    OR IGNORE INTO "PunishmentAction" ("name", "id")
+values
+    ("COLLISION", 3);
+
+INSERT
+    OR IGNORE INTO "PunishmentAction" ("name", "id")
+values
+    ("RELEASE", 4);
+
+INSERT
+    OR IGNORE INTO "PunishmentAction" ("name", "id")
+values
+    ("GUILTY", 5);
+
+INSERT
     OR IGNORE INTO "Server" (
         "name",
         "remote_path",

@@ -75,7 +75,7 @@ import yarl
 import httpx
 from antistasi_logbook.errors import MissingLoginError
 from antistasi_logbook.utilities.path_utilities import url_to_path
-
+from antistasi_logbook.utilities.locks import DelayedSemaphore
 if TYPE_CHECKING:
 
     from gidapptools.meta_data.interface import MetaPaths
@@ -148,7 +148,7 @@ class LocalManager(AbstractRemoteStorageManager):
 class WebdavManager(AbstractRemoteStorageManager):
     _extra_base_url_parts = ["dev_drive", "remote.php", "dav", "files"]
 
-    download_semaphores: dict[yarl.URL, Semaphore] = {}
+    download_semaphores: dict[yarl.URL, DelayedSemaphore] = {}
     config_name = 'webdav'
 
     def __init__(self, base_url: yarl.URL, login: str, password: str) -> None:
@@ -163,7 +163,8 @@ class WebdavManager(AbstractRemoteStorageManager):
     def _get_download_semaphore(self) -> Semaphore:
         download_semaphore = self.download_semaphores.get(self.full_base_url)
         if download_semaphore is None:
-            download_semaphore = Semaphore(self.max_connections)
+            delay = CONFIG.get(self.config_name, "delay_between_downloads", default=0)
+            download_semaphore = DelayedSemaphore(self.max_connections, delay=delay)
             self.download_semaphores[self.full_base_url] = download_semaphore
         return download_semaphore
 
@@ -182,7 +183,11 @@ class WebdavManager(AbstractRemoteStorageManager):
             raise RuntimeError(f"login and password can not be None for {self.__class__.__name__!r}.")
 
         if self._client is None:
-            self._client = WebdavClient(base_url=str(self.full_base_url), auth=(self.login, self.password), retry=True, limits=httpx.Limits(max_connections=self.max_connections, max_keepalive_connections=20), timeout=httpx.Timeout(timeout=60.0))
+            self._client = WebdavClient(base_url=str(self.full_base_url),
+                                        auth=(self.login, self.password),
+                                        retry=True,
+                                        limits=httpx.Limits(max_connections=self.max_connections, max_keepalive_connections=self.max_connections),
+                                        timeout=httpx.Timeout(timeout=None))
         return self._client
 
     def _make_full_base_url(self) -> yarl.URL:

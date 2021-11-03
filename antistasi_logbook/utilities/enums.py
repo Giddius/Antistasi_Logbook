@@ -77,17 +77,6 @@ META_INFO = get_meta_info()
 
 
 # endregion[Constants]
-@unique
-class LogLevel(BaseGidEnum):
-    """
-    Representing the parsed log-level.
-    """
-    NO_LEVEL = None
-    DEBUG = 1
-    INFO = 2
-    WARNING = 3
-    CRITICAL = 4
-    ERROR = 5
 
 
 class RemoteItemType(Enum):

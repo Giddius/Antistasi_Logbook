@@ -51,7 +51,11 @@ from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
 
-from antistasi_logbook.records.abstract_record import AbstractRecord, EntryFamily
+from antistasi_logbook.records.abstract_record import AbstractRecord, RecordFamily, MessageFormat
+from antistasi_logbook.records.enums import LogLevelEnum, PunishmentActionEnum
+if TYPE_CHECKING:
+    from antistasi_logbook.storage.models.models import LogFile, LogRecord, PunishmentAction, LogLevel, AntstasiFunction
+    from antistasi_logbook.parsing.parser import RawRecord
 # endregion[Imports]
 
 # region [TODO]
@@ -72,9 +76,66 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 
 class BaseRecord(AbstractRecord):
-    ___entry_family___ = EntryFamily.GENERIC | EntryFamily.ANTISTASI
+    ___record_family___ = RecordFamily.GENERIC | RecordFamily.ANTISTASI
+    ___specificity___ = 0
 
-    # region[Main_Exec]
+    def __init__(self,
+                 log_record: "LogRecord",
+                 log_file: "LogFile",
+                 recorded_at: datetime,
+                 message: str,
+                 log_level: "LogLevel" = None,
+                 logged_from: "AntstasiFunction" = None,
+                 called_by: "AntstasiFunction" = None,
+                 client: str = None,
+                 punishment_action: "PunishmentAction" = None,
+                 is_antistasi_record: bool = False
+                 ) -> None:
+        self.log_record = log_record
+        self.log_file = log_file
+        self.recorded_at = recorded_at
+        self.message = message
+        self.log_level = log_level
+        self.logged_from = logged_from
+        self.called_by = called_by
+        self.client = client
+        self.punishment_action = punishment_action
+        self.is_antistasi_record = is_antistasi_record
+
+    def mark(self) -> None:
+        self.log_record.marked = True
+        self.log_record.save()
+
+    @property
+    def comments(self) -> Optional[str]:
+        return self.log_record.comments
+
+    def add_comment(self, comment: str) -> None:
+        if self.log_record.comments is None:
+            self.log_record.comments = comment
+        else:
+            self.log_record.comments = self.log_record.comments + '\n' + comment
+        self.log_record.save()
+
+    def get_formated_message(self, format: "MessageFormat") -> str:
+        return self.message
+
+    @classmethod
+    def check(cls, raw_record: "RawRecord") -> bool:
+        return True
+
+    @classmethod
+    def from_log_record(cls, log_record: "LogRecord") -> "BaseRecord":
+        kwarg_names = ("log_file",
+                       "recorded_at",
+                       "message",
+                       "logged_from",
+                       "called_by",
+                       "client",
+                       "is_antistasi_record")
+        kwargs = {k: getattr(log_record, k, None) for k in kwarg_names}
+        return cls(log_record=log_record, log_level=LogLevelEnum(log_record.log_level.name), punishment_action=PunishmentActionEnum(log_record.punishment_action.name), ** kwargs)
+# region[Main_Exec]
 
 
 if __name__ == '__main__':

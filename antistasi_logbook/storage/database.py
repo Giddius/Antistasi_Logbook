@@ -58,10 +58,11 @@ from playhouse.pool import PooledSqliteExtDatabase
 import yarl
 from gidapptools.gid_signal.interface import get_signal
 from gidapptools.meta_data.interface import get_meta_paths, MetaPaths, get_meta_config, get_meta_info
-
-from antistasi_logbook.storage.models.models import database, Server, RemoteStorage
+from gidapptools.general_helper.conversion import human2bytes
+from antistasi_logbook.storage.models.models import database, Server, RemoteStorage, LogFile, RecordClass
 from antistasi_logbook.updating.remote_managers import AbstractRemoteStorageManager, LocalManager, WebdavManager
 from rich.console import Console as RichConsole
+from antistasi_logbook.parsing.record_class_manager import RecordClassManager
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
 # endregion[Imports]
@@ -169,13 +170,14 @@ class GidSQLiteScriptLoader:
         return f"{self.__class__.__name__}(script_folder={self.script_folder.as_posix()!r}, setup_prefix={self.setup_prefix!r})"
 
 
-class GidSqliteQueueDatabase(SqliteExtDatabase):
+class GidSqliteQueueDatabase(SqliteQueueDatabase):
     default_pragmas = {
-        "cache_size": -1024 * 64,
+        "cache_size": -1 * 64000,
         "journal_mode": "wal",
         "synchronous": 0,
         "ignore_check_constraints": 0,
-        "foreign_keys": 1
+        "foreign_keys": 1,
+        "journal_size_limit": human2bytes("500mb")
     }
     default_extensions = {"json_contains": True,
                           "regexp_function": True}
@@ -188,6 +190,7 @@ class GidSqliteQueueDatabase(SqliteExtDatabase):
     def __init__(self,
                  database_path: Path = None,
                  script_folder: Path = None,
+                 record_class_manager: "RecordClassManager" = None,
                  use_gevent=False,
                  autostart=True,
                  queue_max_size=None,
@@ -196,47 +199,12 @@ class GidSqliteQueueDatabase(SqliteExtDatabase):
                  extensions=None):
         self.path = self.default_db_path.joinpath(self.default_db_name) if database_path is None else Path(database_path)
         self.script_folder = self.default_script_folder if script_folder is None else Path(script_folder)
+        self.record_class_manager = RecordClassManager() if record_class_manager is None else record_class_manager
         self.script_provider = GidSQLiteScriptLoader(self.script_folder)
         self.started_up = False
         extensions = self.default_extensions if extensions is None else extensions
-        super().__init__(make_db_path(self.path), use_gevent=use_gevent, autostart=autostart, queue_max_size=queue_max_size, results_timeout=results_timeout, pragmas=pragmas or self.default_pragmas, **extensions)
-
-    def start_up_db(self) -> None:
-        if self.start_up_db is False:
-            for script in self.script_provider.get_setup_scripts():
-                self.execute_sql(script)
-        self.started_up = True
-
-
-class GidSQLiteDatabase(SqliteExtDatabase):
-    default_pragmas = {
-        "cache_size": -1 * 64000,
-        "journal_mode": "OFF",
-        "synchronous": "OFF",
-        "ignore_check_constraints": 0,
-        "foreign_keys": 1
-    }
-
-    default_extensions = {"json_contains": True,
-                          "regexp_function": True}
-    default_db_name = "storage.db"
-    default_db_path = META_PATHS.db_dir if os.getenv('IS_DEV', 'false') == "false" else THIS_FILE_DIR
-
-    default_script_folder = THIS_FILE_DIR.joinpath("sql_scripts")
-
-    def __init__(self,
-                 database_path: Path = None,
-                 script_folder: Path = None,
-                 pragmas=None,
-                 extensions=None):
-        self.path = self.default_db_path.joinpath(self.default_db_name) if database_path is None else Path(database_path)
-
-        self.script_folder = self.default_script_folder if script_folder is None else Path(script_folder)
-        self.script_provider = GidSQLiteScriptLoader(self.script_folder)
-        extensions = self.default_extensions if extensions is None else extensions
         pragmas = self.default_pragmas if pragmas is None else pragmas
-
-        super().__init__(make_db_path(self.path), pragmas=pragmas, autoconnect=True, thread_safe=True, check_same_thread=False, ** extensions)
+        super().__init__(make_db_path(self.path), use_gevent=use_gevent, autostart=autostart, queue_max_size=queue_max_size, results_timeout=results_timeout, thread_safe=True, pragmas=pragmas, **extensions)
 
     def start_up_db(self, overwrite: bool = False) -> None:
         self.path.parent.mkdir(exist_ok=True, parents=True)
@@ -247,6 +215,66 @@ class GidSQLiteDatabase(SqliteExtDatabase):
         for script in self.script_provider.get_setup_scripts():
 
             conn.executescript(script)
+            conn.execute("VACUUM")
+        conn.close()
+        self.start()
+
+    def optimize(self) -> None:
+        self.pragma("optimize")
+
+    def vacuum(self) -> None:
+        self.execute("VACUUM")
+
+    def stop(self):
+        # self.pragma("optimize")
+        sleep(5)
+
+        _out = super().stop()
+
+        return _out
+
+
+class GidSQLiteDatabase(PooledSqliteExtDatabase):
+    default_pragmas = {
+        "cache_size": -1 * 64000,
+        "journal_mode": "WAL",
+        "synchronous": 0,
+        "ignore_check_constraints": 0,
+        "foreign_keys": 1
+    }
+
+    default_extensions = {"json_contains": True,
+                          "regexp_function": True}
+    default_db_name = "storage.db"
+    default_db_path = META_PATHS.db_dir if os.getenv('IS_DEV', 'false') == "false" else THIS_FILE_DIR
+
+    default_script_folder = THIS_FILE_DIR.joinpath("sql_scripts")
+
+    def __init__(self,
+                 database_path: Path = None,
+                 script_folder: Path = None,
+                 record_class_manager: "RecordClassManager" = None,
+                 pragmas=None,
+                 extensions=None):
+        self.path = self.default_db_path.joinpath(self.default_db_name) if database_path is None else Path(database_path)
+        self.script_folder = self.default_script_folder if script_folder is None else Path(script_folder)
+        self.record_class_manager = RecordClassManager() if record_class_manager is None else record_class_manager
+        self.script_provider = GidSQLiteScriptLoader(self.script_folder)
+        extensions = self.default_extensions if extensions is None else extensions
+        pragmas = self.default_pragmas if pragmas is None else pragmas
+
+        super().__init__(make_db_path(self.path), pragmas=pragmas, timeout=0, autoconnect=True, stale_timeout=10, thread_safe=True, ** extensions)
+
+    def start_up_db(self, overwrite: bool = False) -> None:
+        self.path.parent.mkdir(exist_ok=True, parents=True)
+        self.script_folder.mkdir(exist_ok=True, parents=True)
+        if overwrite is True:
+            self.path.unlink(missing_ok=True)
+        conn = sqlite3.connect(self.path)
+        for script in self.script_provider.get_setup_scripts():
+
+            conn.executescript(script)
+            conn.execute("VACUUM")
         conn.close()
 
 
@@ -255,12 +283,17 @@ if __name__ == '__main__':
     from antistasi_logbook.updating.updater import Updater
     from dotenv import load_dotenv
     from antistasi_logbook.parsing.parser import Parser
-    updater = Updater(parser=Parser())
+    from antistasi_logbook.records.antistasi_records import PerformanceRecord
+
+    x = GidSqliteQueueDatabase(autostart=False)
+
+    database.initialize(x)
+    updater = Updater(parser=Parser(database=database), database=database)
     updater.register_remote_manager_class(WebdavManager)
     updater.register_remote_manager_class(LocalManager)
-    x = GidSQLiteDatabase()
-    database.initialize(x)
-    x.start_up_db(overwrite=False)
+
+    x.start_up_db(overwrite=True)
+    x.record_class_manager.register_record_class(PerformanceRecord)
     load_dotenv(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\antistasi_logbook\nextcloud.env")
     web_dav_rem = RemoteStorage.get_by_id(1)
     web_dav_rem.login = os.getenv("NEXTCLOUD_USERNAME")
@@ -268,9 +301,14 @@ if __name__ == '__main__':
     web_dav_rem.save()
     for server in Server.select():
         updater(server)
+        sleep(5)
     console = RichConsole(soft_wrap=True)
-    x.execute_sql("VACUUM")
+    for l in LogFile.select():
+        if l.record_class.name == PerformanceRecord.__name__:
+            i = l.to_record_class()
+            pprint(i.stats)
+            print('-' * 50)
+    x.stop()
     x.close()
-
 
 # endregion[Main_Exec]

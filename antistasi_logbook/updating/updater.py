@@ -56,9 +56,11 @@ from gidapptools import get_meta_config
 import mmap
 from threading import Thread, Event, Condition
 from antistasi_logbook.storage.models.models import Server, LogFile
+from antistasi_logbook.utilities.locks import DB_LOCK
 if TYPE_CHECKING:
 
     from antistasi_logbook.updating.remote_managers import AbstractRemoteStorageManager, InfoItem
+    from antistasi_logbook.storage.database import GidSQLiteDatabase
 # endregion[Imports]
 
 # region [TODO]
@@ -119,8 +121,9 @@ class IntervallKeeper:
 class Updater:
     remote_manager_classes: dict[str, type["AbstractRemoteStorageManager"]] = {}
 
-    def __init__(self, parser) -> None:
+    def __init__(self, parser, database: "GidSQLiteDatabase") -> None:
         self.parser = parser
+        self.database = database
 
     def get_cutoff_datetime(self) -> Optional[datetime]:
         days = CONFIG.get("updater", "max_update_time_frame_days", default=None)
@@ -140,7 +143,9 @@ class Updater:
 
     def _create_new_log_file(self, server: "Server", remote_info: "InfoItem") -> LogFile:
         new_log_file = LogFile(server=server, size=0, **{k: v for k, v in remote_info.as_dict().items() if k not in {"size"}})
+
         new_log_file.save()
+
         new_log_file.size = remote_info.size
         return new_log_file
 
@@ -149,8 +154,8 @@ class Updater:
         log_file.size = remote_info.size
         return log_file
 
-    def _get_updated_log_files(self, server: "Server") -> list["LogFile"]:
-        to_process = []
+    def _get_updated_log_files(self, server: "Server"):
+        updated_log_files = []
         current_log_files = server.get_current_log_files()
         cutoff_datetime = self.get_cutoff_datetime()
         for remote_info in server.get_remote_files(server.remote_manager):
@@ -159,23 +164,26 @@ class Updater:
             stored_file: LogFile = current_log_files.get(remote_info.name, None)
 
             if stored_file is None:
-                to_process.append(self._create_new_log_file(server=server, remote_info=remote_info))
+                updated_log_files.append(self._create_new_log_file(server=server, remote_info=remote_info))
 
             elif stored_file.modified_at < remote_info.modified_at or stored_file.size < remote_info.size:
-                to_process.append(self._update_log_file(log_file=stored_file, remote_info=remote_info))
-        return to_process
+                updated_log_files.append(self._update_log_file(log_file=stored_file, remote_info=remote_info))
+        return updated_log_files
 
     def update_server(self, server: "Server") -> None:
         if server.is_updatable() is False:
             return
 
         server.ensure_remote_manager(remote_manager=self._get_remote_manager(server))
-
-        for log_file in self._get_updated_log_files(server=server):
-            self.parser(log_file)
+        updated_log_files = self._get_updated_log_files(server=server)
+        with ThreadPoolExecutor((os.cpu_count() or 1) + 10) as pool:
+            list(pool.map(self.parser, updated_log_files))
+        # for log_file in self._get_updated_log_files(server=server):
+        #     self.parser(log_file)
 
     def __call__(self, server: "Server") -> Any:
-        return self.update_server(server)
+        _out = self.update_server(server)
+        return _out
 
 
 class UpdateThread(Thread):

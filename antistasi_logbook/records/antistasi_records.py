@@ -51,9 +51,9 @@ from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
 
+from antistasi_logbook.records.base_record import BaseRecord, RecordFamily
 if TYPE_CHECKING:
     from antistasi_logbook.parsing.parser import RawRecord
-    from antistasi_logbook.storage.models.models import LogRecord
 # endregion[Imports]
 
 # region [TODO]
@@ -73,43 +73,23 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 # endregion[Constants]
 
 
-class MessageFormat(Enum):
-    PRETTY = auto()
+class PerformanceRecord(BaseRecord):
+    ___record_family___ = RecordFamily.ANTISTASI
+    ___specificity___ = 10
+    performance_regex = re.compile(r"(?P<name>\w+\s?\w*)(?:\:\s?)(?P<value>\d[\d\.]*)")
 
-
-class RecordFamily(Flag):
-    GENERIC = auto()
-    ANTISTASI = auto()
-
-
-class AbstractRecord(ABC):
-    ___record_family___: RecordFamily = ...
-    ___specificity___: int = ...
-
-    def __init_subclass__(cls) -> None:
-        if not hasattr(cls, "___record_family___") or cls.___record_family___ is ...:
-            # TODO: Custom Error!
-            raise RuntimeError("Records need to implement the class attribute '___record_family___' and its value needs to be of type 'EntryFamily'.")
-        if not hasattr(cls, "___specificity___") or cls.___specificity___ is ...:
-            # TODO: Custom Error!
-            raise RuntimeError("Records need to implement the class attribute '___specificity___' and its value needs to be of type 'int'.")
+    @cached_property
+    def stats(self) -> dict[str, Union[int, float]]:
+        data = {item.group('name'): item.group('value') for item in self.performance_regex.finditer(self.message)}
+        return {k: float(v) if '.' in v else int(v) for k, v in data.items()}
 
     @classmethod
-    @abstractmethod
     def check(cls, raw_record: "RawRecord") -> bool:
-        ...
-
-    @classmethod
-    @abstractmethod
-    def from_log_record(cls, log_record: "LogRecord") -> "AbstractRecord":
-        ...
-
-    @abstractmethod
-    def get_formated_message(self, format: "MessageFormat") -> str:
-        ...
-
+        logged_from = raw_record.parsed_data.get("logged_from")
+        return logged_from is not None and logged_from.name == "A3A_fnc_logPerformance"
 
 # region[Main_Exec]
+
 
 if __name__ == '__main__':
     pass
