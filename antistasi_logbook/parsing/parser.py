@@ -60,12 +60,12 @@ from gidapptools.general_helper.timing import time_func
 from gidapptools.general_helper.enums import MiscEnum
 from rich.console import Console as RichConsole
 from antistasi_logbook.parsing.record_class_manager import RecordClassManager
-from antistasi_logbook.storage.models.models import LogFile, RecordClass, LogRecord, LogLevel, PunishmentAction, AntstasiFunction
+from antistasi_logbook.storage.models.models import LogFile, RecordClass, LogRecord, LogLevel, AntstasiFunction
 from antistasi_logbook.records.enums import PunishmentActionEnum
 from dateutil.tz import UTC
 import peewee
 from playhouse.signals import Model, post_save
-from antistasi_logbook.utilities.locks import DB_LOCK
+
 from threading import RLock
 if TYPE_CHECKING:
 
@@ -266,7 +266,6 @@ def to_record_parsing_error_file(raw_record: "RawRecord", problem: str) -> None:
 class RawRecord:
     antistasi_file_model_lock = RLock()
     _all_log_levels: tuple[LogLevel] = None
-    _all_punishment_actions: tuple[PunishmentAction] = None
     _all_antistasi_file_objects: dict[str, AntstasiFunction] = None
     __slots__ = ("lines", "is_antistasi_record", "start", "end", "content", "parsed_data", "record_class", "log_file")
 
@@ -308,12 +307,6 @@ class RawRecord:
             self.__class__._all_log_levels = tuple(LogLevel.select())
         return self.__class__._all_log_levels
 
-    @property
-    def all_punishment_actions(self) -> tuple[PunishmentAction]:
-        if self.__class__._all_punishment_actions is None:
-            self.__class__._all_punishment_actions = tuple(PunishmentAction.select())
-        return self.__class__._all_punishment_actions
-
     def _parse_generic_entry(self, regex_keeper: RegexKeeper) -> dict[str, Any]:
         match = regex_keeper.generic_entry.search(self.content)
         if not match:
@@ -344,9 +337,9 @@ class RawRecord:
         logged_from_item = self.all_antistasi_file_objects.get(logged_from_item_name, None)
         if logged_from_item is None:
             print(f"file {logged_from_item_name!r} not found")
-            with self.antistasi_file_model_lock:
-                logged_from_item = AntstasiFunction(name=logged_from_item_name)
-                logged_from_item.save()
+
+            logged_from_item = AntstasiFunction(name=logged_from_item_name)
+            logged_from_item.save()
 
         # with self.antistasi_file_model_lock:
 
@@ -364,17 +357,12 @@ class RawRecord:
                 called_by_item = self.all_antistasi_file_objects.get(called_by_item_name, None)
                 if called_by_item is None:
                     print(f"file {called_by_item_name!r} not found")
-                    with self.antistasi_file_model_lock:
-
-                        called_by_item = AntstasiFunction(name=called_by_item)
-                        called_by_item.save()
+                    called_by_item = AntstasiFunction(name=called_by_item)
+                    called_by_item.save()
                 _out["called_by"] = called_by_item
                 to_pop.append(idx)
             elif part.startswith("Client:"):
                 _out['client'] = part.removeprefix("Client:").strip()
-                to_pop.append(idx)
-            elif part in PunishmentActionEnum.__members__:
-                _out["punishment_action"] = [p for p in self.all_punishment_actions if p.name == part.strip().upper()][0]
                 to_pop.append(idx)
 
         rest = [p for idx, p in enumerate(other_parts) if idx not in to_pop]

@@ -62,6 +62,7 @@ from gidapptools.general_helper.conversion import human2bytes
 from antistasi_logbook.storage.models.models import database, Server, RemoteStorage, LogFile, RecordClass, LogRecord
 from antistasi_logbook.updating.remote_managers import AbstractRemoteStorageManager, LocalManager, WebdavManager
 from rich.console import Console as RichConsole
+from rich import inspect as rinspect
 from antistasi_logbook.parsing.record_class_manager import RecordClassManager
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
@@ -84,6 +85,7 @@ META_PATHS: MetaPaths = get_meta_paths()
 META_INFO = get_meta_info()
 CONFIG: "GidIniConfig" = get_meta_config().get_config('general')
 CONFIG.config.load()
+CONSOLE = RichConsole(soft_wrap=True)
 # endregion[Constants]
 
 FIND_INT_REGEX = re.compile(r"\d+")
@@ -221,11 +223,13 @@ class GidSqliteQueueDatabase(SqliteQueueDatabase):
 
     def optimize(self) -> None:
         print("optimizing")
-        self.execute("OPTIMIZE")
+
+        self.execute_sql("OPTIMIZE")
 
     def vacuum(self) -> None:
         print("vacuuming!")
-        self.execute("VACUUM")
+
+        self.execute_sql("VACUUM")
 
     def stop(self):
         # self.pragma("optimize")
@@ -312,6 +316,7 @@ if __name__ == '__main__':
 
         x.vacuum()
         x.optimize()
+        x.vacuum()
     finally:
         x.stop()
         updater.close()

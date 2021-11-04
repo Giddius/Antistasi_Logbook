@@ -56,7 +56,7 @@ from gidapptools import get_meta_config
 import mmap
 from threading import Thread, Event, Condition
 from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord
-from antistasi_logbook.utilities.locks import DB_LOCK
+
 if TYPE_CHECKING:
 
     from antistasi_logbook.updating.remote_managers import AbstractRemoteStorageManager, InfoItem

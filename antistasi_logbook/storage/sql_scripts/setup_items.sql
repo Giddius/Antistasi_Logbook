@@ -29,16 +29,6 @@ VALUES
     (5, "ERROR");
 
 INSERT
-    OR IGNORE INTO PunishmentAction (id, name)
-VALUES
-    (0, "NO_ACTION"),
-    (1, "WARNING"),
-    (2, "DAMAGE"),
-    (3, "COLLISION"),
-    (4, "RELEASE"),
-    (5, "GUILTY");
-
-INSERT
     OR IGNORE INTO Server (
         local_path,
         name,

@@ -1,0 +1,10 @@
+--------------------------------------------------
+is_antistasi= True
+file= 'arma3server_x64_2021-10-03_17-50-12'
+server= 'Mainserver_2'
++++++++++++++++++++++++++
+2021/10/04, 09:40:37 "[ASU] Perf-profiling : FPS=45.4545 nbPlayers=0 nbAIs=5"2021/10/04, 01:35:44 2021-10-04 08:35:44:596 | Antistasi | Error | File: A3A_fnc_vehiclePrice | Invalid vehicle price :UK3CB_CHC_C_V3S_Refuel. | Called By: A3A_fnc_savePlayer2021/10/04, 09:41:37 "[ASU] Perf-profiling : FPS=45.4545 nbPlayers=0 nbAIs=5"
++++++++++++++++++++++++++
+PROBLEM: 'datetime_part did not match, datetime_part=2021/10/04, 09:40:37 "[ASU] Perf-profiling : FPS=45.4545 nbPlayers=0 nbAIs=5"2021/10/04, 01:35:44 2021-10-04 08:35:44:596 '
+--------------------------------------------------
+

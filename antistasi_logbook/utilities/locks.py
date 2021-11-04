@@ -55,5 +55,5 @@ class MinDurationSemaphore(Semaphore):
 
     def __exit__(self, t, v, tb):
         self._sleep_to_minimum()
-        sleep(self.delay_seconds)
+        sleep(random.uniform(0.0, float(self.delay_seconds)))
         self.release()

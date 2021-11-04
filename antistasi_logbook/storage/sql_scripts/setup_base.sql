@@ -3,11 +3,6 @@ CREATE TABLE IF NOT EXISTS "LogLevel" (
     "name" TEXT UNIQUE NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS "PunishmentAction" (
-    "id" INTEGER PRIMARY KEY,
-    "name" TEXT UNIQUE NOT NULL
-);
-
 CREATE TABLE IF NOT EXISTS "RemoteStorage" (
     "id" INTEGER PRIMARY KEY,
     "name" TEXT UNIQUE NOT NULL,
@@ -113,7 +108,6 @@ CREATE TABLE IF NOT EXISTS "LogRecord" (
     "logged_from" INTEGER REFERENCES "AntstasiFunction" ("id") ON DELETE CASCADE,
     "log_file" INTEGER NOT NULL REFERENCES "LogFile" ("id") ON DELETE CASCADE,
     "log_level" INTEGER DEFAULT 0 REFERENCES "LogLevel" ("id") ON DELETE CASCADE,
-    "punishment_action" INTEGER DEFAULT 0 REFERENCES "PunishmentAction" ("id") ON DELETE CASCADE,
     "record_class" INTEGER NOT NULL REFERENCES "RecordClass" ("id") ON DELETE CASCADE,
     "comments" TEXT,
     "marked" BOOL DEFAULT 0,

@@ -21,7 +21,7 @@ from rich.console import Console as RichConsole
 from antistasi_logbook.utilities.misc import Version
 from antistasi_logbook.data.misc import LOG_FILE_DATE_REGEX
 from dateutil.tz import tzoffset, UTC
-from antistasi_logbook.utilities.locks import DB_LOCK
+
 from time import sleep
 if TYPE_CHECKING:
     from antistasi_logbook.updating.remote_managers import AbstractRemoteStorageManager, InfoItem
@@ -348,13 +348,6 @@ class RecordClass(BaseModel):
         return self._meta.database.record_class_manager.get_by_name(self.name)
 
 
-class PunishmentAction(BaseModel):
-    name = TextField(unique=True)
-
-    class Meta:
-        table_name = 'PunishmentAction'
-
-
 class LogRecord(BaseModel):
     start = IntegerField()
     end = IntegerField()
@@ -366,7 +359,6 @@ class LogRecord(BaseModel):
     logged_from = ForeignKeyField(column_name='logged_from', field='id', model=AntstasiFunction, lazy_load=True, null=True)
     log_file = ForeignKeyField(column_name='log_file', field='id', model=LogFile, lazy_load=True, backref="log_records", null=False)
     log_level = ForeignKeyField(column_name='log_level', constraints=[SQL("DEFAULT 0")], field='id', model=LogLevel, null=True, lazy_load=True)
-    punishment_action = ForeignKeyField(column_name='punishment_action', constraints=[SQL("DEFAULT 0")], field='id', model=PunishmentAction, null=True, lazy_load=True)
     record_class = ForeignKeyField(column_name='record_class', field='id', model=RecordClass, lazy_load=True)
     comments = TextField(null=True)
     marked = BooleanField(constraints=[SQL("DEFAULT 0")])

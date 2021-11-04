@@ -149,10 +149,9 @@ class ParsingContext:
         if finder.full_datetime is not MiscEnum.DEFAULT:
             self.log_file.set_first_datetime(finder.full_datetime)
         if finder.mods is not None and finder.mods is not MiscEnum.DEFAULT:
+            with self.mod_model_lock:
+                for mod_item in finder.mods:
 
-            for mod_item in finder.mods:
-
-                with self.mod_model_lock:
                     try:
                         mod_entry = Mod.select().where(*[getattr(Mod, k) == v for k, v in mod_item.as_dict().items() if k in {'name', 'mod_dir', "full_path", "hash", "hash_short"}])[0]
                     except IndexError:
