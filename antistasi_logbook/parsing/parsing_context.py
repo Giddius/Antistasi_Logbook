@@ -127,6 +127,8 @@ class ParsingContext:
         return 32766 // len(LogRecord._meta.columns)
 
     def add_record(self, record: "LogRecord") -> None:
+        if record is None:
+            return
         self.record_storage.append(record)
 
         if len(self.record_storage) >= self.record_insert_batch_size:
@@ -136,6 +138,7 @@ class ParsingContext:
     def set_unparsable(self) -> None:
         print(f"setting {self.log_file.name!r} of {self.log_file.server.name!r} to unparsable")
         self.log_file.unparsable = True
+        self.log_file.save()
 
     def set_found_meta_data(self, finder: "MetaFinder") -> None:
         if finder.game_map is not MiscEnum.DEFAULT:
@@ -181,6 +184,7 @@ class ParsingContext:
                 if self.log_file.last_parsed_line_number is not None and line_number <= self.log_file.last_parsed_line_number:
                     continue
                 line = line.rstrip()
+                self._current_line_number = line_number
                 yield RecordLine(content=line, start=line_number)
 
     @property
@@ -215,8 +219,8 @@ class ParsingContext:
             if len(self.record_storage) > 0:
                 LogRecord.bulk_create(self.record_storage, 32766 // len(LogRecord._meta.columns))
                 self.record_storage.clear()
-            if self.unparsable is False:
-                self.log_file.last_parsed_line_number = self._current_line_number
+            if not self.unparsable:
+                self.log_file.last_parsed_line_number = self._current_line_number - 1
             self.log_file.save()
 
         self.close()

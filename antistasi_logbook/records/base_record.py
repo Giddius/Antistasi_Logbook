@@ -134,7 +134,9 @@ class BaseRecord(AbstractRecord):
                        "client",
                        "is_antistasi_record")
         kwargs = {k: getattr(log_record, k, None) for k in kwarg_names}
-        return cls(log_record=log_record, log_level=LogLevelEnum(log_record.log_level.name), punishment_action=PunishmentActionEnum(log_record.punishment_action.name), ** kwargs)
+        log_level = LogLevelEnum(log_record.log_level.name) if log_record.log_level is not None else LogLevelEnum.NO_LEVEL
+        punishment_action = PunishmentActionEnum(log_record.punishment_action.name) if log_record.punishment_action is not None else LogLevelEnum.NO_LEVEL
+        return cls(log_record=log_record, log_level=log_level, punishment_action=punishment_action, ** kwargs)
 # region[Main_Exec]
 
 

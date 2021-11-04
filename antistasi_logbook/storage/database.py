@@ -59,7 +59,7 @@ import yarl
 from gidapptools.gid_signal.interface import get_signal
 from gidapptools.meta_data.interface import get_meta_paths, MetaPaths, get_meta_config, get_meta_info
 from gidapptools.general_helper.conversion import human2bytes
-from antistasi_logbook.storage.models.models import database, Server, RemoteStorage, LogFile, RecordClass
+from antistasi_logbook.storage.models.models import database, Server, RemoteStorage, LogFile, RecordClass, LogRecord
 from antistasi_logbook.updating.remote_managers import AbstractRemoteStorageManager, LocalManager, WebdavManager
 from rich.console import Console as RichConsole
 from antistasi_logbook.parsing.record_class_manager import RecordClassManager
@@ -215,14 +215,16 @@ class GidSqliteQueueDatabase(SqliteQueueDatabase):
         for script in self.script_provider.get_setup_scripts():
 
             conn.executescript(script)
-            conn.execute("VACUUM")
+
         conn.close()
         self.start()
 
     def optimize(self) -> None:
-        self.pragma("optimize")
+        print("optimizing")
+        self.execute("OPTIMIZE")
 
     def vacuum(self) -> None:
+        print("vacuuming!")
         self.execute("VACUUM")
 
     def stop(self):
@@ -232,6 +234,11 @@ class GidSqliteQueueDatabase(SqliteQueueDatabase):
         _out = super().stop()
 
         return _out
+
+    def close(self):
+        for remote_manager in Server.remote_manager_cache.values():
+            remote_manager.close()
+        return super().close()
 
 
 class GidSQLiteDatabase(PooledSqliteExtDatabase):
@@ -274,7 +281,7 @@ class GidSQLiteDatabase(PooledSqliteExtDatabase):
         for script in self.script_provider.get_setup_scripts():
 
             conn.executescript(script)
-            conn.execute("VACUUM")
+
         conn.close()
 
 
@@ -292,23 +299,25 @@ if __name__ == '__main__':
     updater.register_remote_manager_class(WebdavManager)
     updater.register_remote_manager_class(LocalManager)
 
-    x.start_up_db(overwrite=True)
+    x.start_up_db(overwrite=False)
     x.record_class_manager.register_record_class(PerformanceRecord)
     load_dotenv(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\antistasi_logbook\nextcloud.env")
     web_dav_rem = RemoteStorage.get_by_id(1)
     web_dav_rem.login = os.getenv("NEXTCLOUD_USERNAME")
     web_dav_rem.password = os.getenv("NEXTCLOUD_PASSWORD")
     web_dav_rem.save()
-    for server in Server.select():
-        updater(server)
-        sleep(5)
-    console = RichConsole(soft_wrap=True)
-    for l in LogFile.select():
-        if l.record_class.name == PerformanceRecord.__name__:
-            i = l.to_record_class()
-            pprint(i.stats)
-            print('-' * 50)
-    x.stop()
-    x.close()
+    try:
+        for server in Server.select():
+            updater(server)
+            for log_file in server.log_files:
+                print(log_file.get_mean_players())
+
+            sleep(0.25)
+        x.vacuum()
+        x.optimize()
+    finally:
+        x.stop()
+        updater.close()
+        x.close()
 
 # endregion[Main_Exec]

@@ -1,7 +1,11 @@
-from threading import RLock, Lock, Semaphore, Barrier, BoundedSemaphore, Condition, Event, _RLock
+from threading import RLock, Lock, Semaphore, Barrier, BoundedSemaphore, Condition, Event, _RLock, get_ident, get_native_id
 from typing import Optional, Iterable, Hashable, Union, Any
 from time import sleep
 import random
+from pprint import pprint
+from datetime import timedelta
+from time import thread_time, time, process_time
+
 DB_LOCK = RLock()
 
 
@@ -12,21 +16,38 @@ class DelayedSemaphore(Semaphore):
         super().__init__(value=value)
 
     def release(self, n: int = 1) -> None:
-        sleep(random.uniform(0.0, self.delay))
+        sleep(random.uniform(0.1, max([self.delay, 0.1])))
         super().release(n=n)
 
-# class GlobalLock:
 
-#     def __init__(self, locks: Iterable[Union[RLock, Lock]]) -> None:
-#         self.locks = tuple(locks)
+class MinDurationSemaphore(Semaphore):
+    def __init__(self, value: int = None, minimum_duration: timedelta = None) -> None:
+        self.minimum_duration = timedelta(seconds=0) if minimum_duration is None else minimum_duration
+        self.minimum_duration_seconds = self.minimum_duration.total_seconds()
+        self._start_time_cache: dict[int:float] = {}
+        super().__init__(value=value)
 
-#     def __enter__(self) -> None:
-#         for lock in self.locks:
-#             lock.acquire()
+    def acquire(self, blocking: bool = True, timeout: float = None) -> bool:
+        _out = super().acquire(blocking=blocking, timeout=timeout)
+        self._start_time_cache[get_ident()] = process_time()
+        return _out
 
-#     def __exit__(self, exception_type: type = None, exception_value: BaseException = None, traceback: Any = None) -> None:
-#         for lock in self.locks:
-#             lock.release()
+    __enter__ = acquire
 
+    def _sleep_to_minimum(self) -> None:
+        start_time = self._start_time_cache.get(get_ident())
+        if start_time is None:
+            print(f"argggggghhhhhhhhh couldn't get start time for {get_ident()=}")
+            pprint(self._start_time_cache)
+            return
+        duration = process_time() - start_time
+        to_sleep = self.minimum_duration_seconds - duration
+        if to_sleep <= 0:
+            print(f"took longer than minimum, it took {duration!r}")
+            return
+        print(f"sleeping in {self.__class__.__name__!r} for {to_sleep!r} before releasing")
+        sleep(to_sleep)
 
-# GLOBAL_LOCK = GlobalLock([DB_LOCK])
+    def __exit__(self, t, v, tb):
+        self._sleep_to_minimum()
+        self.release()

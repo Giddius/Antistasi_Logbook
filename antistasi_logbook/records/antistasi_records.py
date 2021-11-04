@@ -86,7 +86,15 @@ class PerformanceRecord(BaseRecord):
     @classmethod
     def check(cls, raw_record: "RawRecord") -> bool:
         logged_from = raw_record.parsed_data.get("logged_from")
-        return logged_from is not None and logged_from.name == "A3A_fnc_logPerformance"
+
+        if logged_from is None:
+            return False
+
+        if logged_from.name == "logPerformance":
+
+            return True
+
+        return False
 
 # region[Main_Exec]
 

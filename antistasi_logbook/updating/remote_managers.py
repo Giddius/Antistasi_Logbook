@@ -75,7 +75,7 @@ import yarl
 import httpx
 from antistasi_logbook.errors import MissingLoginError
 from antistasi_logbook.utilities.path_utilities import url_to_path
-from antistasi_logbook.utilities.locks import DelayedSemaphore
+from antistasi_logbook.utilities.locks import DelayedSemaphore, MinDurationSemaphore
 if TYPE_CHECKING:
 
     from gidapptools.meta_data.interface import MetaPaths
@@ -121,6 +121,10 @@ class AbstractRemoteStorageManager(ABC):
     def from_remote_storage_item(cls, remote_storage_item: "RemoteStorage") -> "AbstractRemoteStorageManager":
         return cls(base_url=remote_storage_item.base_url, login=remote_storage_item.login, password=remote_storage_item.password)
 
+    @abstractmethod
+    def close(self) -> None:
+        ...
+
 
 class LocalManager(AbstractRemoteStorageManager):
 
@@ -144,11 +148,14 @@ class LocalManager(AbstractRemoteStorageManager):
     def download_file(self, log_file: "LogFile") -> "LogFile":
         return log_file
 
+    def close(self) -> None:
+        pass
+
 
 class WebdavManager(AbstractRemoteStorageManager):
     _extra_base_url_parts = ["dev_drive", "remote.php", "dav", "files"]
 
-    download_semaphores: dict[yarl.URL, DelayedSemaphore] = {}
+    download_semaphores: dict[yarl.URL, MinDurationSemaphore] = {}
     config_name = 'webdav'
 
     def __init__(self, base_url: yarl.URL, login: str, password: str) -> None:
@@ -160,11 +167,13 @@ class WebdavManager(AbstractRemoteStorageManager):
         self.download_semaphore = self._get_download_semaphore()
         CONFIG.config.changed_signal.connect(self.reset_client)
 
-    def _get_download_semaphore(self) -> Semaphore:
+    def _get_download_semaphore(self) -> MinDurationSemaphore:
         download_semaphore = self.download_semaphores.get(self.full_base_url)
         if download_semaphore is None:
             delay = CONFIG.get(self.config_name, "delay_between_downloads", default=0)
-            download_semaphore = DelayedSemaphore(self.max_connections, delay=delay)
+            minimum_duration = timedelta(seconds=int(delay))
+            download_semaphore = MinDurationSemaphore(self.max_connections, minimum_duration=minimum_duration)
+
             self.download_semaphores[self.full_base_url] = download_semaphore
         return download_semaphore
 
@@ -206,20 +215,32 @@ class WebdavManager(AbstractRemoteStorageManager):
         info = self.client.info(file_path)
         return InfoItem.from_webdav_info(info)
 
-    def download_file(self, log_file: "LogFile") -> "LogFile":
+    def download_file(self, log_file: "LogFile", try_num: int = 0) -> "LogFile":
         download_url = log_file.download_url
         local_path = log_file.local_path
         chunk_size = CONFIG.get("downloading", "chunk_size", default=None)
         chunk_size = human2bytes(chunk_size) if chunk_size is not None else None
-        with self.download_semaphore:
-            print(f"downloading {log_file!r}")
+        try:
+            with self.download_semaphore:
+                print(f"downloading {log_file!r}")
 
-            result = self.client.http.get(str(download_url), auth=(self.login, self.password))
-            with local_path.open("wb") as f:
-                for chunk in result.iter_bytes(chunk_size=chunk_size):
-                    f.write(chunk)
-            log_file.is_downloaded = True
-            return local_path
+                result = self.client.http.get(str(download_url), auth=(self.login, self.password))
+                with local_path.open("wb") as f:
+                    for chunk in result.iter_bytes(chunk_size=chunk_size):
+                        f.write(chunk)
+                log_file.is_downloaded = True
+                return local_path
+        except httpx.RemoteProtocolError as error:
+            if try_num > 3:
+                raise
+            print('+' * 25 + " RemoteProtocolError, reconnecting")
+            self._client = None
+            return self.download_file(log_file=log_file, try_num=try_num + 1)
+
+    def close(self) -> None:
+        if self._client is not None:
+            self._client.http.close()
+            self._client = None
 # region[Main_Exec]
 
 

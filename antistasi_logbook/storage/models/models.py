@@ -1,5 +1,5 @@
-from peewee import Model, TextField, IntegerField, BooleanField, AutoField, DateTimeField, ForeignKeyField, SQL, BareField, SqliteDatabase, Field, DatabaseProxy
-
+from peewee import TextField, IntegerField, BooleanField, AutoField, DateTimeField, ForeignKeyField, SQL, BareField, SqliteDatabase, Field, DatabaseProxy, IntegrityError
+from playhouse.signals import Model
 from playhouse.sqlite_ext import JSONField, JSONPath
 from .custom_fields import RemotePathField, PathField, VersionField, URLField, BetterDateTimeField, TzOffsetField, CompressedTextField, CompressedImageField, LoginField, PasswordField
 from typing import TYPE_CHECKING, Generator, Hashable, Iterable, Optional, TextIO, Union
@@ -7,7 +7,9 @@ from pathlib import Path
 from io import TextIOWrapper
 from gidapptools import get_meta_paths, get_meta_config
 from functools import cached_property
+from statistics import mean
 import shutil
+from concurrent.futures import ProcessPoolExecutor
 from yarl import URL
 from datetime import datetime, timedelta, timezone
 from dateutil.tz import tzoffset, tzlocal, gettz, datetime_ambiguous, resolve_imaginary, datetime_exists, UTC
@@ -55,13 +57,36 @@ class BaseModel(Model):
     class Meta:
         database = database
 
+    @classmethod
+    def create_or_get(cls, **kwargs) -> "BaseModel":
+        try:
+            return cls.create(**kwargs)
+        except IntegrityError:
+            return cls.get(*[getattr(cls, k) == v for k, v in kwargs.items()])
+
 
 class AntstasiFunction(BaseModel):
     name = TextField(unique=True)
-    file_name = TextField(null=True, unique=True)
 
     class Meta:
         table_name = 'AntstasiFunction'
+
+    @staticmethod
+    def clean_name(in_name: str) -> str:
+        cleaned_name = in_name.strip()
+        cleaned_name = cleaned_name.removeprefix("A3A_fnc_")
+        cleaned_name = cleaned_name.removeprefix("fn_")
+        cleaned_name = cleaned_name.removesuffix('.sqf')
+
+        return cleaned_name
+
+    @property
+    def file_name(self) -> str:
+        return f"fn_{self.name}.sqf"
+
+    @property
+    def function_name(self) -> str:
+        return f"A3A_fnc_{self.name}"
 
 
 class GameMap(BaseModel):
@@ -153,7 +178,7 @@ class LogFile(BaseModel):
     version = VersionField(null=True)
     game_map = ForeignKeyField(column_name='game_map', field='id', model=GameMap, null=True, lazy_load=True)
     server = ForeignKeyField(column_name='server', field='id', model=Server, lazy_load=True, backref="log_files")
-    unparsable = BooleanField(null=True)
+    unparsable = BooleanField(constraints=[SQL("DEFAULT 0")])
     comments = TextField(null=True)
     marked = BooleanField(constraints=[SQL("DEFAULT 0")])
 
@@ -166,6 +191,18 @@ class LogFile(BaseModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.is_downloaded = False
+
+    def get_mean_players(self) -> Optional[int]:
+        def _get_players(record: "LogRecord") -> float:
+            item = record.to_record_class()
+            return item.stats.get("Players")
+        r_class = RecordClass.get(name="PerformanceRecord")
+        players = []
+        for record in LogRecord.select().where((LogRecord.log_file == self) & (LogRecord.record_class == r_class)):
+            players.append(record.to_record_class())
+
+        if players:
+            return len(players)
 
     @property
     def name_datetime(self) -> Optional[datetime]:
@@ -325,7 +362,7 @@ class LogRecord(BaseModel):
     client = TextField(null=True)
     is_antistasi_record = BooleanField(constraints=[SQL("DEFAULT 0")])
     logged_from = ForeignKeyField(column_name='logged_from', field='id', model=AntstasiFunction, lazy_load=True, null=True)
-    log_file = ForeignKeyField(column_name='log_file', field='id', model=LogFile, lazy_load=True)
+    log_file = ForeignKeyField(column_name='log_file', field='id', model=LogFile, lazy_load=True, backref="log_records", null=False)
     log_level = ForeignKeyField(column_name='log_level', constraints=[SQL("DEFAULT 0")], field='id', model=LogLevel, null=True, lazy_load=True)
     punishment_action = ForeignKeyField(column_name='punishment_action', constraints=[SQL("DEFAULT 0")], field='id', model=PunishmentAction, null=True, lazy_load=True)
     record_class = ForeignKeyField(column_name='record_class', field='id', model=RecordClass, lazy_load=True)

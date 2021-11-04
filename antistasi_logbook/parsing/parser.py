@@ -63,6 +63,8 @@ from antistasi_logbook.parsing.record_class_manager import RecordClassManager
 from antistasi_logbook.storage.models.models import LogFile, RecordClass, LogRecord, LogLevel, PunishmentAction, AntstasiFunction
 from antistasi_logbook.records.enums import PunishmentActionEnum
 from dateutil.tz import UTC
+import peewee
+from playhouse.signals import Model, post_save
 from antistasi_logbook.utilities.locks import DB_LOCK
 from threading import RLock
 if TYPE_CHECKING:
@@ -233,21 +235,67 @@ class MetaFinder:
             self.mods = None
 
 
+record_parsing_error_lock = RLock()
+record_parsing_error_file = Path.cwd().with_name('record_parsing_errors.txt')
+record_parsing_error_file.parent.mkdir(exist_ok=True, parents=True)
+record_parsing_error_file.unlink(missing_ok=True)
+record_parsing_error_file.touch(exist_ok=True)
+
+
+def to_record_parsing_error_file(raw_record: "RawRecord", problem: str) -> None:
+    def _make_error_entry(_raw_record: "RawRecord", _problem: str) -> str:
+        sep = '-' * 50
+        sep_2 = '+' * 25
+        parts = []
+        parts.append(sep)
+        parts.append(f"is_antistasi= {_raw_record.is_antistasi_record}")
+        parts.append(f"file= {_raw_record.log_file.name!r}")
+        parts.append(f"server= {_raw_record.log_file.server.name!r}")
+        parts.append(sep_2)
+        parts.append(_raw_record.content)
+        parts.append(sep_2)
+        parts.append(f"PROBLEM: {_problem!r}")
+        parts.append(sep)
+        parts.append('\n')
+        return '\n'.join(parts)
+    with record_parsing_error_lock:
+        with record_parsing_error_file.open("a", encoding='utf-8', errors='ignore') as f:
+            f.write(_make_error_entry(raw_record, problem))
+
+
 class RawRecord:
     antistasi_file_model_lock = RLock()
     _all_log_levels: tuple[LogLevel] = None
     _all_punishment_actions: tuple[PunishmentAction] = None
+    _all_antistasi_file_objects: dict[str, AntstasiFunction] = None
     __slots__ = ("lines", "is_antistasi_record", "start", "end", "content", "parsed_data", "record_class", "log_file")
 
     def __init__(self, lines: Iterable["RecordLine"], log_file: "LogFile") -> None:
         self.lines = tuple(lines)
         self.log_file = log_file
-        self.is_antistasi_record: bool = any("| Antistasi |" in line.content for line in lines)
+        self.is_antistasi_record: bool = any("| antistasi |" in line.content.casefold() for line in lines)
         self.start: int = min(line.start for line in self.lines)
         self.end: int = max(line.start for line in self.lines)
         self.content: str = ' '.join(line.content.lstrip(" >>>").rstrip() for line in self.lines if line.content)
         self.parsed_data: dict[str, Any] = None
         self.record_class: "RecordClass" = None
+
+        try:
+            post_save.connect(self.on_save_handler, sender=AntstasiFunction)
+        except ValueError:
+            pass
+
+    def on_save_handler(self, sender, instance, created):
+        if created:
+            self._all_antistasi_file_objects = None
+            print(('-' * 25) + f" reseted '_all_antistasi_file_objects', because {instance.name!r} of {sender!r} was {created!r}")
+
+    @property
+    def all_antistasi_file_objects(self) -> dict[str, AntstasiFunction]:
+        if self.__class__._all_antistasi_file_objects is None:
+            with self.__class__.antistasi_file_model_lock:
+                self.__class__._all_antistasi_file_objects = {item.name: item for item in AntstasiFunction.select()}
+        return self.__class__._all_antistasi_file_objects
 
     @property
     def unformatted_content(self) -> str:
@@ -266,31 +314,60 @@ class RawRecord:
         return self.__class__._all_punishment_actions
 
     def _parse_generic_entry(self, regex_keeper: RegexKeeper) -> dict[str, Any]:
-        match = regex_keeper.generic_entry.match(self.content)
+        match = regex_keeper.generic_entry.search(self.content)
+        if not match:
+            to_record_parsing_error_file(self, "no generic entry match")
+            return None
         recorded_at_kwargs = {k.removeprefix('local_'): int(v) for k, v in match.groupdict().items() if k.startswith('local_')} | {'tzinfo': self.log_file.utc_offset}
         recorded_at = datetime(**recorded_at_kwargs).astimezone(UTC)
         message = match.group("message")
-        return {"message": message, "recorded_at": recorded_at}
+        _out = {"message": message, "recorded_at": recorded_at}
+        if "error in expression" in self.content.casefold():
+            _out['log_level'] = [l for l in self.all_log_levels if l.name == "ERROR"][0]
+        return _out
 
     def _parse_antistasi_entry(self, regex_keeper: RegexKeeper) -> dict[str, Any]:
         datetime_part, antistasi_indicator_part, log_level_part, file_part, *other_parts = self.content.split('|')
-        recorded_at_kwargs = {k.removeprefix("utc_"): int(v) for k, v in regex_keeper.full_datetime.match(datetime_part).groupdict().items() if k.startswith("utc_")} | {"tzinfo": UTC}
+        try:
+            recorded_at_kwargs = {k.removeprefix("utc_"): int(v) for k, v in regex_keeper.full_datetime.match(datetime_part).groupdict().items() if k.startswith("utc_")} | {"tzinfo": UTC}
+        except AttributeError:
+            to_record_parsing_error_file(self, f"datetime_part did not match, datetime_part={datetime_part}")
+
+            return
         _out = {}
         _out["recorded_at"] = datetime(**recorded_at_kwargs)
         _out["log_level"] = [l for l in self.all_log_levels if l.name == log_level_part.strip().upper()][0]
-        with self.antistasi_file_model_lock:
-            item, created = AntstasiFunction.get_or_create(name=file_part.removeprefix("File:").strip())
+        logged_from_item_name = AntstasiFunction.clean_name(file_part.strip().removeprefix("File:"))
+        # logged_from_item = AntstasiFunction.create_or_get(name=logged_from_item_name)
 
-            _out["logged_from"] = item
+        logged_from_item = self.all_antistasi_file_objects.get(logged_from_item_name, None)
+        if logged_from_item is None:
+            print(f"file {logged_from_item_name!r} not found")
+            with self.antistasi_file_model_lock:
+                logged_from_item = AntstasiFunction(name=logged_from_item_name)
+                logged_from_item.save()
+
+        # with self.antistasi_file_model_lock:
+
+        #     logged_from_item = AntstasiFunction.get_or_none(name=logged_from_item_name)
+        #     if logged_from_item is None:
+        #         logged_from_item = AntstasiFunction(name=logged_from_item_name)
+        #         logged_from_item.save()
+        _out["logged_from"] = logged_from_item
         to_pop = []
         for idx, part in enumerate(other_parts):
             part = part.strip()
 
             if part.startswith('Called By:'):
-                with self.antistasi_file_model_lock:
-                    item, created = AntstasiFunction.get_or_create(name=part.removeprefix("Called By:").strip())
+                called_by_item_name = AntstasiFunction.clean_name(part.strip().removeprefix("Called By:"))
+                called_by_item = self.all_antistasi_file_objects.get(called_by_item_name, None)
+                if called_by_item is None:
+                    print(f"file {called_by_item_name!r} not found")
+                    with self.antistasi_file_model_lock:
 
-                _out["called_by"] = item
+                        called_by_item = AntstasiFunction(name=called_by_item)
+                        called_by_item.save()
+                _out["called_by"] = called_by_item
                 to_pop.append(idx)
             elif part.startswith("Client:"):
                 _out['client'] = part.removeprefix("Client:").strip()
@@ -311,11 +388,12 @@ class RawRecord:
             self.parsed_data = self._parse_antistasi_entry(regex_keeper=regex_keeper)
 
     def determine_record_class(self, record_class_manager: RecordClassManager) -> None:
-        self.record_class = record_class_manager.determine_record_class(self)
+        if self.parsed_data is not None:
+            self.record_class = record_class_manager.determine_record_class(self)
 
     def as_log_record(self) -> "LogRecord":
-
-        return LogRecord(start=self.start, end=self.end, is_antistasi_record=self.is_antistasi_record, log_file=self.log_file, record_class=self.record_class, **self.parsed_data)
+        if self.parsed_data is not None:
+            return LogRecord(start=self.start, end=self.end, is_antistasi_record=self.is_antistasi_record, log_file=self.log_file, record_class=self.record_class, **self.parsed_data)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(start={self.start!r}, end={self.end!r}, content={self.content!r}, is_antistasi_record={self.is_antistasi_record!r}, lines={self.lines!r})"
@@ -340,8 +418,7 @@ class Parser:
         raw_record = RawRecord(context.line_cache.dump(), log_file=context.log_file)
         raw_record.parse(self.regex_keeper)
         raw_record.determine_record_class(self.database.record_class_manager)
-        log_record = raw_record.as_log_record()
-        context.add_record(log_record)
+        context.add_record(raw_record.as_log_record())
 
     def _get_log_file_meta_data(self, context: ParsingContext) -> bool:
         with context.log_file.open(cleanup=False) as file:

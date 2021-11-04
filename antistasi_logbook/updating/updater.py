@@ -55,7 +55,7 @@ from importlib.machinery import SourceFileLoader
 from gidapptools import get_meta_config
 import mmap
 from threading import Thread, Event, Condition
-from antistasi_logbook.storage.models.models import Server, LogFile
+from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord
 from antistasi_logbook.utilities.locks import DB_LOCK
 if TYPE_CHECKING:
 
@@ -120,13 +120,26 @@ class IntervallKeeper:
 
 class Updater:
     remote_manager_classes: dict[str, type["AbstractRemoteStorageManager"]] = {}
+    threads_prefix = "log_file_update_"
+    config_name = "updater"
 
     def __init__(self, parser, database: "GidSQLiteDatabase") -> None:
         self.parser = parser
         self.database = database
+        self.thread_pool = ThreadPoolExecutor(max_workers=self.max_threads, thread_name_prefix=self.threads_prefix)
+
+    @property
+    def max_threads(self) -> Optional[int]:
+        return CONFIG.get(self.config_name, "max_threads", default=os.cpu_count())
+
+    @property
+    def remove_items_older_than_max_update_time_frame(self) -> bool:
+        if self.get_cutoff_datetime() is None:
+            return False
+        return CONFIG.get(self.config_name, "remove_items_older_than_max_update_time_frame", default=False)
 
     def get_cutoff_datetime(self) -> Optional[datetime]:
-        days = CONFIG.get("updater", "max_update_time_frame_days", default=None)
+        days = CONFIG.get(self.config_name, "max_update_time_frame_days", default=None)
         if days is None:
             return None
         return datetime.now(tz=timezone.utc) - timedelta(days=days)
@@ -168,7 +181,22 @@ class Updater:
 
             elif stored_file.modified_at < remote_info.modified_at or stored_file.size < remote_info.size:
                 updated_log_files.append(self._update_log_file(log_file=stored_file, remote_info=remote_info))
-        return updated_log_files
+        return sorted(updated_log_files, key=lambda x: x.modified_at, reverse=True)
+
+    def _handle_old_log_files(self, server: "Server") -> None:
+        if self.remove_items_older_than_max_update_time_frame is False:
+            return
+        cutoff_datetime = self.get_cutoff_datetime()
+        delete_futures = []
+        for log_file in server.get_current_log_files().values():
+            if log_file.modified_at < cutoff_datetime:
+                print(f"removing log_file {log_file.name!r} of server {log_file.server.name!r}")
+                q = LogRecord.delete().where(LogRecord.log_file == log_file)
+                q.execute()
+
+                delete_futures.append(self.thread_pool.submit(log_file.delete_instance))
+
+        wait(delete_futures, return_when=ALL_COMPLETED)
 
     def update_server(self, server: "Server") -> None:
         if server.is_updatable() is False:
@@ -176,14 +204,20 @@ class Updater:
 
         server.ensure_remote_manager(remote_manager=self._get_remote_manager(server))
         updated_log_files = self._get_updated_log_files(server=server)
-        with ThreadPoolExecutor((os.cpu_count() or 1) + 10) as pool:
-            list(pool.map(self.parser, updated_log_files))
-        # for log_file in self._get_updated_log_files(server=server):
+
+        list(self.thread_pool.map(self.parser, updated_log_files))
+        # for log_file in updated_log_files:
+        #     sleep(0.1)
         #     self.parser(log_file)
+
+        self._handle_old_log_files(server=server)
 
     def __call__(self, server: "Server") -> Any:
         _out = self.update_server(server)
         return _out
+
+    def close(self) -> None:
+        self.thread_pool.shutdown(wait=True, cancel_futures=True)
 
 
 class UpdateThread(Thread):
@@ -205,6 +239,11 @@ class UpdateThread(Thread):
         while not self.stop_event.is_set():
             self._update()
             self.intervaller.sleep_to_next()
+
+    def shutdown(self) -> bool:
+        self.stop_event.set()
+        self.updater.close()
+        self.join()
 
 
 # region[Main_Exec]

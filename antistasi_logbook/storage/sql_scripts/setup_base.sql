@@ -98,8 +98,7 @@ CREATE TABLE IF NOT EXISTS "RecordClass" (
 
 CREATE TABLE IF NOT EXISTS "AntstasiFunction" (
     "id" INTEGER PRIMARY KEY,
-    "name" TEXT UNIQUE NOT NULL,
-    "file_name" TEXT UNIQUE
+    "name" TEXT UNIQUE NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS "LogRecord" (

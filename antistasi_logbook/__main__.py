@@ -57,11 +57,7 @@ from gidapptools.meta_data import get_meta_info, get_meta_paths, get_meta_item
 from gidapptools.meta_data.interface import app_meta
 from dotenv import load_dotenv
 from gidapptools.general_helper.timing import time_execution
-from antistasi_logbook.webdav.webdav_manager import WebdavManager
-from antistasi_logbook.items.base_item import AbstractBaseItem
-from antistasi_logbook.items.entries.message import Message
-from antistasi_logbook.storage.sqlite_database import GidSQLiteDatabase
-from antistasi_logbook.updater import Updater
+import click
 import atexit
 # endregion[Imports]
 
@@ -86,43 +82,7 @@ META_INFO = get_meta_info()
 # endregion[Constants]
 
 
-class NoThreadPoolExecutor:
-
-    def map(self, func, items):
-        return map(func, items)
-
-    def shutdown(self):
-        return
-
-
-def main():
-    load_dotenv(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_ServerLog_Statistic\antistasi_serverlog_statistic\nextcloud.env")
-    for item in AbstractBaseItem.__subclasses__():
-        if inspect.isabstract(item) is False:
-            GidSQLiteDatabase.registry.register_with_subclasses(item)
-    db = GidSQLiteDatabase()
-    Message.database = db
-    web_dav = WebdavManager(log_folder_remote_path="Antistasi_Community_Logs", database=db)
-    updater = Updater(timedelta(seconds=10000), db, web_dav, thread_pool=ThreadPoolExecutor(10))
-    # updater.start()
-    updater._update()
-    # run_for = 1000
-    # steps = 5
-    # sleep_amount = run_for / steps
-    # start_t = time()
-    # theoretical_end_time = start_t + run_for
-    # with time_execution(f"should be {run_for} s"):
-    #     for i in range(steps):
-    #         # if i == 3:
-    #         #     print(f"{'!|!'*50}\ntriggering update\n{'!|!'*50}")
-    #         #     updater.update()
-    #         sleep(sleep_amount)
-    #         print(f"sleept for {sleep_amount} s\n| remaining time: {run_for-((i+1)*sleep_amount)} s |\n{'-'*25}")
-    #         print(f"{updater.is_alive()=}")
-    # updater.close()
-
-
 # region[Main_Exec]
 if __name__ == '__main__':
-    main()
+    pass
 # endregion[Main_Exec]
