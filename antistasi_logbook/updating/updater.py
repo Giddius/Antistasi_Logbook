@@ -187,16 +187,15 @@ class Updater:
         if self.remove_items_older_than_max_update_time_frame is False:
             return
         cutoff_datetime = self.get_cutoff_datetime()
+        if cutoff_datetime is None:
+            return
         delete_futures = []
-        for log_file in server.get_current_log_files().values():
-            if log_file.modified_at < cutoff_datetime:
-                print(f"removing log_file {log_file.name!r} of server {log_file.server.name!r}")
-                q = LogRecord.delete().where(LogRecord.log_file == log_file)
-                q.execute()
+        for log_file in server.log_files.select().where(LogFile.modified_at < cutoff_datetime):
+            print(f"removing log_file {log_file.name!r} of server {log_file.server.name!r}")
+            q = LogRecord.delete().where(LogRecord.log_file == log_file)
+            q.execute()
 
-                delete_futures.append(self.thread_pool.submit(log_file.delete_instance))
-
-        wait(delete_futures, return_when=ALL_COMPLETED)
+            log_file.delete_instance()
 
     def update_server(self, server: "Server") -> None:
         if server.is_updatable() is False:
@@ -221,6 +220,7 @@ class Updater:
 
 
 class UpdateThread(Thread):
+    config_name = "updater"
 
     def __init__(self, updater: "Updater", server_model: "Server", stop_event: Event = None) -> None:
         super().__init__(name="updater_thread")
@@ -228,6 +228,10 @@ class UpdateThread(Thread):
         self.server_model = server_model
         self.stop_event = Event() if stop_event is None else stop_event
         self.intervaller = IntervallKeeper(self.stop_event)
+
+    @property
+    def updates_enabled(self) -> bool:
+        return CONFIG.get(self.config_name, "updates_enabled", default=False)
 
     def _update(self) -> None:
         for server in self.server_model.select():
@@ -237,7 +241,8 @@ class UpdateThread(Thread):
 
     def _update_task(self) -> None:
         while not self.stop_event.is_set():
-            self._update()
+            if self.updates_enabled is True:
+                self._update()
             self.intervaller.sleep_to_next()
 
     def shutdown(self) -> bool:

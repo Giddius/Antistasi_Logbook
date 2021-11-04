@@ -171,8 +171,8 @@ class WebdavManager(AbstractRemoteStorageManager):
         download_semaphore = self.download_semaphores.get(self.full_base_url)
         if download_semaphore is None:
             delay = CONFIG.get(self.config_name, "delay_between_downloads", default=0)
-            minimum_duration = timedelta(seconds=int(delay))
-            download_semaphore = MinDurationSemaphore(self.max_connections, minimum_duration=minimum_duration)
+            minimum_duration = CONFIG.get(self.config_name, "minimum_download_duration", default=0)
+            download_semaphore = MinDurationSemaphore(self.max_connections, minimum_duration=timedelta(seconds=int(minimum_duration)), delay=timedelta(seconds=int(delay)))
 
             self.download_semaphores[self.full_base_url] = download_semaphore
         return download_semaphore
@@ -232,9 +232,9 @@ class WebdavManager(AbstractRemoteStorageManager):
                 return local_path
         except httpx.RemoteProtocolError as error:
             if try_num > 3:
-                raise
+                raise RuntimeError("blah") from error
             print('+' * 25 + " RemoteProtocolError, reconnecting")
-            self._client = None
+            self.close()
             return self.download_file(log_file=log_file, try_num=try_num + 1)
 
     def close(self) -> None:

@@ -21,9 +21,14 @@ class DelayedSemaphore(Semaphore):
 
 
 class MinDurationSemaphore(Semaphore):
-    def __init__(self, value: int = None, minimum_duration: timedelta = None) -> None:
-        self.minimum_duration = timedelta(seconds=0) if minimum_duration is None else minimum_duration
+    default_duration = timedelta(seconds=0)
+    default_delay = timedelta(seconds=0)
+
+    def __init__(self, value: int = None, minimum_duration: timedelta = None, delay: timedelta = None) -> None:
+        self.minimum_duration = self.default_duration if minimum_duration is None else minimum_duration
         self.minimum_duration_seconds = self.minimum_duration.total_seconds()
+        self.delay = self.default_delay if delay is None else delay
+        self.delay_seconds = self.delay.total_seconds()
         self._start_time_cache: dict[int:float] = {}
         super().__init__(value=value)
 
@@ -50,4 +55,5 @@ class MinDurationSemaphore(Semaphore):
 
     def __exit__(self, t, v, tb):
         self._sleep_to_minimum()
+        sleep(self.delay_seconds)
         self.release()

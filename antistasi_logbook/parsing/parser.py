@@ -287,7 +287,8 @@ class RawRecord:
 
     def on_save_handler(self, sender, instance, created):
         if created:
-            self._all_antistasi_file_objects = None
+            with self.antistasi_file_model_lock:
+                self.__class__._all_antistasi_file_objects = None
             print(('-' * 25) + f" reseted '_all_antistasi_file_objects', because {instance.name!r} of {sender!r} was {created!r}")
 
     @property

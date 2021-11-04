@@ -77,6 +77,7 @@ class PerformanceRecord(BaseRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 10
     performance_regex = re.compile(r"(?P<name>\w+\s?\w*)(?:\:\s?)(?P<value>\d[\d\.]*)")
+    __slots__ = ("log_record")
 
     @cached_property
     def stats(self) -> dict[str, Union[int, float]]:

@@ -78,29 +78,34 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 class BaseRecord(AbstractRecord):
     ___record_family___ = RecordFamily.GENERIC | RecordFamily.ANTISTASI
     ___specificity___ = 0
+    __slots__ = ("log_record")
 
+    # def __init__(self,
+    #              log_record: "LogRecord",
+    #              log_file: "LogFile",
+    #              recorded_at: datetime,
+    #              message: str,
+    #              log_level: "LogLevel" = None,
+    #              logged_from: "AntstasiFunction" = None,
+    #              called_by: "AntstasiFunction" = None,
+    #              client: str = None,
+    #              punishment_action: "PunishmentAction" = None,
+    #              is_antistasi_record: bool = False
+    #              ) -> None:
+    #     self.log_record = log_record
+    #     self.log_file = log_file
+    #     self.recorded_at = recorded_at
+    #     self.message = message
+    #     self.log_level = log_level
+    #     self.logged_from = logged_from
+    #     self.called_by = called_by
+    #     self.client = client
+    #     self.punishment_action = punishment_action
+    #     self.is_antistasi_record = is_antistasi_record
     def __init__(self,
-                 log_record: "LogRecord",
-                 log_file: "LogFile",
-                 recorded_at: datetime,
-                 message: str,
-                 log_level: "LogLevel" = None,
-                 logged_from: "AntstasiFunction" = None,
-                 called_by: "AntstasiFunction" = None,
-                 client: str = None,
-                 punishment_action: "PunishmentAction" = None,
-                 is_antistasi_record: bool = False
+                 log_record: "LogRecord"
                  ) -> None:
         self.log_record = log_record
-        self.log_file = log_file
-        self.recorded_at = recorded_at
-        self.message = message
-        self.log_level = log_level
-        self.logged_from = logged_from
-        self.called_by = called_by
-        self.client = client
-        self.punishment_action = punishment_action
-        self.is_antistasi_record = is_antistasi_record
 
     def mark(self) -> None:
         self.log_record.marked = True
@@ -120,23 +125,15 @@ class BaseRecord(AbstractRecord):
     def get_formated_message(self, format: "MessageFormat") -> str:
         return self.message
 
+    def __getattr__(self, name: str) -> Any:
+
+        return getattr(self.log_record, name)
+
     @classmethod
     def check(cls, raw_record: "RawRecord") -> bool:
         return True
 
-    @classmethod
-    def from_log_record(cls, log_record: "LogRecord") -> "BaseRecord":
-        kwarg_names = ("log_file",
-                       "recorded_at",
-                       "message",
-                       "logged_from",
-                       "called_by",
-                       "client",
-                       "is_antistasi_record")
-        kwargs = {k: getattr(log_record, k, None) for k in kwarg_names}
-        log_level = LogLevelEnum(log_record.log_level.name) if log_record.log_level is not None else LogLevelEnum.NO_LEVEL
-        punishment_action = PunishmentActionEnum(log_record.punishment_action.name) if log_record.punishment_action is not None else LogLevelEnum.NO_LEVEL
-        return cls(log_record=log_record, log_level=log_level, punishment_action=punishment_action, ** kwargs)
+
 # region[Main_Exec]
 
 

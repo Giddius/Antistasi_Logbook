@@ -99,11 +99,6 @@ class AbstractRecord(ABC):
     def check(cls, raw_record: "RawRecord") -> bool:
         ...
 
-    @classmethod
-    @abstractmethod
-    def from_log_record(cls, log_record: "LogRecord") -> "AbstractRecord":
-        ...
-
     @abstractmethod
     def get_formated_message(self, format: "MessageFormat") -> str:
         ...

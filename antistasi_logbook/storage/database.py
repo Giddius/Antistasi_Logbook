@@ -299,7 +299,7 @@ if __name__ == '__main__':
     updater.register_remote_manager_class(WebdavManager)
     updater.register_remote_manager_class(LocalManager)
 
-    x.start_up_db(overwrite=False)
+    x.start_up_db(overwrite=True)
     x.record_class_manager.register_record_class(PerformanceRecord)
     load_dotenv(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\antistasi_logbook\nextcloud.env")
     web_dav_rem = RemoteStorage.get_by_id(1)
@@ -309,10 +309,7 @@ if __name__ == '__main__':
     try:
         for server in Server.select():
             updater(server)
-            for log_file in server.log_files:
-                print(log_file.get_mean_players())
 
-            sleep(0.25)
         x.vacuum()
         x.optimize()
     finally:

@@ -1,7 +1,9 @@
+from antistasi_logbook import setup
+setup()
 from peewee import TextField, IntegerField, BooleanField, AutoField, DateTimeField, ForeignKeyField, SQL, BareField, SqliteDatabase, Field, DatabaseProxy, IntegrityError
 from playhouse.signals import Model
 from playhouse.sqlite_ext import JSONField, JSONPath
-from .custom_fields import RemotePathField, PathField, VersionField, URLField, BetterDateTimeField, TzOffsetField, CompressedTextField, CompressedImageField, LoginField, PasswordField
+from antistasi_logbook.storage.models.custom_fields import RemotePathField, PathField, VersionField, URLField, BetterDateTimeField, TzOffsetField, CompressedTextField, CompressedImageField, LoginField, PasswordField
 from typing import TYPE_CHECKING, Generator, Hashable, Iterable, Optional, TextIO, Union
 from pathlib import Path
 from io import TextIOWrapper
@@ -199,10 +201,10 @@ class LogFile(BaseModel):
         r_class = RecordClass.get(name="PerformanceRecord")
         players = []
         for record in LogRecord.select().where((LogRecord.log_file == self) & (LogRecord.record_class == r_class)):
-            players.append(record.to_record_class())
+            players.append(record.to_record_class().stats["Players"])
 
         if players:
-            return len(players)
+            return round(mean(players), 2)
 
     @property
     def name_datetime(self) -> Optional[datetime]:
@@ -376,7 +378,7 @@ class LogRecord(BaseModel):
         )
 
     def to_record_class(self) -> "RECORD_CLASS_TYPE":
-        return self.record_class.record_class.from_log_record(self)
+        return self.record_class.record_class(self)
 
 
 class SqliteSequence(BaseModel):

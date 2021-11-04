@@ -21,3 +21,4 @@ paramiko[all]
 cairosvg
 datasette[rich]
 pylint
+peewee-erd==0.1.3

@@ -159,7 +159,6 @@ class ParsingContext:
                         mod_entry = Mod(**mod_item.as_dict())
                         mod_entry.save()
 
-                with self.mod_model_lock:
                     try:
                         x = LogFileAndModJoin.select().where(LogFileAndModJoin.log_file == self.log_file, LogFileAndModJoin.mod == mod_entry)[0]
                     except IndexError:
