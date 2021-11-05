@@ -72,6 +72,8 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 # endregion[Constants]
 
+ALL_ANTISTASI_RECORD_CLASSES: set[type[BaseRecord]] = set()
+
 
 class PerformanceRecord(BaseRecord):
     ___record_family___ = RecordFamily.ANTISTASI
@@ -96,6 +98,9 @@ class PerformanceRecord(BaseRecord):
             return True
 
         return False
+
+
+ALL_ANTISTASI_RECORD_CLASSES.add(PerformanceRecord)
 
 # region[Main_Exec]
 

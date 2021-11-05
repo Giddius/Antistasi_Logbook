@@ -73,7 +73,7 @@ from threading import RLock
 from rich import print as rprint
 import yarl
 import httpx
-from antistasi_logbook.errors import MissingLoginError
+from antistasi_logbook.errors import MissingLoginAndPasswordError
 from antistasi_logbook.utilities.path_utilities import url_to_path
 from antistasi_logbook.utilities.locks import DelayedSemaphore, MinDurationSemaphore
 if TYPE_CHECKING:
@@ -103,6 +103,9 @@ CONFIG: "GidIniConfig" = get_meta_config().get_config('general')
 # endregion[Constants]
 
 
+ALL_REMOTE_MANAGERS_CLASSES: set["AbstractRemoteStorageManager"] = set()
+
+
 class AbstractRemoteStorageManager(ABC):
 
     @abstractmethod
@@ -118,7 +121,12 @@ class AbstractRemoteStorageManager(ABC):
         ...
 
     @classmethod
+    def _validate_remote_storage_item(cls, remote_storage_item: "RemoteStorage") -> None:
+        pass
+
+    @classmethod
     def from_remote_storage_item(cls, remote_storage_item: "RemoteStorage") -> "AbstractRemoteStorageManager":
+        cls._validate_remote_storage_item(remote_storage_item=remote_storage_item)
         return cls(base_url=remote_storage_item.base_url, login=remote_storage_item.get_login(), password=remote_storage_item.get_password())
 
     @abstractmethod
@@ -152,6 +160,9 @@ class LocalManager(AbstractRemoteStorageManager):
         pass
 
 
+ALL_REMOTE_MANAGERS_CLASSES.add(LocalManager)
+
+
 class WebdavManager(AbstractRemoteStorageManager):
     _extra_base_url_parts = ["dev_drive", "remote.php", "dav", "files"]
 
@@ -166,6 +177,12 @@ class WebdavManager(AbstractRemoteStorageManager):
         self._client: WebdavClient = None
         self.download_semaphore = self._get_download_semaphore()
         CONFIG.config.changed_signal.connect(self.reset_client)
+
+    @classmethod
+    def _validate_remote_storage_item(cls, remote_storage_item: "RemoteStorage") -> None:
+        super()._validate_remote_storage_item(remote_storage_item)
+        if any(x is None for x in [remote_storage_item.get_login(), remote_storage_item.get_password()]):
+            raise MissingLoginAndPasswordError(remote_storage_item=remote_storage_item)
 
     def _get_download_semaphore(self) -> MinDurationSemaphore:
         download_semaphore = self.download_semaphores.get(self.full_base_url)
@@ -230,17 +247,21 @@ class WebdavManager(AbstractRemoteStorageManager):
                         f.write(chunk)
                 log_file.is_downloaded = True
                 return local_path
-        except httpx.RemoteProtocolError as error:
+        except (httpx.RemoteProtocolError, httpx.ReadError) as error:
             if try_num > 3:
-                raise RuntimeError("blah") from error
+                raise
             print('+' * 25 + " RemoteProtocolError, reconnecting")
             self.close()
+            sleep(10)
             return self.download_file(log_file=log_file, try_num=try_num + 1)
 
     def close(self) -> None:
         if self._client is not None:
             self._client.http.close()
             self._client = None
+
+
+ALL_REMOTE_MANAGERS_CLASSES.add(WebdavManager)
 # region[Main_Exec]
 
 

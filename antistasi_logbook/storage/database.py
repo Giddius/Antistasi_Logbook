@@ -194,7 +194,8 @@ class GidSqliteQueueDatabase(SqliteQueueDatabase):
                  script_folder: Path = None,
                  record_class_manager: "RecordClassManager" = None,
                  use_gevent=False,
-                 autostart=True,
+                 autoconnect=True,
+                 thread_safe=False,
                  queue_max_size=None,
                  results_timeout=None,
                  pragmas=None,
@@ -206,9 +207,11 @@ class GidSqliteQueueDatabase(SqliteQueueDatabase):
         self.started_up = False
         extensions = self.default_extensions if extensions is None else extensions
         pragmas = self.default_pragmas if pragmas is None else pragmas
-        super().__init__(make_db_path(self.path), use_gevent=use_gevent, autostart=autostart, queue_max_size=queue_max_size, results_timeout=results_timeout, thread_safe=True, pragmas=pragmas, **extensions)
+        super().__init__(make_db_path(self.path), use_gevent=use_gevent, autostart=False, queue_max_size=queue_max_size, results_timeout=results_timeout, thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, **extensions)
 
     def start_up_db(self, overwrite: bool = False) -> None:
+        if self.started_up is True:
+            return
         self.path.parent.mkdir(exist_ok=True, parents=True)
         self.script_folder.mkdir(exist_ok=True, parents=True)
         if overwrite is True:
@@ -219,6 +222,8 @@ class GidSqliteQueueDatabase(SqliteQueueDatabase):
             conn.executescript(script)
 
         conn.close()
+        self.started_up = True
+
         self.start()
 
     def optimize(self) -> None:
@@ -233,7 +238,7 @@ class GidSqliteQueueDatabase(SqliteQueueDatabase):
 
     def stop(self):
         # self.pragma("optimize")
-        sleep(5)
+        sleep(1)
 
         _out = super().stop()
 
@@ -243,6 +248,16 @@ class GidSqliteQueueDatabase(SqliteQueueDatabase):
         for remote_manager in Server.remote_manager_cache.values():
             remote_manager.close()
         return super().close()
+
+    def shutdown(self) -> None:
+        self.stop()
+        self.close()
+
+    def reconnect(self) -> None:
+        self.stop()
+        self.close()
+        self.connect(reuse_if_open=True)
+        self.start()
 
 
 class GidSQLiteDatabase(PooledSqliteExtDatabase):
@@ -289,39 +304,41 @@ class GidSQLiteDatabase(PooledSqliteExtDatabase):
         conn.close()
 
 
+def get_database(database_path: Path = None, script_folder: Path = None, overwrite_db: bool = False, **kwargs) -> GidSqliteQueueDatabase:
+    from antistasi_logbook.records.antistasi_records import ALL_ANTISTASI_RECORD_CLASSES
+    raw_db = GidSqliteQueueDatabase(database_path=database_path, script_folder=script_folder, **kwargs)
+    raw_db.start_up_db(overwrite=overwrite_db)
+
+    database.initialize(raw_db)
+
+    for record_class in ALL_ANTISTASI_RECORD_CLASSES:
+        raw_db.record_class_manager.register_record_class(record_class)
+
+    return raw_db
+
+
 # region[Main_Exec]
 if __name__ == '__main__':
-    from antistasi_logbook.updating.updater import Updater
+    from antistasi_logbook.updating.updater import get_updater, get_update_thread
     from dotenv import load_dotenv
     from antistasi_logbook.parsing.parser import Parser
-    from antistasi_logbook.records.antistasi_records import PerformanceRecord
 
-    x = GidSqliteQueueDatabase(autostart=False)
+    db = get_database(overwrite_db=False)
+    update_thread = get_update_thread(database=db)
 
-    database.initialize(x)
-    updater = Updater(parser=Parser(database=database), database=database)
-    updater.register_remote_manager_class(WebdavManager)
-    updater.register_remote_manager_class(LocalManager)
-
-    x.start_up_db(overwrite=True)
-    x.record_class_manager.register_record_class(PerformanceRecord)
     load_dotenv(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\antistasi_logbook\nextcloud.env")
 
     web_dav_rem = RemoteStorage.get_by_id(1)
 
-    web_dav_rem.save()
     web_dav_rem.set_login_and_password(login=os.getenv("NEXTCLOUD_USERNAME"), password=os.getenv("NEXTCLOUD_PASSWORD"), store_in_db=False)
-
+    print("starting")
     try:
-        for server in Server.select():
-            updater(server)
+        update_thread.start()
+        sleep(1000)
+        update_thread.shutdown()
 
-        x.vacuum()
-        x.optimize()
-        x.vacuum()
     finally:
-        x.stop()
-        updater.close()
-        x.close()
+
+        db.shutdown()
 
 # endregion[Main_Exec]

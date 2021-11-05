@@ -196,9 +196,16 @@ class Server(BaseModel):
     def full_local_path(self) -> Path:
         if self.local_path is None:
 
-            return CONFIG.get("folder", "local_storage_folder", default=META_PATHS.get_new_temp_dir(name=self.name))
+            local_path = CONFIG.get("folder", "local_storage_folder", default=None)
+            if local_path is None:
+                local_path = META_PATHS.get_new_temp_dir(name=self.name)
+            else:
+                local_path = local_path.joinpath(self.name)
 
-        return self.local_path
+        else:
+            local_path = self.local_path
+        local_path.mkdir(exist_ok=True, parents=True)
+        return local_path
 
 
 class LogFile(BaseModel):

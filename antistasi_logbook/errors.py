@@ -57,6 +57,11 @@ import yarl
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Union, TYPE_CHECKING
 import logging
+import threading
+from types import TracebackType
+if TYPE_CHECKING:
+    from antistasi_logbook.utilities.date_time_utilities import DatetimeDuration
+    from antistasi_logbook.storage.models.models import RemoteStorage
 # endregion[Imports]
 
 # region [TODO]
@@ -77,8 +82,25 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 # endregion[Constants]
 
 
-if TYPE_CHECKING:
-    from antistasi_logbook.utilities.date_time_utilities import DatetimeDuration
+class ThreadExceptHook:
+    updater_thread_name = "updater_thread"
+
+    def __init__(self) -> None:
+        self.old_excepthook: threading.excepthook = None
+
+    def is_updater_thread(self, thread: threading.Thread) -> bool:
+        return thread.name == self.updater_thread_name
+
+    def enable(self) -> None:
+        self.old_excepthook = threading.excepthook
+        threading.excepthook = self
+
+    def disable(self) -> None:
+        threading.excepthook = self.old_excepthook
+        self.old_excepthook = None
+
+    def __call__(self, exc_type: type[BaseException], exc_value: BaseException = None, exc_traceback: TracebackType = None, thread: threading.Thread = None) -> Any:
+        self.old_excepthook(exc_type=exc_type, exc_value=exc_value, exc_traceback=exc_traceback, thread=thread)
 
 
 class BaseAntistasiLogBookError(Exception):
@@ -91,13 +113,25 @@ class BaseRemoteStorageError(BaseAntistasiLogBookError):
     ...
 
 
-class MissingLoginError(BaseRemoteStorageError):
+class MissingLoginAndPasswordError(BaseRemoteStorageError):
 
-    def __init__(self, base_url: yarl.URL, typus: type) -> None:
-        self.base_url = base_url
-        self.typus = typus
-        self.msg = f"No Login stored for {self.typus.__name__!r} with base_url {self.base_url}."
+    def __init__(self, remote_storage_item: "RemoteStorage") -> None:
+        self.remote_storage_item = remote_storage_item
+        self.remote_storage_name = self.remote_storage_item.name
+        self.login = self.remote_storage_item.get_login()
+        self.password = self.remote_storage_item.get_password()
+        self.base_url = self.remote_storage_item.base_url
+        self.msg = self._determine_message()
+
         super().__init__(self.msg)
+
+    def _determine_message(self) -> str:
+        if self.login is None and self.password is None:
+            return f"Missing both 'login' and 'password' for 'RemoteStorage': {self.remote_storage_name!r} with base_url {str(self.base_url)!r}."
+        if self.login is None:
+            return f"Missing 'login' for 'RemoteStorage': {self.remote_storage_name!r} with base_url {str(self.base_url)!r}."
+        if self.password is None:
+            return f"Missing 'password' for 'RemoteStorage': {self.remote_storage_name!r} with base_url {str(self.base_url)!r}."
 
 
 class DurationTimezoneError(BaseAntistasiLogBookError):

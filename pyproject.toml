@@ -25,6 +25,7 @@ dependencies = [
 Source = "https://github.com/Giddius/Antistasi_Logbook"
 
 [project.scripts]
+antistasi-logbook = "antistasi_logbook.__main__:cli"
 
 [project.optional-dependencies]
 

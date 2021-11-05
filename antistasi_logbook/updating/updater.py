@@ -56,11 +56,12 @@ from gidapptools import get_meta_config
 import mmap
 from threading import Thread, Event, Condition
 from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord
-
+from antistasi_logbook.parsing.parser import Parser
+from gidapptools.gid_signal.interface import get_signal
 if TYPE_CHECKING:
 
     from antistasi_logbook.updating.remote_managers import AbstractRemoteStorageManager, InfoItem
-    from antistasi_logbook.storage.database import GidSQLiteDatabase
+    from antistasi_logbook.storage.database import GidSQLiteDatabase, GidSqliteQueueDatabase
 # endregion[Imports]
 
 # region [TODO]
@@ -98,7 +99,7 @@ class IntervallKeeper:
 
     def sleep_to_next(self) -> bool:
         seconds_left = (next(self) - self.now).total_seconds()
-        sleep_seconds = min([seconds_left, 5])
+        sleep_seconds = max([seconds_left, 1])
         if self.stop_event.is_set():
             return False
         sleep(sleep_seconds)
@@ -122,10 +123,11 @@ class Updater:
     remote_manager_classes: dict[str, type["AbstractRemoteStorageManager"]] = {}
     threads_prefix = "log_file_update_"
     config_name = "updater"
+    log_file_updated_signal = get_signal("log_file_updated")
 
-    def __init__(self, parser, database: "GidSQLiteDatabase") -> None:
-        self.parser = parser
+    def __init__(self, database: "GidSqliteQueueDatabase", parser: Parser = None) -> None:
         self.database = database
+        self.parser = Parser(database=self.database) if parser is None else parser
         self.thread_pool = ThreadPoolExecutor(max_workers=self.max_threads, thread_name_prefix=self.threads_prefix)
 
     @property
@@ -160,11 +162,13 @@ class Updater:
         new_log_file.save()
 
         new_log_file.size = remote_info.size
+        self.log_file_updated_signal.emit(new_log_file)
         return new_log_file
 
     def _update_log_file(self, log_file: LogFile, remote_info: "InfoItem") -> LogFile:
         log_file.modified_at = remote_info.modified_at
         log_file.size = remote_info.size
+        self.log_file_updated_signal.emit(log_file)
         return log_file
 
     def _get_updated_log_files(self, server: "Server"):
@@ -198,8 +202,6 @@ class Updater:
             log_file.delete_instance()
 
     def update_server(self, server: "Server") -> None:
-        if server.is_updatable() is False:
-            return
 
         server.ensure_remote_manager(remote_manager=self._get_remote_manager(server))
         updated_log_files = self._get_updated_log_files(server=server)
@@ -211,9 +213,11 @@ class Updater:
 
         self._handle_old_log_files(server=server)
 
-    def __call__(self, server: "Server") -> Any:
-        _out = self.update_server(server)
-        return _out
+    def __call__(self, server: "Server") -> None:
+        if server.is_updatable() is False:
+            return
+
+        self.update_server(server)
 
     def close(self) -> None:
         self.thread_pool.shutdown(wait=True, cancel_futures=True)
@@ -221,11 +225,12 @@ class Updater:
 
 class UpdateThread(Thread):
     config_name = "updater"
+    thread_name = "updater_thread"
 
-    def __init__(self, updater: "Updater", server_model: "Server", stop_event: Event = None) -> None:
-        super().__init__(name="updater_thread")
+    def __init__(self, database: "GidSqliteQueueDatabase", updater: "Updater", stop_event: Event = None) -> None:
+        super().__init__(name=self.thread_name)
         self.updater = updater
-        self.server_model = server_model
+        self.database = database
         self.stop_event = Event() if stop_event is None else stop_event
         self.intervaller = IntervallKeeper(self.stop_event)
 
@@ -234,10 +239,14 @@ class UpdateThread(Thread):
         return CONFIG.get(self.config_name, "updates_enabled", default=False)
 
     def _update(self) -> None:
-        for server in self.server_model.select():
-            if self.stop_event.is_set():
-                return
-            self.updater(server)
+        self.before_update()
+        try:
+            for server in Server.select():
+                if self.stop_event.is_set():
+                    return
+                self.updater(server)
+        finally:
+            self.after_update()
 
     def _update_task(self) -> None:
         while not self.stop_event.is_set():
@@ -245,10 +254,35 @@ class UpdateThread(Thread):
                 self._update()
             self.intervaller.sleep_to_next()
 
+    def before_update(self) -> None:
+        print("connecting")
+        self.database.connect(reuse_if_open=True)
+
+    def after_update(self) -> None:
+        print("closing connection")
+        self.database.reconnect()
+
+    def run(self) -> None:
+        self._update_task()
+
     def shutdown(self) -> bool:
         self.stop_event.set()
         self.updater.close()
         self.join()
+
+
+def get_updater(database: "GidSqliteQueueDatabase", **kwargs) -> "Updater":
+    from antistasi_logbook.updating.remote_managers import ALL_REMOTE_MANAGERS_CLASSES
+    updater = Updater(database=database, **kwargs)
+    for remote_manager_class in ALL_REMOTE_MANAGERS_CLASSES:
+        updater.register_remote_manager_class(remote_manager_class)
+    return updater
+
+
+def get_update_thread(database: "GidSqliteQueueDatabase", **kwargs) -> "UpdateThread":
+    updater = get_updater(database=database, **kwargs)
+    update_thread = UpdateThread(database=database, updater=updater)
+    return update_thread
 
 
 # region[Main_Exec]
