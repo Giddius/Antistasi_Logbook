@@ -119,7 +119,7 @@ class AbstractRemoteStorageManager(ABC):
 
     @classmethod
     def from_remote_storage_item(cls, remote_storage_item: "RemoteStorage") -> "AbstractRemoteStorageManager":
-        return cls(base_url=remote_storage_item.base_url, login=remote_storage_item.login, password=remote_storage_item.password)
+        return cls(base_url=remote_storage_item.base_url, login=remote_storage_item.get_login(), password=remote_storage_item.get_password())
 
     @abstractmethod
     def close(self) -> None:

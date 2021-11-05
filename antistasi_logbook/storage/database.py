@@ -306,10 +306,12 @@ if __name__ == '__main__':
     x.start_up_db(overwrite=True)
     x.record_class_manager.register_record_class(PerformanceRecord)
     load_dotenv(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\antistasi_logbook\nextcloud.env")
+
     web_dav_rem = RemoteStorage.get_by_id(1)
-    web_dav_rem.login = os.getenv("NEXTCLOUD_USERNAME")
-    web_dav_rem.password = os.getenv("NEXTCLOUD_PASSWORD")
+
     web_dav_rem.save()
+    web_dav_rem.set_login_and_password(login=os.getenv("NEXTCLOUD_USERNAME"), password=os.getenv("NEXTCLOUD_PASSWORD"), store_in_db=False)
+
     try:
         for server in Server.select():
             updater(server)

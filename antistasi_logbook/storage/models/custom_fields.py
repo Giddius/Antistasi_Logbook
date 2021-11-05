@@ -228,10 +228,6 @@ class CompressedImageField(CompressedField):
 class LoginField(BlobField):
 
     @property
-    def fallback_env_name(self) -> str:
-        return f"{self.model.name}_login"
-
-    @property
     def key(self) -> bytes:
         raw_key = os.environ["USERDOMAIN"].encode(encoding='utf-8', errors='ignore')
         kdf = PBKDF2HMAC(algorithm=hashes.SHA256(),
@@ -249,14 +245,9 @@ class LoginField(BlobField):
         if value is not None:
             fernet = Fernet(self.key)
             return fernet.decrypt(value).decode(encoding='utf-8', errors='ignore')
-        return os.getenv(self.fallback_env_name, None)
 
 
 class PasswordField(BlobField):
-
-    @property
-    def fallback_env_name(self) -> str:
-        return f"{self.model.name}_password"
 
     @property
     def key(self) -> bytes:
@@ -276,7 +267,6 @@ class PasswordField(BlobField):
         if value is not None:
             fernet = Fernet(self.key)
             return fernet.decrypt(value).decode(encoding='utf-8', errors='ignore')
-        return os.getenv(self.fallback_env_name, None)
 
 
 # region[Main_Exec]

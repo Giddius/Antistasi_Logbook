@@ -1,5 +1,6 @@
 from antistasi_logbook import setup
 setup()
+import os
 from peewee import TextField, IntegerField, BooleanField, AutoField, DateTimeField, ForeignKeyField, SQL, BareField, SqliteDatabase, Field, DatabaseProxy, IntegrityError
 from playhouse.signals import Model
 from playhouse.sqlite_ext import JSONField, JSONPath
@@ -66,6 +67,10 @@ class BaseModel(Model):
         except IntegrityError:
             return cls.get(*[getattr(cls, k) == v for k, v in kwargs.items()])
 
+    @classmethod
+    def get_meta(cls):
+        return cls._meta
+
 
 class AntstasiFunction(BaseModel):
     name = TextField(unique=True)
@@ -119,6 +124,36 @@ class RemoteStorage(BaseModel):
         indexes = (
             (('base_url', 'login', 'password', 'manager_type'), True),
         )
+
+    @property
+    def password_env_var_name(self) -> str:
+        return f"{self.name}_password"
+
+    @property
+    def login_env_var_name(self) -> str:
+        return f"{self.name}_login"
+
+    def get_password(self) -> Optional[str]:
+        if self.password is None:
+            return os.getenv(self.password_env_var_name, None)
+
+        return self.password
+
+    def get_login(self) -> Optional[str]:
+        if self.login is None:
+            return os.getenv(self.login_env_var_name, None)
+
+        return self.login
+
+    def set_login_and_password(self, login: str, password: str, store_in_db: bool = True) -> None:
+
+        if store_in_db is True:
+            self.login = login
+            self.password = password
+            self.save()
+        else:
+            os.environ[self.login_env_var_name] = login
+            os.environ[self.password_env_var_name] = password
 
 
 class Server(BaseModel):
