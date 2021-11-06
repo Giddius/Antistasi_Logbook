@@ -1,8 +1,0 @@
-inflection
-dateparser
-aiodav
-checksumdir
-attrs
-rapidfuzz
-jinja2
-sortedcontainers==2.4.0

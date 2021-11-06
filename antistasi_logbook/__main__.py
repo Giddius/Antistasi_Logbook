@@ -157,5 +157,6 @@ def update(login, password):
 
 # region[Main_Exec]
 if __name__ == '__main__':
-    pass
+    if getattr(sys, 'frozen', False):
+        cli(sys.argv[1:])
 # endregion[Main_Exec]

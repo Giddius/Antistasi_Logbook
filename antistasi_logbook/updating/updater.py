@@ -55,6 +55,7 @@ from importlib.machinery import SourceFileLoader
 from gidapptools import get_meta_config
 import mmap
 from threading import Thread, Event, Condition
+
 from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord
 from antistasi_logbook.parsing.parser import Parser
 from gidapptools.gid_signal.interface import get_signal
@@ -193,7 +194,7 @@ class Updater:
         cutoff_datetime = self.get_cutoff_datetime()
         if cutoff_datetime is None:
             return
-        delete_futures = []
+
         for log_file in server.log_files.select().where(LogFile.modified_at < cutoff_datetime):
             print(f"removing log_file {log_file.name!r} of server {log_file.server.name!r}")
             q = LogRecord.delete().where(LogRecord.log_file == log_file)
@@ -269,6 +270,8 @@ class UpdateThread(Thread):
         self.stop_event.set()
         self.updater.close()
         self.join()
+        while self.is_alive() is True:
+            sleep(0.1)
 
 
 def get_updater(database: "GidSqliteQueueDatabase", **kwargs) -> "Updater":

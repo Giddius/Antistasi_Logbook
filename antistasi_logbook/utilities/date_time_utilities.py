@@ -20,7 +20,7 @@ import attr
 import tzlocal
 from gidapptools.general_helper.string_helper import replace_by_dict, extract_by_map
 from gidapptools.general_helper.timing import time_execution, time_func
-from gidapptools.general_helper.date_time import NamedTimezone
+
 import logging
 # endregion[Imports]
 
@@ -61,8 +61,7 @@ def convert_to_timezone(tz_data: Union[str, int]) -> tzinfo:
 
     if isinstance(tz_data, int):
         return timezone(timedelta(hours=tz_data))
-    elif isinstance(tz_data, str):
-        return NamedTimezone.get(tz_data)
+
     raise TypeError(f"Can only convert 'int' or 'str' to timezone not {type(tz_data)!r}")
 
 

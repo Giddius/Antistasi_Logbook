@@ -82,27 +82,6 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 # endregion[Constants]
 
 
-class ThreadExceptHook:
-    updater_thread_name = "updater_thread"
-
-    def __init__(self) -> None:
-        self.old_excepthook: threading.excepthook = None
-
-    def is_updater_thread(self, thread: threading.Thread) -> bool:
-        return thread.name == self.updater_thread_name
-
-    def enable(self) -> None:
-        self.old_excepthook = threading.excepthook
-        threading.excepthook = self
-
-    def disable(self) -> None:
-        threading.excepthook = self.old_excepthook
-        self.old_excepthook = None
-
-    def __call__(self, exc_type: type[BaseException], exc_value: BaseException = None, exc_traceback: TracebackType = None, thread: threading.Thread = None) -> Any:
-        self.old_excepthook(exc_type=exc_type, exc_value=exc_value, exc_traceback=exc_traceback, thread=thread)
-
-
 class BaseAntistasiLogBookError(Exception):
     """
     Base Error for antistasi_serverlog_statistics package.
@@ -142,9 +121,8 @@ class DurationTimezoneError(BaseAntistasiLogBookError):
         self.message = message + f", {start_tz=}, {end_tz=}."
         super().__init__(self.message)
 
-# region[Main_Exec]
 
-
+    # region[Main_Exec]
 if __name__ == '__main__':
     pass
 

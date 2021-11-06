@@ -53,7 +53,7 @@ from importlib.machinery import SourceFileLoader
 from webdav4.client import Client as WebdavClient
 from antistasi_logbook.utilities.nextcloud import get_nextcloud_options, DEFAULT_BASE_FOLDER, DEFAULT_SUB_FOLDER_NAME, get_webdav_client, DEFAULT_LOG_FOLDER_TEMPLATE, get_username
 from dotenv import load_dotenv, find_dotenv
-from icecream import ic
+
 from gidapptools.general_helper.timing import time_func
 from antistasi_logbook.utilities.path_utilities import clean_path, RemotePath
 from mimetypes import common_types, types_map

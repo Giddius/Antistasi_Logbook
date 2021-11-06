@@ -62,6 +62,7 @@ from gidapptools.general_helper.conversion import human2bytes
 from antistasi_logbook.storage.models.models import database, Server, RemoteStorage, LogFile, RecordClass, LogRecord
 from antistasi_logbook.updating.remote_managers import AbstractRemoteStorageManager, LocalManager, WebdavManager
 from rich.console import Console as RichConsole
+import threading
 from rich import inspect as rinspect
 from antistasi_logbook.parsing.record_class_manager import RecordClassManager
 if TYPE_CHECKING:
@@ -216,15 +217,16 @@ class GidSqliteQueueDatabase(SqliteQueueDatabase):
         self.script_folder.mkdir(exist_ok=True, parents=True)
         if overwrite is True:
             self.path.unlink(missing_ok=True)
-        conn = sqlite3.connect(self.path)
-        for script in self.script_provider.get_setup_scripts():
-
-            conn.executescript(script)
-
-        conn.close()
-        self.started_up = True
-
         self.start()
+
+        for script in self.script_provider.get_setup_scripts():
+            for item in script.split(';'):
+                if not item:
+                    continue
+
+                cur = self.execute_sql(item)
+                cur._wait()
+        self.started_up = True
 
     def optimize(self) -> None:
         print("optimizing")
@@ -334,7 +336,7 @@ if __name__ == '__main__':
     print("starting")
     try:
         update_thread.start()
-        sleep(1000)
+        sleep(50)
         update_thread.shutdown()
 
     finally:
