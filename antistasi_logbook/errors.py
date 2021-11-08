@@ -122,6 +122,25 @@ class DurationTimezoneError(BaseAntistasiLogBookError):
         super().__init__(self.message)
 
 
+EXCEPTION_HANDLER_TYPE = Callable[[BaseException], None]
+
+
+class UpdateExceptionHandler:
+
+    def __init__(self) -> None:
+        self.exception_handler_registry: dict[type[BaseException]:Optional[EXCEPTION_HANDLER_TYPE]] = {}
+
+    def register_handler(self, exception_class: type[BaseException], handler: EXCEPTION_HANDLER_TYPE) -> None:
+        self.exception_handler_registry[exception_class] = handler
+
+    def default_handler(self, exception: BaseException) -> None:
+        print(f"This was handled by {self.__class__.__name__!r}")
+        raise exception
+
+    def handle_exception(self, exception: BaseException) -> None:
+        handler = self.exception_handler_registry.get(type(exception), self.default_handler)
+        handler(exception)
+
     # region[Main_Exec]
 if __name__ == '__main__':
     pass

@@ -56,10 +56,12 @@ from playhouse.sqlite_ext import SqliteExtDatabase
 from playhouse.sqliteq import SqliteQueueDatabase
 from playhouse.pool import PooledSqliteExtDatabase
 import yarl
+from gidapptools.general_helper.timing import time_execution
 from gidapptools.gid_signal.interface import get_signal
 from gidapptools.meta_data.interface import get_meta_paths, MetaPaths, get_meta_config, get_meta_info
 from gidapptools.general_helper.conversion import human2bytes
-from antistasi_logbook.storage.models.models import database, Server, RemoteStorage, LogFile, RecordClass, LogRecord
+from antistasi_logbook.utilities.locks import UPDATE_LOCK
+from antistasi_logbook.storage.models.models import database, Server, RemoteStorage, LogFile, RecordClass, LogRecord, AntstasiFunction
 from antistasi_logbook.updating.remote_managers import AbstractRemoteStorageManager, LocalManager, WebdavManager
 from rich.console import Console as RichConsole
 import threading
@@ -319,6 +321,8 @@ def get_database(database_path: Path = None, script_folder: Path = None, overwri
     return raw_db
 
 
+p_actions = []
+
 # region[Main_Exec]
 if __name__ == '__main__':
     from antistasi_logbook.updating.updater import get_updater, get_update_thread
@@ -334,13 +338,16 @@ if __name__ == '__main__':
 
     web_dav_rem.set_login_and_password(login=os.getenv("NEXTCLOUD_USERNAME"), password=os.getenv("NEXTCLOUD_PASSWORD"), store_in_db=False)
     print("starting")
-    try:
-        update_thread.start()
-        sleep(50)
-        update_thread.shutdown()
+    with time_execution('must be 5000', condition=True):
+        try:
+            update_thread._update()
+            # update_thread.start()
 
-    finally:
+            # sleep(500)
+            # update_thread.shutdown()
 
-        db.shutdown()
+        finally:
+
+            db.shutdown()
 
 # endregion[Main_Exec]

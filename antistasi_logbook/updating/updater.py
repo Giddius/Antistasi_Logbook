@@ -55,9 +55,10 @@ from importlib.machinery import SourceFileLoader
 from gidapptools import get_meta_config
 import mmap
 from threading import Thread, Event, Condition
-
+from antistasi_logbook.errors import UpdateExceptionHandler
 from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord
 from antistasi_logbook.parsing.parser import Parser
+from antistasi_logbook.utilities.locks import UPDATE_LOCK, UPDATE_STOP_EVENT
 from gidapptools.gid_signal.interface import get_signal
 if TYPE_CHECKING:
 
@@ -221,38 +222,52 @@ class Updater:
         self.update_server(server)
 
     def close(self) -> None:
-        self.thread_pool.shutdown(wait=True, cancel_futures=True)
+        self.thread_pool.shutdown(wait=True, cancel_futures=False)
 
 
 class UpdateThread(Thread):
     config_name = "updater"
     thread_name = "updater_thread"
 
-    def __init__(self, database: "GidSqliteQueueDatabase", updater: "Updater", stop_event: Event = None) -> None:
+    def __init__(self, database: "GidSqliteQueueDatabase", updater: "Updater") -> None:
         super().__init__(name=self.thread_name)
         self.updater = updater
         self.database = database
-        self.stop_event = Event() if stop_event is None else stop_event
-        self.intervaller = IntervallKeeper(self.stop_event)
+
+        self.intervaller = IntervallKeeper(UPDATE_STOP_EVENT)
+        self.exception_handler = UpdateExceptionHandler()
+        self.is_updating: bool = False
 
     @property
     def updates_enabled(self) -> bool:
         return CONFIG.get(self.config_name, "updates_enabled", default=False)
 
+    @contextmanager
+    def set_is_updating(self) -> None:
+        with UPDATE_LOCK:
+            self.is_updating = True
+            yield
+        self.is_updating = False
+
     def _update(self) -> None:
         self.before_update()
         try:
             for server in Server.select():
-                if self.stop_event.is_set():
+                if UPDATE_STOP_EVENT.is_set():
                     return
                 self.updater(server)
+        except Exception as error:
+            self.exception_handler.handle_exception(error)
         finally:
             self.after_update()
 
     def _update_task(self) -> None:
-        while not self.stop_event.is_set():
+        while not UPDATE_STOP_EVENT.is_set():
             if self.updates_enabled is True:
-                self._update()
+                with self.set_is_updating():
+                    self._update()
+            if UPDATE_STOP_EVENT.is_set():
+                break
             self.intervaller.sleep_to_next()
 
     def before_update(self) -> None:
@@ -267,11 +282,12 @@ class UpdateThread(Thread):
         self._update_task()
 
     def shutdown(self) -> bool:
-        self.stop_event.set()
+        UPDATE_STOP_EVENT.set()
         self.updater.close()
         self.join()
         while self.is_alive() is True:
             sleep(0.1)
+        UPDATE_STOP_EVENT.clear()
 
 
 def get_updater(database: "GidSqliteQueueDatabase", **kwargs) -> "Updater":

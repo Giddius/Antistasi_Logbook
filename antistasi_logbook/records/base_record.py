@@ -78,7 +78,7 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 class BaseRecord(AbstractRecord):
     ___record_family___ = RecordFamily.GENERIC | RecordFamily.ANTISTASI
     ___specificity___ = 0
-    __slots__ = ("log_record")
+    __slots__ = ("log_record",)
 
     # def __init__(self,
     #              log_record: "LogRecord",

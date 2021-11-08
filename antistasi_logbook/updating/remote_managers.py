@@ -75,7 +75,8 @@ import yarl
 import httpx
 from antistasi_logbook.errors import MissingLoginAndPasswordError
 from antistasi_logbook.utilities.path_utilities import url_to_path
-from antistasi_logbook.utilities.locks import DelayedSemaphore, MinDurationSemaphore
+from antistasi_logbook.utilities.locks import DelayedSemaphore, MinDurationSemaphore, DOWNLOAD_LOCK
+from antistasi_logbook.utilities.nextcloud import Retrier, increasing_timeout, exponential_timeout
 if TYPE_CHECKING:
 
     from gidapptools.meta_data.interface import MetaPaths
@@ -202,6 +203,13 @@ class WebdavManager(AbstractRemoteStorageManager):
     def max_connections(self) -> Optional[int]:
         return CONFIG.get(self.config_name, "max_concurrent_connections", default=100)
 
+    def _get_new_client(self) -> WebdavClient:
+        return WebdavClient(base_url=str(self.full_base_url),
+                            auth=(self.login, self.password),
+                            retry=True,
+                            # limits=httpx.Limits(max_connections=self.max_connections, max_keepalive_connections=self.max_connections),
+                            timeout=httpx.Timeout(timeout=None))
+
     @property
     def client(self) -> WebdavClient:
         if any([self.login is None, self.password is None]):
@@ -209,11 +217,7 @@ class WebdavManager(AbstractRemoteStorageManager):
             raise RuntimeError(f"login and password can not be None for {self.__class__.__name__!r}.")
 
         if self._client is None:
-            self._client = WebdavClient(base_url=str(self.full_base_url),
-                                        auth=(self.login, self.password),
-                                        retry=True,
-                                        limits=httpx.Limits(max_connections=self.max_connections, max_keepalive_connections=self.max_connections),
-                                        timeout=httpx.Timeout(timeout=None))
+            self._client = self._get_new_client()
         return self._client
 
     def _make_full_base_url(self) -> yarl.URL:
@@ -232,33 +236,54 @@ class WebdavManager(AbstractRemoteStorageManager):
         info = self.client.info(file_path)
         return InfoItem.from_webdav_info(info)
 
-    def download_file(self, log_file: "LogFile", try_num: int = 0) -> "LogFile":
+    # def download_file(self, log_file: "LogFile", try_num: int = 0) -> "LogFile":
+    #     download_url = log_file.download_url
+    #     local_path = log_file.local_path
+    #     chunk_size = CONFIG.get("downloading", "chunk_size", default=None)
+    #     chunk_size = human2bytes(chunk_size) if chunk_size is not None else None
+    #     try:
+    #         with self.download_semaphore:
+    #             print(f"downloading {log_file!r}")
+
+    #             result = self.client.http.get(str(download_url), auth=(self.login, self.password))
+    #             with local_path.open("wb") as f:
+    #                 for chunk in result.iter_bytes(chunk_size=chunk_size):
+    #                     f.write(chunk)
+    #             log_file.is_downloaded = True
+    #             return local_path
+    #     except (httpx.RemoteProtocolError, httpx.ReadError) as error:
+    #         if try_num > 3:
+    #             raise
+    #         print('+' * 25 + f" {error.__class__.__name__}, reconnecting")
+    #         self.close()
+    #         sleep(30)
+    #         return self.download_file(log_file=log_file, try_num=try_num + 1)
+
+    @Retrier([httpx.ReadError, httpx.RemoteProtocolError], allowed_attempts=3, timeout=5, timeout_function=exponential_timeout)
+    def download_file(self, log_file: "LogFile") -> "LogFile":
         download_url = log_file.download_url
         local_path = log_file.local_path
         chunk_size = CONFIG.get("downloading", "chunk_size", default=None)
         chunk_size = human2bytes(chunk_size) if chunk_size is not None else None
-        try:
-            with self.download_semaphore:
-                print(f"downloading {log_file!r}")
 
-                result = self.client.http.get(str(download_url), auth=(self.login, self.password))
-                with local_path.open("wb") as f:
-                    for chunk in result.iter_bytes(chunk_size=chunk_size):
-                        f.write(chunk)
-                log_file.is_downloaded = True
-                return local_path
-        except (httpx.RemoteProtocolError, httpx.ReadError) as error:
-            if try_num > 3:
-                raise
-            print('+' * 25 + " RemoteProtocolError, reconnecting")
-            self.close()
-            sleep(10)
-            return self.download_file(log_file=log_file, try_num=try_num + 1)
+        print(f"downloading {log_file!r}")
+
+        result = self.client.http.get(str(download_url), auth=(self.login, self.password))
+        with local_path.open("wb") as f:
+            for chunk in result.iter_bytes(chunk_size=chunk_size):
+                f.write(chunk)
+        log_file.is_downloaded = True
+        return local_path
 
     def close(self) -> None:
         if self._client is not None:
             self._client.http.close()
             self._client = None
+
+    def restart_client(self) -> None:
+        if self._client is not None:
+            self._client.http.close()
+            self._client = self._get_new_client()
 
 
 ALL_REMOTE_MANAGERS_CLASSES.add(WebdavManager)

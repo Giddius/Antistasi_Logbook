@@ -96,33 +96,20 @@ def cli():
     ...
 
 
-@cli.group(name="settings", help="Commands to change the Application settings without the GUI.")
-def settings():
-    ...
+settings_names = []
+for section, values in CONFIG.as_dict().items():
+    for key, _value in values.items():
+        settings_names.append(f"{section}.{key}")
 
 
-@settings.command(name="set-keep-downloaded-files", help="Changes wether to delete the log files after parsing or to keep it on the hard drive.")
-@click.argument("value", type=click.BOOL)
-def set_keep_downloaded_files(value):
-    config_value = CONFIG.get("downloading", "keep_downloaded_files", default="False")
-    if value is not config_value:
-        CONFIG.set("downloading", "keep_downloaded_files", value)
-    current_value = CONFIG.get("downloading", "keep_downloaded_files", default="False")
-    click.echo(f"Setting 'keep_downloaded_files' is now set to {str(current_value)!r}")
-
-
-@settings.command(name="set-local-storage-folder", help="Sets the local folder where the downloaded log files are stored.use 'UNSET' if you want to revert to the default.")
-@click.argument("value", type=click.Path(file_okay=False))
-def set_local_storage_folder(value):
-    if value == "UNSET":
-        value = None
-    else:
-        value = Path(value)
-    CONFIG.set("folder", "local_storage_folder", value)
-    current_value = CONFIG.get("folder", "local_storage_folder", default=None)
-    if isinstance(current_value, Path):
-        current_value = current_value.as_posix()
-    click.echo(f"Setting 'local_storage_folder' is now set to {str(current_value)!r}")
+@cli.command(name="settings", help="change the Application settings without the GUI.")
+@click.argument("setting_name", type=click.Choice(settings_names))
+@click.argument("value")
+def settings(setting_name, value):
+    section, key = setting_name.split('.')
+    CONFIG.set(section_name=section, entry_key=key, entry_value=value)
+    current_value = CONFIG.get(section, key)
+    click.echo(f"{setting_name} is set to {str(current_value)!r}")
 
 
 @cli.command(help="Runs a single update of all enabled Server without starting the GUI.")

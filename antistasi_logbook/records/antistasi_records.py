@@ -54,6 +54,7 @@ from importlib.machinery import SourceFileLoader
 from antistasi_logbook.records.base_record import BaseRecord, RecordFamily
 if TYPE_CHECKING:
     from antistasi_logbook.parsing.parser import RawRecord
+    from antistasi_logbook.storage.models.models import LogRecord
 # endregion[Imports]
 
 # region [TODO]
@@ -79,10 +80,19 @@ class PerformanceRecord(BaseRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 10
     performance_regex = re.compile(r"(?P<name>\w+\s?\w*)(?:\:\s?)(?P<value>\d[\d\.]*)")
-    __slots__ = ("log_record")
+    __slots__ = ("log_record", "_stats")
 
-    @cached_property
+    def __init__(self, log_record: "LogRecord") -> None:
+        super().__init__(log_record)
+        self._stats: dict[str, Union[float, int]] = None
+
+    @property
     def stats(self) -> dict[str, Union[int, float]]:
+        if self._stats is None:
+            self._stats = self._get_stats()
+        return self._stats
+
+    def _get_stats(self) -> dict[str, Union[int, float]]:
         data = {item.group('name'): item.group('value') for item in self.performance_regex.finditer(self.message)}
         return {k: float(v) if '.' in v else int(v) for k, v in data.items()}
 
@@ -101,6 +111,57 @@ class PerformanceRecord(BaseRecord):
 
 
 ALL_ANTISTASI_RECORD_CLASSES.add(PerformanceRecord)
+
+
+class IsNewCampaignRecord(BaseRecord):
+    ___record_family___ = RecordFamily.ANTISTASI
+    ___specificity___ = 20
+    __slots__ = ("log_record",)
+
+    @classmethod
+    def check(cls, raw_record: "RawRecord") -> bool:
+        logged_from = raw_record.parsed_data.get("logged_from")
+
+        if logged_from is None:
+            return False
+        if logged_from.name == "initServer" and "Creating new campaign with ID" in raw_record.parsed_data.get("message"):
+            return True
+
+        return False
+
+
+ALL_ANTISTASI_RECORD_CLASSES.add(IsNewCampaignRecord)
+
+
+class FFPunishmentRecord(BaseRecord):
+    ___record_family___ = RecordFamily.ANTISTASI
+    ___specificity___ = 10
+    punishment_type_regex = re.compile(r"(?P<punishment_type>[A-Z]+)")
+    __slots__ = ("log_record", "_punishment_type")
+
+    def __init__(self, log_record: "LogRecord") -> None:
+        super().__init__(log_record)
+        self._punishment_type: str = None
+
+    @property
+    def punishment_type(self) -> str:
+        if self._punishment_type is None:
+            self._punishment_type = self.punishment_type_regex.search(self.message).group("punishment_type")
+        return self._punishment_type
+
+    @classmethod
+    def check(cls, raw_record: "RawRecord") -> bool:
+        logged_from = raw_record.parsed_data.get("logged_from")
+
+        if logged_from is None:
+            return False
+        if logged_from.name in {"punishment_FF", "punishment"}:
+            return True
+
+        return False
+
+
+ALL_ANTISTASI_RECORD_CLASSES.add(FFPunishmentRecord)
 
 # region[Main_Exec]
 

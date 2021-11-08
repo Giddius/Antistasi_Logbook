@@ -7,10 +7,15 @@ CREATE TABLE IF NOT EXISTS "RemoteStorage" (
     "id" INTEGER PRIMARY KEY,
     "name" TEXT UNIQUE NOT NULL,
     "base_url" URL,
-    "login" BLOB,
-    "password" BLOB,
+    "_login" BLOB,
+    "_password" BLOB,
     "manager_type" TEXT NOT NULL,
-    UNIQUE("base_url", "login", "password", "manager_type")
+    UNIQUE(
+        "base_url",
+        "_login",
+        "_password",
+        "manager_type"
+    )
 );
 
 CREATE TABLE IF NOT EXISTS "Server" (
@@ -30,8 +35,8 @@ CREATE TABLE IF NOT EXISTS "GameMap" (
     "name" TEXT UNIQUE NOT NULL,
     "official" BOOL NOT NULL DEFAULT 0,
     "dlc" TEXT,
-    "map_image_high_resolution_path" BLOB,
-    "map_image_low_resolution_path" BLOB,
+    "map_image_high_resolution" BLOB,
+    "map_image_low_resolution" BLOB,
     "coordinates" JSON,
     "workshop_link" URL,
     "comments" TEXT,
@@ -73,6 +78,7 @@ CREATE TABLE IF NOT EXISTS "LogFile" (
     "utc_offset" INT,
     "version" VERSION,
     "game_map" INTEGER REFERENCES "GameMap" ("id") ON DELETE CASCADE,
+    "is_new_campaign" BOOL,
     "server" INTEGER NOT NULL REFERENCES "Server" ("id") ON DELETE CASCADE,
     "unparsable" BOOL DEFAULT 0,
     "comments" TEXT,

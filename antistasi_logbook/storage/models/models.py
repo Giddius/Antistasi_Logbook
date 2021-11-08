@@ -101,8 +101,8 @@ class GameMap(BaseModel):
     name = TextField(unique=True)
     official = BooleanField(constraints=[SQL("DEFAULT 0")])
     dlc = TextField(null=True)
-    map_image_high_resolution_path = CompressedImageField(null=True)
-    map_image_low_resolution_path = CompressedImageField(null=True)
+    map_image_high_resolution = CompressedImageField(null=True)
+    map_image_low_resolution = CompressedImageField(null=True)
     coordinates = JSONField(null=True)
     workshop_link = URLField(null=True)
     comments = TextField(null=True)
@@ -115,14 +115,14 @@ class GameMap(BaseModel):
 class RemoteStorage(BaseModel):
     name = TextField(unique=True)
     base_url = URLField(null=True)
-    login = LoginField(null=True)
-    password = PasswordField(null=True)
+    _login = LoginField(null=True)
+    _password = PasswordField(null=True)
     manager_type = TextField()
 
     class Meta:
         table_name = 'RemoteStorage'
         indexes = (
-            (('base_url', 'login', 'password', 'manager_type'), True),
+            (('base_url', '_login', '_password', 'manager_type'), True),
         )
 
     @property
@@ -134,22 +134,22 @@ class RemoteStorage(BaseModel):
         return f"{self.name}_login"
 
     def get_password(self) -> Optional[str]:
-        if self.password is None:
+        if self._password is None:
             return os.getenv(self.password_env_var_name, None)
 
-        return self.password
+        return self._password
 
     def get_login(self) -> Optional[str]:
-        if self.login is None:
+        if self._login is None:
             return os.getenv(self.login_env_var_name, None)
 
-        return self.login
+        return self._login
 
     def set_login_and_password(self, login: str, password: str, store_in_db: bool = True) -> None:
 
         if store_in_db is True:
-            self.login = login
-            self.password = password
+            self._login = login
+            self._password = password
             self.save()
         else:
             os.environ[self.login_env_var_name] = login
@@ -221,6 +221,7 @@ class LogFile(BaseModel):
     utc_offset = TzOffsetField(null=True)
     version = VersionField(null=True)
     game_map = ForeignKeyField(column_name='game_map', field='id', model=GameMap, null=True, lazy_load=True)
+    is_new_campaign = BooleanField(default=False)
     server = ForeignKeyField(column_name='server', field='id', model=Server, lazy_load=True, backref="log_files")
     unparsable = BooleanField(constraints=[SQL("DEFAULT 0")])
     comments = TextField(null=True)

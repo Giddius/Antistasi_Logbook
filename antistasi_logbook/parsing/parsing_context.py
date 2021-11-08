@@ -55,7 +55,7 @@ from traceback import print_tb
 import peewee
 from threading import Lock, RLock
 from gidapptools.general_helper.enums import MiscEnum
-from antistasi_logbook.storage.models.models import LogFile, Mod, LogFileAndModJoin, LogRecord
+from antistasi_logbook.storage.models.models import LogFile, Mod, LogFileAndModJoin, LogRecord, RecordClass
 from antistasi_logbook.utilities.locks import DB_LOCK
 if TYPE_CHECKING:
 
@@ -106,6 +106,7 @@ LINE_ITERATOR_TYPE = Generator[RecordLine, None, None]
 class ParsingContext:
     mod_model_lock = RLock()
     game_map_model_lock = RLock()
+    __slots__ = ("log_file", "database", "record_insert_batch_size", "auto_download", "line_cache", "record_storage", "_line_iterator", "_current_line", "_current_line_number", "_bulk_create_batch_size")
 
     def __init__(self, log_file: "LogFile", database: "GidSQLiteDatabase", auto_download: bool = False, record_insert_batch_size: int = 1000) -> None:
         self.log_file = log_file
@@ -117,18 +118,24 @@ class ParsingContext:
         self._line_iterator: LINE_ITERATOR_TYPE = None
         self._current_line: RecordLine = None
         self._current_line_number = 0
+        self._bulk_create_batch_size: int = None
 
     @property
     def unparsable(self) -> bool:
         return self.log_file.unparsable
 
-    @cached_property
+    @property
     def bulk_create_batch_size(self) -> int:
-        return 32766 // len(LogRecord._meta.columns)
+        if self._bulk_create_batch_size is None:
+            self._bulk_create_batch_size = 32766 // len(LogRecord._meta.columns)
+        return self._bulk_create_batch_size
 
     def add_record(self, record: "LogRecord") -> None:
         if record is None:
             return
+        if record.record_class.name == "IsNewCampaignRecord":
+            self.log_file.is_new_campaign = True
+            self.log_file.save()
         self.record_storage.append(record)
 
         if len(self.record_storage) >= self.record_insert_batch_size:

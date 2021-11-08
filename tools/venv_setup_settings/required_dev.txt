@@ -21,3 +21,4 @@ pydeps
 pylint
 pympler
 tomlkit
+autoflake==1.4

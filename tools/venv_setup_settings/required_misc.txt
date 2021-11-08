@@ -1,6 +1,6 @@
 click==8.0.3
 cryptography==35.0.0
-httpx==0.20.0
+httpx[brotli]==0.20.0
 peewee==3.14.4
 Pillow==8.4.0
 python-dateutil==2.8.2

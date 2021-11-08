@@ -86,13 +86,13 @@ class AbstractRecord(ABC):
     ___record_family___: RecordFamily = ...
     ___specificity___: int = ...
 
-    def __init_subclass__(cls) -> None:
-        if not hasattr(cls, "___record_family___") or cls.___record_family___ is ...:
-            # TODO: Custom Error!
-            raise RuntimeError("Records need to implement the class attribute '___record_family___' and its value needs to be of type 'EntryFamily'.")
-        if not hasattr(cls, "___specificity___") or cls.___specificity___ is ...:
-            # TODO: Custom Error!
-            raise RuntimeError("Records need to implement the class attribute '___specificity___' and its value needs to be of type 'int'.")
+    # def __init_subclass__(cls) -> None:
+    #     if not hasattr(cls, "___record_family___") or cls.___record_family___ is ...:
+    #         # TODO: Custom Error!
+    #         raise RuntimeError("Records need to implement the class attribute '___record_family___' and its value needs to be of type 'EntryFamily'.")
+    #     if not hasattr(cls, "___specificity___") or cls.___specificity___ is ...:
+    #         # TODO: Custom Error!
+    #         raise RuntimeError("Records need to implement the class attribute '___specificity___' and its value needs to be of type 'int'.")
 
     @classmethod
     @abstractmethod

@@ -8,6 +8,12 @@ from time import thread_time, time, process_time
 
 DB_LOCK = RLock()
 
+UPDATE_LOCK = Lock()
+
+UPDATE_STOP_EVENT = Event()
+
+DOWNLOAD_LOCK = Lock()
+
 
 class DelayedSemaphore(Semaphore):
 

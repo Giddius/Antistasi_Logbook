@@ -63,6 +63,7 @@ from antistasi_logbook.parsing.record_class_manager import RecordClassManager
 from antistasi_logbook.storage.models.models import LogFile, RecordClass, LogRecord, LogLevel, AntstasiFunction
 from antistasi_logbook.records.enums import PunishmentActionEnum
 from dateutil.tz import UTC
+from antistasi_logbook.utilities.locks import UPDATE_STOP_EVENT
 import peewee
 from playhouse.signals import Model, post_save
 
@@ -446,7 +447,7 @@ class Parser:
         context.set_startup_text()
 
     def parse_entries(self, context: ParsingContext) -> None:
-        while context.current_line is not ...:
+        while context.current_line is not ... and not UPDATE_STOP_EVENT.is_set():
             if self.regex_keeper.local_datetime.match(context.current_line.content):
                 if match := self.regex_keeper.continued_record.match(context.current_line.content):
                     context.line_cache.append(RecordLine(content=match.group('content'), start=context.current_line.start))
@@ -460,6 +461,8 @@ class Parser:
             context.advance_line()
 
     def __call__(self, log_file: "LogFile") -> Any:
+        if UPDATE_STOP_EVENT.is_set():
+            return
         with ParsingContext(log_file=log_file, database=self.database, auto_download=True) as context:
             log.info("getting meta_data")
             if self._get_log_file_meta_data(context=context) is False or context.unparsable is True:

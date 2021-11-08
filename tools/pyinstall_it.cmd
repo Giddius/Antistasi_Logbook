@@ -43,7 +43,7 @@ cd %INPATH%
 
 
 rem options: onedir OR onefile
-set _TYPE_TO_GENERATE=onedir
+set _TYPE_TO_GENERATE=onefile
 
 rem options: console OR windowed
 set _TYPE_OF_UI=console
@@ -51,7 +51,6 @@ set _TYPE_OF_UI=console
 set _NAME_OF_APPLICATION=Antistasi_Logbook
 
 set _ICON=D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Gid_Scratches\gid_scratch\pyinstaller_scratch\anwendung.ico
-
 
 
 set PYTHONOPTIMIZE=1
@@ -72,4 +71,4 @@ call pyinstaller ^
 --distpath %_OUT_DIR%\dist ^
 --workpath %_OUT_DIR%\work ^
 --specpath %_OUT_DIR%\spec ^
-%INFILE%
+D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\Antistasi_Logbook.spec
