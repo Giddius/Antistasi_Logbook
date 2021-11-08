@@ -158,3 +158,4 @@ misc/
 /antistasi_logbook/storage/storage.db
 /antistasi_logbook/dev_temp
 /antistasi_logbook/record_parsing_errors.txt
+/pyinstaller_output
