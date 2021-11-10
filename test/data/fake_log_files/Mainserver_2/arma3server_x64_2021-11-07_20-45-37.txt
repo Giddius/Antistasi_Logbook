@@ -1,0 +1,35 @@
+=====================================================================
+== C:\TCAFiles\Users\Antistasi\2434\arma3server_x64.exe
+== "C:\TCAFiles\Users\Antistasi\2434\arma3server_x64.exe" -port=2322   -MaxMem=3072 -filePatching -collection= "-servermod=@members;@TaskForceEnforcer;@utility" "-mod=@ace;@ACECompatRHSArmedForcesoftheRussianFederation;@ACECompatRHSGREF;@ACECompatRHSUnitedStatesArmedForces;@CBAA3;@EnhancedMovement;@RHSAFRF;@RHSGREF;@RHSUSAF;@TaskForceArrowheadRadioBETA;@ZeusEnhanced;@ZeusEnhancedACE3Compatibility;@VETUnflipping;@CUPTerrainsCore;@VirolahtiValtatie7;@GruppeAdlerTrenches" -profiles=ARMAHOSTS -config=ARMAHOSTS\server\server.cfg -cfg=ARMAHOSTS\server\basic.cfg "-name=armahosts" -Server -O=2 -H=2 
+
+Original output filename: Arma3Retail_Server_x64
+Exe timestamp: 2021/09/30 12:39:26
+Current time:  2021/11/07 20:45:37
+
+Type: Public
+Build: Stable
+Version: 2.06.148221
+
+Allocator: C:\TCAFiles\Users\Antistasi\2434\Dll\tbb4malloc_bi_x64.dll [2017.0.0.0] [2017.0.0.0]
+PhysMem: 128 GiB, VirtMem : 131072 GiB, AvailPhys : 91 GiB, AvailVirt : 131068 GiB, AvailPage : 106 GiB, PageSize : 4.0 KiB/2.0 MiB/HasLockMemory
+=====================================================================
+
+20:45:37 SteamAPI initialization failed. Steam features won't be accessible!
+20:45:37 Initializing stats manager.
+20:45:37 Stats config disabled.
+20:45:37 sessionID: 53c32e808c37c85ac198f846e16077b476289bf1
+20:45:46 Unsupported language English in stringtable
+20:45:46  ➥ Context: ca\language\stringtable.xml
+20:45:47 Unsupported language English in stringtable
+20:45:47  ➥ Context: CUP\Terrains\cup_terrains_compositions\stringtable.xml
+20:45:47 Unsupported language English in stringtable
+20:45:47  ➥ Context: CUP\Terrains\cup_terrains_music\stringtable.xml
+20:45:47 Unsupported language English in stringtable
+20:45:47  ➥ Context: vet\unflipping\stringtable.xml
+20:45:47 Unsupported language English in stringtable
+20:45:47  ➥ Context: z\tfar\addons\core\stringtable.xml
+20:45:47 Unsupported language English in stringtable
+20:45:47  ➥ Context: rhsafrf\addons\rhs_main\stringtable.xml
+20:45:50 ErrorMessage: File antistasiservermembers\MemberList.hpp, line 2262: /AntistasiServerMembers/MembersClasses.member_Blue: Member already defined.
+20:45:50 Application terminated intentionally
+ErrorMessage: File antistasiservermembers\MemberList.hpp, line 2262: /AntistasiServerMembers/MembersClasses.member_Blue: Member already defined.

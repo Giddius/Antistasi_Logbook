@@ -159,3 +159,5 @@ misc/
 /antistasi_logbook/dev_temp
 /antistasi_logbook/record_parsing_errors.txt
 /pyinstaller_output
+*.db-wal
+*.db-shm

@@ -36,7 +36,7 @@ from pprint import pprint, pformat
 from pathlib import Path
 from string import Formatter, digits, printable, whitespace, punctuation, ascii_letters, ascii_lowercase, ascii_uppercase
 from timeit import Timer
-from typing import TYPE_CHECKING, Union, Callable, Iterable, Optional, Mapping, Any, IO, TextIO, BinaryIO, Hashable, Generator, Literal, TypeVar, TypedDict, AnyStr
+from typing import TYPE_CHECKING, Union, Callable, Iterable, Optional, Mapping, Any, IO, TextIO, BinaryIO, Hashable, Generator, Literal, TypeVar, TypedDict, AnyStr, ClassVar
 from zipfile import ZipFile, ZIP_LZMA
 from datetime import datetime, timezone, timedelta
 from tempfile import TemporaryDirectory
@@ -57,6 +57,8 @@ from antistasi_logbook.utilities.enums import RemoteItemType
 from antistasi_logbook.data.content_types import ContentType
 from antistasi_logbook.utilities.path_utilities import RemotePath
 from gidapptools.general_helper.dict_helper import replace_dict_keys
+from marshmallow import Schema, fields
+from dateutil.tz import UTC
 # endregion[Imports]
 
 # region [TODO]
@@ -87,6 +89,20 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 # 'type': 'directory'}
 
 
+class InfoItemSchema(Schema):
+    type = fields.String()
+    remote_path = fields.String()
+    name = fields.String()
+    etag = fields.String()
+    raw_created_at = fields.AwareDateTime(default_timezone=UTC)
+    modified_at = fields.AwareDateTime(default_timezone=UTC)
+    content_type = fields.String()
+    display_name = fields.String()
+    size = fields.Integer()
+    content_language = fields.String()
+    raw_info = fields.Dict()
+
+
 @attr.s(slots=True, auto_attribs=True, auto_detect=True, kw_only=True, frozen=True)
 class InfoItem:
     type: RemoteItemType = attr.ib(converter=RemoteItemType)
@@ -100,6 +116,7 @@ class InfoItem:
     size: int = attr.ib(default=None)
     content_language: str = attr.ib(default=None)
     raw_info: dict[str, Any] = attr.ib()
+    schema: ClassVar = InfoItemSchema()
 
     @name.default
     def _name_from_remote_path(self) -> str:
@@ -117,22 +134,12 @@ class InfoItem:
     def as_dict(self) -> dict[str, Any]:
         return attr.asdict(self)
 
+    def dump(self) -> dict:
+        return self.schema.dump(self)
+
 
 # region[Main_Exec]
 if __name__ == '__main__':
-    x = """content_language: str = attr.ib(default=None)
-    content_length: str = attr.ib(default=None)
-    content_type: str = attr.ib(default=None)
-    created: str = attr.ib(default=None)
-    display_name: str = attr.ib(default=None)
-    etag: str = attr.ib(default=None)
-    href: str = attr.ib(default=None)
-    modified: str = attr.ib(default=None)
-    name: str = attr.ib(default=None)
-    type: str = attr.ib(default=None)"""
-    x = [i.strip() for i in x.splitlines()]
-    x = sorted(x, key=lambda x: (len(x.split(':')[0]), x.split(':')[0][-1]))
-    for i in x:
-        print(f'\t{i}')
+    pass
 
 # endregion[Main_Exec]

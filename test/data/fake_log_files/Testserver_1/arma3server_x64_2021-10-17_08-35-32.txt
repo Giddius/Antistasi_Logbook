@@ -1,0 +1,2020 @@
+=====================================================================
+== C:\TCAFiles\Users\AntiDev\2436\arma3server_x64.exe
+== "C:\TCAFiles\Users\AntiDev\2436\arma3server_x64.exe" -port=2342   -MaxMem= -filePatching -collection= "-servermod=@utility;@TaskForceEnforcer" "-mod=@CBAA3;@TaskForceArrowheadRadioBETA;@ZeusEnhanced;@A3A" -profiles=ARMAHOSTS -config=ARMAHOSTS\server\server.cfg -cfg=ARMAHOSTS\server\basic.cfg "-name=armahosts" -Server -O=3 -H=2 
+
+Original output filename: Arma3Retail_Server_x64
+Exe timestamp: 2021/09/30 12:39:26
+Current time:  2021/10/17 08:35:32
+
+Type: Public
+Build: Stable
+Version: 2.06.148221
+
+Allocator: C:\TCAFiles\Users\AntiDev\2436\Dll\tbb4malloc_bi_x64.dll [2017.0.0.0] [2017.0.0.0]
+PhysMem: 128 GiB, VirtMem : 131072 GiB, AvailPhys : 82 GiB, AvailVirt : 131068 GiB, AvailPage : 94 GiB, PageSize : 4.0 KiB/2.0 MiB/HasLockMemory
+=====================================================================
+
+ 8:35:32 SteamAPI initialization failed. Steam features won't be accessible!
+ 8:35:32 Initializing stats manager.
+ 8:35:32 Stats config disabled.
+ 8:35:32 sessionID: 92d8dbcf8e4feb1515c4ba3dc4296de7ffe63e06
+ 8:35:35 Unsupported language English in stringtable
+ 8:35:35  ➥ Context: x\A3A\addons\core\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Generic_Cancel listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Generic_Lock listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Generic_Confirm listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Generic_Cars listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Generic_Armored listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Generic_Air listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Generic_AirDisabled listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Generic_Boat listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Generic_Static listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Generic_Mounts listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Generic_Texture listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Generic_Anim listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Generic_Pylons listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Generic_PylonDisabled listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_SourcePanel_Header listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_SourcePanel_toolTip_Ammo_Available listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_SourcePanel_toolTip_Ammo_Unavailable listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_SourcePanel_toolTip_Ammo_Disabled listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_SourcePanel_toolTip_Fuel_Available listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_SourcePanel_toolTip_Fuel_Unavailable listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_SourcePanel_toolTip_Fuel_Disabled listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_SourcePanel_toolTip_Repair_Available listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_SourcePanel_toolTip_Repair_Unavailable listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_SourcePanel_toolTip_Repair_Disabled listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_InfoPanel_isAmmoSource listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_InfoPanel_isFuelSource listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_InfoPanel_isRepairSource listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_InfoPanel_isNotSource listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_InfoPanel_Seats listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_InfoPanel_Cargo listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_InfoPanel_AceCargo listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_InfoPanel_Capacity listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_InfoPanel_Available listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_InfoPanel_Speed listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_InfoPanel_HP listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_InfoPanel_Mass listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_openGarage_Action listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_addVehicle_Action listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_Null listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_confirm_NullSelection listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_SATow listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_LTC listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_LightSource_Stored listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_Distance listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_Destroyed listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_Locked listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_badLocation listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_enemiesEngaging listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_enemiesNear listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_airBlocked listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_GenericFail listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_inVehicle listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_Crewed listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_Capacity listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_Success listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_requestMount_Denied listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_checkedOutToolTip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_LockedToolTip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_CP_Rotation listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_CP_TooFar listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_CP_Blocked listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_CallbackFailed listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_Cam_Controls listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_Cam_Rotate listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_Cam_Zoom listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Pylons_Mirror listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Pylons_CustomPreset listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Pylons_PylonText listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Pylons_Empty listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Pylons_noPylons listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Pylons_Gunner listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Pylons_Driver listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\Garage\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_lps_frame_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_hq_frame_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_hq_button_close_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_hq_button_withdraw_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_hq_button_withdraw_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_hq_button_garrisons_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_hq_button_garrisons_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_hq_button_move_headquarters_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_hq_button_move_headquarters_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_hq_button_members_list_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_hq_button_members_list_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_hq_button_rebuild_assets_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_hq_button_rebuild_assets_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_hq_button_train_ai_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_hq_button_train_ai_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_hq_button_garage_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_hq_button_garage_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_build_frame_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_build_button_no_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_build_minefield_button_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_build_minefield_button_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_build_outpost_button_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_build_outpost_button_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_build_recruit_units_button_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_build_recruit_units_button_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_build_disband_units_button_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_build_disband_units_button_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_garrison_recruit_frame_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_garrison_spawn_rifleman_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_garrison_spawn_autorifleman_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_garrison_spawn_medic_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_garrison_spawn_squad_lead_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_garrison_spawn_mortar_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_garrison_spawn_grenadier_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_garrison_spawn_marksman_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_garrison_spawn_at_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_minefield_frame_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_minefield_button_anti_personel_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_minefield_button_anti_personel_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_minefield_button_remove_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_minefield_button_remove_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_minefield_button_anti_tank_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_minefield_button_anti_tank_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_unit_recruit_frame_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_unit_recruit_militiaman_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_unit_recruit_mg_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_unit_recruit_medic_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_unit_recruit_engineer_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_unit_recruit_explosive_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_unit_recruit_grenadier_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_unit_recruit_marksman_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_unit_recruit_antitank_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_generic_box_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_generic_button_back_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_generic_button_back_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_generic_button_yes_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_generic_button_no_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_generic_button_yes_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_generic_button_no_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_credits_generic_author_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_credits_generic_overview_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_credits_generic_missionname_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_credits_generic_missiondesc_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_credits_generic_version_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_vehicle_purchase_buy_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_vehicle_purchase_buy_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_vehicle_purchase_civie_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_vehicle_purchase_civie_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_vehicle_purchase_military_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_vehicle_purchase_military_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_dialog_vehicle_purchase_military_quad_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_dialog_vehicle_purchase_military_s_mg_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_dialog_vehicle_purchase_military_s_mg_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_dialog_vehicle_purchase_military_s_mortar_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_dialog_vehicle_purchase_military_s_mortar_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_dialog_vehicle_purchase_military_s_aa_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_dialog_vehicle_purchase_military_s_aa_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_dialog_vehicle_purchase_military_s_at_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_dialog_vehicle_purchase_military_s_at_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_dialog_vehicle_purchase_military_truck_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_dialog_vehicle_purchase_military_offroad_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_dialog_vehicle_purchase_military_a_offroad_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_dialog_vehicle_purchase_civ_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_dialog_vehicle_purchase_civ_offroad_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_dialog_vehicle_purchase_civ_truck_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_dialog_vehicle_purchase_civ_boat_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_dialog_vehicle_purchase_civ_heli_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_altis_mapname_short_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_altis_mapname_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_altis_description_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_altis_blurb_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_altisB_mapname_short_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_altisB_mapname_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_stratis_mapname_short_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_stratis_mapname_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_stratis_description_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_stratis_blurb_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_malden_mapname_short_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_malden_mapname_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_malden_description_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_malden_blurb_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_tanoa_mapname_short_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_tanoa_mapname_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_tanoa_description_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_tanoa_blurb_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_livonia_mapname_short_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_livonia_mapname_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_livonia_description_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_livonia_blurb_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_virolahti_mapname_short_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_virolahti_mapname_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_virolahti_description_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_virolahti_blurb_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_cherna_mapname_short_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_cherna_mapname_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_cherna_description_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_cherna_blurb_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_chernawinter_mapname_short_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_chernawinter_mapname_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_chernawinter_description_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_chernawinter_blurb_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_kunduz_mapname_short_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_kunduz_mapname_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_kunduz_description_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_kunduz_blurb_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_tembelan_mapname_short_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_tembelan_mapname_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_tembelan_description_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_tembelan_blurb_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_anizay_mapname_short_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_anizay_mapname_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_anizay_description_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_anizay_blurb_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_camlaonam_mapname_short_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_camlaonam_mapname_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_camlaonam_description_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_camlaonam_blurb_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_2_mapname_short_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_2_mapname_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_2_description_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_2_blurb_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_3_mapname_short_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_3_mapname_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_3_description_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_3_blurb_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_sahrani_mapname_short_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_sahrani_mapname_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_sahrani_description_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_sahrani_blurb_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_takistan_mapname_short_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_takistan_mapname_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_takistan_description_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_mission_info_takistan_blurb_text listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_tutorial_1 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_tutorial_1 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_tutorial_2 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_tutorial_2 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_tutorial_3 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_tutorial_3 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_tutorial_4 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_tutorial_4 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_tutorial_5 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_tutorial_5 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_tutorial_6 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_tutorial_6 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_tutorial_7 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_tutorial_7 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_commander_1 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_commander_1 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_commander_2 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_commander_2 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_commander_3 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_commander_3 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_commander_4 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_commander_4 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_commander_5 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_commander_5 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_commander_6 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_commander_6 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_commander_7 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_commander_7 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_commander_8 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_commander_8 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_commander_9 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_commander_9 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_commander_10 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_commander_10 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_commander_11 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_commander_11 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_commander_12 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_commander_12 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_commander_13 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_commander_13 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_commander_14 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_commander_14 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_commander_15 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_commander_15 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_SpecialK_1 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_SpecialK_1 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_SpecialK_2 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_SpecialK_2 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_SpecialK_3 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_SpecialK_3 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_SpecialK_4 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_SpecialK_4 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_SpecialK_5 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_SpecialK_5 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_SpecialK_6 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_SpecialK_6 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Features_1 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Features_1 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Features_2 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Features_2 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Features_3 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Features_3 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Features_4 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Features_4 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Features_5 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Features_5 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Features_6 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Features_6 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Features_7 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Features_7 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Features_8 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Features_8 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Features_9 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Features_9 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Features_10 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Features_10 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Features_11 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Features_11 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Features_12 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Features_12 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Features_13 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Features_13 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Features_14 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Features_14 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Features_15 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Features_15 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Features_16 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Features_16 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Features_17 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Features_17 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_AI_1 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_AI_1 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_AI_2 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_AI_2 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_AI_3 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_AI_3 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_AI_4 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_AI_4 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_AI_5 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_AI_5 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_AI_6 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_AI_6 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_AI_7 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_AI_7 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Options_1 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Options_1 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Options_2 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Options_2 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Options_3 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Options_3 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Options_4 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Options_4 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Options_5 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Options_5 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Options_6 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Options_6 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Options_7 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Options_7 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Options_8 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Options_8 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Diary_1 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Diary_1 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Diary_2 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Diary_2 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Diary_3 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Diary_3 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Diary_4 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Diary_4 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Diary_5 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Diary_5 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Diary_6 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Diary_6 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_gamemode listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_gamemode_1 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_gamemode_2 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_gamemode_3 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_gamemode_4 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Default_1 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Default_1 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Default_2 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Default_2 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Default_3 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Default_3 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Credits_1 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Credits_1 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Credits_2 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Credits_2 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_header_Credits_3 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_journal_entry_text_Credits_3 listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_maps_game_options listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_maps_civ_limit listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_maps_civ_limit_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_maps_spawn_distance listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_maps_spawn_distance_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_maps_ai_limiter listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_maps_ai_limiter_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_maps_music listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_maps_music_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_maps_save listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_maps_save_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_maps_fps_limiter_plus listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_maps_fps_limiter_minus listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_maps_spawn_config listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_maps_spawn_config_plus listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_maps_spawn_config_minus listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_maps_civ_config listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_maps_civ_config_plus listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_maps_civ_config_minus listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_mission_menu_available_missions listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_mission_menu_assassination_missions listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_mission_menu_convoy_ambush listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_mission_menu_destroy_missions listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_mission_menu_conquest_missions listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_mission_menu_logistics_missions listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_mission_menu_logistics_missions_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_mission_menu_support_missions listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_mission_menu_support_missions_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_mission_menu_rescue_missions listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_radio_comm listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_radio_comm_fast_travel listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_radio_comm_fast_travel_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_radio_comm_player_money listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_radio_comm_player_money_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_radio_comm_undercover listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_radio_comm_undercover_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_radio_comm_garage listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_radio_comm_garage_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_radio_comm_construct listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_radio_comm_construct_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_radio_comm_unlock_vehicle listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_radio_comm_unlock_vehicle_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_radio_comm_ai_management listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_radio_comm_ai_management_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_radio_comm_commander listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_radio_comm_commander_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_vehicle_manager listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_vehicle_manager_garage_sell_vehicle listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_vehicle_manager_garage_sell_vehicle_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_vehicle_manager_vehicles_squads listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_vehicle_manager_vehicles_squads_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_vehicle_manager_add_air_support listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_vehicle_manager_add_air_support_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_vehicle_manager_unlock_vehicle listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_vehicle_manager_unlock_vehicle_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_vehicle_manager_veh_query listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_squad_manager listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_squad_manager_add_vehicle listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_squad_manager_add_vehicle_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_squad_manager_squad_sitrep listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_squad_manager_squad_sitrep_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_squad_manager_mount listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_squad_manager_mount_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_squad_manager_static_autotarget listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_squad_manager_static_autotarget_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_AI_management listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_AI_management_AI_control listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_AI_management_AI_control_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_AI_management_auto_rearm listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_AI_management_auto_rearm_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_AI_management_auto_heal listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_AI_management_auto_heal_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_AI_management_SITREP listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_AI_management_SITREP_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_AI_management_garrison listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_AI_management_garrison_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_AI_management_squad_add_vehicle listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_AI_management_squad_add_vehicle_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_AI_management_dismiss_units listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_AI_management_dismiss_units_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_AI_management_mount listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_AI_management_mount_tooltips listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_commander_comm listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_commander_comm_recruit listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_commander_comm_recruit_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_commander_comm_air_support listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_commander_comm_air_support_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_commander_comm_roadblock listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_commander_comm_roadblock_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_commander_comm_clean listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_commander_comm_clean_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_commander_comm_roadblock_delete listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_commander_comm_roadblock_delete_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_commander_comm_faction_garage listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_commander_comm_faction_garage_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_commander_comm_resign listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_commander_comm_resign_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_commander_comm_sell listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_commander_comm_sell_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_carpet_bombing listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_carpet_bombing_he listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_carpet_bombing_cluster listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_carpet_bombing_napalm listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_carpet_bombing_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_carpet_bombing_add listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_carpet_bombing_add_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_dismiss_menu listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_dismiss_menu_dismiss listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_dismiss_menu_dismiss_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_dismiss_menu_garrison listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_dismiss_menu_garrison_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_construction_menu listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_construction_menu_small_trench listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_construction_menu_small_trench_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_construction_menu_medium_trench listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_construction_menu_medium_trench_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_construction_menu_vehicle_obstacles listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_construction_menu_vehicle_obstacles_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_construction_menu_bunker_options listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_construction_menu_bunker_options_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_construction_menu_bunker_type listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_construction_menu_sandbag listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_construction_menu_bunker_concrete listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_construction_menu_bunker_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_squad_recruit listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_squad_recruit_inf listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_squad_recruit_inf_team listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_squad_recruit_at listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_squad_recruit_sniper listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_squad_recruit_mg listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_squad_recruit_at_car listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_squad_recruit_aa_car listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_squad_recruit_mortar listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_player_money listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_player_money_add_member listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_player_money_add_member_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_player_money_remove_member listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_player_money_remove_member_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_player_money_donate_player listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_player_money_donate_faction listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_player_money_donate_faction_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_toggle_info_bar_title listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_toggle_info_bar_body_off listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_toggle_info_bar_body_on listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_garage_sell listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_garage_sell_add listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_garage_sell_sell listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_garage_check listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_garage_personal listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_garage_faction listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_mortar_type listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_mortar_type_he listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_carpet_bombing_he_tooltip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_mortar_type_smoke listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_mortar_type_laser listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_rounds_number listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_strike_type listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_strike_type_single listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_strike_type_barrage listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_mbt_type listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_squad_options listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_squad_options_normal listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_squad_options_engineer listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_squad_options_mg listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_squad_options_mortar listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_diff_menu listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_diff_menu_easy listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_diff_menu_normal listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_diff_menu_hard listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_gameMode_menu listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_gameMode_menu_Reb_vs_Gov_vs_Inv listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_gameMode_menu_Reb_vs_Gov_and_Inv listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_gameMode_menu_Reb_vs_Gov listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_dialogs_gameMode_menu_Reb_vs_Inv listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Generic_Cancel listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Generic_Lock listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Generic_Confirm listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Generic_Cars listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Generic_Armored listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Generic_Air listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Generic_AirDisabled listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Generic_Boat listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Generic_Static listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Generic_Mounts listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Generic_Texture listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Generic_Anim listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Generic_Pylons listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Generic_PylonDisabled listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_SourcePanel_Header listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_SourcePanel_toolTip_Ammo_Available listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_SourcePanel_toolTip_Ammo_Unavailable listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_SourcePanel_toolTip_Ammo_Disabled listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_SourcePanel_toolTip_Fuel_Available listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_SourcePanel_toolTip_Fuel_Unavailable listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_SourcePanel_toolTip_Fuel_Disabled listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_SourcePanel_toolTip_Repair_Available listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_SourcePanel_toolTip_Repair_Unavailable listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_SourcePanel_toolTip_Repair_Disabled listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_InfoPanel_isAmmoSource listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_InfoPanel_isFuelSource listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_InfoPanel_isRepairSource listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_InfoPanel_isNotSource listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_InfoPanel_Seats listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_InfoPanel_Cargo listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_InfoPanel_AceCargo listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_InfoPanel_Capacity listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_InfoPanel_Available listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_InfoPanel_Speed listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_InfoPanel_HP listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_InfoPanel_Mass listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_openGarage_Action listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_addVehicle_Action listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_Null listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_confirm_NullSelection listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_SATow listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_LTC listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_LightSource_Stored listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_Distance listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_Destroyed listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_Locked listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_badLocation listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_enemiesEngaging listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_enemiesNear listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_airBlocked listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_GenericFail listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_inVehicle listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_Crewed listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_Capacity listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_addVehicle_Success listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_requestMount_Denied listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_checkedOutToolTip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_LockedToolTip listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_CP_Rotation listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_CP_TooFar listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_CP_Blocked listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_CallbackFailed listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_Cam_Controls listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_Cam_Rotate listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Feedback_Cam_Zoom listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Pylons_Mirror listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Pylons_CustomPreset listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Pylons_PylonText listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Pylons_Empty listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Pylons_noPylons listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Pylons_Gunner listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_HR_GRG_Pylons_Driver listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_A3A_Utility_Items_Feedback_Normal listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_A3A_Utility_Items_Feedback_Far listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_A3A_Utility_Items_Feedback_Title listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_A3A_Utility_Items_Feedback_Attached_Objects listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_timeSpan_days listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_timeSpan_hours listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_timeSpan_minutes listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_timeSpan_seconds listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_timeSpan_milliseconds listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_timeSpan_microseconds listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_timeSpan_nanoseconds listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_timeSpan_days_abbr listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_timeSpan_hours_abbr listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_timeSpan_minutes_abbr listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_timeSpan_seconds_abbr listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_timeSpan_milliseconds_abbr listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_timeSpan_microseconds_abbr listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_timeSpan_nanoseconds_abbr listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_timeSpan_now listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_Base_vehicleBoxHeal_Healed listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_Base_vehicleBoxHeal_UsedRecently listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Item STR_antistasi_singleWord_Heal listed twice
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Unsupported language English in stringtable
+ 8:35:35  ➥ Context: x\A3A\addons\maps\stringtable.xml
+ 8:35:35 Unsupported language English in stringtable
+ 8:35:35  ➥ Context: z\tfar\addons\core\stringtable.xml
+ 8:35:38 Updating base class ScrollBar->, by x\A3A\addons\core\config.cpp/RscListBox/ListScrollBar/ (original (no unload))
+ 8:35:38 Updating base class RscShortcutButton->RscButton, by a3\editor_f\config.bin/RscDisplayEditObject/Controls/B_OK/ (original bin\config.bin)
+ 8:35:38 Updating base class RscSliderH->RscXSliderH, by a3\editor_f\config.bin/RscDisplayEditObject/Slider/ (original bin\config.bin)
+ 8:35:38 Updating base class RscText->RscPicture, by a3\editor_f\config.bin/RscDisplayEditObject/Preview/ (original bin\config.bin)
+ 8:35:38 Updating base class RscShortcutButton->RscButton, by a3\editor_f\config.bin/RscDisplayMissionLoad/Controls/B_OK/ (original bin\config.bin)
+ 8:35:38 Updating base class RscShortcutButton->RscButton, by a3\editor_f\config.bin/RscDisplayMissionSave/Controls/B_OK/ (original bin\config.bin)
+ 8:35:38 Updating base class HR_GRG_RscControlsGroup->RscControlsGroup, by a3\ui_f\config.bin/RscControlsGroupNoScrollbars/ (original (no unload))
+ 8:35:38 Updating base class VScrollbar->VScrollbar, by a3\ui_f\config.bin/RscControlsGroupNoScrollbars/VScrollbar/ (original (no unload))
+ 8:35:38 Updating base class HScrollbar->HScrollbar, by a3\ui_f\config.bin/RscControlsGroupNoScrollbars/HScrollbar/ (original (no unload))
+ 8:35:38 Updating base class ->RscControlsGroup, by a3\ui_f\config.bin/RscControlsGroupNoHScrollbars/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscControlsGroup, by a3\ui_f\config.bin/RscControlsGroupNoVScrollbars/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscText, by a3\ui_f\config.bin/RscLine/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscActiveText, by a3\ui_f\config.bin/RscActivePicture/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscButton, by a3\ui_f\config.bin/RscButtonTextOnly/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscShortcutButton, by a3\ui_f\config.bin/RscShortcutButtonMain/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscShortcutButton, by a3\ui_f\config.bin/RscButtonEditor/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscShortcutButton, by a3\ui_f\config.bin/RscIGUIShortcutButton/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscShortcutButton, by a3\ui_f\config.bin/RscGearShortcutButton/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscShortcutButton, by a3\ui_f\config.bin/RscButtonMenu/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscButtonMenu, by a3\ui_f\config.bin/RscButtonMenuOK/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscButtonMenu, by a3\ui_f\config.bin/RscButtonMenuCancel/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscButtonMenu, by a3\ui_f\config.bin/RscButtonMenuSteam/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscText, by a3\ui_f\config.bin/RscLoadingText/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->ScrollBar, by a3\ui_f\config.bin/RscListBox/ListScrollBar/ (original (no unload))
+ 8:35:38 Updating base class ->RscListBox, by a3\ui_f\config.bin/RscIGUIListBox/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscListNBox, by a3\ui_f\config.bin/RscIGUIListNBox/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscText, by a3\ui_f\config.bin/RscBackground/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscText, by a3\ui_f\config.bin/RscBackgroundGUI/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscPicture, by a3\ui_f\config.bin/RscBackgroundGUILeft/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscPicture, by a3\ui_f\config.bin/RscBackgroundGUIRight/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscPicture, by a3\ui_f\config.bin/RscBackgroundGUIBottom/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscText, by a3\ui_f\config.bin/RscBackgroundGUITop/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscText, by a3\ui_f\config.bin/RscBackgroundGUIDark/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscPictureKeepAspect, by a3\ui_f\config.bin/RscBackgroundLogo/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscMapControl, by a3\ui_f\config.bin/RscMapControlEmpty/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscPicture, by a3\ui_f\config.bin/CA_Mainback/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->CA_Mainback, by a3\ui_f\config.bin/CA_Back/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->CA_Mainback, by a3\ui_f\config.bin/CA_Title_Back/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->CA_Mainback, by a3\ui_f\config.bin/CA_Black_Back/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscTitle, by a3\ui_f\config.bin/CA_Title/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscPictureKeepAspect, by a3\ui_f\config.bin/CA_Logo/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->CA_Logo, by a3\ui_f\config.bin/CA_Logo_Small/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscButton, by a3\ui_f\config.bin/CA_RscButton/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->CA_RscButton, by a3\ui_f\config.bin/CA_RscButton_dialog/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscActiveText, by a3\ui_f\config.bin/CA_Ok/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscText, by a3\ui_f\config.bin/CA_Ok_image/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscText, by a3\ui_f\config.bin/CA_Ok_image2/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscText, by a3\ui_f\config.bin/CA_Ok_text/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscPicture, by a3\ui_f\config.bin/RscVignette/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->RscControlsGroupNoScrollbars, by a3\ui_f\config.bin/RscMapControlTooltip/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class RscUnitInfo->RscUnitInfoAirNoWeapon, by a3\ui_f\config.bin/RscInGameUI/RscUnitInfoAir/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class RscControlsGroup->RscControlsGroupNoScrollbars, by a3\ui_f\config.bin/RscInGameUI/RscTaskOverview/controls/TaskOverviewAssigned/ (original bin\config.bin)
+ 8:35:38 Updating base class RscShortcutButton->RscButtonMenu, by a3\ui_f\config.bin/RscDisplayDebug/Controls/B_OK/ (original bin\config.bin)
+ 8:35:38 Updating base class RscShortcutButton->RscButtonMenu, by a3\ui_f\config.bin/RscDisplayDebug/Controls/B_Cancel/ (original bin\config.bin)
+ 8:35:38 Updating base class RscShortcutButton->RscButtonMenu, by a3\ui_f\config.bin/RscDisplayDebug/Controls/B_Clear/ (original bin\config.bin)
+ 8:35:38 Updating base class ->RscText, by a3\ui_f\config.bin/RscDisplayCapture/controls/TimeLines/ (original bin\config.bin)
+ 8:35:38 Updating base class RscShortcutButton->RscButtonMenu, by a3\ui_f\config.bin/RscDisplayCapture/controls/ButtonAverages/ (original bin\config.bin)
+ 8:35:38 Updating base class RscShortcutButton->RscButtonMenu, by a3\ui_f\config.bin/RscDisplayCapture/controls/ButtonSavePreviousData/ (original bin\config.bin)
+ 8:35:38 Updating base class RscShortcutButton->RscButtonMenu, by a3\ui_f\config.bin/RscDisplayCapture/controls/ButtonPreviousData/ (original bin\config.bin)
+ 8:35:38 Updating base class RscPicture->RscPictureKeepAspect, by a3\ui_f\config.bin/RscDisplayMain/IconPicture/ (original bin\config.bin)
+ 8:35:38 Updating base class IconPicture->RscPictureKeepAspect, by a3\ui_f\config.bin/RscDisplayMain/DlcOwnedIconPicture/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class IconPicture->RscPictureKeepAspect, by a3\ui_f\config.bin/RscDisplayMain/DlcIconPicture/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class RscControlsGroup->RscControlsGroupNoScrollbars, by a3\ui_f\config.bin/RscDisplayCampaignLoad/controls/OverviewGroup/ (original bin\config.bin)
+ 8:35:38 Updating base class RscButton->RscButtonSearch, by a3\ui_f\config.bin/RscDisplayCampaignLoad/controls/SearchButton/ (original bin\config.bin)
+ 8:35:38 Updating base class RscShortcutButton->RscButtonMenuCancel, by a3\ui_f\config.bin/RscDisplayCampaignLoad/controls/ButtonCancel/ (original bin\config.bin)
+ 8:35:38 Updating base class RscShortcutButton->RscButtonMenu, by a3\ui_f\config.bin/RscDisplayCampaignLoad/controls/ButtonGameOptions/ (original bin\config.bin)
+ 8:35:38 Updating base class RscShortcutButton->RscButtonMenuSteam, by a3\ui_f\config.bin/RscDisplayCampaignLoad/controls/ButtonBuyDLC/ (original bin\config.bin)
+ 8:35:38 Updating base class RscShortcutButton->RscButtonMenu, by a3\ui_f\config.bin/RscDisplayCampaignLoad/controls/ButtonRevert/ (original bin\config.bin)
+ 8:35:38 Updating base class RscShortcutButton->RscButtonMenuOK, by a3\ui_f\config.bin/RscDisplayCampaignLoad/controls/ButtonOK/ (original bin\config.bin)
+ 8:35:38 Updating base class RscListBox->RscCombo, by a3\ui_f\config.bin/RscDisplayCustomizeController/Steepness/ (original bin\config.bin)
+ 8:35:38 Updating base class ->RscStandardDisplay, by a3\ui_f\config.bin/RscDisplayControlSchemes/ (original bin\config.bin)
+ 8:35:38 Updating base class ButtonOK->RscButtonMenuCancel, by a3\ui_f\config.bin/RscDisplayControlSchemes/controls/ButtonCancel/ (original bin\config.bin)
+ 8:35:38 Updating base class RscButton->RscButtonMenuOK, by a3\ui_f\config.bin/RscDisplayControlSchemes/controls/ButtonOK/ (original bin\config.bin)
+ 8:35:38 Updating base class RscPicture->RscPictureKeepAspect, by a3\ui_f\config.bin/RscDisplayFileSelectImage/controls/OverviewPicture/ (original bin\config.bin)
+ 8:35:38 Updating base class RscShortcutButton->RscButtonMenuCancel, by a3\ui_f\config.bin/RscDisplayFieldManual/Controls/ButtonCancel/ (original bin\config.bin)
+ 8:35:38 Cannot delete class B_KickOff, it is referenced somewhere (used as a base class probably).
+ 8:35:38 Updating base class RscButton->RscButtonMenuCancel, by a3\ui_f\config.bin/RscDisplayPublishMission/controls/ButtonCancel/ (original bin\config.bin)
+ 8:35:38 Updating base class RscShortcutButton->RscButtonMenuOK, by a3\ui_f\config.bin/RscDisplayPublishMissionSelectTags/controls/ButtonOK/ (original bin\config.bin)
+ 8:35:38 Updating base class ButtonOK->RscButtonMenuCancel, by a3\ui_f\config.bin/RscDisplayPublishMissionSelectTags/controls/ButtonCancel/ (original bin\config.bin)
+ 8:35:38 Updating base class ->RscSubmenu, by a3\ui_f\config.bin/RscMainMenu/ (original bin\config.bin)
+ 8:35:38 Updating base class ->DistanceClose, by a3\ui_f\config.bin/CfgSimpleTasks/Icon3D/DistanceMid/ (original bin\config.bin)
+ 8:35:38 Updating base class ->DistanceClose, by a3\ui_f\config.bin/CfgSimpleTasks/Icon3D/DistanceLong/ (original bin\config.bin)
+ 8:35:38 Updating base class ->ctrlDefaultText, by a3\3den\config.bin/ctrlStatic/ (original a3\3den\config.bin)
+ 8:35:38 Updating base class ->ctrlButton, by a3\3den\config.bin/ctrlButtonPictureKeepAspect/ (original a3\3den\config.bin)
+ 8:35:38 Updating base class ->ctrlActiveText, by a3\3den\config.bin/ctrlActivePicture/ (original a3\3den\config.bin)
+ 8:35:38 Updating base class ->ctrlDefaultText, by a3\3den\config.bin/ctrlStructuredText/ (original a3\3den\config.bin)
+ 8:35:38 Updating base class ->ctrlControlsGroup, by a3\3den\config.bin/ctrlControlsGroupNoScrollbars/ (original a3\3den\config.bin)
+ 8:35:38 Updating base class ->ctrlDefault, by a3\3den\config.bin/ctrlCheckbox/ (original a3\3den\config.bin)
+ 8:35:38 Updating base class ->ctrlCheckbox, by a3\3den\config.bin/ctrlCheckboxBaseline/ (original a3\3den\config.bin)
+ 8:35:38 Updating base class RscText->ctrlStaticBackgroundDisable, by a3\3den\config.bin/RscDisplayOptionsAudio/ControlsBackground/BackgroundDisable/ (original a3\3den\config.bin)
+ 8:35:38 Updating base class RscText->ctrlStaticBackgroundDisableTiles, by a3\3den\config.bin/RscDisplayOptionsAudio/ControlsBackground/BackgroundDisableTiles/ (original a3\3den\config.bin)
+ 8:35:38 Updating base class RscText->ctrlStaticBackgroundDisable, by a3\3den\config.bin/RscDisplayConfigure/ControlsBackground/BackgroundDisable/ (original a3\3den\config.bin)
+ 8:35:38 Updating base class RscText->ctrlStaticBackgroundDisableTiles, by a3\3den\config.bin/RscDisplayConfigure/ControlsBackground/BackgroundDisableTiles/ (original a3\3den\config.bin)
+ 8:35:38 Updating base class RscText->ctrlStaticBackgroundDisable, by a3\3den\config.bin/RscDisplayConfigureAction/ControlsBackground/BackgroundDisable/ (original a3\3den\config.bin)
+ 8:35:38 Updating base class RscText->ctrlStaticBackgroundDisableTiles, by a3\3den\config.bin/RscDisplayConfigureAction/ControlsBackground/BackgroundDisableTiles/ (original a3\3den\config.bin)
+ 8:35:38 Updating base class RscText->ctrlStaticBackgroundDisable, by a3\3den\config.bin/RscDisplayConfigureControllers/ControlsBackground/BackgroundDisable/ (original a3\3den\config.bin)
+ 8:35:38 Updating base class RscText->ctrlStaticBackgroundDisableTiles, by a3\3den\config.bin/RscDisplayConfigureControllers/ControlsBackground/BackgroundDisableTiles/ (original a3\3den\config.bin)
+ 8:35:38 Updating base class RscText->ctrlStaticBackgroundDisable, by a3\3den\config.bin/RscDisplayGameOptions/ControlsBackground/BackgroundDisable/ (original a3\3den\config.bin)
+ 8:35:38 Updating base class RscText->ctrlStaticBackgroundDisableTiles, by a3\3den\config.bin/RscDisplayGameOptions/ControlsBackground/BackgroundDisableTiles/ (original a3\3den\config.bin)
+ 8:35:38 Updating base class controls->, by a3\3den\config.bin/RscDisplayArcadeMap_Layout_2/Controls/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class controls->, by a3\3den\config.bin/RscDisplayArcadeMap_Layout_6/Controls/ (original a3\ui_f\config.bin)
+ 8:35:38 Updating base class ->ctrlControlsGroupNoScrollbars, by a3\3den\config.bin/Cfg3DEN/Attributes/Default/ (original a3\3den\config.bin)
+ 8:35:38 Updating base class ->ctrlStatic, by a3\3den\config.bin/Cfg3DEN/Attributes/Title/Controls/Title/ (original a3\3den\config.bin)
+ 8:35:38 Updating base class ->ctrlToolbox, by a3\3den\config.bin/Cfg3DEN/Attributes/Toolbox/Controls/Value/ (original a3\3den\config.bin)
+ 8:35:40 Initializing Steam Manager
+ 8:35:40 Steam Manager initialized.
+ 8:35:40 
+ 8:35:40 ==== Loaded addons ====
+ 8:35:40 
+ 8:35:40 dta\bin.pbo - 148221
+ 8:35:40 dta\core.pbo - 129618
+ 8:35:40 dta\languagecore_f.pbo - 150117
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@A3A\addons\core.pbo - unknown
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@A3A\addons\garage.pbo - unknown
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@A3A\addons\jeroenarsenal.pbo - unknown
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@A3A\addons\maps.pbo - unknown
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced\addons\zen_ai.pbo - 42d852b4
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced\addons\zen_area_markers.pbo - 42d852b4
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced\addons\zen_attributes.pbo - 42d852b4
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced\addons\zen_camera.pbo - 42d852b4
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced\addons\zen_common.pbo - 42d852b4
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced\addons\zen_compositions.pbo - 42d852b4
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced\addons\zen_context_actions.pbo - 42d852b4
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced\addons\zen_context_menu.pbo - 42d852b4
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced\addons\zen_cover_map.pbo - 42d852b4
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced\addons\zen_custom_modules.pbo - 42d852b4
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced\addons\zen_damage.pbo - 42d852b4
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced\addons\zen_dialog.pbo - 42d852b4
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced\addons\zen_doors.pbo - 42d852b4
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced\addons\zen_editor.pbo - 42d852b4
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced\addons\zen_editor_previews.pbo - 42d852b4
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced\addons\zen_faction_filter.pbo - 42d852b4
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced\addons\zen_flashlight.pbo - 42d852b4
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced\addons\zen_garage.pbo - 42d852b4
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced\addons\zen_inventory.pbo - 42d852b4
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced\addons\zen_loadout.pbo - 42d852b4
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced\addons\zen_main.pbo - 42d852b4
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced\addons\zen_markers_tree.pbo - 42d852b4
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced\addons\zen_modules.pbo - 42d852b4
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced\addons\zen_music.pbo - 42d852b4
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced\addons\zen_placement.pbo - 42d852b4
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced\addons\zen_position_logics.pbo - 42d852b4
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced\addons\zen_pylons.pbo - 42d852b4
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced\addons\zen_remote_control.pbo - 42d852b4
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced\addons\zen_tasks.pbo - 42d852b4
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced\addons\zen_visibility.pbo - 42d852b4
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced\addons\zen_vision.pbo - 42d852b4
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@TaskForceArrowheadRadioBETA\addons\tfar_ai_hearing.pbo - 5829e66a
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@TaskForceArrowheadRadioBETA\addons\tfar_antennas.pbo - 5829e66a
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@TaskForceArrowheadRadioBETA\addons\tfar_backpacks.pbo - 5829e66a
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@TaskForceArrowheadRadioBETA\addons\tfar_core.pbo - 5829e66a
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@TaskForceArrowheadRadioBETA\addons\tfar_handhelds.pbo - 5829e66a
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@TaskForceArrowheadRadioBETA\addons\tfar_static_radios.pbo - 5829e66a
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@CBAA3\addons\cba_accessory.pbo - 0fb4db14
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@CBAA3\addons\cba_ai.pbo - 0fb4db14
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@CBAA3\addons\cba_arrays.pbo - 0fb4db14
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@CBAA3\addons\cba_characters.pbo - 0fb4db14
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@CBAA3\addons\cba_common.pbo - 0fb4db14
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@CBAA3\addons\cba_diagnostic.pbo - 0fb4db14
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@CBAA3\addons\cba_disposable.pbo - 0fb4db14
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@CBAA3\addons\cba_ee.pbo - 0fb4db14
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@CBAA3\addons\cba_events.pbo - 0fb4db14
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@CBAA3\addons\cba_hashes.pbo - 0fb4db14
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@CBAA3\addons\cba_help.pbo - 0fb4db14
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@CBAA3\addons\cba_jam.pbo - 0fb4db14
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@CBAA3\addons\cba_jr.pbo - 0fb4db14
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@CBAA3\addons\cba_keybinding.pbo - 0fb4db14
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@CBAA3\addons\cba_main.pbo - 0fb4db14
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@CBAA3\addons\cba_main_a3.pbo - 0fb4db14
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@CBAA3\addons\cba_modules.pbo - 0fb4db14
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@CBAA3\addons\cba_music.pbo - 0fb4db14
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@CBAA3\addons\cba_network.pbo - 0fb4db14
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@CBAA3\addons\cba_optics.pbo - 0fb4db14
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@CBAA3\addons\cba_settings.pbo - 0fb4db14
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@CBAA3\addons\cba_statemachine.pbo - 0fb4db14
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@CBAA3\addons\cba_strings.pbo - 0fb4db14
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@CBAA3\addons\cba_ui.pbo - 0fb4db14
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@CBAA3\addons\cba_vectors.pbo - 0fb4db14
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@CBAA3\addons\cba_versioning.pbo - 0fb4db14
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@CBAA3\addons\cba_xeh.pbo - 0fb4db14
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\aow\addons\anims_f_aow.ebo - 149768
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\aow\addons\characters_f_aow.ebo - 149965
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\aow\addons\data_f_aow.ebo - 149928
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\aow\addons\dubbing_f_aow.ebo - 149901
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\aow\addons\editorpreviews_f_aow.ebo - 149909
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\aow\addons\functions_f_aow.ebo - 149593
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\aow\addons\languagemissions_f_aow.ebo - 150117
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\aow\addons\language_f_aow.ebo - 150117
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\aow\addons\missions_f_aow.ebo - 149922
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\aow\addons\missions_f_aow_data.ebo - 149929
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\aow\addons\missions_f_aow_video.ebo - 149837
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\aow\addons\props_f_aow.ebo - 150020
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\aow\addons\sounds_f_aow.ebo - 149668
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\aow\addons\structures_f_aow.ebo - 149883
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\aow\addons\supplies_f_aow.ebo - 149874
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\aow\addons\ui_f_aow.ebo - 149917
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\air_f_enoch.ebo - 145904
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\anims_f_enoch.ebo - 149965
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\armor_f_enoch.ebo - 145904
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\cargoposes_f_enoch.ebo - 142478
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\characters_f_enoch.ebo - 149965
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\data_f_enoch.ebo - 150070
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\dubbing_radio_f_enoch.ebo - 150070
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\dubbing_radio_f_enoch_data.ebo - 150020
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\editorpreviews_f_enoch.ebo - 145440
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\functions_f_enoch.ebo - 148356
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\languagemissions_f_enoch.ebo - 150117
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\language_f_enoch.ebo - 150117
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\map_enoch.ebo - 148551
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\map_enoch_data.ebo - 145274
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\map_enoch_data_layers.ebo - 146184
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\map_enoch_scenes_f.ebo - 143336
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\missions_f_enoch.ebo - 149487
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\music_f_enoch.ebo - 147472
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\music_f_enoch_music.ebo - 147127
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\props_f_enoch.pbo - 148738
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\rocks_f_enoch.pbo - 148432
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\soft_f_enoch.ebo - 150071
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\sounds_f_enoch.ebo - 148786
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\static_f_enoch.ebo - 145904
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\structures_f_enoch.pbo - 148551
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\structures_f_enoch_civilian.pbo - 148739
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\structures_f_enoch_commercial.pbo - 148419
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\structures_f_enoch_cultural.pbo - 148739
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\structures_f_enoch_data.pbo - 148419
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\structures_f_enoch_furniture.pbo - 148419
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\structures_f_enoch_industrial.pbo - 148804
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\structures_f_enoch_infrastructure.pbo - 148551
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\structures_f_enoch_military.pbo - 149965
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\supplies_f_enoch.ebo - 146762
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\ui_f_enoch.ebo - 147095
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\vegetation_f_enoch.pbo - 148432
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\enoch\addons\weapons_f_enoch.ebo - 149930
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\tank\addons\armor_f_tank.pbo - 150071
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\tank\addons\cargoposes_f_tank.pbo - 128283
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\tank\addons\characters_f_tank.pbo - 148392
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\tank\addons\data_f_tank.pbo - 128203
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\tank\addons\dubbing_f_tank.pbo - 127958
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\tank\addons\editorpreviews_f_tank.pbo - 137875
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\tank\addons\functions_f_tank.pbo - 125996
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\tank\addons\languagemissions_f_tank.pbo - 150117
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\tank\addons\language_f_tank.pbo - 150117
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\tank\addons\missions_f_tank.pbo - 150028
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\tank\addons\missions_f_tank_data.pbo - 128937
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\tank\addons\modules_f_tank.pbo - 147857
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\tank\addons\music_f_tank.pbo - 127912
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\tank\addons\props_f_tank.pbo - 131702
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\tank\addons\sounds_f_tank.pbo - 143095
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\tank\addons\structures_f_tank.pbo - 137876
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\tank\addons\ui_f_tank.pbo - 148551
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\tank\addons\weapons_f_tank.pbo - 146892
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\tacops\addons\characters_f_tacops.ebo - 129739
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\tacops\addons\data_f_tacops.ebo - 150102
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\tacops\addons\dubbing_f_tacops.ebo - 129340
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\tacops\addons\functions_f_tacops.ebo - 150125
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\tacops\addons\languagemissions_f_tacops.ebo - 150117
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\tacops\addons\language_f_tacops.ebo - 150117
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\tacops\addons\missions_f_tacops.ebo - 144976
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\tacops\addons\modules_f_tacops.ebo - 149359
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\tacops\addons\music_f_tacops.ebo - 124064
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\tacops\addons\sounds_f_tacops.ebo - 123795
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\tacops\addons\ui_f_tacops.ebo - 148551
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\orange\addons\air_f_orange.pbo - 150020
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\orange\addons\cargoposes_f_orange.pbo - 126225
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\orange\addons\characters_f_orange.pbo - 148442
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\orange\addons\data_f_orange.pbo - 144284
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\orange\addons\dubbing_f_orange.pbo - 121689
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\orange\addons\editorpreviews_f_orange.pbo - 123173
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\orange\addons\functions_f_orange.pbo - 149339
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\orange\addons\languagemissions_f_orange.pbo - 150117
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\orange\addons\language_f_orange.pbo - 150117
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\orange\addons\missions_f_orange.pbo - 149975
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\orange\addons\modules_f_orange.pbo - 143632
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\orange\addons\music_f_orange.pbo - 120725
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\orange\addons\props_f_orange.pbo - 148864
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\orange\addons\soft_f_orange.pbo - 150071
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\orange\addons\sounds_f_orange.pbo - 145695
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\orange\addons\structures_f_orange.pbo - 147636
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\orange\addons\supplies_f_orange.pbo - 129371
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\orange\addons\ui_f_orange.pbo - 149706
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\orange\addons\weapons_f_orange.pbo - 149274
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\argo\addons\armor_f_argo.pbo - 129739
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\argo\addons\characters_f_patrol.pbo - 149127
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\argo\addons\data_f_argo.pbo - 128209
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\argo\addons\data_f_patrol.pbo - 141307
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\argo\addons\editorpreviews_f_argo.pbo - 142758
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\argo\addons\functions_f_patrol.pbo - 141510
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\argo\addons\languagemissions_f_patrol.pbo - 150117
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\argo\addons\language_f_argo.pbo - 150117
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\argo\addons\language_f_patrol.pbo - 150117
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\argo\addons\map_malden.pbo - 148936
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\argo\addons\map_malden_data.pbo - 135888
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\argo\addons\map_malden_data_layers.pbo - 135888
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\argo\addons\map_malden_scenes_f.pbo - 120026
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\argo\addons\missions_f_patrol.pbo - 126663
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\argo\addons\modules_f_patrol.pbo - 119459
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\argo\addons\music_f_argo.pbo - 119459
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\argo\addons\props_f_argo.pbo - 129371
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\argo\addons\rocks_f_argo.pbo - 148432
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\argo\addons\sounds_f_patrol.pbo - 119477
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\argo\addons\structures_f_argo.pbo - 147656
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\argo\addons\ui_f_patrol.pbo - 141307
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\argo\addons\vegetation_f_argo.pbo - 148432
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\argo\addons\weapons_f_patrol.pbo - 141307
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\air_f_jets.pbo - 146744
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\anims_f_jets.pbo - 123210
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\boat_f_destroyer.pbo - 143297
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\boat_f_jets.pbo - 150071
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\cargoposes_f_jets.pbo - 126225
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\characters_f_jets.pbo - 129739
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\data_f_destroyer.pbo - 132156
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\data_f_jets.pbo - 146856
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\data_f_sams.pbo - 132140
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\dubbing_f_jets.pbo - 119457
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\editorpreviews_f_destroyer.pbo - 132141
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\editorpreviews_f_jets.pbo - 119457
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\editorpreviews_f_sams.pbo - 132141
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\functions_f_destroyer.pbo - 150071
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\functions_f_jets.pbo - 119457
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\languagemissions_f_jets.pbo - 150117
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\language_f_destroyer.pbo - 150117
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\language_f_jets.pbo - 150117
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\language_f_sams.pbo - 150117
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\missions_f_jets.pbo - 130755
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\modules_f_jets.pbo - 119459
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\music_f_jets.pbo - 119459
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\props_f_destroyer.pbo - 132141
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\props_f_jets.pbo - 129371
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\sounds_f_jets.pbo - 141706
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\static_f_destroyer.pbo - 140243
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\static_f_jets.pbo - 146744
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\static_f_sams.pbo - 146744
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\ui_f_jets.pbo - 126137
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\weapons_f_destroyer.pbo - 132268
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\weapons_f_jets.pbo - 131383
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\jets\addons\weapons_f_sams.pbo - 149414
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\air_f_exp.pbo - 150071
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\anims_f_exp.pbo - 126506
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\armor_f_exp.pbo - 141671
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\boat_f_exp.pbo - 150071
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\cargoposes_f_exp.pbo - 126224
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\characters_f_exp.pbo - 149878
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\characters_f_oldman.pbo - 148698
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\data_f_exp.pbo - 148936
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\data_f_oldman.pbo - 148553
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\dubbing_f_exp.pbo - 119457
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\dubbing_f_oldman.pbo - 148756
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\dubbing_radio_f_exp.pbo - 119458
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\dubbing_radio_f_exp_data_chi.pbo - 119458
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\dubbing_radio_f_exp_data_engfre.pbo - 119457
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\dubbing_radio_f_exp_data_fre.pbo - 119457
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\editorpreviews_f_exp.pbo - 147098
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\editorpreviews_f_oldman.pbo - 148621
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\functions_f_exp.pbo - 144006
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\functions_f_oldman.pbo - 148553
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\languagemissions_f_exp.pbo - 150117
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\languagemissions_f_oldman.pbo - 150117
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\language_f_exp.pbo - 150117
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\language_f_oldman.pbo - 150117
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\map_data_exp.pbo - 136265
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\map_tanoabuka.pbo - 148936
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\map_tanoabuka_data.pbo - 135884
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\map_tanoabuka_data_layers.pbo - 121192
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\map_tanoabuka_data_layers_00_00.pbo - 121192
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\map_tanoa_scenes_f.pbo - 123527
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\missions_f_exp.pbo - 144315
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\missions_f_exp_data.pbo - 119459
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\missions_f_exp_video.pbo - 119459
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\missions_f_oldman.pbo - 150013
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\modules_f_exp.pbo - 119459
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\modules_f_oldman.pbo - 148553
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\music_f_exp.pbo - 119477
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\music_f_exp_music.pbo - 119477
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\music_f_oldman.pbo - 148553
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\music_f_oldman_music.pbo - 148679
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\props_f_exp.pbo - 147637
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\props_f_oldman.pbo - 148553
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\rocks_f_exp.pbo - 148432
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\soft_f_exp.pbo - 150071
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\soft_f_oldman.pbo - 148580
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\sounds_f_exp.pbo - 149339
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\sounds_f_oldman.pbo - 148553
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\static_f_exp.pbo - 119478
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\static_f_oldman.pbo - 148580
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\structures_f_exp.pbo - 148419
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\structures_f_exp_civilian.pbo - 148739
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\structures_f_exp_commercial.pbo - 148419
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\structures_f_exp_cultural.pbo - 148419
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\structures_f_exp_data.pbo - 148419
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\structures_f_exp_industrial.pbo - 148419
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\structures_f_exp_infrastructure.pbo - 148551
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\structures_f_oldman.pbo - 150089
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\supplies_f_exp.pbo - 148079
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\supplies_f_oldman.pbo - 148553
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\ui_f_exp.pbo - 123398
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\ui_f_oldman.pbo - 149216
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\vegetation_f_exp.pbo - 148432
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\expansion\addons\weapons_f_exp.pbo - 150071
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\mark\addons\anims_f_mark.pbo - 119457
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\mark\addons\characters_f_mark.pbo - 148392
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\mark\addons\data_f_mark.pbo - 129371
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\mark\addons\dubbing_f_mark.pbo - 119457
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\mark\addons\dubbing_f_mp_mark.pbo - 119457
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\mark\addons\functions_f_mark.pbo - 150107
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\mark\addons\functions_f_mp_mark.pbo - 129434
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\mark\addons\languagemissions_f_mark.pbo - 150117
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\mark\addons\languagemissions_f_mp_mark.pbo - 150117
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\mark\addons\language_f_mark.pbo - 150117
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\mark\addons\language_f_mp_mark.pbo - 150117
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\mark\addons\missions_f_mark.pbo - 122301
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\mark\addons\missions_f_mark_data.pbo - 119459
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\mark\addons\missions_f_mark_video.pbo - 119459
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\mark\addons\missions_f_mp_mark.pbo - 141704
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\mark\addons\missions_f_mp_mark_data.pbo - 119459
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\mark\addons\modules_f_mark.pbo - 148886
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\mark\addons\modules_f_mp_mark.pbo - 143568
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\mark\addons\music_f_mark.pbo - 119477
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\mark\addons\music_f_mark_music.pbo - 119477
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\mark\addons\sounds_f_mark.pbo - 143218
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\mark\addons\static_f_mark.pbo - 146756
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\mark\addons\structures_f_mark.pbo - 149003
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\mark\addons\supplies_f_mark.pbo - 140562
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\mark\addons\ui_f_mark.pbo - 119478
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\mark\addons\ui_f_mp_mark.pbo - 119478
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\mark\addons\weapons_f_mark.pbo - 149339
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\heli\addons\air_f_heli.pbo - 150071
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\heli\addons\anims_f_heli.pbo - 123210
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\heli\addons\boat_f_heli.pbo - 119457
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\heli\addons\cargoposes_f_heli.pbo - 126231
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\heli\addons\data_f_heli.pbo - 119457
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\heli\addons\dubbing_f_heli.pbo - 119457
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\heli\addons\functions_f_heli.pbo - 123022
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\heli\addons\languagemissions_f_heli.pbo - 150117
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\heli\addons\language_f_heli.pbo - 150117
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\heli\addons\missions_f_heli.pbo - 129397
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\heli\addons\missions_f_heli_data.pbo - 119459
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\heli\addons\missions_f_heli_video.pbo - 119459
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\heli\addons\modules_f_heli.pbo - 119459
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\heli\addons\music_f_heli.pbo - 119477
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\heli\addons\music_f_heli_music.pbo - 119477
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\heli\addons\soft_f_heli.pbo - 129742
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\heli\addons\sounds_f_heli.pbo - 119478
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\heli\addons\structures_f_heli.pbo - 141968
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\heli\addons\supplies_f_heli.pbo - 145695
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\heli\addons\ui_f_heli.pbo - 119478
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\kart\addons\anims_f_kart.pbo - 123210
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\kart\addons\characters_f_kart.pbo - 148392
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\kart\addons\data_f_kart.pbo - 119457
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\kart\addons\languagemissions_f_kart.pbo - 150117
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\kart\addons\language_f_kart.pbo - 150117
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\kart\addons\missions_f_kart.pbo - 149274
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\kart\addons\missions_f_kart_data.pbo - 119459
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\kart\addons\modules_f_kart.pbo - 150028
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\kart\addons\modules_f_kart_data.pbo - 149274
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\kart\addons\soft_f_kart.pbo - 150071
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\kart\addons\sounds_f_kart.pbo - 125381
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\kart\addons\structures_f_kart.pbo - 123419
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\kart\addons\ui_f_kart.pbo - 119478
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\kart\addons\weapons_f_kart.pbo - 138461
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\curator\addons\data_f_curator.pbo - 149127
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\curator\addons\data_f_curator_music.pbo - 119457
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\curator\addons\functions_f_curator.pbo - 150096
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\curator\addons\language_f_curator.pbo - 150117
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\curator\addons\missions_f_curator.pbo - 121570
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\curator\addons\modules_f_curator.pbo - 150096
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\curator\addons\ui_f_curator.pbo - 148756
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@TaskForceEnforcer\addons\taskforceenforcer.pbo - unknown
+ 8:35:40 C:\TCAFiles\Users\AntiDev\2436\@utility\addons\antistasiserverutility.pbo - unknown
+ 8:35:40 addons\3den.pbo - 150084
+ 8:35:40 addons\3den_language.pbo - 150117
+ 8:35:40 addons\a3.pbo - unknown
+ 8:35:40 addons\air_f.pbo - 150071
+ 8:35:40 addons\air_f_beta.pbo - 149975
+ 8:35:40 addons\air_f_epb.pbo - 145119
+ 8:35:40 addons\air_f_epc.pbo - 148514
+ 8:35:40 addons\air_f_gamma.pbo - 150048
+ 8:35:40 addons\animals_f.pbo - 150071
+ 8:35:40 addons\animals_f_beta.pbo - 150071
+ 8:35:40 addons\anims_f.pbo - 149800
+ 8:35:40 addons\anims_f_bootcamp.pbo - 123209
+ 8:35:40 addons\anims_f_data.pbo - 148601
+ 8:35:40 addons\anims_f_epa.pbo - 134499
+ 8:35:40 addons\anims_f_epc.pbo - 121358
+ 8:35:40 addons\anims_f_exp_a.pbo - 123209
+ 8:35:40 addons\anims_f_mod.pbo - 135280
+ 8:35:40 addons\armor_f.pbo - 149414
+ 8:35:40 addons\armor_f_beta.pbo - 150071
+ 8:35:40 addons\armor_f_epb.pbo - 149965
+ 8:35:40 addons\armor_f_epc.pbo - 148819
+ 8:35:40 addons\armor_f_gamma.pbo - 150071
+ 8:35:40 addons\baseconfig_f.pbo - 119457
+ 8:35:40 addons\boat_f.pbo - 150071
+ 8:35:40 addons\boat_f_beta.pbo - 132036
+ 8:35:40 addons\boat_f_epc.pbo - 131911
+ 8:35:40 addons\boat_f_gamma.pbo - 127529
+ 8:35:40 addons\cargoposes_f.pbo - 149489
+ 8:35:40 addons\characters_f.pbo - 150020
+ 8:35:40 addons\characters_f_beta.pbo - 149965
+ 8:35:40 addons\characters_f_bootcamp.pbo - 149274
+ 8:35:40 addons\characters_f_epa.pbo - 148392
+ 8:35:40 addons\characters_f_epb.pbo - 148392
+ 8:35:40 addons\characters_f_epc.pbo - 148392
+ 8:35:40 addons\characters_f_gamma.pbo - 148392
+ 8:35:40 addons\data_f.pbo - 150071
+ 8:35:40 addons\data_f_bootcamp.pbo - 129618
+ 8:35:40 addons\data_f_exp_a.pbo - 119457
+ 8:35:40 addons\data_f_exp_b.pbo - 119457
+ 8:35:40 addons\data_f_mod.pbo - 131534
+ 8:35:40 addons\data_f_warlords.pbo - 147096
+ 8:35:40 addons\drones_f.pbo - 146855
+ 8:35:40 addons\dubbing_f.pbo - 119457
+ 8:35:40 addons\dubbing_f_beta.pbo - 119457
+ 8:35:40 addons\dubbing_f_bootcamp.pbo - 119457
+ 8:35:40 addons\dubbing_f_epa.pbo - 119457
+ 8:35:40 addons\dubbing_f_epb.pbo - 119457
+ 8:35:40 addons\dubbing_f_epc.pbo - 119457
+ 8:35:40 addons\dubbing_f_gamma.pbo - 122449
+ 8:35:40 addons\dubbing_f_warlords.pbo - 136700
+ 8:35:40 addons\dubbing_radio_f.pbo - 119457
+ 8:35:40 addons\dubbing_radio_f_data_eng.pbo - 119457
+ 8:35:40 addons\dubbing_radio_f_data_engb.pbo - 119458
+ 8:35:40 addons\dubbing_radio_f_data_gre.pbo - 119458
+ 8:35:40 addons\dubbing_radio_f_data_per.pbo - 119458
+ 8:35:40 addons\dubbing_radio_f_data_vr.pbo - 119458
+ 8:35:40 addons\editorpreviews_f.pbo - 149003
+ 8:35:40 addons\editor_f.pbo - 121103
+ 8:35:40 addons\functions_f.pbo - 150098
+ 8:35:40 addons\functions_f_bootcamp.pbo - 149975
+ 8:35:40 addons\functions_f_epa.pbo - 138704
+ 8:35:40 addons\functions_f_epc.pbo - 119458
+ 8:35:40 addons\functions_f_exp_a.pbo - 122619
+ 8:35:40 addons\functions_f_warlords.pbo - 150013
+ 8:35:40 addons\languagemissions_f.pbo - 150117
+ 8:35:40 addons\languagemissions_f_beta.pbo - 150117
+ 8:35:40 addons\languagemissions_f_bootcamp.pbo - 150117
+ 8:35:40 addons\languagemissions_f_epa.pbo - 150117
+ 8:35:40 addons\languagemissions_f_epb.pbo - 150117
+ 8:35:40 addons\languagemissions_f_epc.pbo - 150117
+ 8:35:40 addons\languagemissions_f_exp_a.pbo - 150117
+ 8:35:40 addons\languagemissions_f_gamma.pbo - 150117
+ 8:35:40 addons\language_f.pbo - 150117
+ 8:35:40 addons\language_f_beta.pbo - 150117
+ 8:35:40 addons\language_f_bootcamp.pbo - 150117
+ 8:35:40 addons\language_f_epa.pbo - 150117
+ 8:35:40 addons\language_f_epb.pbo - 150117
+ 8:35:40 addons\language_f_epc.pbo - 150117
+ 8:35:40 addons\language_f_exp_a.pbo - 150117
+ 8:35:40 addons\language_f_exp_b.pbo - 150117
+ 8:35:40 addons\language_f_gamma.pbo - 150117
+ 8:35:40 addons\language_f_mod.pbo - 150117
+ 8:35:40 addons\language_f_warlords.pbo - 150117
+ 8:35:40 addons\map_altis.pbo - 148442
+ 8:35:40 addons\map_altis_data.pbo - 135904
+ 8:35:40 addons\map_altis_data_layers.pbo - 135913
+ 8:35:40 addons\map_altis_data_layers_00_00.pbo - 0000
+ 8:35:40 addons\map_altis_data_layers_00_01.pbo - 0000
+ 8:35:40 addons\map_altis_data_layers_01_00.pbo - 0000
+ 8:35:40 addons\map_altis_data_layers_01_01.pbo - 0000
+ 8:35:40 addons\map_altis_scenes_f.pbo - 119459
+ 8:35:40 addons\map_data.pbo - 134124
+ 8:35:40 addons\map_stratis.pbo - 148442
+ 8:35:40 addons\map_stratis_data.pbo - 135888
+ 8:35:40 addons\map_stratis_data_layers.pbo - 135888
+ 8:35:40 addons\map_stratis_scenes_f.pbo - 119459
+ 8:35:40 addons\map_vr.pbo - 135900
+ 8:35:40 addons\map_vr_scenes_f.pbo - 119459
+ 8:35:40 addons\misc_f.pbo - 119459
+ 8:35:40 addons\missions_f.pbo - 141704
+ 8:35:40 addons\missions_f_beta.pbo - 149566
+ 8:35:40 addons\missions_f_beta_data.pbo - 149165
+ 8:35:40 addons\missions_f_beta_video.pbo - 119459
+ 8:35:40 addons\missions_f_bootcamp.pbo - 145509
+ 8:35:40 addons\missions_f_bootcamp_data.pbo - 119459
+ 8:35:40 addons\missions_f_bootcamp_video.pbo - 119459
+ 8:35:40 addons\missions_f_data.pbo - 119459
+ 8:35:40 addons\missions_f_epa.pbo - 144315
+ 8:35:40 addons\missions_f_epa_data.pbo - 119459
+ 8:35:40 addons\missions_f_epa_video.pbo - 119459
+ 8:35:40 addons\missions_f_epb.pbo - 119459
+ 8:35:40 addons\missions_f_epc.pbo - 141704
+ 8:35:40 addons\missions_f_exp_a.pbo - 141704
+ 8:35:40 addons\missions_f_exp_a_data.pbo - 119459
+ 8:35:40 addons\missions_f_gamma.pbo - 149041
+ 8:35:40 addons\missions_f_gamma_data.pbo - 119459
+ 8:35:40 addons\missions_f_gamma_video.pbo - 119459
+ 8:35:40 addons\missions_f_video.pbo - 119459
+ 8:35:40 addons\missions_f_warlords.pbo - 145437
+ 8:35:40 addons\modules_f.pbo - 148754
+ 8:35:40 addons\modules_f_beta.pbo - 149693
+ 8:35:40 addons\modules_f_beta_data.pbo - 149274
+ 8:35:40 addons\modules_f_bootcamp.pbo - 119459
+ 8:35:40 addons\modules_f_data.pbo - 122470
+ 8:35:40 addons\modules_f_epb.pbo - 134655
+ 8:35:40 addons\modules_f_exp_a.pbo - 119459
+ 8:35:40 addons\modules_f_warlords.pbo - 144205
+ 8:35:40 addons\music_f.pbo - 119459
+ 8:35:40 addons\music_f_bootcamp.pbo - 119459
+ 8:35:40 addons\music_f_bootcamp_music.pbo - 119459
+ 8:35:40 addons\music_f_epa.pbo - 119459
+ 8:35:40 addons\music_f_epa_music.pbo - 119459
+ 8:35:40 addons\music_f_epb.pbo - 119459
+ 8:35:40 addons\music_f_epb_music.pbo - 119459
+ 8:35:40 addons\music_f_epc.pbo - 119459
+ 8:35:40 addons\music_f_epc_music.pbo - 119477
+ 8:35:40 addons\music_f_music.pbo - 119477
+ 8:35:40 addons\plants_f.pbo - 148432
+ 8:35:40 addons\props_f_exp_a.pbo - 147637
+ 8:35:40 addons\roads_f.pbo - 148432
+ 8:35:40 addons\rocks_f.pbo - 149339
+ 8:35:40 addons\signs_f.pbo - 148432
+ 8:35:40 addons\soft_f.pbo - 150070
+ 8:35:40 addons\soft_f_beta.pbo - 150071
+ 8:35:40 addons\soft_f_bootcamp.pbo - 150071
+ 8:35:40 addons\soft_f_epc.pbo - 150070
+ 8:35:40 addons\soft_f_gamma.pbo - 150071
+ 8:35:40 addons\sounds_f.pbo - 150048
+ 8:35:40 addons\sounds_f_arsenal.pbo - 143218
+ 8:35:40 addons\sounds_f_bootcamp.pbo - 119477
+ 8:35:40 addons\sounds_f_characters.pbo - 143095
+ 8:35:40 addons\sounds_f_environment.pbo - 143095
+ 8:35:40 addons\sounds_f_epb.pbo - 126923
+ 8:35:40 addons\sounds_f_epc.pbo - 125380
+ 8:35:40 addons\sounds_f_exp_a.pbo - 119477
+ 8:35:40 addons\sounds_f_mod.pbo - 131534
+ 8:35:40 addons\sounds_f_sfx.pbo - 143211
+ 8:35:40 addons\sounds_f_vehicles.pbo - 146855
+ 8:35:40 addons\static_f.pbo - 149975
+ 8:35:40 addons\static_f_beta.pbo - 132365
+ 8:35:40 addons\static_f_gamma.pbo - 122615
+ 8:35:40 addons\structures_f.pbo - 148886
+ 8:35:40 addons\structures_f_bootcamp.pbo - 143436
+ 8:35:40 addons\structures_f_data.pbo - 148419
+ 8:35:40 addons\structures_f_epa.pbo - 149252
+ 8:35:40 addons\structures_f_epb.pbo - 148421
+ 8:35:40 addons\structures_f_epc.pbo - 148804
+ 8:35:40 addons\structures_f_exp_a.pbo - 132665
+ 8:35:40 addons\structures_f_households.pbo - 148419
+ 8:35:40 addons\structures_f_ind.pbo - 150048
+ 8:35:40 addons\structures_f_mil.pbo - 148419
+ 8:35:40 addons\structures_f_wrecks.pbo - 148419
+ 8:35:40 addons\uifonts_f.pbo - 119478
+ 8:35:40 addons\uifonts_f_data.pbo - 150106
+ 8:35:40 addons\ui_f.pbo - 150105
+ 8:35:40 addons\ui_f_bootcamp.pbo - 119478
+ 8:35:40 addons\ui_f_data.pbo - 149913
+ 8:35:40 addons\ui_f_exp_a.pbo - 119478
+ 8:35:40 addons\weapons_f.pbo - 150071
+ 8:35:40 addons\weapons_f_beta.pbo - 149465
+ 8:35:40 addons\weapons_f_bootcamp.pbo - 141713
+ 8:35:40 addons\weapons_f_epa.pbo - 148783
+ 8:35:40 addons\weapons_f_epb.pbo - 137810
+ 8:35:40 addons\weapons_f_epc.pbo - 130416
+ 8:35:40 addons\weapons_f_gamma.pbo - 148783
+ 8:35:40 addons\weapons_f_mod.pbo - 149339
+ 8:35:40 
+ 8:35:40 =======================
+ 8:35:40 
+ 8:35:40 ============================================================================================= List of mods ===============================================================================================
+ 8:35:40 modsReadOnly = true
+ 8:35:40 safeModsActivated = false
+ 8:35:40 customMods = true
+ 8:35:40 hash = 'C340C238BD66CF8E651E4DA1B1A210F42DE7CC91'
+ 8:35:40 hashShort = 'c4caac66'
+ 8:35:40                                               name |               modDir |    default |   official |               origin |                                     hash | hashShort | fullPath
+ 8:35:40 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ 8:35:40                              A3 Antistasi [v2.5.4] |                 @A3A |      false |      false |             GAME DIR | 9bf085d139776e59b65a61fbfa958a8c84c9c627 |  1d7987f2 | C:\TCAFiles\Users\AntiDev\2436\@A3A
+ 8:35:40                               Zeus Enhanced 1.12.0 |        @ZeusEnhanced |      false |      false |             GAME DIR | 696a968358f8d5103209004a7b8d5b5df7a9da5d |  7ef894f0 | C:\TCAFiles\Users\AntiDev\2436\@ZeusEnhanced
+ 8:35:40                                               TFAR | @TaskForceArrowheadRadioBETA |      false |      false |             GAME DIR | 6e889b7a92591e469d9e037aa3631fb8e5a954fc |  d11c0c7f | C:\TCAFiles\Users\AntiDev\2436\@TaskForceArrowheadRadioBETA
+ 8:35:40                      Community Base Addons v3.15.6 |               @CBAA3 |      false |      false |             GAME DIR | 00127cc3983804656fcdb4021c85a778b920cb3d |  5ca1ed2c | C:\TCAFiles\Users\AntiDev\2436\@CBAA3
+ 8:35:40                                  Arma 3 Art of War |                  aow |       true |       true |             GAME DIR | 0d4d518854024cf5824af507af9e16c050f38936 |   bb26feb | C:\TCAFiles\Users\AntiDev\2436\aow
+ 8:35:40                          Arma 3 Contact (Platform) |                enoch |       true |       true |             GAME DIR | 4cd4bf722e1a360ab4199316041aad8a3b1afbe5 |   c3ba4c1 | C:\TCAFiles\Users\AntiDev\2436\enoch
+ 8:35:40                                       Arma 3 Tanks |                 tank |       true |       true |             GAME DIR | 9adf766a3291df59d96561ef5bbac024cd5f103c |  6b26ff75 | C:\TCAFiles\Users\AntiDev\2436\tank
+ 8:35:40                                     Arma 3 Tac-Ops |               tacops |       true |       true |             GAME DIR | b2aeee6afb4d22a907356a94f5db210e5207741b |  8646e5fd | C:\TCAFiles\Users\AntiDev\2436\tacops
+ 8:35:40                                 Arma 3 Laws of War |               orange |       true |       true |             GAME DIR | 0591fa9ec992d8e862d32f574c67b54402598c63 |  630e5234 | C:\TCAFiles\Users\AntiDev\2436\orange
+ 8:35:40                                      Arma 3 Malden |                 argo |       true |       true |             GAME DIR | f049aea19468628fb3c360a8148a3867502024f2 |  3b10ba25 | C:\TCAFiles\Users\AntiDev\2436\argo
+ 8:35:40                                        Arma 3 Jets |                 jets |       true |       true |             GAME DIR | 959b3d22f9145707051b0c44855a7be4bc8c24ba |  456e1ae6 | C:\TCAFiles\Users\AntiDev\2436\jets
+ 8:35:40                                        Arma 3 Apex |            expansion |       true |       true |             GAME DIR | 1f9076ab9257e5993e739ce0776c871e63d1260e |  da0e3bbd | C:\TCAFiles\Users\AntiDev\2436\expansion
+ 8:35:40                                    Arma 3 Marksmen |                 mark |       true |       true |             GAME DIR | 6c7dbe201e28b331761baaa253af901743e5cecc |  867884be | C:\TCAFiles\Users\AntiDev\2436\mark
+ 8:35:40                                 Arma 3 Helicopters |                 heli |       true |       true |             GAME DIR | 54fec03b56fd2cc0c3d608bd988b6be8d99c8373 |  e9bda741 | C:\TCAFiles\Users\AntiDev\2436\heli
+ 8:35:40                                       Arma 3 Karts |                 kart |       true |       true |             GAME DIR | a5ffd00a3db67b30af623a4a4ae57e4c158e9642 |  58a5c510 | C:\TCAFiles\Users\AntiDev\2436\kart
+ 8:35:40                                        Arma 3 Zeus |              curator |       true |       true |             GAME DIR | 7845d8b549e114fb683237da35d1677f17fd8640 |  925d03b0 | C:\TCAFiles\Users\AntiDev\2436\curator
+ 8:35:40                                             Arma 3 |                   A3 |       true |       true |            NOT FOUND |                                          |           | 
+ 8:35:40                                 @TaskForceEnforcer |   @TaskForceEnforcer |      false |      false |             GAME DIR | da39a3ee5e6b4b0d3255bfef95601890afd80709 |  11fdd19c | C:\TCAFiles\Users\AntiDev\2436\@TaskForceEnforcer
+ 8:35:40                                           @utility |             @utility |      false |      false |             GAME DIR | da39a3ee5e6b4b0d3255bfef95601890afd80709 |  11fdd19c | C:\TCAFiles\Users\AntiDev\2436\@utility
+ 8:35:40 ==========================================================================================================================================================================================================
+ 8:35:40 InitSound ...
+ 8:35:40 InitSound - complete
+ 8:35:40 PhysX3 SDK Init started ...
+ 8:35:40 PhysX3 SDK Init ended.
+ 8:35:44 [CBA] (xeh) INFO: [0,12.304,0] PreStart started.
+ 8:35:44 [CBA] (settings) INFO: Userconfig: File [userconfig\cba_settings.sqf] not found or empty.
+ 8:35:48 [CBA] (xeh) INFO: [0,15.9,0] PreStart finished.
+ 8:35:48 [CBA] (xeh) INFO: [0,16.012,0] init function preProcessing disabled [recompile or filepatching enabled]
+ 8:35:50 Warning Message: You cannot play/edit this mission; it is dependent on downloadable content that has been deleted.
+a3_characters_f
+ 8:35:50 Loading movesType CfgGesturesMale
+ 8:35:50 MovesType CfgGesturesMale load time 61.0 ms
+ 8:35:50 Loading movesType CfgMovesMaleSdr
+ 8:35:53 Warning: looped for animation: a3\anims_f_epa\data\anim\sdr\cts\hubcleaned\briefing\hubbriefing_loop.rtm differs (looped now 0)! MoveName: hubbriefing_ext
+ 8:35:53 Warning: looped for animation: a3\anims_f_epa\data\anim\sdr\cts\hubcleaned\spectator\hubspectator_stand.rtm differs (looped now 1)! MoveName: hubspectator_stand_contact
+ 8:35:54 MovesType CfgMovesMaleSdr load time 4022.0 ms
+2021/10/17, 08:35:54 Initializing Steam server - Game Port: 2342, Steam Query Port: 2343
+2021/10/17, 08:35:54 Steam AppId from steam_appid.txt: 107410
+2021/10/17, 08:35:55 Connected to Steam servers
+2021/10/17, 08:36:01 Unsupported language English in stringtable
+2021/10/17, 08:36:01 Unsupported language English in stringtable
+2021/10/17, 08:36:01  ➥ Context: mpmissions\__cur_mp.Malden\stringtable.xml
+2021/10/17, 08:36:02 Server error: Player without identity headlessclient (id 761921212)
+2021/10/17, 08:36:02 Server error: Player without identity headlessclient (2) (id 761934499)
+2021/10/17, 08:42:55 File '@ZeusEnhanced\addons\zen_ai.pbo' not found.

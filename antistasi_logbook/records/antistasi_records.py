@@ -103,7 +103,7 @@ class PerformanceRecord(BaseRecord):
         if logged_from is None:
             return False
 
-        if logged_from.name == "logPerformance":
+        if logged_from == "logPerformance":
 
             return True
 
@@ -124,7 +124,7 @@ class IsNewCampaignRecord(BaseRecord):
 
         if logged_from is None:
             return False
-        if logged_from.name == "initServer" and "Creating new campaign with ID" in raw_record.parsed_data.get("message"):
+        if logged_from == "initServer" and "Creating new campaign with ID" in raw_record.parsed_data.get("message"):
             return True
 
         return False
@@ -155,7 +155,7 @@ class FFPunishmentRecord(BaseRecord):
 
         if logged_from is None:
             return False
-        if logged_from.name in {"punishment_FF", "punishment"}:
+        if logged_from in {"punishment_FF", "punishment"}:
             return True
 
         return False

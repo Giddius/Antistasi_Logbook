@@ -1,18 +1,20 @@
 from threading import RLock, Lock, Semaphore, Barrier, BoundedSemaphore, Condition, Event, _RLock, get_ident, get_native_id
-from typing import Optional, Iterable, Hashable, Union, Any
+from typing import Optional, Iterable, Hashable, Union, Any, TYPE_CHECKING
 from time import sleep
 import random
 from pprint import pprint
 from datetime import timedelta
 from time import thread_time, time, process_time
 
+if TYPE_CHECKING:
+    from antistasi_logbook.storage.models.models import LogFile
+
+
 DB_LOCK = RLock()
 
 UPDATE_LOCK = Lock()
 
 UPDATE_STOP_EVENT = Event()
-
-DOWNLOAD_LOCK = Lock()
 
 
 class DelayedSemaphore(Semaphore):

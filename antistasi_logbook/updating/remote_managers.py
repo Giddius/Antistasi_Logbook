@@ -75,7 +75,7 @@ import yarl
 import httpx
 from antistasi_logbook.errors import MissingLoginAndPasswordError
 from antistasi_logbook.utilities.path_utilities import url_to_path
-from antistasi_logbook.utilities.locks import DelayedSemaphore, MinDurationSemaphore, DOWNLOAD_LOCK
+from antistasi_logbook.utilities.locks import DelayedSemaphore, MinDurationSemaphore
 from antistasi_logbook.utilities.nextcloud import Retrier, increasing_timeout, exponential_timeout
 if TYPE_CHECKING:
 
@@ -109,6 +109,11 @@ ALL_REMOTE_MANAGERS_CLASSES: set["AbstractRemoteStorageManager"] = set()
 
 class AbstractRemoteStorageManager(ABC):
 
+    def __init__(self, base_url: yarl.URL = None, login: str = None, password: str = None) -> None:
+        self.base_url = base_url
+        self.login = login
+        self.password = password
+
     @abstractmethod
     def get_files(self, folder_path: RemotePath) -> Generator:
         ...
@@ -138,8 +143,9 @@ class AbstractRemoteStorageManager(ABC):
 class LocalManager(AbstractRemoteStorageManager):
 
     def __init__(self, base_url: yarl.URL, login: str, password: str) -> None:
+        super().__init__(base_url=base_url, login=login, password=password)
         try:
-            self.path = url_to_path(base_url)
+            self.path = url_to_path(self.base_url)
         except AssertionError:
             self.path = Path.cwd()
 
@@ -163,6 +169,18 @@ class LocalManager(AbstractRemoteStorageManager):
 
 ALL_REMOTE_MANAGERS_CLASSES.add(LocalManager)
 
+# info_dump_file = Path(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\test\data\fake_info_data.json")
+# info_dump_file.unlink(missing_ok=True)
+# info_dump_file.parent.mkdir(exist_ok=True, parents=True)
+# info_dump_file.write_text('[]', encoding='utf-8', errors='ignore')
+
+
+# def dump_to_info_dump(in_item):
+#     data = json.loads(info_dump_file.read_text(encoding='utf-8', errors='ignore'))
+#     dump_data = in_item.dump()
+#     data.append(dump_data)
+#     info_dump_file.write_text(json.dumps(data, indent=4, default=str, sort_keys=False), encoding='utf-8', errors='ignore')
+
 
 class WebdavManager(AbstractRemoteStorageManager):
     _extra_base_url_parts = ["dev_drive", "remote.php", "dav", "files"]
@@ -171,9 +189,7 @@ class WebdavManager(AbstractRemoteStorageManager):
     config_name = 'webdav'
 
     def __init__(self, base_url: yarl.URL, login: str, password: str) -> None:
-        self.raw_base_url = base_url
-        self.login = login
-        self.password = password
+        super().__init__(base_url=base_url, login=login, password=password)
         self.full_base_url = self._make_full_base_url()
         self._client: WebdavClient = None
         self.download_semaphore = self._get_download_semaphore()
@@ -221,57 +237,36 @@ class WebdavManager(AbstractRemoteStorageManager):
         return self._client
 
     def _make_full_base_url(self) -> yarl.URL:
-        extra_parts = '/'.join([str(part) for part in self._extra_base_url_parts if part not in self.raw_base_url.parts])
-        base_url = self.raw_base_url / extra_parts / self.login
+        extra_parts = '/'.join([str(part) for part in self._extra_base_url_parts if part not in self.base_url.parts])
+        base_url = self.base_url / extra_parts / self.login
         return base_url
 
     def get_files(self, folder_path: RemotePath) -> Generator:
         for item in self.client.ls(folder_path):
             info = InfoItem.from_webdav_info(item)
+
             if info.type is RemoteItemType.DIRECTORY:
                 continue
+            # dump_to_info_dump(info)
             yield info
 
     def get_info(self, file_path: RemotePath) -> InfoItem:
         info = self.client.info(file_path)
-        return InfoItem.from_webdav_info(info)
-
-    # def download_file(self, log_file: "LogFile", try_num: int = 0) -> "LogFile":
-    #     download_url = log_file.download_url
-    #     local_path = log_file.local_path
-    #     chunk_size = CONFIG.get("downloading", "chunk_size", default=None)
-    #     chunk_size = human2bytes(chunk_size) if chunk_size is not None else None
-    #     try:
-    #         with self.download_semaphore:
-    #             print(f"downloading {log_file!r}")
-
-    #             result = self.client.http.get(str(download_url), auth=(self.login, self.password))
-    #             with local_path.open("wb") as f:
-    #                 for chunk in result.iter_bytes(chunk_size=chunk_size):
-    #                     f.write(chunk)
-    #             log_file.is_downloaded = True
-    #             return local_path
-    #     except (httpx.RemoteProtocolError, httpx.ReadError) as error:
-    #         if try_num > 3:
-    #             raise
-    #         print('+' * 25 + f" {error.__class__.__name__}, reconnecting")
-    #         self.close()
-    #         sleep(30)
-    #         return self.download_file(log_file=log_file, try_num=try_num + 1)
+        _out = InfoItem.from_webdav_info(info)
+        return _out
 
     @Retrier([httpx.ReadError, httpx.RemoteProtocolError], allowed_attempts=3, timeout=5, timeout_function=exponential_timeout)
     def download_file(self, log_file: "LogFile") -> "LogFile":
-        download_url = log_file.download_url
         local_path = log_file.local_path
         chunk_size = CONFIG.get("downloading", "chunk_size", default=None)
         chunk_size = human2bytes(chunk_size) if chunk_size is not None else None
 
-        print(f"downloading {log_file!r}")
-
-        result = self.client.http.get(str(download_url), auth=(self.login, self.password))
-        with local_path.open("wb") as f:
-            for chunk in result.iter_bytes(chunk_size=chunk_size):
-                f.write(chunk)
+        with self.download_semaphore:
+            print(f"downloading {log_file!r}")
+            result = self.client.http.get(str(log_file.download_url), auth=(self.login, self.password))
+            with local_path.open("wb") as f:
+                for chunk in result.iter_bytes(chunk_size=chunk_size):
+                    f.write(chunk)
         log_file.is_downloaded = True
         return local_path
 
@@ -287,7 +282,18 @@ class WebdavManager(AbstractRemoteStorageManager):
 
 
 ALL_REMOTE_MANAGERS_CLASSES.add(WebdavManager)
-# region[Main_Exec]
+
+
+class FakeWebdavManager(AbstractRemoteStorageManager):
+    fake_files_folder: Path = None
+    info_file: Path = None
+
+    @cached_property
+    def info_data(self) -> dict[RemotePath, InfoItem]:
+        raw_data = InfoItem.schema.loads(self.info_file.read_text(encoding='utf-8', errors='ignore'), many=True)
+        return {item.remote_path: item for item in raw_data}
+
+        # region[Main_Exec]
 
 
 if __name__ == '__main__':

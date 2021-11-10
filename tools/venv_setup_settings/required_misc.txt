@@ -6,3 +6,4 @@ Pillow==8.4.0
 python-dateutil==2.8.2
 webdav4==0.9.3
 yarl==1.7.0
+marshmallow==3.14.0

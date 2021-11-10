@@ -175,6 +175,32 @@ class RegexKeeper:
                                     [^\d]
                                     (?P<utc_microsecond>\d+)"""), re.MULTILINE)
 
+    alt_full_datetime = re.compile(r"""\d{4}
+                                    [^\d]
+                                    [01]?\d
+                                    [^\d]
+                                    [0-3]?\d
+                                    \,\s+
+                                    [0-2\s]?\d
+                                    [^\d]
+                                    [0-6]\d
+                                    [^\d]
+                                    [0-6]\d
+                                    \s?
+                                    (?P<utc_year>\d{4})
+                                    [^\d]
+                                    (?P<utc_month>[01]?\d)
+                                    [^\d]
+                                    (?P<utc_day>[0-3]?\d)
+                                    [^\d]
+                                    (?P<utc_hour>[0-2\s]?\d)
+                                    [^\d]
+                                    (?P<utc_minute>[0-6]\d)
+                                    [^\d]
+                                    (?P<utc_second>[0-6]\d)
+                                    [^\d]
+                                    (?P<utc_microsecond>\d+)""", re.VERBOSE)
+
     antistasi_identifier = RegexPattern(r"(?P<identifier>Antistasi)")
 
     file = RegexPattern(r"File\:\s*(?P<file>[\w\_\.]*)")

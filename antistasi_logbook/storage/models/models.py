@@ -19,7 +19,9 @@ from dateutil.tz import tzoffset, tzlocal, gettz, datetime_ambiguous, resolve_im
 from dateutil.tzwin import tzres, tzwin, tzwinlocal
 from contextlib import contextmanager
 from rich.console import Console as RichConsole
+from threading import Lock
 from antistasi_logbook.utilities.misc import Version
+
 from antistasi_logbook.data.misc import LOG_FILE_DATE_REGEX
 from dateutil.tz import tzoffset, UTC
 
@@ -77,15 +79,6 @@ class AntstasiFunction(BaseModel):
 
     class Meta:
         table_name = 'AntstasiFunction'
-
-    @staticmethod
-    def clean_name(in_name: str) -> str:
-        cleaned_name = in_name.strip()
-        cleaned_name = cleaned_name.removeprefix("A3A_fnc_")
-        cleaned_name = cleaned_name.removeprefix("fn_")
-        cleaned_name = cleaned_name.removesuffix('.sqf')
-
-        return cleaned_name
 
     @property
     def file_name(self) -> str:
@@ -324,8 +317,9 @@ class LogFile(BaseModel):
 
     def _cleanup(self) -> None:
         if self.is_downloaded is True and self.keep_downloaded_files is False:
-            self.local_path.unlink(missing_ok=True)
-            log.debug(f'deleted local-file of log_file_item [b]{self.name!r}[/b] from path [u]{self.local_path.as_posix()!r}[/u]')
+            if self.local_path.exists():
+                self.local_path.unlink(missing_ok=True)
+                log.debug(f'deleted local-file of log_file_item [b]{self.name!r}[/b] from path [u]{self.local_path.as_posix()!r}[/u]')
             self.is_downloaded = False
 
     def get_mods(self) -> Optional[list["Mod"]]:

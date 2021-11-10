@@ -250,18 +250,27 @@ class GidSqliteQueueDatabase(SqliteQueueDatabase):
 
     def close(self):
         for remote_manager in Server.remote_manager_cache.values():
+            print(f"closing remote-manager {remote_manager!r}")
             remote_manager.close()
+        print("calling super().close()")
         return super().close()
 
     def shutdown(self) -> None:
         self.stop()
+        sleep(1)
         self.close()
 
     def reconnect(self) -> None:
-        self.stop()
+        print("pausing worker")
+        self.pause()
+        print("closing actual connection")
         self.close()
+        print("sleeping 1")
+        sleep(1)
+        print("connecting actual connection")
         self.connect(reuse_if_open=True)
-        self.start()
+        print("unpausing worker")
+        self.unpause()
 
 
 class GidSQLiteDatabase(PooledSqliteExtDatabase):
@@ -338,12 +347,13 @@ if __name__ == '__main__':
 
     web_dav_rem.set_login_and_password(login=os.getenv("NEXTCLOUD_USERNAME"), password=os.getenv("NEXTCLOUD_PASSWORD"), store_in_db=False)
     print("starting")
-    with time_execution('must be 5000', condition=True):
+    duration = 900
+    with time_execution(f'must be {duration}', condition=True):
         try:
             update_thread._update()
             # update_thread.start()
 
-            # sleep(500)
+            # sleep(duration)
             # update_thread.shutdown()
 
         finally:
