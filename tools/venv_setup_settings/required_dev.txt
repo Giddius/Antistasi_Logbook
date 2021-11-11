@@ -1,13 +1,11 @@
 autopep8
 cairosvg
-datasette[rich]
 grip
 https://github.com/pyinstaller/pyinstaller/tarball/develop
 icecream
 invoke
 ipython
 isort
-jupyter
 line_profiler
 matplotlib
 memory-profiler

@@ -57,7 +57,7 @@ import yarl
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Union, TYPE_CHECKING
 import logging
-import threading
+from threading import excepthook
 from types import TracebackType
 if TYPE_CHECKING:
     from antistasi_logbook.utilities.date_time_utilities import DatetimeDuration

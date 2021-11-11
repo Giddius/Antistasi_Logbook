@@ -57,7 +57,7 @@ from antistasi_logbook.utilities.enums import RemoteItemType
 from antistasi_logbook.data.content_types import ContentType
 from antistasi_logbook.utilities.path_utilities import RemotePath
 from gidapptools.general_helper.dict_helper import replace_dict_keys
-from marshmallow import Schema, fields
+from marshmallow import Schema, fields, pre_load
 from dateutil.tz import UTC
 # endregion[Imports]
 
@@ -94,13 +94,19 @@ class InfoItemSchema(Schema):
     remote_path = fields.String()
     name = fields.String()
     etag = fields.String()
-    raw_created_at = fields.AwareDateTime(default_timezone=UTC)
+    raw_created_at = fields.AwareDateTime(missing=None, default_timezone=UTC)
     modified_at = fields.AwareDateTime(default_timezone=UTC)
-    content_type = fields.String()
-    display_name = fields.String()
+    content_type = fields.String(missing=None)
+    display_name = fields.String(missing=None)
     size = fields.Integer()
-    content_language = fields.String()
+    content_language = fields.String(missing=None)
     raw_info = fields.Dict()
+
+    @pre_load
+    def handle_enums(self, in_data, **kwargs):
+        in_data['type'] = in_data['type'].split('.')[-1]
+        in_data["content_type"] = in_data['content_type'].split('.')[-1]
+        return in_data
 
 
 @attr.s(slots=True, auto_attribs=True, auto_detect=True, kw_only=True, frozen=True)
@@ -131,10 +137,15 @@ class InfoItem:
         webdav_info['raw_info'] = raw_info
         return cls(**webdav_info)
 
+    @classmethod
+    def from_schema_item(cls, item) -> "InfoItem":
+        return cls(**item)
+
     def as_dict(self) -> dict[str, Any]:
         return attr.asdict(self)
 
     def dump(self) -> dict:
+
         return self.schema.dump(self)
 
 

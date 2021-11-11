@@ -87,6 +87,8 @@ class RemotePathField(Field):
 
     def db_value(self, value: RemotePath) -> Optional[str]:
         if value is not None:
+            if isinstance(value, str):
+                value = RemotePath(value)
             return value._path.as_posix()
 
     def python_value(self, value) -> Optional[RemotePath]:
@@ -99,6 +101,8 @@ class PathField(Field):
 
     def db_value(self, value: Path) -> Optional[str]:
         if value is not None:
+            if isinstance(value, str):
+                value = Path(value)
             return value.as_posix()
 
     def python_value(self, value) -> Optional[Path]:

@@ -51,7 +51,7 @@ from urllib.parse import urlparse
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
-from antistasi_logbook.regex.regex_keeper import RegexKeeper
+from antistasi_logbook.regex.regex_keeper import RegexKeeper, SimpleRegexKeeper
 from gidapptools.general_helper.timing import time_func, time_execution
 from antistasi_logbook.parsing.parsing_context import ParsingContext, RecordLine
 from antistasi_logbook.utilities.misc import Version, ModItem
@@ -119,30 +119,31 @@ class MetaFinder:
     game_map_regex = re.compile(r"\sMission world\:\s*(?P<game_map>.*)")
     game_file_regex = re.compile(r"\s+Mission file\:\s*(?P<game_file>.*)")
     full_datetime_regex = re.compile(r"""(?P<local_year>\d{4})
-                                         [^\d]
-                                         (?P<local_month>[01]?\d)
-                                         [^\d]
-                                         (?P<local_day>[0-3]?\d)
+                                         /
+                                         (?P<local_month>[01]\d)
+                                         /
+                                         (?P<local_day>[0-3]\d)
                                          \,\s+
-                                         (?P<local_hour>[0-2\s]?\d)
-                                         [^\d]
+                                         (?P<local_hour>[0-2]\d)
+                                         \:
                                          (?P<local_minute>[0-6]\d)
-                                         [^\d]
+                                         \:
                                          (?P<local_second>[0-6]\d)
-                                         \s?
+                                         \s
                                          (?P<year>\d{4})
-                                         [^\d]
-                                         (?P<month>[01]?\d)
-                                         [^\d]
-                                         (?P<day>[0-3]?\d)
-                                         [^\d]
-                                         (?P<hour>[0-2\s]?\d)
-                                         [^\d]
+                                         \-
+                                         (?P<month>[01]\d)
+                                         \-
+                                         (?P<day>[0-3]\d)
+                                         \s
+                                         (?P<hour>[0-2]\d)
+                                         \:
                                          (?P<minute>[0-6]\d)
-                                         [^\d]
+                                         \:
                                          (?P<second>[0-6]\d)
-                                         [^\d]
-                                         (?P<microsecond>\d+)""", re.VERBOSE)
+                                         \:
+                                         (?P<microsecond>\d{3})
+                                         (?=\s)""", re.VERBOSE)
     mods_regex = re.compile(r"""^([0-2\s]?\d)
                                   [^\d]
                                   ([0-6]\d)
@@ -284,58 +285,37 @@ class RawRecord:
     def unformatted_content(self) -> str:
         return '\n'.join(line.content for line in self.lines)
 
-    def _parse_generic_entry(self, regex_keeper: RegexKeeper) -> dict[str, Any]:
-        match = regex_keeper.generic_entry.match(self.content.strip())
+    @profile
+    def _parse_generic_entry(self, regex_keeper: SimpleRegexKeeper) -> dict[str, Any]:
+        match = regex_keeper.generic_record.match(self.content.strip())
         if not match:
             to_record_parsing_error_file(self, "no generic entry match")
             return None
-        recorded_at_kwargs = {"year": int(match.group("local_year")),
-                              "month": int(match.group("local_month")),
-                              "day": int(match.group("local_day")),
-                              "hour": int(match.group("local_hour")),
-                              "minute": int(match.group("local_minute")),
-                              "second": int(match.group("local_second"))}
+        match_dict = match.groupdict()
+        _out = {"message": match_dict.pop("message")}
+        recorded_at_kwargs = {k: int(v) for k, v in match_dict.items()}
 
-        _out = {"message": match.group("message"), "local_recorded_at": datetime(**recorded_at_kwargs)}
+        _out["local_recorded_at"] = datetime(**recorded_at_kwargs)
         if "error in expression" in self.content.casefold():
             _out['log_level'] = "ERROR"
         return _out
 
-    def _parse_antistasi_entry(self, regex_keeper: RegexKeeper) -> dict[str, Any]:
-        datetime_part, antistasi_indicator_part, log_level_part, file_part, *other_parts = self.content.split('|')
-        try:
-            match = regex_keeper.alt_full_datetime.match(datetime_part)
+    @profile
+    def _parse_antistasi_entry(self, regex_keeper: SimpleRegexKeeper) -> dict[str, Any]:
+        datetime_part, antistasi_indicator_part, log_level_part, file_part, rest = self.content.split('|', maxsplit=4)
 
-            recorded_at_kwargs = {"year": int(match.group("utc_year")),
-                                  "month": int(match.group("utc_month")),
-                                  "day": int(match.group("utc_day")),
-                                  "hour": int(match.group("utc_hour")),
-                                  "minute": int(match.group("utc_minute")),
-                                  "second": int(match.group("utc_second")),
-                                  "microsecond": int(match.group("utc_microsecond")),
-                                  "tzinfo": UTC}
-        except AttributeError:
-            to_record_parsing_error_file(self, f"datetime_part did not match, datetime_part={datetime_part}")
+        match = regex_keeper.full_datetime.match(datetime_part)
 
-            return
-        _out = {"recorded_at": datetime(**recorded_at_kwargs),
+        _out = {"recorded_at": datetime(tzinfo=UTC, **{k: int(v) for k, v in match.groupdict().items()}),
                 "log_level": log_level_part.strip().upper(),
-                "logged_from": clean_antistasi_function_name(file_part.strip().removeprefix("File:")),
-                "message": []}
+                "logged_from": clean_antistasi_function_name(file_part.strip().removeprefix("File:"))}
 
-        for part in other_parts:
-            part = part.strip()
-
-            if part.startswith('Called By:'):
-                _out["called_by"] = clean_antistasi_function_name(part.strip().removeprefix("Called By:"))
-
-            elif part.startswith("Client:"):
-                _out['client'] = part.removeprefix("Client:").strip()
-
-            else:
-                _out["message"].append(part)
-
-        _out["message"] = '|'.join(_out['message']).strip()
+        if called_by_match := regex_keeper.called_by.match(rest):
+            _rest, called_by, _other_rest = called_by_match.groups()
+            _out["called_by"] = clean_antistasi_function_name(called_by)
+            _out["message"] = _rest + _other_rest
+        else:
+            _out["message"] = rest
 
         return _out
 
@@ -361,19 +341,21 @@ class RecordProcessor:
 
 
 class Parser:
-    log_file_data_scan_chunk_initial = 104997
     log_file_data_scan_chunk_increase = 27239
+    log_file_data_scan_chunk_initial = (104997 // 2)
 
-    def __init__(self, database: "GidSQLiteDatabase", regex_keeper: "RegexKeeper" = None) -> None:
+    def __init__(self, database: "GidSQLiteDatabase", regex_keeper: "SimpleRegexKeeper" = None) -> None:
         self.database = database
-        self.regex_keeper = RegexKeeper() if regex_keeper is None else regex_keeper
+        self.regex_keeper = SimpleRegexKeeper() if regex_keeper is None else regex_keeper
 
+    @profile
     def _process_record(self, context: "ParsingContext") -> None:
         raw_record = RawRecord(context.line_cache.dump())
         raw_record.parse(self.regex_keeper)
         raw_record.determine_record_class(self.database.record_class_manager)
         context.add_record(raw_record)
 
+    @profile
     def _get_log_file_meta_data(self, context: ParsingContext) -> bool:
         with context.log_file.open(cleanup=False) as file:
 
@@ -398,18 +380,21 @@ class Parser:
         context.set_found_meta_data(finder=finder)
         return True
 
+    @profile
     def _parse_header_text(self, context: ParsingContext) -> None:
         while self.regex_keeper.only_time.match(context.current_line.content) is None:
             context.line_cache.append(context.current_line)
             context.advance_line()
         context.set_header_text()
 
+    @profile
     def _parse_startup_entries(self, context: ParsingContext) -> None:
         while not self.regex_keeper.local_datetime.match(context.current_line.content):
             context.line_cache.append(context.current_line)
             context.advance_line()
         context.set_startup_text()
 
+    @profile
     def parse_entries(self, context: ParsingContext) -> None:
         while context.current_line is not ... and not UPDATE_STOP_EVENT.is_set():
             if self.regex_keeper.local_datetime.match(context.current_line.content):
@@ -424,24 +409,39 @@ class Parser:
             context.line_cache.append(context.current_line)
             context.advance_line()
 
-    def __call__(self, log_file: "LogFile") -> Any:
+    @profile
+    def process(self, log_file: "LogFile") -> Any:
         if UPDATE_STOP_EVENT.is_set():
             return
-        with ParsingContext(log_file=log_file, database=self.database, auto_download=True) as context:
+
+        with ParsingContext(log_file=log_file, database=self.database, auto_download=True, record_insert_batch_size=3000) as context:
+
+            if UPDATE_STOP_EVENT.is_set():
+                return
             log.info("getting meta_data")
             if self._get_log_file_meta_data(context=context) is False or context.unparsable is True:
                 return
+
+            if UPDATE_STOP_EVENT.is_set():
+                return
+
             if context.log_file.header_text is None:
                 log.info("parsing header text of", log_file)
                 self._parse_header_text(context)
+
+            if UPDATE_STOP_EVENT.is_set():
+                return
+
             if context.log_file.startup_text is None:
                 log.info("parsing startup entries of", log_file)
                 self._parse_startup_entries(context)
             log.info("parsing entries of", log_file)
+
             self.parse_entries(context)
+        return True
 
     def close(self) -> None:
-        ...
+        ParsingContext.bulk_inserter.shutdown(wait=True, cancel_futures=False)
 # region[Main_Exec]
 
 

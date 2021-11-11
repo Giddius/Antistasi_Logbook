@@ -51,9 +51,9 @@ from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
 from antistasi_logbook.regex.regex_pattern import RegexPattern
-
-import pyparsing as pp
-import pyparsing.common as ppc
+from gidapptools.general_helper.timing import time_execution
+# import pyparsing as pp
+# import pyparsing.common as ppc
 if TYPE_CHECKING:
     from antistasi_logbook.storage.models.models import LogRecord
 # endregion[Imports]
@@ -121,25 +121,25 @@ LOCAL_DATETIME_REGEX_STRING = multiline_to_single_line(r"""
                                             (?P<local_second>[0-6]\d)""")
 
 
-class AntistasiEntryGrammar:
-    parts_separator = pp.Suppress('|')
-    antistasi_indicator = pp.Suppress("Antistasi")
-    utc_datetime = pp.Regex(re.compile(UTC_DATETIME_REGEX_STRING), as_match=True)("utc_created_at").set_parse_action(regex_groups_to_datetime(prefix="utc_", tz=timezone.utc))
-    _local_datetime = pp.Regex(re.compile(LOCAL_DATETIME_REGEX_STRING), as_match=True)
-    file_part = pp.Keyword("File:").suppress() + pp.Word(pp.printables.replace('|', ''))("file")
-    message_part = pp.OneOrMore(pp.Word(pp.printables.replace('|', '')))("message")
+# class AntistasiEntryGrammar:
+#     parts_separator = pp.Suppress('|')
+#     antistasi_indicator = pp.Suppress("Antistasi")
+#     utc_datetime = pp.Regex(re.compile(UTC_DATETIME_REGEX_STRING), as_match=True)("utc_created_at").set_parse_action(regex_groups_to_datetime(prefix="utc_", tz=timezone.utc))
+#     _local_datetime = pp.Regex(re.compile(LOCAL_DATETIME_REGEX_STRING), as_match=True)
+#     file_part = pp.Keyword("File:").suppress() + pp.Word(pp.printables.replace('|', ''))("file")
+#     message_part = pp.OneOrMore(pp.Word(pp.printables.replace('|', '')))("message")
 
-    @classmethod
-    def get_local_time_with_tz(cls, local_timezone: timezone) -> pp.ParserElement:
-        return cls._local_datetime("local_created_at").set_parse_action(regex_groups_to_datetime(prefix="local_", tz=local_timezone))
+#     @classmethod
+#     def get_local_time_with_tz(cls, local_timezone: timezone) -> pp.ParserElement:
+#         return cls._local_datetime("local_created_at").set_parse_action(regex_groups_to_datetime(prefix="local_", tz=local_timezone))
 
-    @classmethod
-    def get_log_level_grammar(cls, log_level_values) -> pp.ParserElement:
-        return pp.one_of(log_level_values, as_keyword=True)("log_level")
+#     @classmethod
+#     def get_log_level_grammar(cls, log_level_values) -> pp.ParserElement:
+#         return pp.one_of(log_level_values, as_keyword=True)("log_level")
 
-    @classmethod
-    def get_grammar(cls, local_timezone: timezone, log_level_values=None) -> pp.ParserElement:
-        return cls.get_local_time_with_tz(local_timezone=local_timezone) + cls.utc_datetime + cls.parts_separator + pp.OneOrMore(cls.antistasi_indicator | cls.file_part | cls.get_log_level_grammar(LogLevel.all_possible_names) | cls.message_part)
+#     @classmethod
+#     def get_grammar(cls, local_timezone: timezone, log_level_values=None) -> pp.ParserElement:
+#         return cls.get_local_time_with_tz(local_timezone=local_timezone) + cls.utc_datetime + cls.parts_separator + pp.OneOrMore(cls.antistasi_indicator | cls.file_part | cls.get_log_level_grammar(LogLevel.all_possible_names) | cls.message_part)
 
 
 class RegexKeeper:
@@ -360,6 +360,23 @@ class LogRegex:
             except KeyError:
                 pass
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+
+
+class SimpleRegexKeeper:
+    def __init__(self) -> None:
+        self.only_time = re.compile(r"[1-2\s]\d\:[0-6]\d\:[0-6]\d(?=\s)")
+
+        self.local_datetime = re.compile(r"\d{4}/[01]\d/[0-3]\d\,\s[0-2]\d\:[0-6]\d\:[0-6]\d(?=\s)")
+
+        self.continued_record = re.compile(r"\d{4}/[01]\d/[0-3]\d\,\s[0-2]\d\:[0-6]\d\:[0-6]\d" + r"\s+\>{3}\s*(?P<content>.*)")
+
+        self.generic_record = re.compile(r"""(?P<year>\d{4})/(?P<month>[01]\d)/(?P<day>[0-3]\d)\,\s(?P<hour>[0-2]\d)\:(?P<minute>[0-6]\d)\:(?P<second>[0-6]\d)
+                                        \s
+                                        (?P<message>.*)""", re.VERBOSE)
+
+        self.full_datetime = re.compile(r"\d{4}/[01]\d/[0-3]\d\,\s[0-2]\d\:[0-6]\d\:[0-6]\d\s(?P<year>\d{4})\-(?P<month>[01]\d)\-(?P<day>[0-3]\d)\s(?P<hour>[0-2]\d)\:(?P<minute>[0-6]\d)\:(?P<second>[0-6]\d)\:(?P<microsecond>\d{3})\s")
+
+        self.called_by = re.compile(r"(.*)(?:\s\|\s*Called\sBy\:\s*)([^\s\|]+)(.*)")
 
 
 # region[Main_Exec]

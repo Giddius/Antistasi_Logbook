@@ -61,10 +61,12 @@ from gidapptools.gid_signal.interface import get_signal
 from gidapptools.meta_data.interface import get_meta_paths, MetaPaths, get_meta_config, get_meta_info
 from gidapptools.general_helper.conversion import human2bytes
 from antistasi_logbook.utilities.locks import UPDATE_LOCK
-from antistasi_logbook.storage.models.models import database, Server, RemoteStorage, LogFile, RecordClass, LogRecord, AntstasiFunction
-from antistasi_logbook.updating.remote_managers import AbstractRemoteStorageManager, LocalManager, WebdavManager
+from antistasi_logbook.storage.models.models import database, Server, RemoteStorage, LogFile, RecordClass, LogRecord, AntstasiFunction, setup_db
+from antistasi_logbook.updating.remote_managers import AbstractRemoteStorageManager, LocalManager, WebdavManager, FakeWebdavManager
+from antistasi_logbook.utilities.misc import NoThreadPoolExecutor
 from rich.console import Console as RichConsole
 import threading
+from playhouse.apsw_ext import APSWDatabase
 from rich import inspect as rinspect
 from antistasi_logbook.parsing.record_class_manager import RecordClassManager
 if TYPE_CHECKING:
@@ -182,10 +184,13 @@ class GidSqliteQueueDatabase(SqliteQueueDatabase):
         "synchronous": 0,
         "ignore_check_constraints": 0,
         "foreign_keys": 1,
-        "journal_size_limit": human2bytes("500mb")
+
+        # "journal_size_limit": human2bytes("250 mb"),
+        # "threads": 3,
+        # "wal_autocheckpoint": 15000
     }
     default_extensions = {"json_contains": True,
-                          "regexp_function": True}
+                          "regexp_function": False}
 
     default_db_name = "storage.db"
     default_db_path = META_PATHS.db_dir if os.getenv('IS_DEV', 'false') == "false" else THIS_FILE_DIR
@@ -196,7 +201,6 @@ class GidSqliteQueueDatabase(SqliteQueueDatabase):
                  database_path: Path = None,
                  script_folder: Path = None,
                  record_class_manager: "RecordClassManager" = None,
-                 use_gevent=False,
                  autoconnect=True,
                  thread_safe=False,
                  queue_max_size=None,
@@ -210,24 +214,33 @@ class GidSqliteQueueDatabase(SqliteQueueDatabase):
         self.started_up = False
         extensions = self.default_extensions if extensions is None else extensions
         pragmas = self.default_pragmas if pragmas is None else pragmas
-        super().__init__(make_db_path(self.path), use_gevent=use_gevent, autostart=False, queue_max_size=queue_max_size, results_timeout=results_timeout, thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, **extensions)
+        super().__init__(make_db_path(self.path), use_gevent=False, autostart=False, queue_max_size=queue_max_size, results_timeout=results_timeout, thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, **extensions)
 
     def start_up_db(self, overwrite: bool = False) -> None:
+
         if self.started_up is True:
             return
         self.path.parent.mkdir(exist_ok=True, parents=True)
         self.script_folder.mkdir(exist_ok=True, parents=True)
         if overwrite is True:
             self.path.unlink(missing_ok=True)
+        self.connect(reuse_if_open=True)
         self.start()
+        setup_db()
+        self.optimize()
+        self.vacuum()
+        print(f"{self.journal_size_limit=}")
+        print(f"{self.wal_autocheckpoint=}")
+        print(f"{self.cache_size=}")
+        print(f"{self.journal_mode=}")
+        print(f"{self.mmap_size=}")
+        print(f"{self.page_size=}")
+        print(f"{self.timeout=}")
+        print(f"{self.read_uncommitted=}")
+        print(f"{self.synchronous=}")
 
-        for script in self.script_provider.get_setup_scripts():
-            for item in script.split(';'):
-                if not item:
-                    continue
-
-                cur = self.execute_sql(item)
-                cur._wait()
+        self.stop()
+        self.start()
         self.started_up = True
 
     def optimize(self) -> None:
@@ -242,9 +255,13 @@ class GidSqliteQueueDatabase(SqliteQueueDatabase):
 
     def stop(self):
         # self.pragma("optimize")
+
         sleep(1)
 
         _out = super().stop()
+        while self.is_stopped() is False:
+            print("...")
+            sleep(0.25)
 
         return _out
 
@@ -252,7 +269,7 @@ class GidSqliteQueueDatabase(SqliteQueueDatabase):
         for remote_manager in Server.remote_manager_cache.values():
             print(f"closing remote-manager {remote_manager!r}")
             remote_manager.close()
-        print("calling super().close()")
+
         return super().close()
 
     def shutdown(self) -> None:
@@ -260,86 +277,39 @@ class GidSqliteQueueDatabase(SqliteQueueDatabase):
         sleep(1)
         self.close()
 
-    def reconnect(self) -> None:
-        print("pausing worker")
-        self.pause()
-        print("closing actual connection")
-        self.close()
-        print("sleeping 1")
-        sleep(1)
-        print("connecting actual connection")
-        self.connect(reuse_if_open=True)
-        print("unpausing worker")
-        self.unpause()
-
-
-class GidSQLiteDatabase(PooledSqliteExtDatabase):
-    default_pragmas = {
-        "cache_size": -1 * 64000,
-        "journal_mode": "WAL",
-        "synchronous": 0,
-        "ignore_check_constraints": 0,
-        "foreign_keys": 1
-    }
-
-    default_extensions = {"json_contains": True,
-                          "regexp_function": True}
-    default_db_name = "storage.db"
-    default_db_path = META_PATHS.db_dir if os.getenv('IS_DEV', 'false') == "false" else THIS_FILE_DIR
-
-    default_script_folder = THIS_FILE_DIR.joinpath("sql_scripts")
-
-    def __init__(self,
-                 database_path: Path = None,
-                 script_folder: Path = None,
-                 record_class_manager: "RecordClassManager" = None,
-                 pragmas=None,
-                 extensions=None):
-        self.path = self.default_db_path.joinpath(self.default_db_name) if database_path is None else Path(database_path)
-        self.script_folder = self.default_script_folder if script_folder is None else Path(script_folder)
-        self.record_class_manager = RecordClassManager() if record_class_manager is None else record_class_manager
-        self.script_provider = GidSQLiteScriptLoader(self.script_folder)
-        extensions = self.default_extensions if extensions is None else extensions
-        pragmas = self.default_pragmas if pragmas is None else pragmas
-
-        super().__init__(make_db_path(self.path), pragmas=pragmas, timeout=0, autoconnect=True, stale_timeout=10, thread_safe=True, ** extensions)
-
-    def start_up_db(self, overwrite: bool = False) -> None:
-        self.path.parent.mkdir(exist_ok=True, parents=True)
-        self.script_folder.mkdir(exist_ok=True, parents=True)
-        if overwrite is True:
-            self.path.unlink(missing_ok=True)
-        conn = sqlite3.connect(self.path)
-        for script in self.script_provider.get_setup_scripts():
-
-            conn.executescript(script)
-
-        conn.close()
-
 
 def get_database(database_path: Path = None, script_folder: Path = None, overwrite_db: bool = False, **kwargs) -> GidSqliteQueueDatabase:
     from antistasi_logbook.records.antistasi_records import ALL_ANTISTASI_RECORD_CLASSES
+
     raw_db = GidSqliteQueueDatabase(database_path=database_path, script_folder=script_folder, **kwargs)
-    raw_db.start_up_db(overwrite=overwrite_db)
 
     database.initialize(raw_db)
-
+    raw_db.start_up_db(overwrite=overwrite_db)
     for record_class in ALL_ANTISTASI_RECORD_CLASSES:
         raw_db.record_class_manager.register_record_class(record_class)
 
     return raw_db
 
 
-p_actions = []
+class Blah:
+
+    def __init__(self) -> None:
+        self.lo_fi = 0
+        self.log_file_updated_signal = get_signal("log_file_updated")
+        self.log_file_updated_signal.connect(self.increase)
+
+    def increase(self, *arg, **kwargs) -> None:
+        self.lo_fi += 1
+
 
 # region[Main_Exec]
 if __name__ == '__main__':
     from antistasi_logbook.updating.updater import get_updater, get_update_thread
     from dotenv import load_dotenv
     from antistasi_logbook.parsing.parser import Parser
-
-    db = get_database(overwrite_db=False)
-    update_thread = get_update_thread(database=db)
+    b = Blah()
+    db = get_database(overwrite_db=True)
+    update_thread = get_update_thread(database=db, use_fake_webdav_manager=True)  # , thread_pool_class=NoThreadPoolExecutor)
 
     load_dotenv(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\antistasi_logbook\nextcloud.env")
 
@@ -347,17 +317,18 @@ if __name__ == '__main__':
 
     web_dav_rem.set_login_and_password(login=os.getenv("NEXTCLOUD_USERNAME"), password=os.getenv("NEXTCLOUD_PASSWORD"), store_in_db=False)
     print("starting")
-    duration = 900
+    duration = 10000
     with time_execution(f'must be {duration}', condition=True):
         try:
             update_thread._update()
+
             # update_thread.start()
 
             # sleep(duration)
             # update_thread.shutdown()
 
         finally:
-
+            update_thread.updater.close()
             db.shutdown()
-
+    print(f"{b.lo_fi=}")
 # endregion[Main_Exec]

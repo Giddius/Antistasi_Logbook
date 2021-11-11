@@ -5,7 +5,7 @@ import random
 from pprint import pprint
 from datetime import timedelta
 from time import thread_time, time, process_time
-
+from pathlib import Path
 if TYPE_CHECKING:
     from antistasi_logbook.storage.models.models import LogFile
 
@@ -15,6 +15,21 @@ DB_LOCK = RLock()
 UPDATE_LOCK = Lock()
 
 UPDATE_STOP_EVENT = Event()
+
+
+class FileLocks:
+
+    def __init__(self) -> None:
+        self.locks: dict[str, RLock] = {}
+
+    def get_file_lock(self, in_log_file: "LogFile") -> Lock:
+        id_string = str(in_log_file.id)
+        if id_string not in self.locks:
+            self.locks[id_string] = RLock()
+        return self.locks[id_string]
+
+
+FILE_LOCKS = FileLocks()
 
 
 class DelayedSemaphore(Semaphore):

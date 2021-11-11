@@ -135,9 +135,13 @@ class AbstractRemoteStorageManager(ABC):
         cls._validate_remote_storage_item(remote_storage_item=remote_storage_item)
         return cls(base_url=remote_storage_item.base_url, login=remote_storage_item.get_login(), password=remote_storage_item.get_password())
 
-    @abstractmethod
+    @classmethod
+    @property
+    def ___remote_manager_name___(cls) -> str:
+        return cls.__name__
+
     def close(self) -> None:
-        ...
+        pass
 
 
 class LocalManager(AbstractRemoteStorageManager):
@@ -204,9 +208,9 @@ class WebdavManager(AbstractRemoteStorageManager):
     def _get_download_semaphore(self) -> MinDurationSemaphore:
         download_semaphore = self.download_semaphores.get(self.full_base_url)
         if download_semaphore is None:
-            delay = CONFIG.get(self.config_name, "delay_between_downloads", default=0)
-            minimum_duration = CONFIG.get(self.config_name, "minimum_download_duration", default=0)
-            download_semaphore = MinDurationSemaphore(self.max_connections, minimum_duration=timedelta(seconds=int(minimum_duration)), delay=timedelta(seconds=int(delay)))
+            delay = CONFIG.get(self.config_name, "delay_between_downloads", default=timedelta())
+            minimum_duration = CONFIG.get(self.config_name, "minimum_download_duration", default=timedelta())
+            download_semaphore = MinDurationSemaphore(self.max_connections, minimum_duration=minimum_duration, delay=minimum_duration)
 
             self.download_semaphores[self.full_base_url] = download_semaphore
         return download_semaphore
@@ -259,7 +263,6 @@ class WebdavManager(AbstractRemoteStorageManager):
     def download_file(self, log_file: "LogFile") -> "LogFile":
         local_path = log_file.local_path
         chunk_size = CONFIG.get("downloading", "chunk_size", default=None)
-        chunk_size = human2bytes(chunk_size) if chunk_size is not None else None
 
         with self.download_semaphore:
             print(f"downloading {log_file!r}")
@@ -272,12 +275,13 @@ class WebdavManager(AbstractRemoteStorageManager):
 
     def close(self) -> None:
         if self._client is not None:
+            print(f"closing {self._client.http!r}")
             self._client.http.close()
             self._client = None
 
     def restart_client(self) -> None:
         if self._client is not None:
-            self._client.http.close()
+            self.close()
             self._client = self._get_new_client()
 
 
@@ -287,11 +291,53 @@ ALL_REMOTE_MANAGERS_CLASSES.add(WebdavManager)
 class FakeWebdavManager(AbstractRemoteStorageManager):
     fake_files_folder: Path = None
     info_file: Path = None
+    _info_data: dict[RemotePath, InfoItem] = None
 
-    @cached_property
-    def info_data(self) -> dict[RemotePath, InfoItem]:
-        raw_data = InfoItem.schema.loads(self.info_file.read_text(encoding='utf-8', errors='ignore'), many=True)
-        return {item.remote_path: item for item in raw_data}
+    @classmethod
+    def get_info_data(cls) -> dict[RemotePath, InfoItem]:
+        raw_data = json.loads(cls.info_file.read_text(encoding='utf-8', errors='ignore'))
+        _items: list[InfoItem.schema] = []
+        for item in raw_data:
+            _items.append(InfoItem.schema.load(item))
+        _items = [InfoItem.from_schema_item(i) for i in _items]
+        _out = {item.remote_path: item for item in _items}
+        for item in _items:
+            if item.remote_path.parent not in _out:
+                _out[item.remote_path.parent] = []
+            _out[item.remote_path.parent].append(item)
+        return _out
+
+    @classmethod
+    @property
+    def info_data(cls):
+        if cls._info_data is None:
+            cls._info_data = cls.get_info_data()
+        return cls._info_data
+
+    def get_info(self, file_path: RemotePath) -> InfoItem:
+        return self.info_data.get(file_path)
+
+    def get_files(self, folder_path: RemotePath) -> Generator:
+        for item in self.info_data.get(folder_path):
+            yield item
+
+    def download_file(self, log_file: "LogFile") -> "LogFile":
+        sleep(random.uniform(0.0, 0.5))
+        local_path = log_file.local_path
+        to_get_file = self.fake_files_folder.joinpath(log_file.server.name).joinpath(log_file.name).with_suffix('.txt')
+        print(f"downloading {log_file!r}")
+        with local_path.open('wb') as tf:
+            with to_get_file.open('rb') as sf:
+                for chunk in sf:
+                    tf.write(chunk)
+
+        log_file.is_downloaded = True
+        return local_path
+
+    @classmethod
+    @property
+    def ___remote_manager_name___(cls) -> str:
+        return WebdavManager.__name__
 
         # region[Main_Exec]
 

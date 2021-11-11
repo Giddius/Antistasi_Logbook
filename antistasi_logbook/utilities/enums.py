@@ -79,7 +79,7 @@ META_INFO = get_meta_info()
 # endregion[Constants]
 
 
-class RemoteItemType(Enum):
+class RemoteItemType(BaseGidEnum):
     DIRECTORY = "directory"
     FILE = "file"
 

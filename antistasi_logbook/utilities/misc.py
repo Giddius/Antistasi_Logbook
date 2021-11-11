@@ -42,8 +42,11 @@ class NoThreadPoolExecutor:
     def map(self, func, items) -> Generator:
         return (func(item) for item in items)
 
-    def shutdown(self) -> None:
+    def shutdown(self, *args, **kwargs) -> None:
         return
+
+    def submit(self, func, *args, **kwargs) -> None:
+        func(*args, **kwargs)
 
 
 def try_convert_int(data: Union[str, int, None]) -> Union[str, int, None]:

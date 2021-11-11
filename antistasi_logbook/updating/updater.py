@@ -50,7 +50,7 @@ from statistics import mean, mode, stdev, median, variance, pvariance, harmonic_
 from collections import Counter, ChainMap, deque, namedtuple, defaultdict
 from urllib.parse import urlparse
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, wait, ALL_COMPLETED
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, wait, ALL_COMPLETED, Future
 from importlib.machinery import SourceFileLoader
 from gidapptools import get_meta_config
 import mmap
@@ -58,7 +58,9 @@ from threading import Thread, Event, Condition
 from antistasi_logbook.errors import UpdateExceptionHandler
 from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord
 from antistasi_logbook.parsing.parser import Parser
+from rich.console import Console as RichConsole
 from antistasi_logbook.utilities.locks import UPDATE_LOCK, UPDATE_STOP_EVENT
+from antistasi_logbook.utilities.misc import NoThreadPoolExecutor
 from gidapptools.gid_signal.interface import get_signal
 if TYPE_CHECKING:
 
@@ -81,7 +83,28 @@ if TYPE_CHECKING:
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 CONFIG = get_meta_config().get_config("general")
+CONSOLE = RichConsole(soft_wrap=True)
 # endregion[Constants]
+
+
+def dprint(*args, **kwargs):
+    CONSOLE.print(*args, **kwargs)
+    CONSOLE.rule()
+
+
+print = dprint
+
+
+class FakeLogger:
+    def __init__(self) -> None:
+        self.debug = dprint
+        self.info = dprint
+        self.warning = dprint
+        self.error = dprint
+        self.critical = dprint
+
+
+log = FakeLogger()
 
 
 class IntervallKeeper:
@@ -92,8 +115,7 @@ class IntervallKeeper:
 
     @property
     def intervall(self) -> timedelta:
-        seconds = CONFIG.get("updater", "update_intervall", default=300)
-        return timedelta(seconds=seconds)
+        return CONFIG.get("updater", "update_intervall", default=timedelta(seconds=300))
 
     @property
     def now(self) -> datetime:
@@ -127,10 +149,13 @@ class Updater:
     config_name = "updater"
     log_file_updated_signal = get_signal("log_file_updated")
 
-    def __init__(self, database: "GidSqliteQueueDatabase", parser: Parser = None) -> None:
+    def __init__(self, database: "GidSqliteQueueDatabase", parser: Parser = None, thread_pool_class: type[ThreadPoolExecutor] = None) -> None:
         self.database = database
         self.parser = Parser(database=self.database) if parser is None else parser
-        self.thread_pool = ThreadPoolExecutor(max_workers=self.max_threads, thread_name_prefix=self.threads_prefix)
+        if thread_pool_class is None:
+            thread_pool_class = ThreadPoolExecutor
+        self.thread_pool = thread_pool_class(max_workers=self.max_threads, thread_name_prefix=self.threads_prefix)
+        self.tasks: list[Future] = []
 
     @property
     def max_threads(self) -> Optional[int]:
@@ -150,7 +175,7 @@ class Updater:
 
     @classmethod
     def register_remote_manager_class(cls, remote_manager_class: type["AbstractRemoteStorageManager"]) -> None:
-        name = remote_manager_class.__name__
+        name = remote_manager_class.___remote_manager_name___
         if name not in cls.remote_manager_classes:
             cls.remote_manager_classes[name] = remote_manager_class
 
@@ -173,8 +198,9 @@ class Updater:
         self.log_file_updated_signal.emit(log_file)
         return log_file
 
+    @profile
     def _get_updated_log_files(self, server: "Server"):
-        updated_log_files = []
+        to_update_files = []
         current_log_files = server.get_current_log_files()
         cutoff_datetime = self.get_cutoff_datetime()
         for remote_info in server.get_remote_files(server.remote_manager):
@@ -183,11 +209,11 @@ class Updater:
             stored_file: LogFile = current_log_files.get(remote_info.name, None)
 
             if stored_file is None:
-                updated_log_files.append(self._create_new_log_file(server=server, remote_info=remote_info))
+                to_update_files.append(self._create_new_log_file(server=server, remote_info=remote_info))
 
             elif stored_file.modified_at < remote_info.modified_at or stored_file.size < remote_info.size:
-                updated_log_files.append(self._update_log_file(log_file=stored_file, remote_info=remote_info))
-        return sorted(updated_log_files, key=lambda x: x.modified_at, reverse=True)
+                to_update_files.append(self._update_log_file(log_file=stored_file, remote_info=remote_info))
+        return sorted(to_update_files, key=lambda x: x.modified_at, reverse=True)
 
     def _handle_old_log_files(self, server: "Server") -> None:
         if self.remove_items_older_than_max_update_time_frame is False:
@@ -204,25 +230,35 @@ class Updater:
             log_file.delete_instance()
 
     def update_server(self, server: "Server") -> None:
-
+        def _create_done_callback(_idx: int, _amount: int, _log_file: "LogFile"):
+            def _inner(future: Future):
+                print(f"<[b green]{_idx}[/b green]/[b red]{_amount}[/b red]> FINISHED PROCESSING LOGFILE", _log_file)
+            return _inner
         server.ensure_remote_manager(remote_manager=self._get_remote_manager(server))
-        updated_log_files = self._get_updated_log_files(server=server)
+        log_files = self._get_updated_log_files(server=server)
+        amount = len(log_files)
+        for idx, log_file in enumerate(log_files):
+            print(f"<[b green]{idx}[/b green]/[b red]{amount}[/b red]> STARTING PROCESSING LOGFILE", log_file)
+            task = self.thread_pool.submit(self.parser.process, log_file)
 
-        list(self.thread_pool.map(self.parser, updated_log_files))
+            self.tasks.append(task)
         # for log_file in updated_log_files:
         #     sleep(0.1)
         #     self.parser(log_file)
 
         self._handle_old_log_files(server=server)
 
+        return True
+
     def __call__(self, server: "Server") -> None:
         if server.is_updatable() is False:
-            return
+            return False
 
-        self.update_server(server)
+        return self.update_server(server)
 
     def close(self) -> None:
         self.thread_pool.shutdown(wait=True, cancel_futures=False)
+        self.parser.close()
 
 
 class UpdateThread(Thread):
@@ -238,26 +274,28 @@ class UpdateThread(Thread):
         self.exception_handler = UpdateExceptionHandler()
         self.is_updating: bool = False
 
-    @property
+    @ property
     def updates_enabled(self) -> bool:
         return CONFIG.get(self.config_name, "updates_enabled", default=False)
 
-    @contextmanager
+    @ contextmanager
     def set_is_updating(self) -> None:
-        with UPDATE_LOCK:
-            self.is_updating = True
-            yield
+        self.is_updating = True
+        yield
         self.is_updating = False
 
     def _update(self) -> None:
         self.before_update()
         try:
-            for server in Server.select():
+            for server in tuple(Server.select()):
                 if UPDATE_STOP_EVENT.is_set():
                     return
+                print(f"updating server {server.name!r}")
+
                 self.updater(server)
-        except Exception as error:
-            self.exception_handler.handle_exception(error)
+
+        # except Exception as error:
+        #     self.exception_handler.handle_exception(error)
         finally:
             self.after_update()
 
@@ -275,8 +313,10 @@ class UpdateThread(Thread):
         self.database.connect(reuse_if_open=True)
 
     def after_update(self) -> None:
-        print("closing connection")
-        self.database.reconnect()
+        if not isinstance(self.updater.thread_pool, NoThreadPoolExecutor):
+            wait(self.updater.tasks, timeout=None, return_when=ALL_COMPLETED)
+        self.database.stop()
+        self.database.start()
 
     def run(self) -> None:
         self._update_task()
@@ -290,16 +330,22 @@ class UpdateThread(Thread):
         UPDATE_STOP_EVENT.clear()
 
 
-def get_updater(database: "GidSqliteQueueDatabase", **kwargs) -> "Updater":
-    from antistasi_logbook.updating.remote_managers import ALL_REMOTE_MANAGERS_CLASSES
+def get_updater(database: "GidSqliteQueueDatabase", use_fake_webdav_manager: bool = False, **kwargs) -> "Updater":
+    from antistasi_logbook.updating.remote_managers import ALL_REMOTE_MANAGERS_CLASSES, FakeWebdavManager, WebdavManager
+    if use_fake_webdav_manager is True:
+        ALL_REMOTE_MANAGERS_CLASSES = set(i for i in ALL_REMOTE_MANAGERS_CLASSES if i is not WebdavManager)
+        FakeWebdavManager.fake_files_folder = Path(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\test\data\fake_log_files")
+        FakeWebdavManager.info_file = Path(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\test\data\fake_info_data.json")
+        _ = FakeWebdavManager.info_data
+        ALL_REMOTE_MANAGERS_CLASSES.add(FakeWebdavManager)
     updater = Updater(database=database, **kwargs)
     for remote_manager_class in ALL_REMOTE_MANAGERS_CLASSES:
         updater.register_remote_manager_class(remote_manager_class)
     return updater
 
 
-def get_update_thread(database: "GidSqliteQueueDatabase", **kwargs) -> "UpdateThread":
-    updater = get_updater(database=database, **kwargs)
+def get_update_thread(database: "GidSqliteQueueDatabase", use_fake_webdav_manager: bool = False, ** kwargs) -> "UpdateThread":
+    updater = get_updater(database=database, use_fake_webdav_manager=use_fake_webdav_manager, ** kwargs)
     update_thread = UpdateThread(database=database, updater=updater)
     return update_thread
 
