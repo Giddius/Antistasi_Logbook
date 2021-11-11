@@ -62,6 +62,7 @@ from rich.console import Console as RichConsole
 from antistasi_logbook.utilities.locks import UPDATE_LOCK, UPDATE_STOP_EVENT
 from antistasi_logbook.utilities.misc import NoThreadPoolExecutor
 from gidapptools.gid_signal.interface import get_signal
+
 if TYPE_CHECKING:
 
     from antistasi_logbook.updating.remote_managers import AbstractRemoteStorageManager, InfoItem
@@ -80,7 +81,8 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 CONFIG = get_meta_config().get_config("general")
 CONSOLE = RichConsole(soft_wrap=True)

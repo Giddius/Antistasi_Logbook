@@ -67,6 +67,7 @@ from antistasi_logbook.utilities.locks import UPDATE_STOP_EVENT
 import peewee
 from playhouse.signals import Model, post_save
 
+
 from threading import RLock
 if TYPE_CHECKING:
 
@@ -85,6 +86,8 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
 CONSOLE = RichConsole(soft_wrap=True)
 
 

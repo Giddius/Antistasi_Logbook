@@ -77,6 +77,7 @@ from antistasi_logbook.errors import MissingLoginAndPasswordError
 from antistasi_logbook.utilities.path_utilities import url_to_path
 from antistasi_logbook.utilities.locks import DelayedSemaphore, MinDurationSemaphore
 from antistasi_logbook.utilities.nextcloud import Retrier, increasing_timeout, exponential_timeout
+
 if TYPE_CHECKING:
 
     from gidapptools.meta_data.interface import MetaPaths
@@ -95,7 +96,8 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 META_PATHS: "MetaPaths" = get_meta_paths()

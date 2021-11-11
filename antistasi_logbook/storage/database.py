@@ -309,7 +309,7 @@ if __name__ == '__main__':
     from antistasi_logbook.parsing.parser import Parser
     b = Blah()
     db = get_database(overwrite_db=True)
-    update_thread = get_update_thread(database=db, use_fake_webdav_manager=True)  # , thread_pool_class=NoThreadPoolExecutor)
+    update_thread = get_update_thread(database=db, use_fake_webdav_manager=False)  # , thread_pool_class=NoThreadPoolExecutor)
 
     load_dotenv(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\antistasi_logbook\nextcloud.env")
 
