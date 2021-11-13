@@ -69,7 +69,7 @@ from antistasi_logbook.updating.info_item import InfoItem
 import antistasi_logbook
 from gidapptools.general_helper.conversion import human2bytes
 from gidapptools import get_meta_item, get_meta_paths, get_meta_config
-from threading import RLock
+from threading import RLock, Lock
 from rich import print as rprint
 import yarl
 import httpx
@@ -77,7 +77,7 @@ from antistasi_logbook.errors import MissingLoginAndPasswordError
 from antistasi_logbook.utilities.path_utilities import url_to_path
 from antistasi_logbook.utilities.locks import DelayedSemaphore, MinDurationSemaphore
 from antistasi_logbook.utilities.nextcloud import Retrier, increasing_timeout, exponential_timeout
-
+from gidapptools.gid_logger.fake_logger import fake_logger
 if TYPE_CHECKING:
 
     from gidapptools.meta_data.interface import MetaPaths
@@ -102,7 +102,7 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 META_PATHS: "MetaPaths" = get_meta_paths()
 CONFIG: "GidIniConfig" = get_meta_config().get_config('general')
-
+log = fake_logger
 # endregion[Constants]
 
 
@@ -110,6 +110,7 @@ ALL_REMOTE_MANAGERS_CLASSES: set["AbstractRemoteStorageManager"] = set()
 
 
 class AbstractRemoteStorageManager(ABC):
+    config: "GidIniConfig" = CONFIG
 
     def __init__(self, base_url: yarl.URL = None, login: str = None, password: str = None) -> None:
         self.base_url = base_url
@@ -147,6 +148,7 @@ class AbstractRemoteStorageManager(ABC):
 
 
 class LocalManager(AbstractRemoteStorageManager):
+    config: "GidIniConfig" = CONFIG
 
     def __init__(self, base_url: yarl.URL, login: str, password: str) -> None:
         super().__init__(base_url=base_url, login=login, password=password)
@@ -189,6 +191,7 @@ ALL_REMOTE_MANAGERS_CLASSES.add(LocalManager)
 
 
 class WebdavManager(AbstractRemoteStorageManager):
+    config: "GidIniConfig" = CONFIG
     _extra_base_url_parts = ["dev_drive", "remote.php", "dav", "files"]
 
     download_semaphores: dict[yarl.URL, MinDurationSemaphore] = {}
@@ -199,7 +202,7 @@ class WebdavManager(AbstractRemoteStorageManager):
         self.full_base_url = self._make_full_base_url()
         self._client: WebdavClient = None
         self.download_semaphore = self._get_download_semaphore()
-        CONFIG.config.changed_signal.connect(self.reset_client)
+        self.config.config.changed_signal.connect(self.reset_client)
 
     @classmethod
     def _validate_remote_storage_item(cls, remote_storage_item: "RemoteStorage") -> None:
@@ -210,15 +213,15 @@ class WebdavManager(AbstractRemoteStorageManager):
     def _get_download_semaphore(self) -> MinDurationSemaphore:
         download_semaphore = self.download_semaphores.get(self.full_base_url)
         if download_semaphore is None:
-            delay = CONFIG.get(self.config_name, "delay_between_downloads", default=timedelta())
+            delay = self.config.get(self.config_name, "delay_between_downloads", default=timedelta())
             minimum_duration = CONFIG.get(self.config_name, "minimum_download_duration", default=timedelta())
-            download_semaphore = MinDurationSemaphore(self.max_connections, minimum_duration=minimum_duration, delay=minimum_duration)
+            download_semaphore = MinDurationSemaphore(self.max_connections, minimum_duration=minimum_duration, delay=delay)
 
             self.download_semaphores[self.full_base_url] = download_semaphore
         return download_semaphore
 
     def reset_client(self, config: "GidIniConfig") -> None:
-        print("client reset called")
+        log.debug("client reset called")
         self._client = None
 
     @property
@@ -264,10 +267,10 @@ class WebdavManager(AbstractRemoteStorageManager):
     @Retrier([httpx.ReadError, httpx.RemoteProtocolError], allowed_attempts=3, timeout=5, timeout_function=exponential_timeout)
     def download_file(self, log_file: "LogFile") -> "LogFile":
         local_path = log_file.local_path
-        chunk_size = CONFIG.get("downloading", "chunk_size", default=None)
+        chunk_size = self.config.get("downloading", "chunk_size", default=None)
 
         with self.download_semaphore:
-            print(f"downloading {log_file!r}")
+            log.info("downloading", log_file)
             result = self.client.http.get(str(log_file.download_url), auth=(self.login, self.password))
             with local_path.open("wb") as f:
                 for chunk in result.iter_bytes(chunk_size=chunk_size):
@@ -277,7 +280,7 @@ class WebdavManager(AbstractRemoteStorageManager):
 
     def close(self) -> None:
         if self._client is not None:
-            print(f"closing {self._client.http!r}")
+            log.debug(f"closing", self._client.http)
             self._client.http.close()
             self._client = None
 
@@ -290,10 +293,92 @@ class WebdavManager(AbstractRemoteStorageManager):
 ALL_REMOTE_MANAGERS_CLASSES.add(WebdavManager)
 
 
+class FakeManagerMetrics:
+
+    def __init__(self) -> None:
+        self.increment_lock = Lock()
+        self.instances_created = 0
+        self.get_files_requests = 0
+        self.get_files_info_sent = 0
+        self.get_info_requested = 0
+        self.get_info_sent = 0
+        self.downloads_requested = 0
+        self.downloads_completed = 0
+
+    def increment_instances_created(self, amount: int = 1) -> None:
+        with self.increment_lock:
+            self.instances_created += amount
+
+    def increment_get_files_requests(self, amount: int = 1) -> None:
+        with self.increment_lock:
+            self.get_files_requests += amount
+
+    def increment_get_files_info_sent(self, amount: int = 1) -> None:
+        with self.increment_lock:
+            self.get_files_info_sent += amount
+
+    def increment_get_info_requested(self, amount: int = 1) -> None:
+        with self.increment_lock:
+            self.get_info_requested += amount
+
+    def increment_get_info_sent(self, amount: int = 1) -> None:
+        with self.increment_lock:
+            self.get_info_sent += amount
+
+    def increment_downloads_requested(self, amount: int = 1) -> None:
+        with self.increment_lock:
+            self.downloads_requested += amount
+
+    def increment_downloads_completed(self, amount: int = 1) -> None:
+        with self.increment_lock:
+            self.downloads_completed += amount
+
+    def reset(self) -> None:
+        with self.increment_lock:
+            self.instances_created = 0
+            self.get_files_requests = 0
+            self.get_files_info_sent = 0
+            self.get_info_requested = 0
+            self.get_info_sent = 0
+            self.downloads_requested = 0
+            self.downloads_completed = 0
+
+
 class FakeWebdavManager(AbstractRemoteStorageManager):
     fake_files_folder: Path = None
     info_file: Path = None
     _info_data: dict[RemotePath, InfoItem] = None
+    download_semaphores: dict[yarl.URL, MinDurationSemaphore] = {}
+    config: "GidIniConfig" = CONFIG
+    config_name = 'webdav'
+    metrics = FakeManagerMetrics()
+
+    def __init__(self, base_url: yarl.URL = None, login: str = None, password: str = None) -> None:
+        self.metrics.increment_instances_created()
+        super().__init__(base_url=base_url, login=login, password=password)
+        self.full_base_url = self._make_full_base_url()
+        self.download_semaphore = self._get_download_semaphore()
+
+    @property
+    def max_connections(self) -> Optional[int]:
+        return self.config.get(self.config_name, "max_concurrent_connections", default=100)
+
+    def _get_download_semaphore(self) -> MinDurationSemaphore:
+        download_semaphore = self.download_semaphores.get(self.full_base_url)
+        if download_semaphore is None:
+            delay = self.config.get(self.config_name, "delay_between_downloads", default=timedelta())
+            minimum_duration = self.config.get(self.config_name, "minimum_download_duration", default=timedelta())
+
+            download_semaphore = MinDurationSemaphore(self.max_connections, minimum_duration=minimum_duration, delay=delay)
+
+            self.download_semaphores[self.full_base_url] = download_semaphore
+        return download_semaphore
+
+    def _make_full_base_url(self) -> yarl.URL:
+        _extra_base_url_parts = WebdavManager._extra_base_url_parts.copy()
+        extra_parts = '/'.join([str(part) for part in _extra_base_url_parts if part not in self.base_url.parts])
+        base_url = self.base_url / extra_parts / self.login
+        return base_url
 
     @classmethod
     def get_info_data(cls) -> dict[RemotePath, InfoItem]:
@@ -317,23 +402,31 @@ class FakeWebdavManager(AbstractRemoteStorageManager):
         return cls._info_data
 
     def get_info(self, file_path: RemotePath) -> InfoItem:
-        return self.info_data.get(file_path)
+        self.metrics.increment_get_info_requested()
+        _out = self.info_data.get(file_path)
+        self.metrics.increment_get_info_sent()
+        return _out
 
     def get_files(self, folder_path: RemotePath) -> Generator:
+        self.metrics.increment_get_files_requests()
         for item in self.info_data.get(folder_path):
             yield item
+            self.metrics.increment_get_files_info_sent()
 
     def download_file(self, log_file: "LogFile") -> "LogFile":
-        sleep(random.uniform(0.0, 0.5))
+        self.metrics.increment_downloads_requested()
         local_path = log_file.local_path
         to_get_file = self.fake_files_folder.joinpath(log_file.server.name).joinpath(log_file.name).with_suffix('.txt')
-        print(f"downloading {log_file!r}")
-        with local_path.open('wb') as tf:
-            with to_get_file.open('rb') as sf:
-                for chunk in sf:
-                    tf.write(chunk)
+        with self.download_semaphore:
+            log.info(f"downloading {log_file!r}")
+            with local_path.open('wb') as tf:
+                with to_get_file.open('rb') as sf:
+                    for chunk in sf:
+                        tf.write(chunk)
 
+        self.metrics.increment_downloads_completed()
         log_file.is_downloaded = True
+
         return local_path
 
     @classmethod

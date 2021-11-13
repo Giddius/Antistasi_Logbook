@@ -37,7 +37,7 @@ mkdir %SUB_OUTPUT_FOLDER%
 SET FINAL_OUTPUT_FILE_PATH=%SUB_OUTPUT_FOLDER%\[%_years%-%_months%-%_days%_%_hours%-%_minutes%-%_seconds%]%CLEANED_FILE_NAME%.txt
 SET TEMP_PROFILE_FILE_PATH=%SUB_OUTPUT_FOLDER%\[%_years%-%_months%-%_days%_%_hours%-%_minutes%-%_seconds%]TEMP_%CLEANED_FILE_NAME%.lprof
 
-
+SET LINE_PROFILE_RUNNING=1
 call kernprof -l --outfile %TEMP_PROFILE_FILE_PATH% %FULLINPATH%
 
 call python -m line_profiler -u 1 %TEMP_PROFILE_FILE_PATH%>%FINAL_OUTPUT_FILE_PATH%

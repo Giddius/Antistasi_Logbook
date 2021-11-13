@@ -61,7 +61,7 @@ from threading import Lock, RLock, Semaphore
 from gidapptools.general_helper.enums import MiscEnum
 from antistasi_logbook.storage.models.models import LogFile, Mod, LogFileAndModJoin, LogRecord, RecordClass, AntstasiFunction, LogLevel, GameMap
 from traceback import format_tb, print_tb
-
+from gidapptools.gid_logger.fake_logger import fake_logger
 if TYPE_CHECKING:
 
     from antistasi_logbook.parsing.parser import MetaFinder, RawRecord, ModItem
@@ -82,7 +82,7 @@ if TYPE_CHECKING:
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
-
+log = fake_logger
 # endregion[Constants]
 
 
@@ -161,13 +161,13 @@ class ParsingContext:
         if created:
             with self.antistasi_file_model_lock:
                 self.__class__._all_antistasi_file_objects = None
-            print(('-' * 25) + f" reseted '_all_antistasi_file_objects', because {model_to_dict(instance)} of {sender.__name__!r} was created:{created!r}")
+            log.warning(('-' * 25) + f" reseted '_all_antistasi_file_objects', because {model_to_dict(instance)} of {sender.__name__!r} was created:{created!r}")
 
     def on_save_game_map_function_handler(self, sender, instance, created):
         if created:
             with self.game_map_model_lock:
                 self.__class__._all_game_map_objects = None
-            print(('-' * 25) + f" reseted '_all_game_map_objects', because {model_to_dict(instance)} of {sender.__name__!r} was created:{created!r}")
+            log.warning(('-' * 25) + f" reseted '_all_game_map_objects', because {model_to_dict(instance)} of {sender.__name__!r} was created:{created!r}")
 
     @property
     def all_log_levels(self) -> dict[str, LogLevel]:
@@ -253,8 +253,9 @@ class ParsingContext:
         self.bulk_inserter.submit(self._insert, stored_records)
 
     def set_unparsable(self) -> None:
-        print(f"setting {self.log_file.name!r} of {self.log_file.server.name!r} to unparsable")
+        log.critical(f"setting {self.log_file.name!r} of {self.log_file.server.name!r} to unparsable")
         self.log_file.unparsable = True
+        self.log_file.save()
 
     @profile
     def set_found_meta_data(self, finder: "MetaFinder") -> None:
@@ -352,7 +353,7 @@ class ParsingContext:
 
             self.log_file.save()
         else:
-            print(f"{exception_type=} || {exception_value=}")
+            log.error(f"{exception_type=} || {exception_value=}")
             print_tb(traceback)
         self.close()
 

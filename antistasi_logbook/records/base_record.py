@@ -80,28 +80,6 @@ class BaseRecord(AbstractRecord):
     ___specificity___ = 0
     __slots__ = ("log_record",)
 
-    # def __init__(self,
-    #              log_record: "LogRecord",
-    #              log_file: "LogFile",
-    #              recorded_at: datetime,
-    #              message: str,
-    #              log_level: "LogLevel" = None,
-    #              logged_from: "AntstasiFunction" = None,
-    #              called_by: "AntstasiFunction" = None,
-    #              client: str = None,
-    #              punishment_action: "PunishmentAction" = None,
-    #              is_antistasi_record: bool = False
-    #              ) -> None:
-    #     self.log_record = log_record
-    #     self.log_file = log_file
-    #     self.recorded_at = recorded_at
-    #     self.message = message
-    #     self.log_level = log_level
-    #     self.logged_from = logged_from
-    #     self.called_by = called_by
-    #     self.client = client
-    #     self.punishment_action = punishment_action
-    #     self.is_antistasi_record = is_antistasi_record
     def __init__(self,
                  log_record: "LogRecord"
                  ) -> None:

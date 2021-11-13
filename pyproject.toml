@@ -78,4 +78,4 @@ sections = [
 ]
 
 [tool.pytest.ini_options]
-addopts = "-rP -vv --durations=0 --show-capture=all --color=auto --code-highlight=yes"
+addopts = "-rA -vv --durations=0 --capture=tee-sys --show-capture=all --color=auto --code-highlight=yes --html=tests/reports/report.html --self-contained-html --alluredir=tests/reports/my_allure_results"

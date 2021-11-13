@@ -8,8 +8,9 @@ from time import thread_time, time, process_time
 from pathlib import Path
 if TYPE_CHECKING:
     from antistasi_logbook.storage.models.models import LogFile
+from gidapptools.gid_logger.fake_logger import fake_logger
 
-
+log = fake_logger
 DB_LOCK = RLock()
 
 UPDATE_LOCK = Lock()
@@ -65,15 +66,15 @@ class MinDurationSemaphore(Semaphore):
     def _sleep_to_minimum(self) -> None:
         start_time = self._start_time_cache.get(get_ident())
         if start_time is None:
-            print(f"argggggghhhhhhhhh couldn't get start time for {get_ident()=}")
-            pprint(self._start_time_cache)
+            log.crtical(f"argggggghhhhhhhhh couldn't get start time for {get_ident()=}")
+            log.critical(self._start_time_cache)
             return
         duration = process_time() - start_time
         to_sleep = self.minimum_duration_seconds - duration
         if to_sleep <= 0:
-            print(f"took longer than minimum, it took {duration!r}")
+            log.debug(f"took longer than minimum, it took {duration!r}")
             return
-        print(f"sleeping in {self.__class__.__name__!r} for {to_sleep!r} before releasing")
+        log.debug(f"sleeping in {self.__class__.__name__!r} for {to_sleep!r} before releasing")
         sleep(to_sleep)
 
     def __exit__(self, t, v, tb):

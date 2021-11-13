@@ -121,6 +121,15 @@ class PunishmentActionEnum(Enum):
         return [member.name.upper() for member in cls.__members__.values() if member is not cls.NO_ACTION]
 
 
+class MessageFormat(Enum):
+    PRETTY = auto()
+
+
+class RecordFamily(Flag):
+    GENERIC = auto()
+    ANTISTASI = auto()
+
+
 # region[Main_Exec]
 if __name__ == '__main__':
     pass

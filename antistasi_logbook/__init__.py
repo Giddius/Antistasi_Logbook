@@ -5,7 +5,12 @@ __version__ = '0.1.0'
 from gidapptools.meta_data import setup_meta_data
 
 from pathlib import Path
+import rich.traceback
+from rich.console import Console as RichConsole
 
+CONSOLE = RichConsole(soft_wrap=True)
+
+rich.traceback.install(console=CONSOLE)
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 

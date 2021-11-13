@@ -97,9 +97,9 @@ class Retrier:
 
                 seconds_to_sleep = unchanged_timeout(self.timeout, attempt) if self._timeout_function is None else self._timeout_function(self.timeout, attempt)
                 msg = f"error: {error!r}, on attempt: {attempt!r}, sleeping {seconds_to_sleep!r} and retrying"
-                print('!' * len(msg))
-                print(msg)
-                print('!' * len(msg))
+
+                log.warning(msg)
+
                 sleep(seconds_to_sleep)
                 return _helper_func(*args, attempt=attempt + 1, **kwargs)
 

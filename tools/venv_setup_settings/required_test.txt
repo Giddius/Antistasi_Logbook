@@ -1,1 +1,4 @@
 pytest
+pytest-html
+allure-pytest
+pyparsing==3.0.6

@@ -163,3 +163,4 @@ misc/
 *.db-shm
 /antistasi_logbook/regex/grammar_test_file.txt
 record_parsing_errors.txt
+/tests/reports

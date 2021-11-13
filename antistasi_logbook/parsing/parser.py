@@ -51,7 +51,7 @@ from urllib.parse import urlparse
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
-from antistasi_logbook.regex.regex_keeper import RegexKeeper, SimpleRegexKeeper
+from antistasi_logbook.regex.regex_keeper import SimpleRegexKeeper
 from gidapptools.general_helper.timing import time_func, time_execution
 from antistasi_logbook.parsing.parsing_context import ParsingContext, RecordLine
 from antistasi_logbook.utilities.misc import Version, ModItem
@@ -67,7 +67,7 @@ from antistasi_logbook.utilities.locks import UPDATE_STOP_EVENT
 import peewee
 from playhouse.signals import Model, post_save
 
-
+from gidapptools.gid_logger.fake_logger import fake_logger
 from threading import RLock
 if TYPE_CHECKING:
 
@@ -88,28 +88,10 @@ if TYPE_CHECKING:
 # region [Constants]
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 get_dummy_profile_decorator_in_globals()
-CONSOLE = RichConsole(soft_wrap=True)
-
-
-def dprint(*args, **kwargs):
-    CONSOLE.print(*args, **kwargs)
-    CONSOLE.rule()
-
-
-print = dprint
-
-
-class FakeLogger:
-    def __init__(self) -> None:
-        self.debug = dprint
-        self.info = dprint
-        self.warning = dprint
-        self.error = dprint
-        self.critical = dprint
 
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
-log = FakeLogger()
+log = fake_logger
 # endregion[Constants]
 
 
@@ -322,7 +304,7 @@ class RawRecord:
 
         return _out
 
-    def parse(self, regex_keeper: RegexKeeper) -> None:
+    def parse(self, regex_keeper: SimpleRegexKeeper) -> None:
         if self.is_antistasi_record is False:
             self.parsed_data = self._parse_generic_entry(regex_keeper=regex_keeper)
         else:

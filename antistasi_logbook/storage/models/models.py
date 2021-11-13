@@ -33,30 +33,12 @@ if TYPE_CHECKING:
     from antistasi_logbook.parsing.record_class_manager import RECORD_CLASS_TYPE
 
 
-CONSOLE = RichConsole(soft_wrap=True)
-
-
-def dprint(*args, **kwargs):
-    CONSOLE.print(*args, **kwargs)
-    CONSOLE.rule()
-
-
-print = dprint
-
-
-class FakeLogger:
-    def __init__(self) -> None:
-        self.debug = dprint
-        self.info = dprint
-        self.warning = dprint
-        self.error = dprint
-        self.critical = dprint
-
+from gidapptools.gid_logger.fake_logger import fake_logger
 
 database = DatabaseProxy()
 META_PATHS = get_meta_paths()
 CONFIG: "GidIniConfig" = get_meta_config().get_config('general')
-log = FakeLogger()
+log = fake_logger
 
 
 class BaseModel(Model):
@@ -73,6 +55,10 @@ class BaseModel(Model):
     @classmethod
     def get_meta(cls):
         return cls._meta
+
+    @property
+    def config(self) -> "GidIniConfig":
+        return self._meta.database.config
 
 
 class AntstasiFunction(BaseModel):
@@ -190,7 +176,7 @@ class Server(BaseModel):
     def full_local_path(self) -> Path:
         if self.local_path is None:
 
-            local_path = CONFIG.get("folder", "local_storage_folder", default=None)
+            local_path = self.config.get("folder", "local_storage_folder", default=None)
             if local_path is None:
                 local_path = META_PATHS.get_new_temp_dir(name=self.name)
             else:
@@ -303,7 +289,7 @@ class LogFile(BaseModel):
 
     @property
     def keep_downloaded_files(self) -> bool:
-        return CONFIG.get("downloading", "keep_downloaded_files", default=False)
+        return self.config.get("downloading", "keep_downloaded_files", default=False)
 
     def download(self) -> Path:
         return self.server.remote_manager.download_file(self)

@@ -6,6 +6,8 @@ from typing import Union, Optional, ClassVar, Iterable
 import re
 from gidapptools.general_helper.conversion import str_to_bool
 from pathlib import Path
+from dateutil.parser import parse as dateutil_parse
+from dateutil.tz import UTC
 
 
 class DatetimeJsonEncoder(JSONEncoder):
@@ -120,6 +122,18 @@ class ModItem:
     def as_dict(self) -> dict[str, Any]:
         _out = attr.asdict(self)
         return _out
+
+
+def frozen_time_giver(utc_date_time: Union[str, datetime]):
+    if isinstance(utc_date_time, str):
+        utc_date_time = dateutil_parse(utc_date_time)
+    utc_date_time = utc_date_time.replace(tzinfo=UTC)
+    difference = datetime.now(tz=UTC) - utc_date_time
+
+    def _inner():
+        return datetime.now(tz=UTC) - difference
+
+    return _inner
 
 
 if __name__ == '__main__':

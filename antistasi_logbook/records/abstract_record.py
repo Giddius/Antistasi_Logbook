@@ -50,7 +50,7 @@ from urllib.parse import urlparse
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
-
+from antistasi_logbook.records.enums import RecordFamily, MessageFormat
 if TYPE_CHECKING:
     from antistasi_logbook.parsing.parser import RawRecord
     from antistasi_logbook.storage.models.models import LogRecord
@@ -73,26 +73,9 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 # endregion[Constants]
 
 
-class MessageFormat(Enum):
-    PRETTY = auto()
-
-
-class RecordFamily(Flag):
-    GENERIC = auto()
-    ANTISTASI = auto()
-
-
 class AbstractRecord(ABC):
     ___record_family___: RecordFamily = ...
     ___specificity___: int = ...
-
-    # def __init_subclass__(cls) -> None:
-    #     if not hasattr(cls, "___record_family___") or cls.___record_family___ is ...:
-    #         # TODO: Custom Error!
-    #         raise RuntimeError("Records need to implement the class attribute '___record_family___' and its value needs to be of type 'EntryFamily'.")
-    #     if not hasattr(cls, "___specificity___") or cls.___specificity___ is ...:
-    #         # TODO: Custom Error!
-    #         raise RuntimeError("Records need to implement the class attribute '___specificity___' and its value needs to be of type 'int'.")
 
     @classmethod
     @abstractmethod

@@ -50,7 +50,7 @@ from urllib.parse import urlparse
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
-from antistasi_logbook.regex.regex_keeper import RegexKeeper
+from gidapptools.gid_logger.fake_logger import fake_logger
 import numpy as np
 from statistics import stdev, mean, median, median_grouped, median_high, median_low, harmonic_mean, geometric_mean, quantiles, multimode, mode, fmean, StatisticsError
 if TYPE_CHECKING:
@@ -71,7 +71,7 @@ if TYPE_CHECKING:
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
-
+log = fake_logger
 # endregion[Constants]
 
 
@@ -175,8 +175,8 @@ class StatisticsList(list):
 
 class DiagnosticParser:
 
-    def __init__(self) -> None:
-        self.regexer = RegexKeeper()
+    def __init__(self, regexer) -> None:
+        self.regexer = regexer
         self.line_numbers: dict[str, list[int]] = defaultdict(StatisticsList)
         self.char_numbers: dict[str, list[int]] = defaultdict(StatisticsList)
 
@@ -193,7 +193,7 @@ class DiagnosticParser:
                 if game_world_match:
                     self.line_numbers["game_world"].append(line_num)
                     self.char_numbers["game_world"].append(char_num)
-                    print(f'{game_world_match.group("game_map")=} at {line_num=} and {char_num=}')
+                    log.debug(f'{game_world_match.group("game_map")=} at {line_num=} and {char_num=}')
                     game_world_found = True
 
                 if full_date_time_found is False:
@@ -201,7 +201,7 @@ class DiagnosticParser:
                     if full_datetime_match:
                         self.line_numbers["full_datetime"].append(line_num)
                         self.char_numbers["full_datetime"].append(char_num)
-                        print(f'{full_datetime_match.group()=} at {line_num=} and {char_num=}')
+                        log.debug(f'{full_datetime_match.group()=} at {line_num=} and {char_num=}')
                         full_date_time_found = True
                 if full_date_time_found is True and game_world_found is True:
                     break

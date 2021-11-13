@@ -68,7 +68,9 @@ from rich.console import Console as RichConsole
 import threading
 from playhouse.apsw_ext import APSWDatabase
 from rich import inspect as rinspect
+from dateutil.tz import UTC
 from antistasi_logbook.parsing.record_class_manager import RecordClassManager
+from gidapptools.gid_logger.fake_logger import fake_logger
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
 # endregion[Imports]
@@ -84,13 +86,14 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 META_PATHS: MetaPaths = get_meta_paths()
 META_INFO = get_meta_info()
 CONFIG: "GidIniConfig" = get_meta_config().get_config('general')
 CONFIG.config.load()
-CONSOLE = RichConsole(soft_wrap=True)
+log = fake_logger
 # endregion[Constants]
 
 FIND_INT_REGEX = re.compile(r"\d+")
@@ -200,6 +203,7 @@ class GidSqliteQueueDatabase(SqliteQueueDatabase):
     def __init__(self,
                  database_path: Path = None,
                  script_folder: Path = None,
+                 config: "GidIniConfig" = None,
                  record_class_manager: "RecordClassManager" = None,
                  autoconnect=True,
                  thread_safe=False,
@@ -209,6 +213,7 @@ class GidSqliteQueueDatabase(SqliteQueueDatabase):
                  extensions=None):
         self.path = self.default_db_path.joinpath(self.default_db_name) if database_path is None else Path(database_path)
         self.script_folder = self.default_script_folder if script_folder is None else Path(script_folder)
+        self.config = CONFIG if config is None else config
         self.record_class_manager = RecordClassManager() if record_class_manager is None else record_class_manager
         self.script_provider = GidSQLiteScriptLoader(self.script_folder)
         self.started_up = False
@@ -216,6 +221,7 @@ class GidSqliteQueueDatabase(SqliteQueueDatabase):
         pragmas = self.default_pragmas if pragmas is None else pragmas
         super().__init__(make_db_path(self.path), use_gevent=False, autostart=False, queue_max_size=queue_max_size, results_timeout=results_timeout, thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, **extensions)
 
+    @profile
     def start_up_db(self, overwrite: bool = False) -> None:
 
         if self.started_up is True:
@@ -229,27 +235,27 @@ class GidSqliteQueueDatabase(SqliteQueueDatabase):
         setup_db()
         self.optimize()
         self.vacuum()
-        print(f"{self.journal_size_limit=}")
-        print(f"{self.wal_autocheckpoint=}")
-        print(f"{self.cache_size=}")
-        print(f"{self.journal_mode=}")
-        print(f"{self.mmap_size=}")
-        print(f"{self.page_size=}")
-        print(f"{self.timeout=}")
-        print(f"{self.read_uncommitted=}")
-        print(f"{self.synchronous=}")
+        log.info(f"{self.journal_size_limit=}")
+        log.info(f"{self.wal_autocheckpoint=}")
+        log.info(f"{self.cache_size=}")
+        log.info(f"{self.journal_mode=}")
+        log.info(f"{self.mmap_size=}")
+        log.info(f"{self.page_size=}")
+        log.info(f"{self.timeout=}")
+        log.info(f"{self.read_uncommitted=}")
+        log.info(f"{self.synchronous=}")
 
         self.stop()
         self.start()
         self.started_up = True
 
     def optimize(self) -> None:
-        print("optimizing")
+        log.info("optimizing")
 
         self.execute_sql("OPTIMIZE")
 
     def vacuum(self) -> None:
-        print("vacuuming!")
+        log.info("vacuuming!")
 
         self.execute_sql("VACUUM")
 
@@ -260,14 +266,14 @@ class GidSqliteQueueDatabase(SqliteQueueDatabase):
 
         _out = super().stop()
         while self.is_stopped() is False:
-            print("...")
+            log.debug("...")
             sleep(0.25)
 
         return _out
 
     def close(self):
         for remote_manager in Server.remote_manager_cache.values():
-            print(f"closing remote-manager {remote_manager!r}")
+            log.debug(f"closing remote-manager {remote_manager!r}")
             remote_manager.close()
 
         return super().close()
@@ -278,10 +284,10 @@ class GidSqliteQueueDatabase(SqliteQueueDatabase):
         self.close()
 
 
-def get_database(database_path: Path = None, script_folder: Path = None, overwrite_db: bool = False, **kwargs) -> GidSqliteQueueDatabase:
+def get_database(database_path: Path = None, script_folder: Path = None, overwrite_db: bool = False, config: "GidIniConfig" = None, **kwargs) -> GidSqliteQueueDatabase:
     from antistasi_logbook.records.antistasi_records import ALL_ANTISTASI_RECORD_CLASSES
 
-    raw_db = GidSqliteQueueDatabase(database_path=database_path, script_folder=script_folder, **kwargs)
+    raw_db = GidSqliteQueueDatabase(database_path=database_path, script_folder=script_folder, config=config, **kwargs)
 
     database.initialize(raw_db)
     raw_db.start_up_db(overwrite=overwrite_db)
@@ -307,28 +313,30 @@ if __name__ == '__main__':
     from antistasi_logbook.updating.updater import get_updater, get_update_thread
     from dotenv import load_dotenv
     from antistasi_logbook.parsing.parser import Parser
-    b = Blah()
-    db = get_database(overwrite_db=True)
-    update_thread = get_update_thread(database=db, use_fake_webdav_manager=False)  # , thread_pool_class=NoThreadPoolExecutor)
-
+    from antistasi_logbook.utilities.misc import frozen_time_giver
     load_dotenv(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\antistasi_logbook\nextcloud.env")
+    b = Blah()
+    db = get_database(overwrite_db=True, config=CONFIG)
+    update_thread = get_update_thread(database=db, use_fake_webdav_manager=True, get_now=frozen_time_giver("2021.11.11 0:0:0"), config=CONFIG)  # , thread_pool_class=NoThreadPoolExecutor)
 
     web_dav_rem = RemoteStorage.get_by_id(1)
 
     web_dav_rem.set_login_and_password(login=os.getenv("NEXTCLOUD_USERNAME"), password=os.getenv("NEXTCLOUD_PASSWORD"), store_in_db=False)
-    print("starting")
-    duration = 10000
+    log.info("starting")
+    duration = 150
     with time_execution(f'must be {duration}', condition=True):
         try:
-            update_thread._update()
 
-            # update_thread.start()
+            update_thread.start()
 
-            # sleep(duration)
-            # update_thread.shutdown()
+            sleep(duration)
+            update_thread.shutdown()
 
         finally:
-            update_thread.updater.close()
+
             db.shutdown()
-    print(f"{b.lo_fi=}")
+    log.debug(dict(vars(FakeWebdavManager.metrics)))
+    log.debug(f"{LogFile.select().count()=}")
+    log.debug(f"{LogRecord.select().count()=}")
+
 # endregion[Main_Exec]
