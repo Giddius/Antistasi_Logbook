@@ -4,6 +4,8 @@ import os
 from peewee import TextField, IntegerField, BooleanField, AutoField, DateTimeField, ForeignKeyField, SQL, BareField, SqliteDatabase, Field, DatabaseProxy, IntegrityError
 from playhouse.signals import Model
 from playhouse.sqlite_ext import JSONField, JSONPath
+from playhouse.shortcuts import model_to_dict
+
 from antistasi_logbook.storage.models.custom_fields import RemotePathField, PathField, VersionField, URLField, BetterDateTimeField, TzOffsetField, CompressedTextField, CompressedImageField, LoginField, PasswordField
 from typing import TYPE_CHECKING, Generator, Hashable, Iterable, Optional, TextIO, Union
 from pathlib import Path
@@ -22,9 +24,11 @@ from rich.console import Console as RichConsole
 from threading import Lock, RLock
 from antistasi_logbook.utilities.locks import FILE_LOCKS
 from antistasi_logbook.utilities.misc import Version
-
+from pprint import pformat
 from antistasi_logbook.data.misc import LOG_FILE_DATE_REGEX
 from dateutil.tz import tzoffset, UTC
+
+from playhouse.apsw_ext import BooleanField, DateTimeField
 
 from time import sleep
 if TYPE_CHECKING:
@@ -34,6 +38,8 @@ if TYPE_CHECKING:
 
 
 from gidapptools.gid_logger.fake_logger import fake_logger
+
+THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 database = DatabaseProxy()
 META_PATHS = get_meta_paths()
@@ -169,6 +175,9 @@ class Server(BaseModel):
     def get_current_log_files(self) -> dict[str, "LogFile"]:
         _out = {}
         for log_file in self.log_files:
+            _ = log_file.game_map
+            _ = log_file.server
+            _ = log_file.get_id()
             _out[log_file.name] = log_file
         return _out
 
@@ -221,6 +230,15 @@ class LogFile(BaseModel):
     def file_lock(self) -> Lock:
         return FILE_LOCKS.get_file_lock(self)
 
+    def has_game_map(self) -> bool:
+        return self.game_map_id is not None
+
+    def has_server(self) -> bool:
+        return self.server_id is not None
+
+    def has_mods(self) -> bool:
+        return LogFileAndModJoin.select(LogFileAndModJoin.mod_id).where(LogFileAndModJoin.log_file == self).count() > 0
+
     def get_mean_players(self) -> Optional[int]:
         def _get_players(record: "LogRecord") -> float:
             item = record.to_record_class()
@@ -241,7 +259,7 @@ class LogFile(BaseModel):
 
     def set_first_datetime(self, full_datetime: Optional[tuple[datetime, datetime]]) -> None:
         if full_datetime is None:
-            self.utc_offset = full_datetime
+            LogFile.update(utc_offset=None).where((LogFile.name == self.name) & (LogFile.server_id == self.server_id) & (LogFile.remote_path == self.remote_path)).execute()
             return
         difference_seconds = (full_datetime[0] - full_datetime[1]).total_seconds()
         offset_timedelta = timedelta(hours=difference_seconds // (60 * 60))
@@ -251,50 +269,50 @@ class LogFile(BaseModel):
         offset = tzoffset(self.name, offset_timedelta)
         self.created_at = self.name_datetime.astimezone(offset)
         self.utc_offset = offset
+        LogFile.update(created_at=self.name_datetime.astimezone(offset), utc_offset=offset).where((LogFile.name == self.name) & (LogFile.server_id == self.server_id) & (LogFile.remote_path == self.remote_path)).execute()
 
     def set_version(self, version: Union[str, "Version", tuple]) -> None:
         if isinstance(version, Version) or version is None:
-            self.version = version
+            LogFile.update(version=version).where((LogFile.name == self.name) & (LogFile.server_id == self.server_id) & (LogFile.remote_path == self.remote_path)).execute()
 
         elif isinstance(version, str):
-            self.version = Version.from_string(version)
+            LogFile.update(version=Version.from_string(version)).where((LogFile.name == self.name) & (LogFile.server_id == self.server_id) & (LogFile.remote_path == self.remote_path)).execute()
 
         elif isinstance(version, tuple):
-            self.version = Version(*version)
+            LogFile.update(version=Version(*version)).where((LogFile == self.name) & (LogFile.server_id == self.server_id) & (LogFile.remote_path == self.remote_path)).execute()
 
     def set_game_map(self, short_name: str) -> None:
         if short_name is None:
             return
+        GameMap.insert(name=short_name).on_conflict_ignore().execute()
 
-        try:
-            game_map_item = GameMap.select().where(GameMap.name == short_name)[0]
-        except IndexError:
-            game_map_item = GameMap(name=short_name, full_name=f"PLACE_HOLDER {short_name}")
-            game_map_item.save()
+        LogFile.update(game_map=GameMap.get(name=short_name)).where(GameMap.log_file == self).execute()
 
-        self.game_map = game_map_item
+    def set_unparsable(self) -> None:
+        self.unparsable = True
+        self.save()
 
-    @cached_property
+    @ cached_property
     def download_url(self) -> Optional[URL]:
         try:
             return self.server.remote_manager.full_base_url / self.remote_path.as_posix()
         except AttributeError:
             return None
 
-    @cached_property
+    @ cached_property
     def local_path(self) -> Path:
         if self.server.name == "NO_SERVER":
             return Path(self.remote_path)
         return self.server.full_local_path.joinpath(self.remote_path.name)
 
-    @property
+    @ property
     def keep_downloaded_files(self) -> bool:
         return self.config.get("downloading", "keep_downloaded_files", default=False)
 
     def download(self) -> Path:
         return self.server.remote_manager.download_file(self)
 
-    @contextmanager
+    @ contextmanager
     def open(self, cleanup: bool = True) -> TextIOWrapper:
         try:
             if self.is_downloaded is False:
@@ -310,7 +328,7 @@ class LogFile(BaseModel):
         if self.is_downloaded is True and self.keep_downloaded_files is False:
             with self.file_lock:
                 self.local_path.unlink(missing_ok=True)
-                log.debug(f'deleted local-file of log_file_item [b]{self.name!r}[/b] from path [u]{self.local_path.as_posix()!r}[/u]')
+                log.debug(f'deleted local-file of log_file_item [b blue]{self.name!r}[/b blue] from path [u blue]{self.local_path.as_posix()!r}[/u blue]')
                 self.is_downloaded = False
 
     def get_mods(self) -> Optional[list["Mod"]]:
@@ -320,7 +338,7 @@ class LogFile(BaseModel):
         return _out
 
     def __rich__(self):
-        return f"[u b green]{self.server.name}/{self.name}[/u b green]"
+        return f"[u b blue]{self.server.name}/{self.name}[/u b blue]"
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(server={self.server.name!r}, modified_at={self.modified_at.strftime('%Y-%m-%d %H:%M:%S')!r})"
@@ -356,7 +374,7 @@ class LogFileAndModJoin(BaseModel):
         )
         primary_key = False
 
-    @property
+    @ property
     def name(self) -> str:
         return self.mod.name
 
@@ -367,6 +385,9 @@ class LogLevel(BaseModel):
     class Meta:
         table_name = 'LogLevel'
 
+    def __str__(self) -> str:
+        return f"{self.name}"
+
 
 class RecordClass(BaseModel):
     name = TextField(unique=True)
@@ -374,7 +395,7 @@ class RecordClass(BaseModel):
     class Meta:
         table_name = 'RecordClass'
 
-    @cached_property
+    @ cached_property
     def record_class(self) -> "RECORD_CLASS_TYPE":
         return self._meta.database.record_class_manager.get_by_name(self.name)
 
@@ -402,14 +423,13 @@ class LogRecord(BaseModel):
     def to_record_class(self) -> "RECORD_CLASS_TYPE":
         return self.record_class.record_class(self)
 
+    def __str__(self) -> str:
+        if self.is_antistasi_record is True:
+            called_by = '| ' + f'Called By: {self.called_by.function_name}'.ljust(40) + ' |' if self.called_by is not None else "|"
+            logged_from = f"File: {self.logged_from.function_name}".ljust(40)
+            return f"{self.recorded_at.isoformat(sep=' ')} | Antistasi | {self.log_level.name.title().center(11)} | {logged_from} {called_by} {self.message}"
 
-class SqliteSequence(BaseModel):
-    name = BareField(null=True)
-    seq = BareField(null=True)
-
-    class Meta:
-        table_name = 'sqlite_sequence'
-        primary_key = False
+        return f"{self.recorded_at.isoformat(sep=' ')} {self.message}"
 
 
 def setup_db():
@@ -427,97 +447,97 @@ def setup_db():
 
                   Server: [{'local_path': None,
                             'name': 'NO_SERVER',
-                            'remote_path': 'NO_PATH',
+                           'remote_path': 'NO_PATH',
                             'remote_storage': 0,
                             'update_enabled': 0},
                            {'local_path': None,
-                            'name': 'Mainserver_1',
+                           'name': 'Mainserver_1',
                             'remote_path': 'Antistasi_Community_Logs/Mainserver_1/Server/',
                             'remote_storage': 1,
                             'update_enabled': 1},
                            {'local_path': None,
-                            'name': 'Mainserver_2',
+                           'name': 'Mainserver_2',
                             'remote_path': 'Antistasi_Community_Logs/Mainserver_2/Server/',
                             'remote_storage': 1,
                             'update_enabled': 1},
                            {'local_path': None,
-                            'name': 'Testserver_1',
+                           'name': 'Testserver_1',
                             'remote_path': 'Antistasi_Community_Logs/Testserver_1/Server/',
                             'remote_storage': 1,
                             'update_enabled': 1},
                            {'local_path': None,
-                            'name': 'Testserver_2',
+                           'name': 'Testserver_2',
                             'remote_path': 'Antistasi_Community_Logs/Testserver_2/Server/',
                             'remote_storage': 1,
                             'update_enabled': 1},
                            {'local_path': None,
-                            'name': 'Testserver_3',
+                           'name': 'Testserver_3',
                             'remote_path': 'Antistasi_Community_Logs/Testserver_3/Server/',
                             'remote_storage': 1,
                             'update_enabled': 1},
                            {'local_path': None,
-                            'name': 'Eventserver',
+                           'name': 'Eventserver',
                             'remote_path': 'Antistasi_Community_Logs/Eventserver/Server/',
                             'remote_storage': 1,
                             'update_enabled': 0}],
 
                   GameMap: [{'dlc': None,
                              'full_name': 'Altis',
-                             'name': 'Altis',
+                            'name': 'Altis',
                              'official': 1,
                              'workshop_link': None},
                             {'dlc': 'Apex',
-                             'full_name': 'Tanoa',
+                            'full_name': 'Tanoa',
                              'name': 'Tanoa',
                              'official': 1,
                              'workshop_link': None},
                             {'dlc': 'Contact',
-                             'full_name': 'Livonia',
+                            'full_name': 'Livonia',
                              'name': 'Enoch',
                              'official': 1,
                              'workshop_link': None},
                             {'dlc': 'Malden',
-                             'full_name': 'Malden',
+                            'full_name': 'Malden',
                              'name': 'Malden',
                              'official': 1,
                              'workshop_link': None},
                             {'dlc': None,
-                             'full_name': 'Takistan',
+                            'full_name': 'Takistan',
                              'name': 'takistan',
                              'official': 0,
                              'workshop_link': None},
                             {'dlc': None,
-                             'full_name': 'Virolahti',
+                            'full_name': 'Virolahti',
                              'name': 'vt7',
                              'official': 0,
                              'workshop_link': 'https://steamcommunity.com/workshop/filedetails/?id=1926513010'},
                             {'dlc': None,
-                             'full_name': 'Sahrani',
+                            'full_name': 'Sahrani',
                              'name': 'sara',
                              'official': 0,
                              'workshop_link': 'https://steamcommunity.com/sharedfiles/filedetails/?id=583544987'},
                             {'dlc': None,
-                             'full_name': 'Chernarus Winter',
+                            'full_name': 'Chernarus Winter',
                              'name': 'Chernarus_Winter',
                              'official': 0,
                              'workshop_link': 'https://steamcommunity.com/sharedfiles/filedetails/?id=583544987'},
                             {'dlc': None,
-                             'full_name': 'Anizay',
+                            'full_name': 'Anizay',
                              'name': 'tem_anizay',
                              'official': 0,
                              'workshop_link': 'https://steamcommunity.com/workshop/filedetails/?id=1537973181'},
                             {'dlc': None,
-                             'full_name': 'Tembelan',
+                            'full_name': 'Tembelan',
                              'name': 'Tembelan',
                              'official': 0,
                              'workshop_link': 'https://steamcommunity.com/workshop/filedetails/?id=1252091296'},
                             {'dlc': 'S.O.G. Prairie Fire',
-                             'full_name': 'Cam Lao Nam',
+                            'full_name': 'Cam Lao Nam',
                              'name': 'cam_lao_nam',
                              'official': 1,
                              'workshop_link': None},
                             {'dlc': 'S.O.G. Prairie Fire',
-                             'full_name': 'Khe Sanh',
+                            'full_name': 'Khe Sanh',
                              'name': 'vn_khe_sanh',
                              'official': 1,
                              'workshop_link': None}],
@@ -696,8 +716,9 @@ def setup_db():
                                      {"id": 182, "name": "CIVinit"},
                                      {"id": 183, "name": "onConvoyArrival"},
                                      {"id": 184, "name": "surrenderAction"},
-                                     {"id": 185, "name": "arePositionsConnected"}]}
+                                     {"id": 185, "name": "arePositionsConnected"},
+                                     {"id": 186, "name": "moveHQObject"}]}
     for model, data in setup_data.items():
         x = model.insert_many(data).on_conflict_ignore()
         database.execute(x)
-    sleep(2)
+    sleep(0.5)

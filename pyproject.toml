@@ -14,6 +14,7 @@ dependencies = [
     "httpx>=0.20.0",
     "webdav4>=0.9.3",
     "peewee>=3.14.4",
+    "tzlocal>=4.1",
     "yarl>=1.7.0",
     "python-dateutil>=2.8.2",
     "Pillow>=8.4.0",

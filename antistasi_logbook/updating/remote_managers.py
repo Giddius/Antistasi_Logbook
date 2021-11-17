@@ -232,7 +232,6 @@ class WebdavManager(AbstractRemoteStorageManager):
         return WebdavClient(base_url=str(self.full_base_url),
                             auth=(self.login, self.password),
                             retry=True,
-                            # limits=httpx.Limits(max_connections=self.max_connections, max_keepalive_connections=self.max_connections),
                             timeout=httpx.Timeout(timeout=None))
 
     @property
@@ -269,12 +268,11 @@ class WebdavManager(AbstractRemoteStorageManager):
         local_path = log_file.local_path
         chunk_size = self.config.get("downloading", "chunk_size", default=None)
 
-        with self.download_semaphore:
-            log.info("downloading", log_file)
-            result = self.client.http.get(str(log_file.download_url), auth=(self.login, self.password))
-            with local_path.open("wb") as f:
-                for chunk in result.iter_bytes(chunk_size=chunk_size):
-                    f.write(chunk)
+        log.info("downloading", log_file)
+        result = self.client.http.get(str(log_file.download_url), auth=(self.login, self.password))
+        with local_path.open("wb") as f:
+            for chunk in result.iter_bytes(chunk_size=chunk_size):
+                f.write(chunk)
         log_file.is_downloaded = True
         return local_path
 

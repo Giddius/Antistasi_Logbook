@@ -47,7 +47,7 @@ from functools import wraps, partial, lru_cache, singledispatch, total_ordering,
 from importlib import import_module, invalidate_caches
 from contextlib import contextmanager, asynccontextmanager, nullcontext, closing, ExitStack, suppress
 from statistics import mean, mode, stdev, median, variance, pvariance, harmonic_mean, median_grouped
-from collections import Counter, ChainMap, deque, namedtuple, defaultdict
+from collections import Counter, ChainMap, deque, namedtuple, defaultdict, UserList
 from urllib.parse import urlparse
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, wait, ALL_COMPLETED, Future
@@ -65,6 +65,7 @@ from antistasi_logbook.utilities.misc import NoThreadPoolExecutor
 from gidapptools.gid_signal.interface import get_signal
 from gidapptools.gid_logger.fake_logger import fake_logger
 from dateutil.tz import UTC
+from antistasi_logbook.updating.time_handling import TimeClock
 if TYPE_CHECKING:
 
     from antistasi_logbook.updating.remote_managers import AbstractRemoteStorageManager, InfoItem
@@ -92,38 +93,20 @@ log = fake_logger
 # endregion[Constants]
 
 
-class IntervallKeeper:
+class MaxitemList(UserList):
 
-    def __init__(self, get_now: Callable[[], datetime] = None, config: "GidIniConfig" = None) -> None:
-        self.config = CONFIG if config is None else config
-        self.stop_event = UPDATE_STOP_EVENT
-        self.get_now = partial(datetime.now, tz=UTC) if get_now is None else get_now
-        self.next_datetime: datetime = None
+    def __init__(self, max_size: int = None) -> None:
+        super().__init__()
+        self.max_size = max_size
 
     @property
-    def intervall(self) -> timedelta:
-        return self.config.get("updater", "update_intervall", default=timedelta(seconds=300))
+    def is_full(self) -> bool:
+        return len(self.data) >= self.max_size
 
-    def sleep_to_next(self) -> bool:
-        seconds_left = (next(self) - self.get_now()).total_seconds()
-        sleep_seconds = max([seconds_left, 1])
-        if self.stop_event.is_set():
-            return False
-        sleep(sleep_seconds)
-
-        if self.next_datetime > self.get_now():
-            return self.sleep_to_next()
-        return True
-
-    def reset(self) -> None:
-        self.next_datetime = self.get_now() + self.intervall
-
-    def __next__(self) -> datetime:
-        if self.next_datetime is None:
-            self.next_datetime = self.get_now() + self.intervall
-        if self.next_datetime < self.get_now():
-            self.next_datetime = self.next_datetime + self.intervall
-        return self.next_datetime
+    def append(self, item: Any) -> None:
+        while self.is_full:
+            sleep(0.1)
+        return super().append(item)
 
 
 class Updater:
@@ -131,6 +114,7 @@ class Updater:
     threads_prefix = "log_file_update_"
     config_name = "updater"
     log_file_updated_signal = get_signal("log_file_updated")
+    tasks: list[Future] = []
 
     def __init__(self,
                  database: "GidSqliteQueueDatabase",
@@ -144,9 +128,8 @@ class Updater:
         if thread_pool_class is None:
             thread_pool_class = ThreadPoolExecutor
         self.thread_pool = thread_pool_class(max_workers=self.max_threads, thread_name_prefix=self.threads_prefix)
-        self.get_now = partial(datetime.now, tz=UTC) if get_now is None else get_now
 
-        self.tasks: list[Future] = []
+        self.get_now = partial(datetime.now, tz=UTC) if get_now is None else get_now
 
     @property
     def max_threads(self) -> Optional[int]:
@@ -161,7 +144,6 @@ class Updater:
     def get_cutoff_datetime(self) -> Optional[datetime]:
         delta = self.config.get(self.config_name, "max_update_time_frame", default=None)
         if delta is None:
-            log.critical("get_cutoff_datetime is NONE!!!!")
             return None
         return self.get_now() - delta
 
@@ -172,6 +154,7 @@ class Updater:
             cls.remote_manager_classes[name] = remote_manager_class
 
     def _get_remote_manager(self, server: "Server") -> "AbstractRemoteStorageManager":
+        # takes about 0.0043135 s
         manager_class = self.remote_manager_classes[server.remote_storage.manager_type]
         return manager_class.from_remote_storage_item(server.remote_storage)
 
@@ -181,7 +164,7 @@ class Updater:
         new_log_file.save()
 
         new_log_file.size = remote_info.size
-        self.log_file_updated_signal.emit(new_log_file)
+
         return new_log_file
 
     def _update_log_file(self, log_file: LogFile, remote_info: "InfoItem") -> LogFile:
@@ -190,7 +173,6 @@ class Updater:
         self.log_file_updated_signal.emit(log_file)
         return log_file
 
-    @profile
     def _get_updated_log_files(self, server: "Server"):
         to_update_files = []
         current_log_files = server.get_current_log_files()
@@ -231,14 +213,13 @@ class Updater:
         log_files = self._get_updated_log_files(server=server)
         amount = len(log_files)
         for idx, log_file in enumerate(log_files):
+            sleep(0.1)
             log.info(f"<[b green]{idx}[/b green]/[b red]{amount}[/b red]> STARTING PROCESSING LOGFILE", log_file)
             task = self.thread_pool.submit(self.parser.process, log_file)
 
             self.tasks.append(task)
-        # for log_file in updated_log_files:
-        #     sleep(0.1)
-        #     self.parser(log_file)
-        wait(self.tasks, timeout=None, return_when=ALL_COMPLETED)
+            task.add_done_callback(self.tasks.remove)
+
         self._handle_old_log_files(server=server)
 
         return True
@@ -258,7 +239,7 @@ class UpdateThread(Thread):
     config_name = "updater"
     thread_name = "updater_thread"
 
-    def __init__(self, database: "GidSqliteQueueDatabase", updater: "Updater", intervall_keeper: "IntervallKeeper", config: "GidIniConfig" = None) -> None:
+    def __init__(self, database: "GidSqliteQueueDatabase", updater: "Updater", intervall_keeper: "TimeClock", config: "GidIniConfig" = None) -> None:
         super().__init__(name=self.thread_name)
         self.updater = updater
         self.database = database
@@ -299,7 +280,7 @@ class UpdateThread(Thread):
                     self._update()
             if UPDATE_STOP_EVENT.is_set():
                 break
-            self.intervaller.sleep_to_next()
+            self.intervaller.wait_for_trigger()
 
     def before_update(self) -> None:
         log.debug("connecting")
@@ -308,8 +289,6 @@ class UpdateThread(Thread):
     def after_update(self) -> None:
         if not isinstance(self.updater.thread_pool, NoThreadPoolExecutor):
             wait(self.updater.tasks, timeout=None, return_when=ALL_COMPLETED)
-        self.database.stop()
-        self.database.start()
 
     def run(self) -> None:
         self._update_task()
@@ -344,7 +323,7 @@ def get_updater(database: "GidSqliteQueueDatabase", use_fake_webdav_manager: boo
 
 def get_update_thread(database: "GidSqliteQueueDatabase", use_fake_webdav_manager: bool = False, get_now: Callable[[], datetime] = None, config: "GidIniConfig" = None, ** kwargs) -> "UpdateThread":
     updater = get_updater(database=database, use_fake_webdav_manager=use_fake_webdav_manager, get_now=get_now, config=config, ** kwargs)
-    intervall_keeper = IntervallKeeper(get_now=get_now, config=config)
+    intervall_keeper = TimeClock(now_factory=get_now, trigger_interval=config.get_entry_accessor("updater", "update_intervall", default=300), stop_event=UPDATE_STOP_EVENT)
     update_thread = UpdateThread(database=database, updater=updater, intervall_keeper=intervall_keeper, config=config)
     return update_thread
 

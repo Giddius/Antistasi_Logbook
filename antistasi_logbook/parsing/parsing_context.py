@@ -94,6 +94,10 @@ class RecordLine:
     def __str__(self) -> str:
         return self.content
 
+    def __eq__(self, o: object) -> bool:
+        if isinstance(o, self.__class__):
+            return self.content == o.content and self.start == o.start
+
 
 class LineCache(deque):
     _dump_lock = Lock()
@@ -135,7 +139,7 @@ class ParsingContext:
     _all_game_map_objects: dict[str, GameMap] = None
     bulk_inserter = ThreadPoolExecutor(3)
     tasks = []
-    __slots__ = ("log_file", "database", "record_insert_batch_size", "auto_download", "line_cache", "record_storage", "_line_iterator", "_current_line", "_current_line_number", "_bulk_create_batch_size")
+    __slots__ = ("log_file", "_unparsable", "database", "record_insert_batch_size", "auto_download", "line_cache", "record_storage", "_line_iterator", "_current_line", "_current_line_number", "_bulk_create_batch_size")
 
     def __init__(self, log_file: "LogFile", database: "GidSQLiteDatabase", auto_download: bool = False, record_insert_batch_size: int = None) -> None:
         self.log_file = log_file
@@ -148,6 +152,7 @@ class ParsingContext:
         self._current_line_number = 0
         self._bulk_create_batch_size: int = None
         self.record_insert_batch_size = self.bulk_create_batch_size if record_insert_batch_size is None else record_insert_batch_size
+        self._unparsable: bool = None
         try:
             post_save.connect(self.on_save_antistasi_function_handler, sender=AntstasiFunction)
         except ValueError:
@@ -191,7 +196,9 @@ class ParsingContext:
 
     @property
     def unparsable(self) -> bool:
-        return self.log_file.unparsable
+        if self._unparsable is None:
+            return self.log_file.unparsable
+        return self._unparsable
 
     @property
     def bulk_create_batch_size(self) -> int:
@@ -199,7 +206,6 @@ class ParsingContext:
             self._bulk_create_batch_size = (32766 // len(LogRecord._meta.columns))
         return self._bulk_create_batch_size
 
-    @profile
     def _convert_raw_record_foreign_keys(self, parsed_data: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
 
         def _get_or_create_antistasi_file(raw_name: str) -> AntstasiFunction:
@@ -225,7 +231,6 @@ class ParsingContext:
             parsed_data["recorded_at"] = local_recorded_at.replace(tzinfo=self.log_file.utc_offset).astimezone(UTC)
         return parsed_data
 
-    @profile
     def raw_record_to_log_record(self, raw_record: "RawRecord") -> Optional["LogRecord"]:
         converted_data = self._convert_raw_record_foreign_keys(raw_record.parsed_data)
         if converted_data is not None:
@@ -235,7 +240,8 @@ class ParsingContext:
         if raw_record is None or raw_record.parsed_data is None:
             return
         if raw_record.record_class.name == "IsNewCampaignRecord":
-            self.log_file.is_new_campaign = True
+
+            self.log_file.update(is_new_campaign=1).where(LogFile == self).execute()
 
         self.record_storage.append(raw_record)
         if len(self.record_storage) >= self.record_insert_batch_size:
@@ -245,7 +251,6 @@ class ParsingContext:
     def _insert(self, _stored_records):
         LogRecord.bulk_create((i for i in (self.raw_record_to_log_record(x) for x in _stored_records) if i is not None), self.bulk_create_batch_size)
 
-    @profile
     def _bulk_insert_records(self) -> None:
         stored_records = self.record_storage.dump()
         self.log_file.last_parsed_line_number = max(i.end for i in stored_records)
@@ -253,12 +258,18 @@ class ParsingContext:
         self.bulk_inserter.submit(self._insert, stored_records)
 
     def set_unparsable(self) -> None:
-        log.critical(f"setting {self.log_file.name!r} of {self.log_file.server.name!r} to unparsable")
-        self.log_file.unparsable = True
-        self.log_file.save()
+        self._unparsable = True
 
-    @profile
+        self.log_file.set_unparsable()
+        log.critical(f"setting {self.log_file.name!r} of {self.log_file.server.name!r} to unparsable")
+
     def set_found_meta_data(self, finder: "MetaFinder") -> None:
+        if finder is None:
+            self.set_unparsable()
+            return
+        if finder.full_datetime is None:
+            self.set_unparsable()
+            return
         if finder.game_map is not MiscEnum.DEFAULT:
             game_map_item = self.all_game_map_objects.get(finder.game_map)
             if game_map_item is None:
@@ -287,24 +298,27 @@ class ParsingContext:
                         item.save()
                 return item
 
-            for mod_item in finder.mods:
-                m_q = Mod.insert(**mod_item.as_dict()).on_conflict_ignore()
-                m_q.execute()
+            def validation_check_amount_inserted(query, target_amount: int, log_file: "LogFile"):
+                if query.execute() != target_amount:
+                    # TODO: Custom Error
+                    raise ValueError(f"Not all mods have been inserted for {self.log_file}")
 
-            lf_m_q = LogFileAndModJoin.insert_many([{"log_file": self.log_file, "mod": Mod.get(**m_item.as_dict())} for m_item in finder.mods]).on_conflict_ignore()
-            if lf_m_q.execute() != len(finder.mods):
-                raise RuntimeError(f"Not all mods have been inserted for {self.log_file}")
+            data = [mod_item.as_dict() for mod_item in finder.mods]
+            Mod.insert_many(data).on_conflict_ignore().execute()
 
-    @profile
-    def set_header_text(self) -> None:
-        if self.line_cache.is_empty() is False:
-            text = '\n'.join(i.content for i in self.line_cache.dump())
+            mods_log_file_join_insert_query = LogFileAndModJoin.insert_many([{"log_file": self.log_file, "mod": Mod.get(**m_item.as_dict())} for m_item in finder.mods]).on_conflict_ignore()
+            self.bulk_inserter.submit(validation_check_amount_inserted, query=mods_log_file_join_insert_query, target_amount=len(finder.mods), log_file=self.log_file)
+
+    def set_header_text(self, lines: Iterable["RecordLine"]) -> None:
+        # takes about 0.0003763 s
+        if lines:
+            text = '\n'.join(i.content for i in lines if i.content)
             self.log_file.header_text = text
 
-    @profile
-    def set_startup_text(self) -> None:
-        if self.line_cache.is_empty() is False:
-            text = '\n'.join(i.content for i in self.line_cache.dump())
+    def set_startup_text(self, lines: Iterable["RecordLine"]) -> None:
+        # takes about 0.0103124 s
+        if lines:
+            text = '\n'.join(i.content for i in lines if i.content)
             self.log_file.startup_text = text
 
     def _get_line_iterator(self) -> LINE_ITERATOR_TYPE:
@@ -333,6 +347,11 @@ class ParsingContext:
 
     def advance_line(self) -> None:
         self._current_line = next(self.line_iterator, ...)
+
+    @contextmanager
+    def open(self, cleanup: bool = True) -> TextIO:
+        with self.log_file.open(cleanup=cleanup) as f:
+            yield f
 
     def close(self) -> None:
         if self._line_iterator is not None:

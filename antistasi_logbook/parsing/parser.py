@@ -7,7 +7,7 @@ Soon.
 # region [Imports]
 
 import os
-import re
+
 import sys
 import json
 import queue
@@ -66,9 +66,9 @@ from dateutil.tz import UTC
 from antistasi_logbook.utilities.locks import UPDATE_STOP_EVENT
 import peewee
 from playhouse.signals import Model, post_save
-
+import re
 from gidapptools.gid_logger.fake_logger import fake_logger
-from threading import RLock
+from threading import RLock, Semaphore
 if TYPE_CHECKING:
 
     from antistasi_logbook.records.abstract_record import AbstractRecord
@@ -103,7 +103,8 @@ class MetaFinder:
 
     game_map_regex = re.compile(r"\sMission world\:\s*(?P<game_map>.*)")
     game_file_regex = re.compile(r"\s+Mission file\:\s*(?P<game_file>.*)")
-    full_datetime_regex = re.compile(r"""(?P<local_year>\d{4})
+    full_datetime_regex = re.compile(r"""^
+                                         (?P<local_year>\d{4})
                                          /
                                          (?P<local_month>[01]\d)
                                          /
@@ -128,7 +129,7 @@ class MetaFinder:
                                          (?P<second>[0-6]\d)
                                          \:
                                          (?P<microsecond>\d{3})
-                                         (?=\s)""", re.VERBOSE)
+                                         (?=\s)""", re.VERBOSE | re.MULTILINE)
     mods_regex = re.compile(r"""^([0-2\s]?\d)
                                   [^\d]
                                   ([0-6]\d)
@@ -160,15 +161,17 @@ class MetaFinder:
     __slots__ = ("game_map", "full_datetime", "version", "mods")
 
     def __init__(self, context: "ParsingContext") -> None:
-        self.game_map: str = MiscEnum.NOT_FOUND if not context.log_file.game_map else MiscEnum.DEFAULT
-        self.full_datetime: datetime = MiscEnum.NOT_FOUND if not context.log_file.utc_offset else MiscEnum.DEFAULT
+        self.game_map: str = MiscEnum.NOT_FOUND if not context.log_file.has_game_map() else MiscEnum.DEFAULT
+        self.full_datetime: tuple[datetime, datetime] = MiscEnum.NOT_FOUND if not context.log_file.utc_offset else MiscEnum.DEFAULT
         self.version: Version = MiscEnum.NOT_FOUND if not context.log_file.version else MiscEnum.DEFAULT
-        self.mods: list[ModItem] = MiscEnum.NOT_FOUND if not context.log_file.get_mods() else MiscEnum.DEFAULT
+        self.mods: list[ModItem] = MiscEnum.NOT_FOUND if not context.log_file.has_mods() else MiscEnum.DEFAULT
 
     def all_found(self) -> bool:
+        # takes about 0.000742 s
         return all(i is not MiscEnum.NOT_FOUND for i in [self.game_map, self.full_datetime, self.version])
 
     def _resolve_full_datetime(self, text: str) -> None:
+        # takes about 0.378868 s
         if match := self.full_datetime_regex.search(text):
             utc_datetime_kwargs = {k: int(v) for k, v in match.groupdict().items() if not k.startswith('local_')}
             local_datetime_kwargs = {k.removeprefix('local_'): int(v) for k, v in match.groupdict().items() if k.startswith('local_')}
@@ -184,14 +187,16 @@ class MetaFinder:
                 version = Version(*version_args)
                 self.version = version
             else:
-                log.debug(f"incomplete version from line: {match.group('game_file')!r}")
+                log.debug("incomplete version from line:", repr(match.group('game_file')))
                 self.version = None
 
     def _resolve_game_map(self, text: str) -> Optional[str]:
+        # takes about 0.170319 s
         if match := self.game_map_regex.search(text):
             self.game_map = match.group('game_map')
 
     def _resolve_mods(self, text: str) -> Optional[list[ModItem]]:
+        # takes about 0.263012 s
         if match := self.mods_regex.search(text):
             mod_lines = match.group('mod_lines').splitlines()
 
@@ -213,6 +218,7 @@ class MetaFinder:
             self._resolve_mods(text)
 
     def change_missing_to_none(self) -> None:
+        # takes about 0.0001006 s
         if self.game_map is MiscEnum.NOT_FOUND:
             self.game_map = None
 
@@ -224,13 +230,6 @@ class MetaFinder:
 
         if self.mods is MiscEnum.NOT_FOUND:
             self.mods = None
-
-
-record_parsing_error_lock = RLock()
-record_parsing_error_file = Path.cwd().with_name('record_parsing_errors.txt')
-record_parsing_error_file.parent.mkdir(exist_ok=True, parents=True)
-record_parsing_error_file.unlink(missing_ok=True)
-record_parsing_error_file.touch(exist_ok=True)
 
 
 def to_record_parsing_error_file(raw_record: "RawRecord", problem: str) -> None:
@@ -247,60 +246,82 @@ def to_record_parsing_error_file(raw_record: "RawRecord", problem: str) -> None:
         parts.append(sep)
         parts.append('\n')
         return '\n'.join(parts)
-    with record_parsing_error_lock:
-        with record_parsing_error_file.open("a", encoding='utf-8', errors='ignore') as f:
-            f.write(_make_error_entry(raw_record, problem))
+
+    log.error(_make_error_entry(raw_record, problem))
 
 
 class RawRecord:
 
-    __slots__ = ("lines", "is_antistasi_record", "start", "end", "content", "parsed_data", "record_class")
+    __slots__ = ("lines", "_is_antistasi_record", "start", "end", "_content", "parsed_data", "record_class")
 
     def __init__(self, lines: Iterable["RecordLine"]) -> None:
         self.lines = tuple(lines)
-
-        self.is_antistasi_record: bool = any("| antistasi |" in line.content.casefold() for line in lines)
-        self.start: int = min(line.start for line in self.lines)
-        self.end: int = max(line.start for line in self.lines)
-        self.content: str = ' '.join(line.content.lstrip(" >>>").rstrip() for line in self.lines if line.content)
+        self._content: str = None
+        self._is_antistasi_record: bool = None
+        self.start: int = self.lines[0].start
+        self.end: int = self.lines[-1].start
         self.parsed_data: dict[str, Any] = None
         self.record_class: "RecordClass" = None
+
+    @property
+    def content(self) -> str:
+        if self._content is None:
+            self._content = ' '.join(line.content.lstrip(" >>>").rstrip() for line in self.lines if line.content)
+        return self._content
+
+    @property
+    def is_antistasi_record(self) -> bool:
+        if self._is_antistasi_record is None:
+            self._is_antistasi_record = "| antistasi |" in self.content.casefold()
+        return self._is_antistasi_record
 
     @property
     def unformatted_content(self) -> str:
         return '\n'.join(line.content for line in self.lines)
 
-    @profile
     def _parse_generic_entry(self, regex_keeper: SimpleRegexKeeper) -> dict[str, Any]:
         match = regex_keeper.generic_record.match(self.content.strip())
         if not match:
             to_record_parsing_error_file(self, "no generic entry match")
             return None
-        match_dict = match.groupdict()
-        _out = {"message": match_dict.pop("message")}
-        recorded_at_kwargs = {k: int(v) for k, v in match_dict.items()}
 
-        _out["local_recorded_at"] = datetime(**recorded_at_kwargs)
+        _out = {"message": match.group("message")}
+
+        _out["local_recorded_at"] = datetime(year=int(match.group("year")),
+                                             month=int(match.group("month")),
+                                             day=int(match.group("day")),
+                                             hour=int(match.group("hour")),
+                                             minute=int(match.group("minute")),
+                                             second=int(match.group("second")))
         if "error in expression" in self.content.casefold():
             _out['log_level'] = "ERROR"
         return _out
 
-    @profile
     def _parse_antistasi_entry(self, regex_keeper: SimpleRegexKeeper) -> dict[str, Any]:
         datetime_part, antistasi_indicator_part, log_level_part, file_part, rest = self.content.split('|', maxsplit=4)
 
         match = regex_keeper.full_datetime.match(datetime_part)
+        if not match:
+            to_record_parsing_error_file(self, f"Unable to match full datetime, {datetime_part=!r}")
+            return None
 
-        _out = {"recorded_at": datetime(tzinfo=UTC, **{k: int(v) for k, v in match.groupdict().items()}),
+        _out = {"recorded_at": datetime(tzinfo=UTC,
+                                        year=int(match.group("year")),
+                                        month=int(match.group("month")),
+                                        day=int(match.group("day")),
+                                        hour=int(match.group("hour")),
+                                        minute=int(match.group("minute")),
+                                        second=int(match.group("second")),
+                                        microsecond=int(match.group("microsecond") + "000")),
                 "log_level": log_level_part.strip().upper(),
                 "logged_from": clean_antistasi_function_name(file_part.strip().removeprefix("File:"))}
 
         if called_by_match := regex_keeper.called_by.match(rest):
             _rest, called_by, _other_rest = called_by_match.groups()
             _out["called_by"] = clean_antistasi_function_name(called_by)
-            _out["message"] = _rest + _other_rest
+            _out["message"] = (_rest + _other_rest).lstrip()
         else:
-            _out["message"] = rest
+            _out["message"] = rest.lstrip()
 
         return _out
 
@@ -317,6 +338,10 @@ class RawRecord:
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(start={self.start!r}, end={self.end!r}, content={self.content!r}, is_antistasi_record={self.is_antistasi_record!r}, lines={self.lines!r})"
 
+    def __eq__(self, o: object) -> bool:
+        if isinstance(o, self.__class__):
+            return self.lines == o.lines and self.content == o.content and self.is_antistasi_record == o.is_antistasi_record and self.start == o.start and self.end == o.end
+
 
 class RecordProcessor:
     record_class_registry: dict[str, type["AbstractRecord"]]
@@ -329,20 +354,19 @@ class Parser:
     log_file_data_scan_chunk_increase = 27239
     log_file_data_scan_chunk_initial = (104997 // 2)
 
+    __slots__ = ("database", "regex_keeper")
+
     def __init__(self, database: "GidSQLiteDatabase", regex_keeper: "SimpleRegexKeeper" = None) -> None:
         self.database = database
         self.regex_keeper = SimpleRegexKeeper() if regex_keeper is None else regex_keeper
 
-    @profile
-    def _process_record(self, context: "ParsingContext") -> None:
-        raw_record = RawRecord(context.line_cache.dump())
+    def _process_record(self, raw_record: "RawRecord", context: "ParsingContext") -> None:
         raw_record.parse(self.regex_keeper)
         raw_record.determine_record_class(self.database.record_class_manager)
         context.add_record(raw_record)
 
-    @profile
-    def _get_log_file_meta_data(self, context: ParsingContext) -> bool:
-        with context.log_file.open(cleanup=False) as file:
+    def _get_log_file_meta_data(self, context: ParsingContext) -> "MetaFinder":
+        with context.open(cleanup=False) as file:
 
             text = file.read(self.log_file_data_scan_chunk_initial)
             finder = MetaFinder(context=context)
@@ -357,29 +381,23 @@ class Parser:
                     break
                 text += new_text
         finder.change_missing_to_none()
-        if finder.full_datetime is None:
-            context.set_unparsable()
 
-            return False
+        return finder
 
-        context.set_found_meta_data(finder=finder)
-        return True
-
-    @profile
     def _parse_header_text(self, context: ParsingContext) -> None:
-        while self.regex_keeper.only_time.match(context.current_line.content) is None:
+        # takes about 0.726222 s
+        while not self.regex_keeper.only_time.match(context.current_line.content):
             context.line_cache.append(context.current_line)
             context.advance_line()
-        context.set_header_text()
+        return context.line_cache.dump()
 
-    @profile
     def _parse_startup_entries(self, context: ParsingContext) -> None:
+        # takes about 0.533279 s
         while not self.regex_keeper.local_datetime.match(context.current_line.content):
             context.line_cache.append(context.current_line)
             context.advance_line()
-        context.set_startup_text()
+        return context.line_cache.dump()
 
-    @profile
     def parse_entries(self, context: ParsingContext) -> None:
         while context.current_line is not ... and not UPDATE_STOP_EVENT.is_set():
             if self.regex_keeper.local_datetime.match(context.current_line.content):
@@ -389,12 +407,15 @@ class Parser:
                     continue
 
                 if context.line_cache.is_empty() is False:
-                    self._process_record(context=context)
+                    yield RawRecord(context.line_cache.dump())
 
             context.line_cache.append(context.current_line)
             context.advance_line()
+        rest_lines = context.line_cache.dump()
+        if rest_lines:
 
-    @profile
+            yield RawRecord(rest_lines)
+
     def process(self, log_file: "LogFile") -> Any:
         if UPDATE_STOP_EVENT.is_set():
             return
@@ -403,26 +424,27 @@ class Parser:
 
             if UPDATE_STOP_EVENT.is_set():
                 return
-            log.info("getting meta_data")
-            if self._get_log_file_meta_data(context=context) is False or context.unparsable is True:
+            log.info("Parsing meta-data for ", context.log_file)
+            context.set_found_meta_data(self._get_log_file_meta_data(context=context))
+            if context.unparsable is True:
                 return
 
             if UPDATE_STOP_EVENT.is_set():
                 return
 
             if context.log_file.header_text is None:
-                log.info("parsing header text of", log_file)
-                self._parse_header_text(context)
+
+                context.set_header_text(self._parse_header_text(context))
 
             if UPDATE_STOP_EVENT.is_set():
                 return
 
             if context.log_file.startup_text is None:
-                log.info("parsing startup entries of", log_file)
-                self._parse_startup_entries(context)
-            log.info("parsing entries of", log_file)
 
-            self.parse_entries(context)
+                context.set_startup_text(self._parse_startup_entries(context))
+            log.info("Parsing entries for ", context.log_file)
+            for raw_record in self.parse_entries(context):
+                self._process_record(raw_record=raw_record, context=context)
         return True
 
     def close(self) -> None:

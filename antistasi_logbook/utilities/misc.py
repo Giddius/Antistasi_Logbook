@@ -29,6 +29,20 @@ def get_subclasses_recursive(klass: type, predicate: Callable[[type, int], bool]
         yield from get_subclasses_recursive(subclass, predicate=predicate, _level=_level + 1)
 
 
+class NoFuture:
+    id_counter = 0
+
+    def __init__(self) -> None:
+        self.__class__.id_counter += 1
+        self._id = self.__class__.id_counter
+
+    def add_done_callback(self, func):
+        func(self)
+
+    def __hash__(self) -> int:
+        return hash(self._id)
+
+
 class NoThreadPoolExecutor:
 
     def __init__(self, *args, **kwargs) -> None:
@@ -49,6 +63,7 @@ class NoThreadPoolExecutor:
 
     def submit(self, func, *args, **kwargs) -> None:
         func(*args, **kwargs)
+        return NoFuture()
 
 
 def try_convert_int(data: Union[str, int, None]) -> Union[str, int, None]:

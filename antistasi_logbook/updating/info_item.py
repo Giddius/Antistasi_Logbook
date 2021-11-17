@@ -94,12 +94,12 @@ class InfoItemSchema(Schema):
     remote_path = fields.String()
     name = fields.String()
     etag = fields.String()
-    raw_created_at = fields.AwareDateTime(missing=None, default_timezone=UTC)
+    raw_created_at = fields.AwareDateTime(load_default=None, default_timezone=UTC)
     modified_at = fields.AwareDateTime(default_timezone=UTC)
-    content_type = fields.String(missing=None)
-    display_name = fields.String(missing=None)
+    content_type = fields.String(load_default=None)
+    display_name = fields.String(load_default=None)
     size = fields.Integer()
-    content_language = fields.String(missing=None)
+    content_language = fields.String(load_default=None)
     raw_info = fields.Dict()
 
     @pre_load

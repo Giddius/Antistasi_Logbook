@@ -221,7 +221,6 @@ class GidSqliteQueueDatabase(SqliteQueueDatabase):
         pragmas = self.default_pragmas if pragmas is None else pragmas
         super().__init__(make_db_path(self.path), use_gevent=False, autostart=False, queue_max_size=queue_max_size, results_timeout=results_timeout, thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, **extensions)
 
-    @profile
     def start_up_db(self, overwrite: bool = False) -> None:
 
         if self.started_up is True:
@@ -233,8 +232,8 @@ class GidSqliteQueueDatabase(SqliteQueueDatabase):
         self.connect(reuse_if_open=True)
         self.start()
         setup_db()
-        self.optimize()
-        self.vacuum()
+        # self.optimize()
+        # self.vacuum()
         log.info(f"{self.journal_size_limit=}")
         log.info(f"{self.wal_autocheckpoint=}")
         log.info(f"{self.cache_size=}")
@@ -290,22 +289,12 @@ def get_database(database_path: Path = None, script_folder: Path = None, overwri
     raw_db = GidSqliteQueueDatabase(database_path=database_path, script_folder=script_folder, config=config, **kwargs)
 
     database.initialize(raw_db)
+
     raw_db.start_up_db(overwrite=overwrite_db)
     for record_class in ALL_ANTISTASI_RECORD_CLASSES:
         raw_db.record_class_manager.register_record_class(record_class)
 
     return raw_db
-
-
-class Blah:
-
-    def __init__(self) -> None:
-        self.lo_fi = 0
-        self.log_file_updated_signal = get_signal("log_file_updated")
-        self.log_file_updated_signal.connect(self.increase)
-
-    def increase(self, *arg, **kwargs) -> None:
-        self.lo_fi += 1
 
 
 # region[Main_Exec]
@@ -315,9 +304,9 @@ if __name__ == '__main__':
     from antistasi_logbook.parsing.parser import Parser
     from antistasi_logbook.utilities.misc import frozen_time_giver
     load_dotenv(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\antistasi_logbook\nextcloud.env")
-    b = Blah()
+
     db = get_database(overwrite_db=True, config=CONFIG)
-    update_thread = get_update_thread(database=db, use_fake_webdav_manager=True, get_now=frozen_time_giver("2021.11.11 0:0:0"), config=CONFIG)  # , thread_pool_class=NoThreadPoolExecutor)
+    update_thread = get_update_thread(database=db, use_fake_webdav_manager=False, config=CONFIG)  # , thread_pool_class=NoThreadPoolExecutor), get_now=frozen_time_giver("2021.11.11 0:0:0")
 
     web_dav_rem = RemoteStorage.get_by_id(1)
 
@@ -326,17 +315,19 @@ if __name__ == '__main__':
     duration = 150
     with time_execution(f'must be {duration}', condition=True):
         try:
+            update_thread._update()
+            # update_thread.start()
 
-            update_thread.start()
-
-            sleep(duration)
-            update_thread.shutdown()
+            # sleep(duration)
+            # update_thread.shutdown()
 
         finally:
-
+            update_thread.updater.close()
             db.shutdown()
     log.debug(dict(vars(FakeWebdavManager.metrics)))
-    log.debug(f"{LogFile.select().count()=}")
-    log.debug(f"{LogRecord.select().count()=}")
+    with time_execution("selecting log file count", condition=True):
+        log.debug(f"{LogFile.select().count()=}")
+    with time_execution("selecting log record count", condition=True):
+        log.debug(f"{LogRecord.select().count()=}")
 
-# endregion[Main_Exec]
+        # endregion[Main_Exec]

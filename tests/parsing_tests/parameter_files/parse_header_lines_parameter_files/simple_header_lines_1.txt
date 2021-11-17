@@ -1,0 +1,230 @@
+=====================================================================
+== C:\TCAFiles\Users\Antistasi\2433\arma3server_x64.exe
+== "C:\TCAFiles\Users\Antistasi\2433\arma3server_x64.exe" -port=2312   -MaxMem=16384 -filePatching -collection= "-servermod=@members;@utility;@TaskForceEnforcer;" "-mod=@ace;@ACECompatRHSArmedForcesoftheRussianFederation;@ACECompatRHSGREF;@ACECompatRHSUnitedStatesArmedForces;@CBAA3;@RHSAFRF;@RHSGREF;@RHSUSAF;@TaskForceArrowheadRadioBETA;@RKSLStudiosAttachmentsv302;@3CBBAFEquipment;@3CBBAFUnits;@3CBBAFUnitsACEcompatibility;@3CBBAFUnitsRHScompatibility;@3CBBAFVehicles;@3CBBAFVehiclesRHSreskins;@3CBBAFVehiclesServicingextension;@3CBBAFWeapons;@3CBBAFWeaponsRHSammocompatibility;@EnhancedMovement;@ZeusEnhanced;@ZeusEnhancedACE3Compatibility;@VETUnflipping;@GruppeAdlerTrenches;@TembelanIsland" -profiles=ARMAHOSTS -config=ARMAHOSTS\server\server.cfg -cfg=ARMAHOSTS\server\basic.cfg "-name=armahosts" -Server -O=2 -H=2
+
+Original output filename: Arma3Retail_Server_x64
+Exe timestamp: 2021/09/30 12:39:26
+Current time:  2021/11/05 17:37:16
+
+Type: Public
+Build: Stable
+Version: 2.06.148221
+
+Allocator: C:\TCAFiles\Users\Antistasi\2433\Dll\tbb4malloc_bi_x64.dll [2017.0.0.0] [2017.0.0.0]
+PhysMem: 128 GiB, VirtMem : 131072 GiB, AvailPhys : 115 GiB, AvailVirt : 131068 GiB, AvailPage : 129 GiB, PageSize : 4.0 KiB/2.0 MiB/HasLockMemory
+=====================================================================
+
+
+17:37:16 SteamAPI initialization failed. Steam features won't be accessible!
+17:37:17 Initializing stats manager.
+17:37:17 Stats config disabled.
+17:37:17 sessionID: bad3a60e18ab82004d30a896d3f9c5daaa97e26a
+17:37:22 Unsupported language English in stringtable
+17:37:22  ➥ Context: vet\unflipping\stringtable.xml
+17:37:22 Unsupported language English in stringtable
+17:37:22  ➥ Context: z\tfar\addons\core\stringtable.xml
+17:37:23 Unsupported language English in stringtable
+17:37:23  ➥ Context: rhsafrf\addons\rhs_main\stringtable.xml
+17:37:26 Updating base class RscShortcutButton->RscButton, by a3\editor_f\config.bin/RscDisplayEditObject/Controls/B_OK/ (original bin\config.bin)
+17:37:26 Updating base class RscSliderH->RscXSliderH, by a3\editor_f\config.bin/RscDisplayEditObject/Slider/ (original bin\config.bin)
+17:37:26 Updating base class RscText->RscPicture, by a3\editor_f\config.bin/RscDisplayEditObject/Preview/ (original bin\config.bin)
+17:37:26 Updating base class RscShortcutButton->RscButton, by a3\editor_f\config.bin/RscDisplayMissionLoad/Controls/B_OK/ (original bin\config.bin)
+17:37:26 Updating base class RscShortcutButton->RscButton, by a3\editor_f\config.bin/RscDisplayMissionSave/Controls/B_OK/ (original bin\config.bin)
+17:37:26 Updating base class ->RscControlsGroup, by a3\ui_f\config.bin/RscControlsGroupNoScrollbars/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscControlsGroup, by a3\ui_f\config.bin/RscControlsGroupNoHScrollbars/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscControlsGroup, by a3\ui_f\config.bin/RscControlsGroupNoVScrollbars/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscText, by a3\ui_f\config.bin/RscLine/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscActiveText, by a3\ui_f\config.bin/RscActivePicture/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscButton, by a3\ui_f\config.bin/RscButtonTextOnly/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscShortcutButton, by a3\ui_f\config.bin/RscShortcutButtonMain/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscShortcutButton, by a3\ui_f\config.bin/RscButtonEditor/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscShortcutButton, by a3\ui_f\config.bin/RscIGUIShortcutButton/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscShortcutButton, by a3\ui_f\config.bin/RscGearShortcutButton/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscShortcutButton, by a3\ui_f\config.bin/RscButtonMenu/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscButtonMenu, by a3\ui_f\config.bin/RscButtonMenuOK/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscButtonMenu, by a3\ui_f\config.bin/RscButtonMenuCancel/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscButtonMenu, by a3\ui_f\config.bin/RscButtonMenuSteam/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscText, by a3\ui_f\config.bin/RscLoadingText/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscListBox, by a3\ui_f\config.bin/RscIGUIListBox/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscListNBox, by a3\ui_f\config.bin/RscIGUIListNBox/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscText, by a3\ui_f\config.bin/RscBackground/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscText, by a3\ui_f\config.bin/RscBackgroundGUI/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscPicture, by a3\ui_f\config.bin/RscBackgroundGUILeft/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscPicture, by a3\ui_f\config.bin/RscBackgroundGUIRight/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscPicture, by a3\ui_f\config.bin/RscBackgroundGUIBottom/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscText, by a3\ui_f\config.bin/RscBackgroundGUITop/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscText, by a3\ui_f\config.bin/RscBackgroundGUIDark/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscPictureKeepAspect, by a3\ui_f\config.bin/RscBackgroundLogo/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscMapControl, by a3\ui_f\config.bin/RscMapControlEmpty/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscPicture, by a3\ui_f\config.bin/CA_Mainback/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->CA_Mainback, by a3\ui_f\config.bin/CA_Back/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->CA_Mainback, by a3\ui_f\config.bin/CA_Title_Back/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->CA_Mainback, by a3\ui_f\config.bin/CA_Black_Back/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscTitle, by a3\ui_f\config.bin/CA_Title/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscPictureKeepAspect, by a3\ui_f\config.bin/CA_Logo/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->CA_Logo, by a3\ui_f\config.bin/CA_Logo_Small/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscButton, by a3\ui_f\config.bin/CA_RscButton/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->CA_RscButton, by a3\ui_f\config.bin/CA_RscButton_dialog/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscActiveText, by a3\ui_f\config.bin/CA_Ok/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscText, by a3\ui_f\config.bin/CA_Ok_image/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscText, by a3\ui_f\config.bin/CA_Ok_image2/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscText, by a3\ui_f\config.bin/CA_Ok_text/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscPicture, by a3\ui_f\config.bin/RscVignette/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class ->RscControlsGroupNoScrollbars, by a3\ui_f\config.bin/RscMapControlTooltip/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class RscUnitInfo->RscUnitInfoAirNoWeapon, by a3\ui_f\config.bin/RscInGameUI/RscUnitInfoAir/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class RscControlsGroup->RscControlsGroupNoScrollbars, by a3\ui_f\config.bin/RscInGameUI/RscTaskOverview/controls/TaskOverviewAssigned/ (original bin\config.bin)
+17:37:26 Updating base class RscShortcutButton->RscButtonMenu, by a3\ui_f\config.bin/RscDisplayDebug/Controls/B_OK/ (original bin\config.bin)
+17:37:26 Updating base class RscShortcutButton->RscButtonMenu, by a3\ui_f\config.bin/RscDisplayDebug/Controls/B_Cancel/ (original bin\config.bin)
+17:37:26 Updating base class RscShortcutButton->RscButtonMenu, by a3\ui_f\config.bin/RscDisplayDebug/Controls/B_Clear/ (original bin\config.bin)
+17:37:26 Updating base class ->RscText, by a3\ui_f\config.bin/RscDisplayCapture/controls/TimeLines/ (original bin\config.bin)
+17:37:26 Updating base class RscShortcutButton->RscButtonMenu, by a3\ui_f\config.bin/RscDisplayCapture/controls/ButtonAverages/ (original bin\config.bin)
+17:37:26 Updating base class RscShortcutButton->RscButtonMenu, by a3\ui_f\config.bin/RscDisplayCapture/controls/ButtonSavePreviousData/ (original bin\config.bin)
+17:37:26 Updating base class RscShortcutButton->RscButtonMenu, by a3\ui_f\config.bin/RscDisplayCapture/controls/ButtonPreviousData/ (original bin\config.bin)
+17:37:26 Updating base class RscPicture->RscPictureKeepAspect, by a3\ui_f\config.bin/RscDisplayMain/IconPicture/ (original bin\config.bin)
+17:37:26 Updating base class IconPicture->RscPictureKeepAspect, by a3\ui_f\config.bin/RscDisplayMain/DlcOwnedIconPicture/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class IconPicture->RscPictureKeepAspect, by a3\ui_f\config.bin/RscDisplayMain/DlcIconPicture/ (original a3\ui_f\config.bin)
+17:37:26 Updating base class RscControlsGroup->RscControlsGroupNoScrollbars, by a3\ui_f\config.bin/RscDisplayCampaignLoad/controls/OverviewGroup/ (original bin\config.bin)
+17:37:26 Updating base class RscButton->RscButtonSearch, by a3\ui_f\config.bin/RscDisplayCampaignLoad/controls/SearchButton/ (original bin\config.bin)
+17:37:26 Updating base class RscShortcutButton->RscButtonMenuCancel, by a3\ui_f\config.bin/RscDisplayCampaignLoad/controls/ButtonCancel/ (original bin\config.bin)
+17:37:26 Updating base class RscShortcutButton->RscButtonMenu, by a3\ui_f\config.bin/RscDisplayCampaignLoad/controls/ButtonGameOptions/ (original bin\config.bin)
+17:37:26 Updating base class RscShortcutButton->RscButtonMenuSteam, by a3\ui_f\config.bin/RscDisplayCampaignLoad/controls/ButtonBuyDLC/ (original bin\config.bin)
+17:37:26 Updating base class RscShortcutButton->RscButtonMenu, by a3\ui_f\config.bin/RscDisplayCampaignLoad/controls/ButtonRevert/ (original bin\config.bin)
+17:37:26 Updating base class RscShortcutButton->RscButtonMenuOK, by a3\ui_f\config.bin/RscDisplayCampaignLoad/controls/ButtonOK/ (original bin\config.bin)
+17:37:26 Updating base class RscListBox->RscCombo, by a3\ui_f\config.bin/RscDisplayCustomizeController/Steepness/ (original bin\config.bin)
+17:37:26 Updating base class ->RscStandardDisplay, by a3\ui_f\config.bin/RscDisplayControlSchemes/ (original bin\config.bin)
+17:37:26 Updating base class ButtonOK->RscButtonMenuCancel, by a3\ui_f\config.bin/RscDisplayControlSchemes/controls/ButtonCancel/ (original bin\config.bin)
+17:37:26 Updating base class RscButton->RscButtonMenuOK, by a3\ui_f\config.bin/RscDisplayControlSchemes/controls/ButtonOK/ (original bin\config.bin)
+17:37:26 Updating base class RscPicture->RscPictureKeepAspect, by a3\ui_f\config.bin/RscDisplayFileSelectImage/controls/OverviewPicture/ (original bin\config.bin)
+17:37:26 Updating base class RscShortcutButton->RscButtonMenuCancel, by a3\ui_f\config.bin/RscDisplayFieldManual/Controls/ButtonCancel/ (original bin\config.bin)
+17:37:26 Cannot delete class B_KickOff, it is referenced somewhere (used as a base class probably).
+17:37:26 Updating base class RscButton->RscButtonMenuCancel, by a3\ui_f\config.bin/RscDisplayPublishMission/controls/ButtonCancel/ (original bin\config.bin)
+17:37:26 Updating base class RscShortcutButton->RscButtonMenuOK, by a3\ui_f\config.bin/RscDisplayPublishMissionSelectTags/controls/ButtonOK/ (original bin\config.bin)
+17:37:26 Updating base class ButtonOK->RscButtonMenuCancel, by a3\ui_f\config.bin/RscDisplayPublishMissionSelectTags/controls/ButtonCancel/ (original bin\config.bin)
+17:37:26 Updating base class ->RscSubmenu, by a3\ui_f\config.bin/RscMainMenu/ (original bin\config.bin)
+17:37:26 Updating base class ->DistanceClose, by a3\ui_f\config.bin/CfgSimpleTasks/Icon3D/DistanceMid/ (original bin\config.bin)
+17:37:26 Updating base class ->DistanceClose, by a3\ui_f\config.bin/CfgSimpleTasks/Icon3D/DistanceLong/ (original bin\config.bin)
+17:37:27 Updating base class ->ctrlDefaultText, by a3\3den\config.bin/ctrlStatic/ (original a3\3den\config.bin)
+17:37:27 Updating base class ->ctrlActiveText, by a3\3den\config.bin/ctrlActivePicture/ (original a3\3den\config.bin)
+17:37:27 Updating base class ->ctrlDefaultText, by a3\3den\config.bin/ctrlStructuredText/ (original a3\3den\config.bin)
+17:37:27 Updating base class ->ctrlControlsGroup, by a3\3den\config.bin/ctrlControlsGroupNoScrollbars/ (original a3\3den\config.bin)
+17:37:27 Updating base class ->ctrlDefault, by a3\3den\config.bin/ctrlCheckbox/ (original a3\3den\config.bin)
+17:37:27 Updating base class ->ctrlCheckbox, by a3\3den\config.bin/ctrlCheckboxBaseline/ (original a3\3den\config.bin)
+17:37:27 Updating base class RscText->ctrlStaticBackgroundDisable, by a3\3den\config.bin/RscDisplayOptionsAudio/ControlsBackground/BackgroundDisable/ (original a3\3den\config.bin)
+17:37:27 Updating base class RscText->ctrlStaticBackgroundDisableTiles, by a3\3den\config.bin/RscDisplayOptionsAudio/ControlsBackground/BackgroundDisableTiles/ (original a3\3den\config.bin)
+17:37:27 Updating base class RscText->ctrlStaticBackgroundDisable, by a3\3den\config.bin/RscDisplayConfigure/ControlsBackground/BackgroundDisable/ (original a3\3den\config.bin)
+17:37:27 Updating base class RscText->ctrlStaticBackgroundDisableTiles, by a3\3den\config.bin/RscDisplayConfigure/ControlsBackground/BackgroundDisableTiles/ (original a3\3den\config.bin)
+17:37:27 Updating base class RscText->ctrlStaticBackgroundDisable, by a3\3den\config.bin/RscDisplayConfigureAction/ControlsBackground/BackgroundDisable/ (original a3\3den\config.bin)
+17:37:27 Updating base class RscText->ctrlStaticBackgroundDisableTiles, by a3\3den\config.bin/RscDisplayConfigureAction/ControlsBackground/BackgroundDisableTiles/ (original a3\3den\config.bin)
+17:37:27 Updating base class RscText->ctrlStaticBackgroundDisable, by a3\3den\config.bin/RscDisplayConfigureControllers/ControlsBackground/BackgroundDisable/ (original a3\3den\config.bin)
+17:37:27 Updating base class RscText->ctrlStaticBackgroundDisableTiles, by a3\3den\config.bin/RscDisplayConfigureControllers/ControlsBackground/BackgroundDisableTiles/ (original a3\3den\config.bin)
+17:37:27 Updating base class RscText->ctrlStaticBackgroundDisable, by a3\3den\config.bin/RscDisplayGameOptions/ControlsBackground/BackgroundDisable/ (original a3\3den\config.bin)
+17:37:27 Updating base class RscText->ctrlStaticBackgroundDisableTiles, by a3\3den\config.bin/RscDisplayGameOptions/ControlsBackground/BackgroundDisableTiles/ (original a3\3den\config.bin)
+17:37:27 Updating base class controls->, by a3\3den\config.bin/RscDisplayArcadeMap_Layout_2/Controls/ (original a3\ui_f\config.bin)
+17:37:27 Updating base class controls->, by a3\3den\config.bin/RscDisplayArcadeMap_Layout_6/Controls/ (original a3\ui_f\config.bin)
+17:37:27 Updating base class ->ctrlControlsGroupNoScrollbars, by a3\3den\config.bin/Cfg3DEN/Attributes/Default/ (original a3\3den\config.bin)
+17:37:27 Updating base class ->ctrlStatic, by a3\3den\config.bin/Cfg3DEN/Attributes/Title/Controls/Title/ (original a3\3den\config.bin)
+17:37:27 Updating base class ->ctrlToolbox, by a3\3den\config.bin/Cfg3DEN/Attributes/Toolbox/Controls/Value/ (original a3\3den\config.bin)
+17:37:28 Updating base class ->UK3CB_BAF_Merlin_HC3_Unarmed_Base, by uk3cb_baf_vehicles\addons\uk3cb_baf_vehicles_merlin\config.cpp/CfgVehicles/UK3CB_BAF_Merlin_HC3_18/ (original (no unload))
+17:37:28 Updating base class ->UserActions, by UK3CB_BAF_Vehicles\addons\UK3CB_BAF_Vehicles_Servicing\config.cpp/CfgVehicles/Plane_CAS_01_base_F/UserActions/ (original a3\air_f_epc\plane_cas_01\config.bin)
+17:37:28 Updating base class ->UserActions, by UK3CB_BAF_Vehicles\addons\UK3CB_BAF_Vehicles_Servicing\config.cpp/CfgVehicles/Plane_Fighter_01_Base_F/UserActions/ (original a3\air_f_jets\plane_fighter_01\config.bin)
+17:37:28 Updating base class ->UserActions, by UK3CB_BAF_Vehicles\addons\UK3CB_BAF_Vehicles_Servicing\config.cpp/CfgVehicles/Plane_Fighter_03_base_F/UserActions/ (original a3\air_f_gamma\plane_fighter_03\config.bin)
+17:37:28 Updating base class ->UserActions, by UK3CB_BAF_Vehicles\addons\UK3CB_BAF_Vehicles_Servicing\config.cpp/CfgVehicles/Plane_Fighter_04_Base_F/UserActions/ (original a3\air_f_jets\plane_fighter_04\config.bin)
+17:37:28 Updating base class ->UserActions, by UK3CB_BAF_Vehicles\addons\UK3CB_BAF_Vehicles_Servicing\config.cpp/CfgVehicles/Plane_CAS_02_base_F/UserActions/ (original a3\air_f_epc\plane_cas_02\config.bin)
+17:37:28 Updating base class ->UserActions, by UK3CB_BAF_Vehicles\addons\UK3CB_BAF_Vehicles_Servicing\config.cpp/CfgVehicles/Plane_Fighter_02_Base_F/UserActions/ (original a3\air_f_jets\plane_fighter_02\config.bin)
+17:37:28 Updating base class ->UserActions, by UK3CB_BAF_Vehicles\addons\UK3CB_BAF_Vehicles_Servicing\config.cpp/CfgVehicles/VTOL_01_base_F/UserActions/ (original (no unload))
+17:37:28 Updating base class ->UserActions, by UK3CB_BAF_Vehicles\addons\UK3CB_BAF_Vehicles_Servicing\config.cpp/CfgVehicles/VTOL_01_infantry_base_F/UserActions/ (original a3\air_f_exp\vtol_01\config.bin)
+17:37:28 Updating base class ->UserActions, by UK3CB_BAF_Vehicles\addons\UK3CB_BAF_Vehicles_Servicing\config.cpp/CfgVehicles/VTOL_02_infantry_base_F/UserActions/ (original a3\air_f_exp\vtol_02\config.bin)
+17:37:28 Updating base class ->UserActions, by UK3CB_BAF_Vehicles\addons\UK3CB_BAF_Vehicles_Servicing\config.cpp/CfgVehicles/Heli_Transport_01_base_F/UserActions/ (original a3\air_f_beta\heli_transport_01\config.bin)
+17:37:28 Updating base class ->UserActions, by UK3CB_BAF_Vehicles\addons\UK3CB_BAF_Vehicles_Servicing\config.cpp/CfgVehicles/Heli_Light_01_unarmed_base_F/UserActions/ (original a3\air_f\heli_light_01\config.bin)
+17:37:28 Updating base class ->UserActions, by UK3CB_BAF_Vehicles\addons\UK3CB_BAF_Vehicles_Servicing\config.cpp/CfgVehicles/Heli_Light_01_civil_base_F/UserActions/ (original a3\air_f\heli_light_01\config.bin)
+17:37:28 Updating base class ->UserActions, by UK3CB_BAF_Vehicles\addons\UK3CB_BAF_Vehicles_Servicing\config.cpp/CfgVehicles/Heli_Transport_03_base_F/UserActions/ (original a3\air_f_heli\heli_transport_03\config.bin)
+17:37:28 Updating base class ->UserActions, by UK3CB_BAF_Vehicles\addons\UK3CB_BAF_Vehicles_Servicing\config.cpp/CfgVehicles/Heli_Transport_02_base_F/UserActions/ (original a3\air_f_beta\heli_transport_02\config.bin)
+17:37:28 Updating base class ->UserActions, by UK3CB_BAF_Vehicles\addons\UK3CB_BAF_Vehicles_Servicing\config.cpp/CfgVehicles/Heli_Transport_04_base_F/UserActions/ (original a3\air_f_heli\heli_transport_04\config.bin)
+17:37:28 Updating base class ->UserActions, by UK3CB_BAF_Vehicles\addons\UK3CB_BAF_Vehicles_Servicing\config.cpp/CfgVehicles/Heli_Attack_02_base_F/UserActions/ (original a3\air_f_beta\heli_attack_02\config.bin)
+17:37:28 Updating base class ->UserActions, by UK3CB_BAF_Vehicles\addons\UK3CB_BAF_Vehicles_Servicing\config.cpp/CfgVehicles/MRAP_02_base_F/UserActions/ (original a3\soft_f\mrap_02\config.bin)
+17:37:28 Updating base class ->UserActions, by UK3CB_BAF_Vehicles\addons\UK3CB_BAF_Vehicles_Servicing\config.cpp/CfgVehicles/Offroad_01_base_F/UserActions/ (original a3\soft_f\offroad_01\config.bin)
+17:37:28 Updating base class ->UserActions, by UK3CB_BAF_Vehicles\addons\UK3CB_BAF_Vehicles_Servicing\config.cpp/CfgVehicles/Kart_01_Base_F/UserActions/ (original a3\soft_f_kart\kart_01\config.bin)
+17:37:28 Updating base class ->UserActions, by UK3CB_BAF_Vehicles\addons\UK3CB_BAF_Vehicles_Servicing\config.cpp/CfgVehicles/SDV_01_base_F/UserActions/ (original a3\boat_f_beta\sdv_01\config.bin)
+17:37:28 Updating base class ->UserActions, by UK3CB_BAF_Vehicles\addons\UK3CB_BAF_Vehicles_Servicing\config.cpp/CfgVehicles/RHS_UH60M/UserActions/ (original rhsusf\addons\rhsusf_c_a2port_air\config.bin)
+17:37:28 Updating base class ->UserActions, by UK3CB_BAF_Vehicles\addons\UK3CB_BAF_Vehicles_Servicing\config.cpp/CfgVehicles/RHS_A10/UserActions/ (original rhsusf\addons\rhsusf_c_a2port_air\config.bin)
+17:37:28 Updating base class ->UserActions, by UK3CB_BAF_Vehicles\addons\UK3CB_BAF_Vehicles_Servicing\config.cpp/CfgVehicles/RHS_UH1Y/UserActions/ (original rhsusf\addons\rhsusf_c_a2port_air\config.bin)
+17:37:28 Updating base class ->UserActions, by UK3CB_BAF_Vehicles\addons\UK3CB_BAF_Vehicles_Servicing\config.cpp/CfgVehicles/RHS_AH1Z/UserActions/ (original rhsusf\addons\rhsusf_c_a2port_air\config.bin)
+17:37:28 Updating base class ->UserActions, by UK3CB_BAF_Vehicles\addons\UK3CB_BAF_Vehicles_Servicing\config.cpp/CfgVehicles/RHS_MELB_base/UserActions/ (original rhsusf\addons\rhsusf_c_melb\config.bin)
+17:37:28 Updating base class ->UserActions, by UK3CB_BAF_Vehicles\addons\UK3CB_BAF_Vehicles_Servicing\config.cpp/CfgVehicles/rhsusf_m998_w_2dr/UserActions/ (original rhsusf\addons\rhsusf_c_hmmwv\config.bin)
+17:37:28 Updating base class ->Turrets, by uk3cb_baf_weapons\addons\UK3CB_BAF_Weapons_Static\config.cpp/CfgVehicles/StaticWeapon/Turrets/ (original (a3\static_f\at_01\config.bin - no unload))
+17:37:28 Updating base class ACE_SelfActions->, by z\ace\addons\interaction\config.cpp/CfgVehicles/Tank/ACE_SelfActions/ (original z\tfar\addons\core\config.bin)
+17:37:28 Updating base class ACE_SelfActions->, by z\ace\addons\interaction\config.cpp/CfgVehicles/Helicopter/ACE_SelfActions/ (original z\tfar\addons\core\intercomconfig\config.bin)
+17:37:28 Updating base class ACE_SelfActions->, by z\ace\addons\interaction\config.cpp/CfgVehicles/Plane/ACE_SelfActions/ (original z\tfar\addons\core\intercomconfig\config.bin)
+17:37:28 Updating base class Turrets->, by z\ace\addons\spottingscope\config.cpp/CfgVehicles/StaticWeapon/Turrets/ (original (a3\static_f\at_01\config.bin - no unload))
+17:37:28 Updating base class TFAR_Bag_Base->TFAR_anarc210, by z\tfar\addons\backpacks\config.bin/CfgVehicles/tf_anarc210/ (original z\tfar\addons\backpacks\config.bin)
+17:37:28 Updating base class TFAR_Bag_Base->TFAR_rt1523g, by z\tfar\addons\backpacks\config.bin/CfgVehicles/tf_rt1523g/ (original z\tfar\addons\backpacks\config.bin)
+17:37:28 Updating base class tf_rt1523g->TFAR_rt1523g_big, by z\tfar\addons\backpacks\config.bin/CfgVehicles/tf_rt1523g_big/ (original z\tfar\addons\backpacks\config.bin)
+17:37:29 Updating base class ->asdg_MuzzleSlot, by uk3cb_baf_weapons\addons\UK3CB_BAF_Weapons_Accessories\config.cpp/asdg_MuzzleSlot_556_3CB/ (original (no unload))
+17:37:29 Updating base class ->asdg_MuzzleSlot, by uk3cb_baf_weapons\addons\UK3CB_BAF_Weapons_Accessories\config.cpp/asdg_MuzzleSlot_556_Limited_3CB/ (original (no unload))
+17:37:29 Updating base class ->asdg_MuzzleSlot, by uk3cb_baf_weapons\addons\UK3CB_BAF_Weapons_Accessories\config.cpp/asdg_MuzzleSlot_556_L110A2_3CB/ (original (no unload))
+17:37:29 Updating base class ->asdg_MuzzleSlot, by uk3cb_baf_weapons\addons\UK3CB_BAF_Weapons_Accessories\config.cpp/asdg_MuzzleSlot_762_3CB/ (original (no unload))
+17:37:29 Updating base class ->asdg_MuzzleSlot, by uk3cb_baf_weapons\addons\UK3CB_BAF_Weapons_Accessories\config.cpp/asdg_MuzzleSlot_762_L129_3CB/ (original (no unload))
+17:37:29 Updating base class ->asdg_MuzzleSlot, by uk3cb_baf_weapons\addons\UK3CB_BAF_Weapons_Accessories\config.cpp/asdg_MuzzleSlot_762_L7_3CB/ (original (no unload))
+17:37:29 Updating base class ->asdg_MuzzleSlot, by uk3cb_baf_weapons\addons\UK3CB_BAF_Weapons_Accessories\config.cpp/asdg_MuzzleSlot_900_3CB/ (original (no unload))
+17:37:29 Updating base class ->asdg_MuzzleSlot, by uk3cb_baf_weapons\addons\UK3CB_BAF_Weapons_Accessories\config.cpp/asdg_MuzzleSlot_900_L105A1_3CB/ (original (no unload))
+17:37:29 Updating base class ->UnderBarrelSlot, by uk3cb_baf_weapons\addons\UK3CB_BAF_Weapons_Accessories\config.cpp/UK3CB_underbarrel_rifle_slot/ (original (no unload))
+17:37:29 Updating base class ->UnderBarrelSlot, by uk3cb_baf_weapons\addons\UK3CB_BAF_Weapons_Accessories\config.cpp/UK3CB_underbarrel_L85_rifle_slot/ (original (no unload))
+17:37:29 Updating base class ->Rifle_Base_F, by uk3cb_baf_weapons\addons\UK3CB_BAF_Weapons_Accessories\config.cpp/CfgWeapons/UK3CB_safe_base/ (original (no unload))
+17:37:29 Updating base class UserActions->, by z\ace\addons\fastroping\config.cpp/CfgVehicles/Heli_Transport_02_base_F/UserActions/ (original (a3\air_f_beta\heli_transport_02\config.bin - no unload))
+17:37:29 Updating base class UserActions->, by z\ace\addons\fastroping\config.cpp/CfgVehicles/Heli_Transport_03_base_F/UserActions/ (original (a3\air_f_heli\heli_transport_03\config.bin - no unload))
+17:37:29 Updating base class UK3CB_BAF_Merlin_HC3_18_GPMG->UK3CB_BAF_Merlin_HC3_Armed_Base, by UK3CB_BAF_Units\addons\UK3CB_BAF_Units_Desert\config.cpp/CfgVehicles/UK3CB_BAF_Merlin_HC4_18_GPMG/ (original (no unload))
+17:37:29 Updating base class UK3CB_BAF_Merlin_HC3_CSAR->UK3CB_BAF_Merlin_HC3_Armed_Base, by UK3CB_BAF_Units\addons\UK3CB_BAF_Units_Desert\config.cpp/CfgVehicles/UK3CB_BAF_Merlin_HC4_CSAR/ (original (no unload))
+17:37:29 Updating base class BagFence_base_F->ACE_envelope_small, by x\grad_trenches\addons\functions\config.bin/CfgVehicles/ACE_envelope_big/ (original (no unload))
+17:37:29 Updating base class BagFence_base_F->ACE_envelope_big, by x\grad_trenches\addons\functions\config.bin/CfgVehicles/GRAD_envelope_giant/ (original x\grad_trenches\addons\assets\config.bin)
+17:37:29 Updating base class BagFence_base_F->ACE_envelope_big, by x\grad_trenches\addons\functions\config.bin/CfgVehicles/GRAD_envelope_vehicle/ (original x\grad_trenches\addons\assets\config.bin)
+17:37:29 Updating base class BagFence_base_F->ACE_envelope_big, by x\grad_trenches\addons\functions\config.bin/CfgVehicles/GRAD_envelope_short/ (original x\grad_trenches\addons\assets\config.bin)
+17:37:29 Updating base class BagFence_base_F->ACE_envelope_big, by x\grad_trenches\addons\functions\config.bin/CfgVehicles/GRAD_envelope_long/ (original x\grad_trenches\addons\assets\config.bin)
+17:37:29 Updating base class rhs_6b47_bare->H_HelmetB, by z\ace\addons\compat_rhs_afrf3\config.cpp/CfgWeapons/rhs_6b48/ (original rhsafrf\addons\rhs_c_troops\config.bin)
+17:37:29 Updating base class O_Truck_02_covered_F->rhs_truck, by z\ace\addons\compat_rhs_afrf3\config.cpp/CfgVehicles/rhs_kamaz5350/ (original (rhsafrf\addons\rhs_c_kamaz\config.bin - no unload))
+17:37:29 Updating base class rhsusf_ammo_reduced_penetrator->rhsusf_ammo_basic_penetrator, by z\ace\addons\compat_rhs_usf3\config.cpp/CfgAmmo/rhs_ammo_mk19m3_M430I_penetrator/ (original rhsusf\addons\rhsusf_c_heavyweapons\config.bin)
+17:37:29 Updating base class UserActions->, by z\ace\addons\compat_rhs_usf3\config.cpp/CfgVehicles/RHS_UH60M/UserActions/ (original (rhsusf\addons\rhsusf_c_a2port_air\config.bin - no unload))
+17:37:30 Initializing Steam Manager
+17:37:30 Steam Manager initialized.
+17:37:30
+17:37:30 ==== Loaded addons ====
+17:37:30
+17:37:30 dta\bin.pbo - 148221
+17:37:30 dta\core.pbo - 129618
+17:37:30 dta\languagecore_f.pbo - 150117
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@TembelanIsland\addons\tembelan.pbo - 18032519
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@GruppeAdlerTrenches\addons\grad_trenches_assets.pbo - 4a1ff01c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@GruppeAdlerTrenches\addons\grad_trenches_functions.pbo - 4a1ff01c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@GruppeAdlerTrenches\addons\grad_trenches_main.pbo - 4a1ff01c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@GruppeAdlerTrenches\addons\grad_trenches_sounds.pbo - 4a1ff01c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@VETUnflipping\addons\vet_unflipping.pbo - unknown
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhancedACE3Compatibility\addons\zen_compat_ace.pbo - 070f524c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhanced\addons\zen_ai.pbo - 070f524c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhanced\addons\zen_area_markers.pbo - 070f524c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhanced\addons\zen_attributes.pbo - 070f524c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhanced\addons\zen_camera.pbo - 070f524c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhanced\addons\zen_common.pbo - 070f524c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhanced\addons\zen_compositions.pbo - 070f524c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhanced\addons\zen_context_actions.pbo - 070f524c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhanced\addons\zen_context_menu.pbo - 070f524c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhanced\addons\zen_cover_map.pbo - 070f524c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhanced\addons\zen_custom_modules.pbo - 070f524c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhanced\addons\zen_damage.pbo - 070f524c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhanced\addons\zen_dialog.pbo - 070f524c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhanced\addons\zen_doors.pbo - 070f524c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhanced\addons\zen_editor.pbo - 070f524c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhanced\addons\zen_editor_previews.pbo - 070f524c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhanced\addons\zen_faction_filter.pbo - 070f524c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhanced\addons\zen_flashlight.pbo - 070f524c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhanced\addons\zen_garage.pbo - 070f524c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhanced\addons\zen_inventory.pbo - 070f524c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhanced\addons\zen_loadout.pbo - 070f524c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhanced\addons\zen_main.pbo - 070f524c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhanced\addons\zen_markers_tree.pbo - 070f524c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhanced\addons\zen_modules.pbo - 070f524c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhanced\addons\zen_music.pbo - 070f524c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhanced\addons\zen_placement.pbo - 070f524c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhanced\addons\zen_position_logics.pbo - 070f524c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhanced\addons\zen_pylons.pbo - 070f524c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhanced\addons\zen_remote_control.pbo - 070f524c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhanced\addons\zen_tasks.pbo - 070f524c
+17:37:30 C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhanced\addons\zen_visibility.pbo - 070f524c
