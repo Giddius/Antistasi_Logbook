@@ -157,14 +157,13 @@ class TzOffsetField(Field):
 
     def db_value(self, value: Optional[tzoffset]) -> Optional[str]:
         if value is not None:
-            return f"{value.tzname(None)}||{value.utcoffset(None).total_seconds()}"
+            return value.utcoffset(None).total_seconds()
 
     def python_value(self, value: Optional[str]):
         if value is not None:
-            name, seconds = value.split('||')
-            seconds = int(seconds.split('.')[0])
+            seconds = value
             delta = timedelta(seconds=seconds)
-            return tzoffset(name, delta)
+            return tzoffset(f"+{str(timedelta)}", delta)
 
 
 class CompressedTextField(CompressedField):

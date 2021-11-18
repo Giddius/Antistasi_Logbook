@@ -58,7 +58,7 @@ import mmap
 from threading import Thread, Event, Condition
 from antistasi_logbook.errors import UpdateExceptionHandler
 from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord
-from antistasi_logbook.parsing.parser import Parser
+from antistasi_logbook.parsing.parser import Parser, get_parser
 from rich.console import Console as RichConsole
 from antistasi_logbook.utilities.locks import UPDATE_LOCK, UPDATE_STOP_EVENT
 from antistasi_logbook.utilities.misc import NoThreadPoolExecutor
@@ -124,7 +124,7 @@ class Updater:
                  config: "GidIniConfig" = None) -> None:
         self.config = CONFIG if config is None else config
         self.database = database
-        self.parser = Parser(database=self.database) if parser is None else parser
+        self.parser = get_parser(database=self.database) if parser is None else parser
         if thread_pool_class is None:
             thread_pool_class = ThreadPoolExecutor
         self.thread_pool = thread_pool_class(max_workers=self.max_threads, thread_name_prefix=self.threads_prefix)
@@ -212,14 +212,15 @@ class Updater:
         server.ensure_remote_manager(remote_manager=self._get_remote_manager(server))
         log_files = self._get_updated_log_files(server=server)
         amount = len(log_files)
-        for idx, log_file in enumerate(log_files):
-            sleep(0.1)
-            log.info(f"<[b green]{idx}[/b green]/[b red]{amount}[/b red]> STARTING PROCESSING LOGFILE", log_file)
-            task = self.thread_pool.submit(self.parser.process, log_file)
+        list(self.thread_pool.map(self.parser.process, log_files))
 
-            self.tasks.append(task)
-            task.add_done_callback(self.tasks.remove)
+        # sleep(0.1)
+        # log.info(f"<[b green]{idx}[/b green]/[b red]{amount}[/b red]> STARTING PROCESSING LOGFILE", log_file)
+        # task = self.thread_pool.submit(self.parser.process, log_file)
 
+        # self.tasks.append(task)
+        # task.add_done_callback(self.tasks.remove)
+        wait(self.tasks, timeout=None, return_when=ALL_COMPLETED)
         self._handle_old_log_files(server=server)
 
         return True

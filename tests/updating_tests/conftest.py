@@ -53,5 +53,5 @@ def general_database(tmpdir, general_config: "GidIniConfig"):
 @pytest.fixture
 def general_updater(general_database: "GidSqliteQueueDatabase", general_config: "GidIniConfig"):
 
-    updater = get_updater(database=general_database, use_fake_webdav_manager=True, get_now=frozen_time_giver(FROZEN_TIME), config=general_config)
-    yield updater
+    updater = get_update_thread(database=general_database, use_fake_webdav_manager=True, get_now=frozen_time_giver(FROZEN_TIME), config=general_config)
+    yield updater.updater

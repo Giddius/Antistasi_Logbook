@@ -6,6 +6,12 @@ from httpx import Limits, Timeout
 from time import sleep
 from functools import cached_property, wraps
 from contextlib import contextmanager, ContextDecorator
+from gidapptools.gid_logger.fake_logger import fake_logger
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
+
+log = fake_logger
+
 USERNAME_KEY = 'NEXTCLOUD_USERNAME'
 PASSWORD_KEY = 'NEXTCLOUD_PASSWORD'
 
@@ -61,14 +67,17 @@ def get_webdav_client(username: str = None, password: str = None) -> WebdavClien
 TIMEOUT_FUNCTION_TYPE = Callable[[Union[int, float]], Union[int, float]]
 
 
+@profile
 def unchanged_timeout(base_timeout: Union[int, float], attempt: int) -> Union[int, float]:
     return base_timeout
 
 
+@profile
 def increasing_timeout(base_timeout: Union[int, float], attempt: int) -> Union[int, float]:
     return base_timeout * (attempt + 1)
 
 
+@profile
 def exponential_timeout(base_timeout: Union[int, float], attempt: int) -> Union[int, float]:
     return base_timeout ** (attempt + 1)
 
@@ -86,6 +95,7 @@ class Retrier:
         self.timeout = timeout or self.default_timeout
         self._timeout_function = timeout_function
 
+    @profile
     def __call__(self, func: Callable) -> Any:
         @wraps(func)
         def _helper_func(*args, attempt: int = 0, **kwargs) -> Any:

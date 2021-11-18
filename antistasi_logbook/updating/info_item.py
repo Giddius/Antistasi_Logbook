@@ -59,6 +59,7 @@ from antistasi_logbook.utilities.path_utilities import RemotePath
 from gidapptools.general_helper.dict_helper import replace_dict_keys
 from marshmallow import Schema, fields, pre_load
 from dateutil.tz import UTC
+from gidapptools.gid_logger.fake_logger import fake_logger
 # endregion[Imports]
 
 # region [TODO]
@@ -75,6 +76,9 @@ from dateutil.tz import UTC
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
+log = fake_logger
 # endregion[Constants]
 
 # {'content_language': None,
@@ -129,6 +133,7 @@ class InfoItem:
         return self.remote_path.stem
 
     @classmethod
+    @profile
     def from_webdav_info(cls, webdav_info: dict[str, Any]) -> "InfoItem":
         webdav_info = webdav_info.copy()
         raw_info = webdav_info.copy()

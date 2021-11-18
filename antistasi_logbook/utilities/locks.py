@@ -61,7 +61,8 @@ class MinDurationSemaphore(Semaphore):
         self._start_time_cache[get_ident()] = process_time()
         return _out
 
-    __enter__ = acquire
+    def __enter__(self, blocking: bool = True, timeout: float = None) -> bool:
+        return self.acquire(blocking=blocking, timeout=timeout)
 
     def _sleep_to_minimum(self) -> None:
         start_time = self._start_time_cache.get(get_ident())

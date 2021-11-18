@@ -180,25 +180,27 @@ class GidSQLiteScriptLoader:
         return f"{self.__class__.__name__}(script_folder={self.script_folder.as_posix()!r}, setup_prefix={self.setup_prefix!r})"
 
 
-class GidSqliteQueueDatabase(SqliteQueueDatabase):
-    default_pragmas = {
-        "cache_size": -1 * 64000,
-        "journal_mode": "wal",
-        "synchronous": 0,
-        "ignore_check_constraints": 0,
-        "foreign_keys": 1,
+DEFAULT_DB_NAME = "storage.db"
 
-        # "journal_size_limit": human2bytes("250 mb"),
-        # "threads": 3,
-        # "wal_autocheckpoint": 15000
-    }
+DEFAULT_PRAGMAS = {
+    "cache_size": -1 * 64000,
+    "journal_mode": 'wal',
+    "synchronous": 0,
+    "ignore_check_constraints": 0,
+    "foreign_keys": 1,
+    "temp_store": "MEMORY"
+}
+
+
+DEFAULT_SCRIPT_FOLDER = THIS_FILE_DIR.joinpath("sql_scripts")
+
+
+class GidSqliteQueueDatabase(SqliteQueueDatabase):
+
     default_extensions = {"json_contains": True,
                           "regexp_function": False}
 
-    default_db_name = "storage.db"
     default_db_path = META_PATHS.db_dir if os.getenv('IS_DEV', 'false') == "false" else THIS_FILE_DIR
-
-    default_script_folder = THIS_FILE_DIR.joinpath("sql_scripts")
 
     def __init__(self,
                  database_path: Path = None,
@@ -211,14 +213,14 @@ class GidSqliteQueueDatabase(SqliteQueueDatabase):
                  results_timeout=None,
                  pragmas=None,
                  extensions=None):
-        self.path = self.default_db_path.joinpath(self.default_db_name) if database_path is None else Path(database_path)
-        self.script_folder = self.default_script_folder if script_folder is None else Path(script_folder)
+        self.path = self.default_db_path.joinpath(DEFAULT_DB_NAME) if database_path is None else Path(database_path)
+        self.script_folder = DEFAULT_SCRIPT_FOLDER if script_folder is None else Path(script_folder)
         self.config = CONFIG if config is None else config
         self.record_class_manager = RecordClassManager() if record_class_manager is None else record_class_manager
         self.script_provider = GidSQLiteScriptLoader(self.script_folder)
         self.started_up = False
         extensions = self.default_extensions if extensions is None else extensions
-        pragmas = self.default_pragmas if pragmas is None else pragmas
+        pragmas = DEFAULT_PRAGMAS.copy() if pragmas is None else pragmas
         super().__init__(make_db_path(self.path), use_gevent=False, autostart=False, queue_max_size=queue_max_size, results_timeout=results_timeout, thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, **extensions)
 
     def start_up_db(self, overwrite: bool = False) -> None:
@@ -229,20 +231,10 @@ class GidSqliteQueueDatabase(SqliteQueueDatabase):
         self.script_folder.mkdir(exist_ok=True, parents=True)
         if overwrite is True:
             self.path.unlink(missing_ok=True)
+
         self.connect(reuse_if_open=True)
         self.start()
         setup_db()
-        # self.optimize()
-        # self.vacuum()
-        log.info(f"{self.journal_size_limit=}")
-        log.info(f"{self.wal_autocheckpoint=}")
-        log.info(f"{self.cache_size=}")
-        log.info(f"{self.journal_mode=}")
-        log.info(f"{self.mmap_size=}")
-        log.info(f"{self.page_size=}")
-        log.info(f"{self.timeout=}")
-        log.info(f"{self.read_uncommitted=}")
-        log.info(f"{self.synchronous=}")
 
         self.stop()
         self.start()
@@ -320,7 +312,10 @@ if __name__ == '__main__':
 
             # sleep(duration)
             # update_thread.shutdown()
-
+            update_thread.updater.parser.record_process_worker.inserter.wait()
+            log.debug("updating last parsed line numbers")
+            for log_file in LogFile.select():
+                log_file.set_last_parsed_line_number()
         finally:
             update_thread.updater.close()
             db.shutdown()

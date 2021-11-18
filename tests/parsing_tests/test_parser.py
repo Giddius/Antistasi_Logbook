@@ -1,10 +1,14 @@
 import pytest
 from antistasi_logbook.parsing.parser import Parser, SimpleRegexKeeper, RawRecord, RecordLine, Version, ModItem
+from antistasi_logbook.parsing.record_processor import RecordProcessor
 from pathlib import Path
 from typing import Union, Optional, Mapping, Iterable, Hashable
 from datetime import datetime
 from dateutil.tz import UTC
 from dateutil.parser import parse as dateutil_parse
+from functools import partial
+
+RawRecord = partial(RawRecord, log_file=None)
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
@@ -98,7 +102,7 @@ test_parse_entries_parameter.append((test_parse_entries_parameter_6_file, test_p
 
 @pytest.mark.parametrize("log_file, expected", test_parse_entries_parameter, ids=[i[0].stem for i in test_parse_entries_parameter])
 def test_parse_entries(fake_parsing_context_class, log_file, expected):
-    parser = Parser(database=None, regex_keeper=SimpleRegexKeeper())
+    parser = Parser(database=None, regex_keeper=SimpleRegexKeeper(), record_processor_worker=None, foreign_key_cache=None)
     with fake_parsing_context_class(log_file=log_file) as context:
         result = list(parser.parse_entries(context=context))
     for idx, r in enumerate(result):
@@ -133,7 +137,7 @@ test_parse_header_lines_parameter.append((parse_header_lines_file_1, parse_heade
 
 @pytest.mark.parametrize("log_file, expected", test_parse_header_lines_parameter, ids=[i[0].stem for i in test_parse_header_lines_parameter])
 def test_parse_header_lines(fake_parsing_context_class, log_file, expected):
-    parser = Parser(database=None, regex_keeper=SimpleRegexKeeper())
+    parser = Parser(database=None, regex_keeper=SimpleRegexKeeper(), record_processor_worker=None, foreign_key_cache=None)
     with fake_parsing_context_class(log_file=log_file) as context:
         result = parser._parse_header_text(context)
         assert '\n'.join(i.content for i in result if i.content) == '\n'.join(x for x in expected.splitlines() if x)
@@ -177,7 +181,7 @@ test_parse_startup_entries_test_parameter.append((parse_startup_entries_file_1, 
 
 @pytest.mark.parametrize("log_file, expected", test_parse_startup_entries_test_parameter, ids=[i[0].stem for i in test_parse_startup_entries_test_parameter])
 def test_parse_startup_entries(fake_parsing_context_class, log_file, expected):
-    parser = Parser(database=None, regex_keeper=SimpleRegexKeeper())
+    parser = Parser(database=None, regex_keeper=SimpleRegexKeeper(), record_processor_worker=None, foreign_key_cache=None)
     with fake_parsing_context_class(log_file=log_file) as context:
         result = parser._parse_startup_entries(context=context)
     for idx, i in enumerate(result):
@@ -271,7 +275,7 @@ test_get_log_file_meta_data_params.append(first_meta_data_test_param.to_params()
 
 @pytest.mark.parametrize("log_file, game_map_expected, full_datetime_expected, version_expected, mods_expected", test_get_log_file_meta_data_params, ids=[i[0].stem for i in test_get_log_file_meta_data_params])
 def test_get_log_file_meta_data(fake_parsing_context_class, log_file: Path, game_map_expected: str, full_datetime_expected: tuple[datetime, datetime], version_expected: Version, mods_expected: list[ModItem]):
-    parser = Parser(database=None, regex_keeper=SimpleRegexKeeper())
+    parser = Parser(database=None, regex_keeper=SimpleRegexKeeper(), record_processor_worker=None, foreign_key_cache=None)
     with fake_parsing_context_class(log_file=log_file) as context:
         finder = parser._get_log_file_meta_data(context=context)
     assert finder.game_map == game_map_expected

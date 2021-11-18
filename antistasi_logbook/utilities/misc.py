@@ -8,6 +8,10 @@ from gidapptools.general_helper.conversion import str_to_bool
 from pathlib import Path
 from dateutil.parser import parse as dateutil_parse
 from dateutil.tz import UTC
+from gidapptools.gid_logger.fake_logger import fake_logger
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
+log = fake_logger
 
 
 class DatetimeJsonEncoder(JSONEncoder):
@@ -119,8 +123,8 @@ class ModItem:
     official: bool = attr.ib(converter=str_to_bool)
     mod_dir: str = attr.ib(converter=strip_converter)
     full_path: Path = attr.ib(default=None, converter=strip_to_path)
-    hash: str = attr.ib(default=None, converter=strip_converter)
-    hash_short: str = attr.ib(default=None, converter=strip_converter)
+    mod_hash: str = attr.ib(default=None, converter=strip_converter)
+    mod_hash_short: str = attr.ib(default=None, converter=strip_converter)
     link: str = attr.ib(default=None, converter=strip_converter)
 
     @classmethod
@@ -129,8 +133,8 @@ class ModItem:
         name, mod_dir, default, official, origin = parts[:5]
         optional_kwargs = {}
         if len(parts) > 5:
-            optional_kwargs['hash'] = parts[5]
-            optional_kwargs["hash_short"] = parts[6]
+            optional_kwargs['mod_hash'] = parts[5]
+            optional_kwargs["mod_hash_short"] = parts[6]
             optional_kwargs["full_path"] = parts[7]
         return cls(name=name, mod_dir=mod_dir, default=default, official=official, **optional_kwargs)
 

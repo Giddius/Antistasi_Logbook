@@ -1,7 +1,7 @@
 from antistasi_logbook import setup
 setup()
 import os
-from peewee import TextField, IntegerField, BooleanField, AutoField, DateTimeField, ForeignKeyField, SQL, BareField, SqliteDatabase, Field, DatabaseProxy, IntegrityError
+from peewee import TextField, IntegerField, BooleanField, AutoField, DateTimeField, ForeignKeyField, SQL, BareField, SqliteDatabase, Field, DatabaseProxy, IntegrityError, fn
 from playhouse.signals import Model
 from playhouse.sqlite_ext import JSONField, JSONPath
 from playhouse.shortcuts import model_to_dict
@@ -16,6 +16,7 @@ from statistics import mean
 import shutil
 from concurrent.futures import ProcessPoolExecutor
 from yarl import URL
+from playhouse.reflection import print_table_sql, get_table_sql
 from datetime import datetime, timedelta, timezone
 from dateutil.tz import tzoffset, tzlocal, gettz, datetime_ambiguous, resolve_imaginary, datetime_exists, UTC
 from dateutil.tzwin import tzres, tzwin, tzwinlocal
@@ -38,6 +39,9 @@ if TYPE_CHECKING:
 
 
 from gidapptools.gid_logger.fake_logger import fake_logger
+
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
@@ -174,10 +178,10 @@ class Server(BaseModel):
 
     def get_current_log_files(self) -> dict[str, "LogFile"]:
         _out = {}
+
         for log_file in self.log_files:
             _ = log_file.game_map
             _ = log_file.server
-            _ = log_file.get_id()
             _out[log_file.name] = log_file
         return _out
 
@@ -257,6 +261,7 @@ class LogFile(BaseModel):
             datetime_kwargs = {k: int(v) for k, v in match.groupdict().items()}
             return datetime(tzinfo=UTC, **datetime_kwargs)
 
+    @profile
     def set_first_datetime(self, full_datetime: Optional[tuple[datetime, datetime]]) -> None:
         if full_datetime is None:
             LogFile.update(utc_offset=None).where((LogFile.name == self.name) & (LogFile.server_id == self.server_id) & (LogFile.remote_path == self.remote_path)).execute()
@@ -271,6 +276,7 @@ class LogFile(BaseModel):
         self.utc_offset = offset
         LogFile.update(created_at=self.name_datetime.astimezone(offset), utc_offset=offset).where((LogFile.name == self.name) & (LogFile.server_id == self.server_id) & (LogFile.remote_path == self.remote_path)).execute()
 
+    @profile
     def set_version(self, version: Union[str, "Version", tuple]) -> None:
         if isinstance(version, Version) or version is None:
             LogFile.update(version=version).where((LogFile.name == self.name) & (LogFile.server_id == self.server_id) & (LogFile.remote_path == self.remote_path)).execute()
@@ -281,6 +287,7 @@ class LogFile(BaseModel):
         elif isinstance(version, tuple):
             LogFile.update(version=Version(*version)).where((LogFile == self.name) & (LogFile.server_id == self.server_id) & (LogFile.remote_path == self.remote_path)).execute()
 
+    @profile
     def set_game_map(self, short_name: str) -> None:
         if short_name is None:
             return
@@ -288,9 +295,16 @@ class LogFile(BaseModel):
 
         LogFile.update(game_map=GameMap.get(name=short_name)).where(GameMap.log_file == self).execute()
 
+    @profile
     def set_unparsable(self) -> None:
         self.unparsable = True
         self.save()
+
+    @profile
+    def set_last_parsed_line_number(self) -> None:
+        last_parsed_line_number = LogRecord.select(fn.MAX(LogRecord.end)).where(LogRecord.log_file == self).scalar()
+        if last_parsed_line_number:
+            LogFile.update(last_parsed_line_number=last_parsed_line_number).where(LogFile == self).execute()
 
     @ cached_property
     def download_url(self) -> Optional[URL]:
@@ -309,6 +323,7 @@ class LogFile(BaseModel):
     def keep_downloaded_files(self) -> bool:
         return self.config.get("downloading", "keep_downloaded_files", default=False)
 
+    @profile
     def download(self) -> Path:
         return self.server.remote_manager.download_file(self)
 
@@ -324,6 +339,7 @@ class LogFile(BaseModel):
             if cleanup is True:
                 self._cleanup()
 
+    @profile
     def _cleanup(self) -> None:
         if self.is_downloaded is True and self.keep_downloaded_files is False:
             with self.file_lock:
@@ -331,6 +347,7 @@ class LogFile(BaseModel):
                 log.debug(f'deleted local-file of log_file_item [b blue]{self.name!r}[/b blue] from path [u blue]{self.local_path.as_posix()!r}[/u blue]')
                 self.is_downloaded = False
 
+    @profile
     def get_mods(self) -> Optional[list["Mod"]]:
         _out = [mod.mod for mod in self.mods]
         if not _out:
@@ -346,8 +363,8 @@ class LogFile(BaseModel):
 
 class Mod(BaseModel):
     full_path = PathField(null=True)
-    hash = TextField(null=True)
-    hash_short = TextField(null=True)
+    mod_hash = TextField(null=True)
+    mod_hash_short = TextField(null=True)
     link = TextField(null=True)
     mod_dir = TextField()
     name = TextField()
@@ -359,7 +376,7 @@ class Mod(BaseModel):
     class Meta:
         table_name = 'Mod'
         indexes = (
-            (('name', 'mod_dir', "full_path", "hash", "hash_short"), True),
+            (('name', 'mod_dir', "full_path", "mod_hash", "mod_hash_short"), True),
         )
 
 

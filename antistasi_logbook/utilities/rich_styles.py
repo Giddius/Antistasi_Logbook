@@ -50,7 +50,7 @@ from urllib.parse import urlparse
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
-
+from gidapptools.gid_logger.fake_logger import fake_logger
 from rich.style import Style
 
 # endregion[Imports]
@@ -69,6 +69,9 @@ from rich.style import Style
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
+log = fake_logger
 # endregion[Constants]
 
 

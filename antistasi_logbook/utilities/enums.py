@@ -55,7 +55,7 @@ from importlib.machinery import SourceFileLoader
 
 from gidapptools.general_helper.enums import BaseGidEnum
 from gidapptools.meta_data import get_meta_info, get_meta_paths, get_meta_item, app_meta
-import logging
+from gidapptools.gid_logger.fake_logger import fake_logger
 # endregion[Imports]
 
 # region [TODO]
@@ -64,8 +64,11 @@ import logging
 # endregion [TODO]
 
 # region [Logging]
-log = logging.getLogger(__name__)
 
+
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
+log = fake_logger
 # endregion[Logging]
 
 # region [Constants]

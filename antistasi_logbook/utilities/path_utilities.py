@@ -55,7 +55,7 @@ from antistasi_logbook.utilities.nextcloud import get_username
 from antistasi_logbook.utilities.rich_styles import PANEL_BORDER_STYLE, PANEL_STYLE
 import urllib.parse as urllib_parse
 import urllib.request as urllib_request
-
+from gidapptools.gid_logger.fake_logger import fake_logger
 # endregion[Imports]
 
 # region [TODO]
@@ -72,6 +72,9 @@ import urllib.request as urllib_request
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
+log = fake_logger
 # endregion[Constants]
 
 

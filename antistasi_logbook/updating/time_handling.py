@@ -54,7 +54,7 @@ from threading import Thread, Lock, RLock, Event, Condition
 from dateutil.tz import UTC
 from gidapptools import get_meta_config
 from antistasi_logbook import setup
-setup()
+from gidapptools.gid_logger.fake_logger import fake_logger
 # endregion[Imports]
 
 # region [TODO]
@@ -69,6 +69,9 @@ setup()
 
 # region [Constants]
 
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
+log = fake_logger
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 CONFIG = get_meta_config().get_config("general")
 # endregion[Constants]
