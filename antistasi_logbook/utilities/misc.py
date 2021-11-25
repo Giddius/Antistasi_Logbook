@@ -8,10 +8,10 @@ from gidapptools.general_helper.conversion import str_to_bool
 from pathlib import Path
 from dateutil.parser import parse as dateutil_parse
 from dateutil.tz import UTC
-from gidapptools.gid_logger.fake_logger import fake_logger
+from gidapptools import get_logger
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 get_dummy_profile_decorator_in_globals()
-log = fake_logger
+log = get_logger(__name__)
 
 
 class DatetimeJsonEncoder(JSONEncoder):
@@ -73,6 +73,8 @@ class NoThreadPoolExecutor:
 def try_convert_int(data: Union[str, int, None]) -> Union[str, int, None]:
     if data is None:
         return None
+    if isinstance(data, str) and data == "":
+        return None
     try:
         return int(data)
     except ValueError:
@@ -94,7 +96,9 @@ class Version:
         return _out
 
     @classmethod
-    def from_string(cls, string: str) -> "Version":
+    def from_string(cls, string: Optional[str]) -> Optional["Version"]:
+        if string is None:
+            return
         match = cls.version_regex.match(string.strip())
         if match is not None:
             return cls(**match.groupdict())

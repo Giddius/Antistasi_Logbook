@@ -59,7 +59,7 @@ from antistasi_logbook.utilities.path_utilities import RemotePath
 from gidapptools.general_helper.dict_helper import replace_dict_keys
 from marshmallow import Schema, fields, pre_load
 from dateutil.tz import UTC
-from gidapptools.gid_logger.fake_logger import fake_logger
+from gidapptools import get_logger
 # endregion[Imports]
 
 # region [TODO]
@@ -78,7 +78,7 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 get_dummy_profile_decorator_in_globals()
-log = fake_logger
+log = get_logger(__name__)
 # endregion[Constants]
 
 # {'content_language': None,
@@ -94,6 +94,9 @@ log = fake_logger
 
 
 class InfoItemSchema(Schema):
+    """
+    Used for Testing.
+    """
     type = fields.String()
     remote_path = fields.String()
     name = fields.String()
@@ -115,6 +118,11 @@ class InfoItemSchema(Schema):
 
 @attr.s(slots=True, auto_attribs=True, auto_detect=True, kw_only=True, frozen=True)
 class InfoItem:
+    """
+    Class to convert the received Json to and item and also change some names to abstract the remote-storage implementation.
+
+
+    """
     type: RemoteItemType = attr.ib(converter=RemoteItemType)
     remote_path: RemotePath = attr.ib(converter=RemotePath)
     name: str = attr.ib()
@@ -133,7 +141,6 @@ class InfoItem:
         return self.remote_path.stem
 
     @classmethod
-    @profile
     def from_webdav_info(cls, webdav_info: dict[str, Any]) -> "InfoItem":
         webdav_info = webdav_info.copy()
         raw_info = webdav_info.copy()
@@ -144,13 +151,22 @@ class InfoItem:
 
     @classmethod
     def from_schema_item(cls, item) -> "InfoItem":
+        """
+        Used for Testing.
+        """
         return cls(**item)
 
     def as_dict(self) -> dict[str, Any]:
+        """
+        Converts the instance to a dict.
+
+        """
         return attr.asdict(self)
 
     def dump(self) -> dict:
-
+        """
+        Used for Testing.
+        """
         return self.schema.dump(self)
 
 

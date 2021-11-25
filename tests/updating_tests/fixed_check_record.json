@@ -1,0 +1,23 @@
+[
+    {
+        "start": 8776,
+        "end": 8776,
+        "message": "Spawn Performed: Normal QRF sent with 3 vehicles callsign QRF0",
+        "recorded_at": "2021-11-08 21:42:02.918000+00:00",
+        "called_by": {
+            "name": "createSupport"
+        },
+        "is_antistasi_record": true,
+        "logged_from": {
+            "name": "SUP_QRF"
+        },
+        "log_level": {
+            "name": "INFO"
+        },
+        "record_class": {
+            "id": 4,
+            "name": "BaseRecord"
+        },
+        "marked": false
+    }
+]

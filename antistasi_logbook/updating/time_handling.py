@@ -54,7 +54,7 @@ from threading import Thread, Lock, RLock, Event, Condition
 from dateutil.tz import UTC
 from gidapptools import get_meta_config
 from antistasi_logbook import setup
-from gidapptools.gid_logger.fake_logger import fake_logger
+from gidapptools import get_logger
 # endregion[Imports]
 
 # region [TODO]
@@ -71,7 +71,7 @@ from gidapptools.gid_logger.fake_logger import fake_logger
 
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 get_dummy_profile_decorator_in_globals()
-log = fake_logger
+log = get_logger(__name__)
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 CONFIG = get_meta_config().get_config("general")
 # endregion[Constants]
@@ -88,19 +88,16 @@ TRIGGER_INTERVAL_TYPE = Union[TRIGGER_RESULT_TYPE, Callable[[], TRIGGER_RESULT_T
 class TimeClock:
 
     def __init__(self,
-                 time_zone: timezone = UTC,
-                 now_factory: Callable[[timezone], datetime] = None,
-                 trigger_interval: TRIGGER_INTERVAL_TYPE = None,
+                 trigger_interval: TRIGGER_INTERVAL_TYPE,
                  stop_event: Event = None) -> None:
-        self.time_zone = time_zone
-        self.now_factory = _default_now_factory if now_factory is None else now_factory
+        self.time_zone = UTC
         self._trigger_interval = trigger_interval
         self.stop_event = Event() if stop_event is None else stop_event
         self.next_trigger: datetime = None
 
     @property
     def now(self) -> datetime:
-        return self.now_factory(tz=self.time_zone)
+        return datetime.now(tz=UTC)
 
     @property
     def trigger_interval(self) -> timedelta:

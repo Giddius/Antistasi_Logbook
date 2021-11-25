@@ -1,4 +1,4 @@
-from antistasi_logbook.parsing.parsing_context import ParsingContext, LineCache, LINE_ITERATOR_TYPE, RecordLine
+from antistasi_logbook.parsing.parsing_context import LogParsingContext, LineCache, LINE_ITERATOR_TYPE, RecordLine
 from antistasi_logbook.parsing.parser import RawRecord, Parser, SimpleRegexKeeper
 from pathlib import Path
 import pytest
@@ -35,7 +35,7 @@ class FakeLogFileWrapper:
 class FakeParsingContext:
 
     def __init__(self, log_file: Path) -> None:
-        self.log_file = FakeLogFileWrapper(log_file=log_file)
+        self._log_file = FakeLogFileWrapper(log_file=log_file)
         self.line_cache = LineCache()
         self._line_iterator: LINE_ITERATOR_TYPE = None
         self._current_line: RecordLine = None
@@ -43,12 +43,12 @@ class FakeParsingContext:
 
     @contextmanager
     def open(self, cleanup: bool = True) -> TextIO:
-        with self.log_file.open(encoding='utf-8', errors='ignore') as f:
+        with self._log_file.open(encoding='utf-8', errors='ignore') as f:
             yield f
 
     def _get_line_iterator(self) -> LINE_ITERATOR_TYPE:
         line_number = 0
-        with self.log_file.open(encoding='utf-8', errors='ignore') as f:
+        with self._log_file.open(encoding='utf-8', errors='ignore') as f:
             for line in f:
                 line_number += 1
                 line = line.rstrip()
@@ -75,7 +75,7 @@ class FakeParsingContext:
         if self._line_iterator is not None:
             self._line_iterator.close()
 
-    def __enter__(self) -> "ParsingContext":
+    def __enter__(self) -> "LogParsingContext":
         return self
 
     def __exit__(self, exception_type: type = None, exception_value: BaseException = None, traceback: Any = None) -> None:

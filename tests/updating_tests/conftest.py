@@ -1,9 +1,8 @@
 import pytest
 
-from antistasi_logbook.storage.database import get_database, GidSqliteQueueDatabase
-from antistasi_logbook.updating.updater import get_updater, get_update_thread
-from antistasi_logbook.utilities.misc import frozen_time_giver
-from antistasi_logbook.storage.models.models import RemoteStorage
+from antistasi_logbook.storage.database import GidSqliteQueueDatabase, GidSqliteApswDatabase, GidSqliteDatabase
+from antistasi_logbook.backend import Backend
+from antistasi_logbook.storage.models.models import RemoteStorage, database as database_proxy
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from dateutil.tz import UTC
@@ -13,6 +12,7 @@ import shutil
 from dotenv import load_dotenv
 from pprint import pprint
 from tempfile import TemporaryDirectory
+from antistasi_logbook.updating.remote_managers import FakeWebdavManager
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 
@@ -25,10 +25,10 @@ BASE_CONFIGSPEC_FILE = DATA_DIR.joinpath("config", "general_configspec_for_tests
 
 
 @pytest.fixture
-def general_config():
-    tmpdir = TemporaryDirectory()
-    config_file_path = Path(tmpdir.name).joinpath(BASE_CONFIG_FILE.name)
-    config_spec_file_path = Path(tmpdir.name).joinpath(BASE_CONFIGSPEC_FILE.name)
+def general_config(tmpdir):
+
+    config_file_path = Path(tmpdir).joinpath(BASE_CONFIG_FILE.name)
+    config_spec_file_path = Path(tmpdir).joinpath(BASE_CONFIGSPEC_FILE.name)
     shutil.copy(BASE_CONFIG_FILE, config_file_path)
     shutil.copy(BASE_CONFIGSPEC_FILE, config_spec_file_path)
 
@@ -37,21 +37,26 @@ def general_config():
     config.reload()
 
     yield config
-    tmpdir.cleanup()
 
 
 @pytest.fixture
 def general_database(tmpdir, general_config: "GidIniConfig"):
 
-    db = get_database(database_path=Path(tmpdir).joinpath('test_storage.db'), overwrite_db=True, config=general_config)
-    web_dav_rem = RemoteStorage.get_by_id(1)
-    web_dav_rem.set_login_and_password(login="does_not", password="matter", store_in_db=False)
+    db = GidSqliteApswDatabase(database_path=Path(tmpdir).joinpath('test_storage.db'), config=general_config)
+
     yield db
-    db.shutdown()
 
 
 @pytest.fixture
-def general_updater(general_database: "GidSqliteQueueDatabase", general_config: "GidIniConfig"):
+def general_backend(general_database: "GidSqliteDatabase", general_config: "GidIniConfig"):
+    backend = Backend(database=general_database, config=general_config, database_proxy=database_proxy)
 
-    updater = get_update_thread(database=general_database, use_fake_webdav_manager=True, get_now=frozen_time_giver(FROZEN_TIME), config=general_config)
-    yield updater.updater
+    FakeWebdavManager.fake_files_folder = DATA_DIR.joinpath("fake_log_files")
+    FakeWebdavManager.info_file = DATA_DIR.joinpath("fake_info_data.json")
+    FakeWebdavManager.config = general_config
+    backend.remote_manager_registry.register_manager_class(FakeWebdavManager, force=True)
+    backend.start_up(overwrite=False)
+    web_dav_rem = RemoteStorage.get_by_id(1)
+    web_dav_rem.set_login_and_password(login="does_not", password="matter", store_in_db=False)
+    yield backend
+    backend.shutdown()

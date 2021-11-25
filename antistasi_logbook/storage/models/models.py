@@ -10,7 +10,7 @@ from antistasi_logbook.storage.models.custom_fields import RemotePathField, Path
 from typing import TYPE_CHECKING, Generator, Hashable, Iterable, Optional, TextIO, Union
 from pathlib import Path
 from io import TextIOWrapper
-from gidapptools import get_meta_paths, get_meta_config
+
 from functools import cached_property
 from statistics import mean
 import shutil
@@ -28,17 +28,19 @@ from antistasi_logbook.utilities.misc import Version
 from pprint import pformat
 from antistasi_logbook.data.misc import LOG_FILE_DATE_REGEX
 from dateutil.tz import tzoffset, UTC
-
-from playhouse.apsw_ext import BooleanField, DateTimeField
+from playhouse.sqlite_changelog import ChangeLog
+from playhouse.apsw_ext import BooleanField, DateTimeField, CharField, IntegerField
 
 from time import sleep
+from antistasi_logbook.updating.remote_managers import remote_manager_registry
+
 if TYPE_CHECKING:
     from antistasi_logbook.updating.remote_managers import AbstractRemoteStorageManager, InfoItem
     from gidapptools.gid_config.meta_factory import GidIniConfig
-    from antistasi_logbook.parsing.record_class_manager import RECORD_CLASS_TYPE
+    from antistasi_logbook.records.record_class_manager import RECORD_CLASS_TYPE, RecordClassManager
 
 
-from gidapptools.gid_logger.fake_logger import fake_logger
+from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
 
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 get_dummy_profile_decorator_in_globals()
@@ -48,7 +50,8 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 database = DatabaseProxy()
 META_PATHS = get_meta_paths()
 CONFIG: "GidIniConfig" = get_meta_config().get_config('general')
-log = fake_logger
+META_INFO = get_meta_info()
+log = get_logger(__name__)
 
 
 class BaseModel(Model):
@@ -85,29 +88,33 @@ class AntstasiFunction(BaseModel):
     def function_name(self) -> str:
         return f"A3A_fnc_{self.name}"
 
+    @staticmethod
+    def clean_antistasi_function_name(in_name: str) -> str:
+        return in_name.strip().removeprefix("A3A_fnc_").removeprefix("fn_").removesuffix('.sqf')
+
 
 class GameMap(BaseModel):
-    full_name = TextField(null=True, unique=True)
-    name = TextField(unique=True)
-    official = BooleanField(default=False)
-    dlc = TextField(null=True)
+    full_name = TextField(null=True, unique=True, index=True)
+    name = TextField(unique=True, index=True)
+    official = BooleanField(default=False, index=True)
+    dlc = TextField(null=True, index=True)
     map_image_high_resolution = CompressedImageField(null=True)
     map_image_low_resolution = CompressedImageField(null=True)
     coordinates = JSONField(null=True)
     workshop_link = URLField(null=True)
     comments = TextField(null=True)
-    marked = BooleanField(default=False)
+    marked = BooleanField(default=False, index=True)
 
     class Meta:
         table_name = 'GameMap'
 
 
 class RemoteStorage(BaseModel):
-    name = TextField(unique=True)
+    name = TextField(unique=True, index=True)
     base_url = URLField(null=True)
     _login = LoginField(null=True)
     _password = PasswordField(null=True)
-    manager_type = TextField()
+    manager_type = TextField(index=True)
 
     class Meta:
         table_name = 'RemoteStorage'
@@ -145,26 +152,26 @@ class RemoteStorage(BaseModel):
             os.environ[self.login_env_var_name] = login
             os.environ[self.password_env_var_name] = password
 
+    def as_remote_manager(self) -> "AbstractRemoteStorageManager":
+        manager = remote_manager_registry.get_remote_manager(self)
+        return manager
+
 
 class Server(BaseModel):
     local_path = PathField(null=True, unique=True)
-    name = TextField(unique=True)
+    name = TextField(unique=True, index=True)
     remote_path = RemotePathField(null=True, unique=True)
-    remote_storage = ForeignKeyField(column_name='remote_storage', default=0, field='id', model=RemoteStorage, lazy_load=True)
+    remote_storage = ForeignKeyField(column_name='remote_storage', default=0, field='id', model=RemoteStorage, lazy_load=True, index=True)
     update_enabled = BooleanField(default=False)
     comments = TextField(null=True)
-    marked = BooleanField(default=False)
-    remote_manager_cache: dict[str, "AbstractRemoteStorageManager"] = {}
+    marked = BooleanField(default=False, index=True)
 
     class Meta:
         table_name = 'Server'
 
     @property
     def remote_manager(self) -> "AbstractRemoteStorageManager":
-        return self.remote_manager_cache[self.remote_storage.name]
-
-    def ensure_remote_manager(self, remote_manager: "AbstractRemoteStorageManager") -> None:
-        self.remote_manager_cache[self.remote_storage.name] = remote_manager
+        return self.remote_storage.as_remote_manager()
 
     def is_updatable(self) -> bool:
         if self.update_enabled is False:
@@ -173,8 +180,8 @@ class Server(BaseModel):
             return False
         return True
 
-    def get_remote_files(self, remote_manager: "AbstractRemoteStorageManager") -> Generator["InfoItem", None, None]:
-        yield from remote_manager.get_files(self.remote_path)
+    def get_remote_files(self) -> Generator["InfoItem", None, None]:
+        yield from self.remote_manager.get_files(self.remote_path)
 
     def get_current_log_files(self) -> dict[str, "LogFile"]:
         _out = {}
@@ -200,23 +207,30 @@ class Server(BaseModel):
         local_path.mkdir(exist_ok=True, parents=True)
         return local_path
 
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(name={self.name!r}, remote_storage={self.remote_storage.name!r}, update_enabled={self.update_enabled!r}, remote_manager={self.remote_manager!r})"
+
+    def __str__(self) -> str:
+        return self.name
+
 
 class LogFile(BaseModel):
-    name = TextField()
+    name = TextField(index=True)
     remote_path = RemotePathField(unique=True)
-    modified_at = BetterDateTimeField()
+    modified_at = BetterDateTimeField(index=True)
     size = IntegerField()
-    created_at = BetterDateTimeField(null=True)
-    finished = BooleanField(default=False, null=True)
+    created_at = BetterDateTimeField(null=True, index=True)
     header_text = CompressedTextField(null=True)
     startup_text = CompressedTextField(null=True)
     last_parsed_line_number = IntegerField(default=0, null=True)
     utc_offset = TzOffsetField(null=True)
-    version = VersionField(null=True)
-    game_map = ForeignKeyField(column_name='game_map', field='id', model=GameMap, null=True, lazy_load=True)
-    is_new_campaign = BooleanField(default=False)
-    server = ForeignKeyField(column_name='server', field='id', model=Server, lazy_load=True, backref="log_files")
-    unparsable = BooleanField(default=False)
+    version = VersionField(null=True, index=True)
+    game_map = ForeignKeyField(column_name='game_map', field='id', model=GameMap, null=True, lazy_load=True, index=True)
+    is_new_campaign = BooleanField(null=True, index=True)
+    campaign_id = IntegerField(null=True, index=True)
+    server = ForeignKeyField(column_name='server', field='id', model=Server, lazy_load=True, backref="log_files", index=True)
+    unparsable = BooleanField(default=False, index=True)
+    last_parsed_datetime = BetterDateTimeField(null=True)
     comments = TextField(null=True)
     marked = BooleanField(default=False)
 
@@ -233,6 +247,11 @@ class LogFile(BaseModel):
     @cached_property
     def file_lock(self) -> Lock:
         return FILE_LOCKS.get_file_lock(self)
+
+    def is_fully_parsed(self) -> bool:
+        if self.last_parsed_datetime is None:
+            return False
+        return self.last_parsed_datetime == self.modified_at
 
     def has_game_map(self) -> bool:
         return self.game_map_id is not None
@@ -261,50 +280,13 @@ class LogFile(BaseModel):
             datetime_kwargs = {k: int(v) for k, v in match.groupdict().items()}
             return datetime(tzinfo=UTC, **datetime_kwargs)
 
-    @profile
-    def set_first_datetime(self, full_datetime: Optional[tuple[datetime, datetime]]) -> None:
-        if full_datetime is None:
-            LogFile.update(utc_offset=None).where((LogFile.name == self.name) & (LogFile.server_id == self.server_id) & (LogFile.remote_path == self.remote_path)).execute()
+    def set_last_parsed_line_number(self, line_number: int) -> None:
+        if line_number <= self.last_parsed_line_number:
             return
-        difference_seconds = (full_datetime[0] - full_datetime[1]).total_seconds()
-        offset_timedelta = timedelta(hours=difference_seconds // (60 * 60))
-        if offset_timedelta.days > 0:
-            offset_timedelta = timedelta(hours=(difference_seconds // (60 * 60)) - 24)
-
-        offset = tzoffset(self.name, offset_timedelta)
-        self.created_at = self.name_datetime.astimezone(offset)
-        self.utc_offset = offset
-        LogFile.update(created_at=self.name_datetime.astimezone(offset), utc_offset=offset).where((LogFile.name == self.name) & (LogFile.server_id == self.server_id) & (LogFile.remote_path == self.remote_path)).execute()
-
-    @profile
-    def set_version(self, version: Union[str, "Version", tuple]) -> None:
-        if isinstance(version, Version) or version is None:
-            LogFile.update(version=version).where((LogFile.name == self.name) & (LogFile.server_id == self.server_id) & (LogFile.remote_path == self.remote_path)).execute()
-
-        elif isinstance(version, str):
-            LogFile.update(version=Version.from_string(version)).where((LogFile.name == self.name) & (LogFile.server_id == self.server_id) & (LogFile.remote_path == self.remote_path)).execute()
-
-        elif isinstance(version, tuple):
-            LogFile.update(version=Version(*version)).where((LogFile == self.name) & (LogFile.server_id == self.server_id) & (LogFile.remote_path == self.remote_path)).execute()
-
-    @profile
-    def set_game_map(self, short_name: str) -> None:
-        if short_name is None:
-            return
-        GameMap.insert(name=short_name).on_conflict_ignore().execute()
-
-        LogFile.update(game_map=GameMap.get(name=short_name)).where(GameMap.log_file == self).execute()
-
-    @profile
-    def set_unparsable(self) -> None:
-        self.unparsable = True
-        self.save()
-
-    @profile
-    def set_last_parsed_line_number(self) -> None:
-        last_parsed_line_number = LogRecord.select(fn.MAX(LogRecord.end)).where(LogRecord.log_file == self).scalar()
-        if last_parsed_line_number:
-            LogFile.update(last_parsed_line_number=last_parsed_line_number).where(LogFile == self).execute()
+        log.debug("setting 'last_parsed_line_number' for %s to %r", self, line_number)
+        changed = LogFile.update(last_parsed_line_number=line_number).where(LogFile.id == self.id).execute(self.get_meta().database)
+        log.debug(f"{changed=}")
+        self.last_parsed_line_number = line_number
 
     @ cached_property
     def download_url(self) -> Optional[URL]:
@@ -323,7 +305,6 @@ class LogFile(BaseModel):
     def keep_downloaded_files(self) -> bool:
         return self.config.get("downloading", "keep_downloaded_files", default=False)
 
-    @profile
     def download(self) -> Path:
         return self.server.remote_manager.download_file(self)
 
@@ -339,15 +320,13 @@ class LogFile(BaseModel):
             if cleanup is True:
                 self._cleanup()
 
-    @profile
     def _cleanup(self) -> None:
         if self.is_downloaded is True and self.keep_downloaded_files is False:
-            with self.file_lock:
-                self.local_path.unlink(missing_ok=True)
-                log.debug(f'deleted local-file of log_file_item [b blue]{self.name!r}[/b blue] from path [u blue]{self.local_path.as_posix()!r}[/u blue]')
-                self.is_downloaded = False
 
-    @profile
+            self.local_path.unlink(missing_ok=True)
+            log.debug('deleted local-file of log_file_item %r from path %r', self.name, self.local_path.as_posix())
+            self.is_downloaded = False
+
     def get_mods(self) -> Optional[list["Mod"]]:
         _out = [mod.mod for mod in self.mods]
         if not _out:
@@ -367,11 +346,11 @@ class Mod(BaseModel):
     mod_hash_short = TextField(null=True)
     link = TextField(null=True)
     mod_dir = TextField()
-    name = TextField()
-    default = BooleanField(default=False)
-    official = BooleanField(default=False)
+    name = TextField(index=True)
+    default = BooleanField(default=False, index=True)
+    official = BooleanField(default=False, index=True)
     comments = TextField(null=True)
-    marked = BooleanField(default=False)
+    marked = BooleanField(default=False, index=True)
 
     class Meta:
         table_name = 'Mod'
@@ -408,33 +387,33 @@ class LogLevel(BaseModel):
 
 class RecordClass(BaseModel):
     name = TextField(unique=True)
+    record_class_manager: "RecordClassManager" = None
 
     class Meta:
         table_name = 'RecordClass'
 
     @ cached_property
     def record_class(self) -> "RECORD_CLASS_TYPE":
-        return self._meta.database.record_class_manager.get_by_name(self.name)
+        return self.record_class_manager.get_by_name(self.name)
 
 
 class LogRecord(BaseModel):
     start = IntegerField()
     end = IntegerField()
     message = TextField()
-    recorded_at = BetterDateTimeField()
-    called_by = ForeignKeyField(column_name='called_by', field='id', model=AntstasiFunction, lazy_load=True, null=True)
-    is_antistasi_record = BooleanField(default=False)
-    logged_from = ForeignKeyField(column_name='logged_from', field='id', model=AntstasiFunction, lazy_load=True, null=True)
+    recorded_at = BetterDateTimeField(index=True)
+    called_by = ForeignKeyField(column_name='called_by', field='id', model=AntstasiFunction, backref="log_records_called_by", lazy_load=True, null=True, index=True)
+    is_antistasi_record = BooleanField(default=False, index=True)
+    logged_from = ForeignKeyField(column_name='logged_from', field='id', model=AntstasiFunction, backref="log_records_logged_from", lazy_load=True, null=True, index=True)
     log_file = ForeignKeyField(column_name='log_file', field='id', model=LogFile, lazy_load=True, backref="log_records", null=False)
-    log_level = ForeignKeyField(column_name='log_level', default=0, field='id', model=LogLevel, null=True, lazy_load=True)
-    record_class = ForeignKeyField(column_name='record_class', field='id', model=RecordClass, lazy_load=True)
-    comments = TextField(null=True)
-    marked = BooleanField(default=False)
+    log_level = ForeignKeyField(column_name='log_level', default=0, field='id', model=LogLevel, null=True, lazy_load=True, index=True)
+    record_class = ForeignKeyField(column_name='record_class', field='id', model=RecordClass, lazy_load=True, index=True)
+    marked = BooleanField(default=False, index=True)
 
     class Meta:
         table_name = 'LogRecord'
         indexes = (
-            (('start', 'end', 'log_file', 'record_class'), True),
+            (('start', 'end', 'log_file'), True),
         )
 
     def to_record_class(self) -> "RECORD_CLASS_TYPE":
@@ -449,9 +428,64 @@ class LogRecord(BaseModel):
         return f"{self.recorded_at.isoformat(sep=' ')} {self.message}"
 
 
+DATABASE_META_LOCK = RLock()
+
+
+class DatabaseMetaData(BaseModel):
+    started_at = BetterDateTimeField()
+    app_version = VersionField()
+    new_log_files = IntegerField(default=0)
+    updated_log_files = IntegerField(default=0)
+    added_log_records = IntegerField(default=0)
+    errored = TextField(null=True)
+
+    class Meta:
+        table_name = 'DatabaseMetaData'
+
+    @classmethod
+    def new_session(cls, started_at: datetime = None, app_version: Version = None) -> "DatabaseMetaData":
+        started_at = datetime.now(tz=UTC) if started_at is None else started_at
+        app_version = Version.from_string(META_INFO.version) if app_version is None else app_version
+        item = cls(started_at=started_at, app_version=app_version)
+        item.save()
+        return item
+
+    def count_log_files(self, server: "Server" = None) -> int:
+        if server is None:
+            return LogFile.select().count()
+        return LogFile.select().where(LogFile.server == server).count()
+
+    def count_log_records(self, log_file: "LogFile" = None, server: "Server" = None) -> int:
+        if log_file is None and server is None:
+            return LogRecord.select().count()
+
+        if log_file is None and server is not None:
+            return LogRecord.select().where(LogRecord.log_file.server == server).count()
+
+        if log_file is not None and server is None:
+            return LogRecord.select().where(LogRecord.log_file == log_file).count()
+
+    def increment_new_log_file(self, **kwargs) -> None:
+        with DATABASE_META_LOCK:
+            amount = kwargs.get("amount", 1)
+            self.new_log_files += amount
+
+    def increment_updated_log_file(self, **kwargs) -> None:
+        with DATABASE_META_LOCK:
+            amount = kwargs.get("amount", 1)
+            self.updated_log_files += amount
+
+    def increment_added_log_records(self, **kwargs) -> None:
+        with DATABASE_META_LOCK:
+            amount = kwargs.get("amount", 1)
+            self.added_log_records += amount
+
+
 def setup_db():
     all_models = BaseModel.__subclasses__()
+
     database.create_tables(all_models)
+
     setup_data = {RemoteStorage: [{"name": "local_files", "id": 0, "base_url": "--LOCAL--", "manager_type": "LocalManager"},
                                   {"name": "community_webdav", "id": 1, "base_url": "https://antistasi.de", "manager_type": "WebdavManager"}],
 

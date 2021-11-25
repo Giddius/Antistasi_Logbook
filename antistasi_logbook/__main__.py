@@ -59,11 +59,11 @@ from gidapptools.meta_data.interface import app_meta, get_meta_config
 from dotenv import load_dotenv
 from gidapptools.general_helper.timing import time_execution
 import click
+from gidapptools import get_logger
 from gidapptools.gid_signal.interface import get_signal
 import atexit
-from antistasi_logbook.storage.models.models import Server, RemoteStorage
-from antistasi_logbook.storage.database import get_database
-from antistasi_logbook.updating.updater import get_updater, get_update_thread
+from antistasi_logbook.storage.models.models import Server, RemoteStorage, database as database_proxy
+from antistasi_logbook.backend import Backend, GidSqliteApswDatabase
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
 # endregion[Imports]
@@ -88,6 +88,7 @@ META_PATHS = get_meta_paths()
 META_INFO = get_meta_info()
 CONFIG: "GidIniConfig" = get_meta_config().get_config('general')
 CONFIG.config.load()
+log = get_logger(__name__)
 # endregion[Constants]
 
 
@@ -116,34 +117,48 @@ def settings(setting_name, value):
 @click.option('--login', '-l', default=None)
 @click.option('--password', '-p', default=None)
 def update(login, password):
-    amount_updated = 0
-
-    def count_amount(log_file) -> None:
-        nonlocal amount_updated
-        amount_updated += 1
 
     def set_auth():
         if login is not None and password is not None:
             item: RemoteStorage = RemoteStorage.get(name='community_webdav')
             item.set_login_and_password(login=login, password=password, store_in_db=False)
 
-    log_file_updated_signal = get_signal("log_file_updated")
-    log_file_updated_signal.connect(count_amount)
-    db = get_database()
-    updater = get_updater(database=db)
+    database = GidSqliteApswDatabase(config=CONFIG)
+
+    backend = Backend(database=database, config=CONFIG, database_proxy=database_proxy)
     set_auth()
     try:
-        for server in Server.select():
-            updater(server=server)
+        backend.updater()
     finally:
+        amount_updated = database.session_meta_data.new_log_files + database.session_meta_data.updated_log_files
         click.echo(f"{amount_updated} log files were updated.")
-        db.optimize()
-        db.vacuum()
-        db.shutdown()
+        backend.shutdown()
+
+
+def debug_update(login, password):
+
+    def set_auth():
+        if login is not None and password is not None:
+            item: RemoteStorage = RemoteStorage.get(name='community_webdav')
+            item.set_login_and_password(login=login, password=password, store_in_db=False)
+
+    database = GidSqliteApswDatabase(config=CONFIG)
+
+    backend = Backend(database=database, config=CONFIG, database_proxy=database_proxy)
+    backend.start_up(overwrite=True)
+    set_auth()
+    try:
+        backend.updater()
+    finally:
+        amount_updated = database.session_meta_data.new_log_files + database.session_meta_data.updated_log_files
+        log.info(f"{amount_updated} log files were updated.")
+        backend.shutdown()
 
 
 # region[Main_Exec]
 if __name__ == '__main__':
-    if getattr(sys, 'frozen', False):
-        cli(sys.argv[1:])
+    # if getattr(sys, 'frozen', False):
+    #     cli(sys.argv[1:])
+    load_dotenv(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\tests\data\nextcloud.env")
+    debug_update(login=os.getenv("NEXTCLOUD_USERNAME"), password=os.getenv("NEXTCLOUD_PASSWORD"))
 # endregion[Main_Exec]

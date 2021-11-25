@@ -17,6 +17,7 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
                            QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QApplication, QGridLayout, QSizePolicy, QSplitter,
                                QWidget)
+from . import antistasi_logbook_main_ressources
 
 
 class Ui_Form(object):
@@ -26,28 +27,26 @@ class Ui_Form(object):
         Form.resize(919, 667)
         self.gridLayout = QGridLayout(Form)
         self.gridLayout.setObjectName(u"gridLayout")
-        self.InfoWidget = QWidget(Form)
-        self.InfoWidget.setObjectName(u"InfoWidget")
-        self.InfoWidget.setMaximumSize(QSize(16777215, 91))
+        self.info_widget = QWidget(Form)
+        self.info_widget.setObjectName(u"info_widget")
+        self.info_widget.setMaximumSize(QSize(16777215, 91))
 
-        self.gridLayout.addWidget(self.InfoWidget, 0, 0, 1, 1)
+        self.gridLayout.addWidget(self.info_widget, 0, 0, 1, 1)
 
-        self.splitter = QSplitter(Form)
-        self.splitter.setObjectName(u"splitter")
-        self.splitter.setOrientation(Qt.Horizontal)
-        self.SideBarWidget = QWidget(self.splitter)
-        self.SideBarWidget.setObjectName(u"SideBarWidget")
-        self.SideBarWidget.setMaximumSize(QSize(196, 16777215))
-        self.splitter.addWidget(self.SideBarWidget)
-        self.MainInteractionWidget = QWidget(self.splitter)
-        self.MainInteractionWidget.setObjectName(u"MainInteractionWidget")
-        self.splitter.addWidget(self.MainInteractionWidget)
+        self.side_bar_main_interaction_splitter = QSplitter(Form)
+        self.side_bar_main_interaction_splitter.setObjectName(u"side_bar_main_interaction_splitter")
+        self.side_bar_main_interaction_splitter.setOrientation(Qt.Horizontal)
+        self.side_bar_widget = QWidget(self.side_bar_main_interaction_splitter)
+        self.side_bar_widget.setObjectName(u"side_bar_widget")
+        self.side_bar_widget.setMaximumSize(QSize(196, 16777215))
+        self.side_bar_main_interaction_splitter.addWidget(self.side_bar_widget)
+        self.main_interaction_widget = QWidget(self.side_bar_main_interaction_splitter)
+        self.main_interaction_widget.setObjectName(u"main_interaction_widget")
+        self.side_bar_main_interaction_splitter.addWidget(self.main_interaction_widget)
 
-        self.gridLayout.addWidget(self.splitter, 1, 0, 1, 1)
+        self.gridLayout.addWidget(self.side_bar_main_interaction_splitter, 1, 0, 1, 1)
 
         self.retranslateUi(Form)
-
-        QMetaObject.connectSlotsByName(Form)
     # setupUi
 
     def retranslateUi(self, Form):

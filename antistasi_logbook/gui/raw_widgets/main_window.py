@@ -18,6 +18,7 @@ from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient,
                            QTransform)
 from PySide6.QtWidgets import (QApplication, QGridLayout, QMainWindow, QMenu,
                                QMenuBar, QSizePolicy, QStatusBar, QWidget)
+from . import antistasi_logbook_main_ressources
 
 
 class Ui_MainWindow(object):
@@ -29,14 +30,16 @@ class Ui_MainWindow(object):
         self.actionExit.setObjectName(u"actionExit")
         self.actionAbout = QAction(MainWindow)
         self.actionAbout.setObjectName(u"actionAbout")
+        self.actionVersion = QAction(MainWindow)
+        self.actionVersion.setObjectName(u"actionVersion")
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
         self.gridLayout = QGridLayout(self.centralwidget)
         self.gridLayout.setObjectName(u"gridLayout")
-        self.MainWidget = QWidget(self.centralwidget)
-        self.MainWidget.setObjectName(u"MainWidget")
+        self.main_widget = QWidget(self.centralwidget)
+        self.main_widget.setObjectName(u"main_widget")
 
-        self.gridLayout.addWidget(self.MainWidget, 0, 0, 1, 1)
+        self.gridLayout.addWidget(self.main_widget, 0, 0, 1, 1)
 
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
@@ -64,16 +67,16 @@ class Ui_MainWindow(object):
         self.menubar.addAction(self.menuHelp.menuAction())
         self.menuFile.addAction(self.actionExit)
         self.menuHelp.addAction(self.actionAbout)
+        self.menuHelp.addAction(self.actionVersion)
 
         self.retranslateUi(MainWindow)
-
-        QMetaObject.connectSlotsByName(MainWindow)
     # setupUi
 
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"Antistasi Logbook", None))
         self.actionExit.setText(QCoreApplication.translate("MainWindow", u"Exit", None))
         self.actionAbout.setText(QCoreApplication.translate("MainWindow", u"About", None))
+        self.actionVersion.setText(QCoreApplication.translate("MainWindow", u"Version", None))
         self.menuFile.setTitle(QCoreApplication.translate("MainWindow", u"File", None))
         self.menuEdit.setTitle(QCoreApplication.translate("MainWindow", u"Edit", None))
         self.menuView.setTitle(QCoreApplication.translate("MainWindow", u"View", None))

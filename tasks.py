@@ -7,8 +7,8 @@ from tomlkit.toml_document import TOMLDocument
 from tomlkit.api import loads as toml_loads, dumps as toml_dumps, parse, document
 import json
 from dotenv import load_dotenv, find_dotenv, dotenv_values
-from webdav3.client import Client as WebdavClient
-from webdav3.exceptions import NoConnection
+from webdav4.client import Client as WebdavClient
+
 from datetime import datetime, timedelta
 import sys
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, wait
@@ -25,7 +25,7 @@ from itertools import repeat
 import re
 
 from zipfile import ZipFile, ZIP_LZMA
-from aiodav import Client as AioWebdavClient
+
 import subprocess
 from typing import Union, Optional, Iterable, Hashable, Generator, Mapping, MutableMapping, Any
 import logging
@@ -171,7 +171,9 @@ IMPORTANT_FOLDER = [TEMP_FOLDER, MISC_FOLDER, DOCS_FOLDER, MAIN_MODULE_FOLDER]
 
 VENV_ACTIVATOR_PATH = SCRIPTS_FOLDER.joinpath("activate.bat")
 PWIZ_FILE = SITE_PACKAGES_FOLDER.joinpath("pwiz.py")
-
+DESIGNER_FILES_FOLDER = THIS_FILE_DIR.joinpath("designer_files")
+RESSOURCES_FILE_FOLDER = DESIGNER_FILES_FOLDER.joinpath("ressources")
+RAW_WIDGETS_FOLDER = MAIN_MODULE_FOLDER.joinpath("gui", "raw_widgets")
 # endregion[Constants]
 
 
@@ -254,7 +256,7 @@ def download_log_file(paths, try_num=1):
         client.download_sync(remote_path=paths[0], local_path=paths[1])
         sleep(random.uniform(0.1, 3.0))
         client.session.close()
-    except NoConnection:
+    except Exception:
         if try_num <= 10:
             print(f'retrying because of NoConnection Error, try_number: {try_num}')
             sleep(random.randint(5, 10))
@@ -434,3 +436,24 @@ def create_models(c, db_file=None):
     finally:
 
         os.remove(str(db_file))
+
+
+@task(name="convert-designer-files")
+def convert_designer_files(c):
+    to_convert: dict[Path:Path] = {}
+    for file in DESIGNER_FILES_FOLDER.iterdir():
+        if file.is_file() and file.suffix == '.ui':
+            to_convert[file] = RAW_WIDGETS_FOLDER.joinpath(file.name).with_suffix('.py')
+
+    exe = "pyside6-uic.exe"
+    for src, tgt in to_convert.items():
+        print(f"converting file {src!s} to {tgt!s}")
+        args = []
+        args.append(f"-o {str(tgt)}")
+        args.append("-g python")
+        args.append("-a")
+        args.append("--from-imports")
+        args.append(str(src))
+        cmd = exe + ' ' + ' '.join(args)
+        activator_run(c, cmd)
+        print(f"FINISHED converting file {src!s} to {tgt!s}")

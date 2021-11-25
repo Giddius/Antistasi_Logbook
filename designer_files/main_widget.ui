@@ -15,7 +15,7 @@
   </property>
   <layout class="QGridLayout" name="gridLayout">
    <item row="0" column="0">
-    <widget class="QWidget" name="InfoWidget" native="true">
+    <widget class="QWidget" name="info_widget" native="true">
      <property name="maximumSize">
       <size>
        <width>16777215</width>
@@ -25,11 +25,11 @@
     </widget>
    </item>
    <item row="1" column="0">
-    <widget class="QSplitter" name="splitter">
+    <widget class="QSplitter" name="side_bar_main_interaction_splitter">
      <property name="orientation">
       <enum>Qt::Horizontal</enum>
      </property>
-     <widget class="QWidget" name="SideBarWidget" native="true">
+     <widget class="QWidget" name="side_bar_widget" native="true">
       <property name="maximumSize">
        <size>
         <width>196</width>
@@ -37,7 +37,7 @@
        </size>
       </property>
      </widget>
-     <widget class="QWidget" name="MainInteractionWidget" native="true"/>
+     <widget class="QWidget" name="main_interaction_widget" native="true"/>
     </widget>
    </item>
   </layout>

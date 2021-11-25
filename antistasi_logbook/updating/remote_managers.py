@@ -25,7 +25,8 @@ import platform
 import importlib
 import subprocess
 import inspect
-
+from antistasi_logbook import setup
+setup()
 from time import sleep, process_time, process_time_ns, perf_counter, perf_counter_ns
 from io import BytesIO, StringIO
 from abc import ABC, ABCMeta, abstractmethod
@@ -72,17 +73,18 @@ from gidapptools import get_meta_item, get_meta_paths, get_meta_config
 from threading import RLock, Lock
 from rich import print as rprint
 import yarl
+from dateutil.tz import UTC
 import httpx
 from antistasi_logbook.errors import MissingLoginAndPasswordError
 from antistasi_logbook.utilities.path_utilities import url_to_path
 from antistasi_logbook.utilities.locks import DelayedSemaphore, MinDurationSemaphore
 from antistasi_logbook.utilities.nextcloud import Retrier, increasing_timeout, exponential_timeout
-from gidapptools.gid_logger.fake_logger import fake_logger
+from gidapptools import get_logger
 if TYPE_CHECKING:
 
     from gidapptools.meta_data.interface import MetaPaths
     from gidapptools.gid_config.meta_factory import GidIniConfig
-    from antistasi_logbook.storage.models.models import RemoteStorage, LogFile
+    from antistasi_logbook.storage.models.models import RemoteStorage, LogFile, Server
 # endregion[Imports]
 
 # region [TODO]
@@ -102,11 +104,54 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 META_PATHS: "MetaPaths" = get_meta_paths()
 CONFIG: "GidIniConfig" = get_meta_config().get_config('general')
-log = fake_logger
+log = get_logger(__name__)
 # endregion[Constants]
 
 
-ALL_REMOTE_MANAGERS_CLASSES: set["AbstractRemoteStorageManager"] = set()
+class RemoteManagerRegistry:
+    cache_lock = RLock()
+
+    def __init__(self) -> None:
+        self.registered_managers: dict[str, type["AbstractRemoteStorageManager"]] = {}
+        self.manager_cache: dict[str, "AbstractRemoteStorageManager"] = {}
+
+    def register_manager_class(self, manager_class: type["AbstractRemoteStorageManager"], force: bool = False) -> "RemoteManagerRegistry":
+        name = manager_class.___remote_manager_name___
+        if name in self.registered_managers and force is False:
+            return
+        self.registered_managers[name] = manager_class
+        return self
+
+    def register_many_manager_classes(self, manager_classes: Iterable[type["AbstractRemoteStorageManager"]], force: bool = False) -> "RemoteManagerRegistry":
+        for manager_class in manager_classes:
+            self.register_manager_class(manager_class=manager_class, force=force)
+        return self
+
+    def get_remote_manager(self, remote_storage_item: "RemoteStorage") -> "AbstractRemoteStorageManager":
+        with self.cache_lock:
+            manager = self.manager_cache.get(remote_storage_item.name, None)
+            if manager is None:
+                manager_class = self.registered_managers[remote_storage_item.manager_type]
+                manager = manager_class.from_remote_storage_item(remote_storage_item)
+                self.manager_cache[remote_storage_item.name] = manager
+        return manager
+
+    def register_decorator(self, force: bool = False, condition: bool = True):
+        def _inner(klass):
+            if condition:
+                self.register_manager_class(klass, force=force)
+            return klass
+        return _inner
+
+    def close(self) -> "RemoteManagerRegistry":
+        with self.cache_lock:
+            for manager in self.manager_cache.values():
+                manager.close()
+            self.manager_cache.clear()
+        return self
+
+
+remote_manager_registry = RemoteManagerRegistry()
 
 
 class AbstractRemoteStorageManager(ABC):
@@ -147,6 +192,7 @@ class AbstractRemoteStorageManager(ABC):
         pass
 
 
+@remote_manager_registry.register_decorator()
 class LocalManager(AbstractRemoteStorageManager):
     config: "GidIniConfig" = CONFIG
 
@@ -175,21 +221,7 @@ class LocalManager(AbstractRemoteStorageManager):
         pass
 
 
-ALL_REMOTE_MANAGERS_CLASSES.add(LocalManager)
-
-# info_dump_file = Path(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\test\data\fake_info_data.json")
-# info_dump_file.unlink(missing_ok=True)
-# info_dump_file.parent.mkdir(exist_ok=True, parents=True)
-# info_dump_file.write_text('[]', encoding='utf-8', errors='ignore')
-
-
-# def dump_to_info_dump(in_item):
-#     data = json.loads(info_dump_file.read_text(encoding='utf-8', errors='ignore'))
-#     dump_data = in_item.dump()
-#     data.append(dump_data)
-#     info_dump_file.write_text(json.dumps(data, indent=4, default=str, sort_keys=False), encoding='utf-8', errors='ignore')
-
-
+@remote_manager_registry.register_decorator()
 class WebdavManager(AbstractRemoteStorageManager):
     config: "GidIniConfig" = CONFIG
     _extra_base_url_parts = ["dev_drive", "remote.php", "dav", "files"]
@@ -268,17 +300,18 @@ class WebdavManager(AbstractRemoteStorageManager):
         local_path = log_file.local_path
         chunk_size = self.config.get("downloading", "chunk_size", default=None)
 
-        log.info("downloading", log_file)
+        log.info("downloading %s", log_file)
         result = self.client.http.get(str(log_file.download_url), auth=(self.login, self.password))
         with local_path.open("wb") as f:
             for chunk in result.iter_bytes(chunk_size=chunk_size):
                 f.write(chunk)
         log_file.is_downloaded = True
+        log.info("finished downloading %s", log_file)
         return local_path
 
     def close(self) -> None:
         if self._client is not None:
-            log.debug(f"closing", self._client.http)
+            log.debug("closing %s", self._client.http)
             self._client.http.close()
             self._client = None
 
@@ -286,9 +319,6 @@ class WebdavManager(AbstractRemoteStorageManager):
         if self._client is not None:
             self.close()
             self._client = self._get_new_client()
-
-
-ALL_REMOTE_MANAGERS_CLASSES.add(WebdavManager)
 
 
 class FakeManagerMetrics:
@@ -342,6 +372,7 @@ class FakeManagerMetrics:
             self.downloads_completed = 0
 
 
+@remote_manager_registry.register_decorator(force=True, condition=os.getenv("USE_FAKE_WEBDAV", "0") == "1")
 class FakeWebdavManager(AbstractRemoteStorageManager):
     fake_files_folder: Path = None
     info_file: Path = None
@@ -350,6 +381,7 @@ class FakeWebdavManager(AbstractRemoteStorageManager):
     config: "GidIniConfig" = CONFIG
     config_name = 'webdav'
     metrics = FakeManagerMetrics()
+    for_datetime_of: datetime = datetime(year=2021, month=11, day=9, hour=12, minute=0, second=0, microsecond=0, tzinfo=UTC)
 
     def __init__(self, base_url: yarl.URL = None, login: str = None, password: str = None) -> None:
         self.metrics.increment_instances_created()
@@ -415,12 +447,12 @@ class FakeWebdavManager(AbstractRemoteStorageManager):
         self.metrics.increment_downloads_requested()
         local_path = log_file.local_path
         to_get_file = self.fake_files_folder.joinpath(log_file.server.name).joinpath(log_file.name).with_suffix('.txt')
-        with self.download_semaphore:
-            log.info(f"downloading {log_file!r}")
-            with local_path.open('wb') as tf:
-                with to_get_file.open('rb') as sf:
-                    for chunk in sf:
-                        tf.write(chunk)
+
+        log.info(f"downloading %r", log_file)
+        with local_path.open('wb') as tf:
+            with to_get_file.open('rb') as sf:
+                for chunk in sf:
+                    tf.write(chunk)
 
         self.metrics.increment_downloads_completed()
         log_file.is_downloaded = True
@@ -431,6 +463,9 @@ class FakeWebdavManager(AbstractRemoteStorageManager):
     @property
     def ___remote_manager_name___(cls) -> str:
         return WebdavManager.__name__
+
+    def __repr__(self) -> str:
+        return repr(self.__class__.__name__)
 
         # region[Main_Exec]
 

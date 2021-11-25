@@ -66,7 +66,8 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 # endregion[Constants]
@@ -74,10 +75,9 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 class RawRecord:
 
-    __slots__ = ("lines", "_is_antistasi_record", "start", "end", "_content", "parsed_data", "record_class", "log_file")
+    __slots__ = ("lines", "_is_antistasi_record", "start", "end", "_content", "parsed_data", "record_class")
 
-    def __init__(self, lines: Iterable["RecordLine"], log_file: LogFile) -> None:
-        self.log_file = log_file
+    def __init__(self, lines: Iterable["RecordLine"]) -> None:
         self.lines = tuple(lines)
         self._content: str = None
         self._is_antistasi_record: bool = None
@@ -99,8 +99,27 @@ class RawRecord:
         return self._is_antistasi_record
 
     @property
+    def recorded_at(self) -> Optional[datetime]:
+        return self.parsed_data.get("recorded_at")
+
+    @property
     def unformatted_content(self) -> str:
         return '\n'.join(line.content for line in self.lines)
+
+    def to_log_record_dict(self, log_file: "LogFile") -> dict[str, Any]:
+        return {"start": self.start, "end": self.end, 'message': self.parsed_data.get("message"), 'recorded_at': self.parsed_data.get("recorded_at"),
+                'called_by': self.parsed_data.get("called_by"), "is_antistasi_record": self.is_antistasi_record, 'logged_from': self.parsed_data.get("logged_from"),
+                "log_file": log_file.id, 'log_level': self.parsed_data.get("log_level"), "record_class": self.record_class.id, "marked": False}
+
+    def to_sql_params(self, log_file: "LogFile") -> tuple:
+        called_by = self.parsed_data.get("called_by")
+        if called_by is not None:
+            called_by = called_by.id
+        logged_from = self.parsed_data.get("logged_from")
+        if logged_from is not None:
+            logged_from = logged_from.id
+
+        return (self.start, self.end, self.parsed_data.get("message"), self.parsed_data.get("recorded_at").isoformat(), called_by, int(self.is_antistasi_record), logged_from, log_file.id, self.parsed_data.get("log_level").id, self.record_class.id, 0)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(start={self.start!r}, end={self.end!r}, content={self.content!r}, is_antistasi_record={self.is_antistasi_record!r}, lines={self.lines!r})"

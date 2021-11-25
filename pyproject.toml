@@ -24,7 +24,8 @@ dependencies = [
     "rich>=10.12.0",
     "sortedcontainers>=2.4.0",
     "marshmallow>=3.14.0",
-    "gidapptools>=0.1.6"
+    "gidapptools>=0.1.9",
+    "PySide6>=6.2.1"
 ]
 
 [project.urls]
@@ -63,8 +64,14 @@ import_heading_gid = "* Gid Imports --------------------------------------------
 import_heading_pyqt = "* PyQt5 Imports --------------------------------------------------------------------------------------->"
 import_heading_stdlib = "* Standard Library Imports ---------------------------------------------------------------------------->"
 import_heading_thirdparty = "* Third Party Imports --------------------------------------------------------------------------------->"
-known_gid = ["gidtools", "gidlogger", "gidqtutils", "gidviewmodels"]
-known_pyqt = ["PyQt5"]
+known_gid = [
+    "gidtools",
+    "gidlogger",
+    "gidqtutils",
+    "gidviewmodels",
+    "gidapptools"
+]
+known_pyqt = ["PyQt5", "PySide6"]
 length_sort = true
 line_length = 200
 lines_after_imports = 1

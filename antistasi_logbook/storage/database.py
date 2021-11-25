@@ -37,7 +37,7 @@ from pprint import pprint, pformat
 from pathlib import Path
 from string import Formatter, digits, printable, whitespace, punctuation, ascii_letters, ascii_lowercase, ascii_uppercase
 from timeit import Timer
-from typing import TYPE_CHECKING, Union, Callable, Iterable, Optional, Mapping, Any, IO, TextIO, BinaryIO, Hashable, Generator, Literal, TypeVar, TypedDict, AnyStr
+from typing import TYPE_CHECKING, Union, Callable, Iterable, Optional, Mapping, Any, IO, TextIO, BinaryIO, Hashable, Generator, Literal, TypeVar, TypedDict, AnyStr, Protocol, runtime_checkable
 from zipfile import ZipFile, ZIP_LZMA
 from datetime import datetime, timezone, timedelta
 from tempfile import TemporaryDirectory
@@ -51,7 +51,7 @@ from urllib.parse import urlparse
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
-from peewee import Model, TextField, IntegerField, BooleanField, AutoField, DateTimeField, ForeignKeyField, SQL, BareField, SqliteDatabase, Field
+from peewee import Model, TextField, IntegerField, BooleanField, AutoField, DateTimeField, ForeignKeyField, SQL, BareField, SqliteDatabase, Field, DatabaseProxy
 from playhouse.sqlite_ext import SqliteExtDatabase
 from playhouse.sqliteq import SqliteQueueDatabase
 from playhouse.pool import PooledSqliteExtDatabase
@@ -61,16 +61,17 @@ from gidapptools.gid_signal.interface import get_signal
 from gidapptools.meta_data.interface import get_meta_paths, MetaPaths, get_meta_config, get_meta_info
 from gidapptools.general_helper.conversion import human2bytes
 from antistasi_logbook.utilities.locks import UPDATE_LOCK
-from antistasi_logbook.storage.models.models import database, Server, RemoteStorage, LogFile, RecordClass, LogRecord, AntstasiFunction, setup_db
+from antistasi_logbook.storage.models.models import database, Server, RemoteStorage, LogFile, RecordClass, LogRecord, AntstasiFunction, setup_db, DatabaseMetaData
 from antistasi_logbook.updating.remote_managers import AbstractRemoteStorageManager, LocalManager, WebdavManager, FakeWebdavManager
-from antistasi_logbook.utilities.misc import NoThreadPoolExecutor
+from antistasi_logbook.utilities.misc import NoThreadPoolExecutor, Version
 from rich.console import Console as RichConsole
 import threading
 from playhouse.apsw_ext import APSWDatabase
 from rich import inspect as rinspect
 from dateutil.tz import UTC
-from antistasi_logbook.parsing.record_class_manager import RecordClassManager
-from gidapptools.gid_logger.fake_logger import fake_logger
+
+
+from gidapptools import get_main_logger, get_logger
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
 # endregion[Imports]
@@ -93,92 +94,8 @@ META_PATHS: MetaPaths = get_meta_paths()
 META_INFO = get_meta_info()
 CONFIG: "GidIniConfig" = get_meta_config().get_config('general')
 CONFIG.config.load()
-log = fake_logger
+log = get_logger(__name__)
 # endregion[Constants]
-
-FIND_INT_REGEX = re.compile(r"\d+")
-
-
-def make_db_path(in_path: Path) -> str:
-    in_path = in_path.as_posix().replace('/', '\\')
-    return in_path
-
-
-class GidSQLiteScriptLoader:
-    def __init__(self, script_folder: Path, setup_prefix: str = "setup") -> None:
-        self.script_folder = Path(script_folder)
-        self.setup_prefix = setup_prefix.casefold()
-
-    @staticmethod
-    def modify_key(key: str) -> str:
-        return key.casefold().removesuffix('.sql')
-
-    @property
-    def scripts(self) -> dict[str, Path]:
-        _out = {}
-        for dirname, folderlist, filelist in os.walk(self.script_folder):
-            for file in filelist:
-
-                file_path = Path(dirname, file)
-                if file_path.is_file() is False:
-                    continue
-                if file_path.suffix.casefold() != '.sql':
-                    continue
-                _out[self.modify_key(file_path.name)] = file_path
-        return _out
-
-    def get_setup_scripts(self) -> list[str]:
-        _out = []
-        for name, file in ((k, v) for k, v in self.scripts.items() if k.startswith(self.setup_prefix)):
-            if name == self.setup_prefix:
-                _out.append((file, 0))
-            elif name.endswith("base"):
-                _out.append((file, 0))
-            elif name.endswith('items'):
-                _out.append((file, 99))
-            else:
-                match = FIND_INT_REGEX.search(name)
-                if match:
-                    pos = int(match.group())
-                    _out.append((file, pos))
-                else:
-                    raise NameError(f"Cannot determine setup position of script file {name!r}.")
-        return [item.read_text(encoding='utf-8', errors='ignore') for item, pos in sorted(_out, key=lambda x:x[1])]
-
-    def __getitem__(self, key) -> Path:
-        key = self.modify_key(key)
-        return self.scripts[key]
-
-    def __contains__(self, key) -> bool:
-        key = self.modify_key(key)
-        return key in self.scripts
-
-    def __len__(self) -> int:
-        return len(self.scripts)
-
-    def __setitem__(self, key, value) -> None:
-        key = self.modify_key(key)
-        _path = self.script_folder.joinpath(key).with_suffix('.sql')
-        _path.write_text(value, encoding='utf-8', errors='ignore')
-
-    def __iter__(self):
-        return (self.get_phrase(key) for key in self.scripts)
-
-    def get(self, key, default=None):
-        key = self.modify_key(key)
-        return self.scripts.get(key, default)
-
-    def get_phrase(self, key: str, default: str = None) -> str:
-        key = self.modify_key(key)
-        try:
-            file = self.scripts[key]
-            return file.read_text(encoding='utf-8', errors='ignore')
-        except KeyError:
-            return default
-
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(script_folder={self.script_folder.as_posix()!r}, setup_prefix={self.setup_prefix!r})"
-
 
 DEFAULT_DB_NAME = "storage.db"
 
@@ -188,11 +105,37 @@ DEFAULT_PRAGMAS = {
     "synchronous": 0,
     "ignore_check_constraints": 0,
     "foreign_keys": 1,
-    "temp_store": "MEMORY"
+    "temp_store": "MEMORY",
+    "wal_autocheckpoint": "1"
 }
 
 
-DEFAULT_SCRIPT_FOLDER = THIS_FILE_DIR.joinpath("sql_scripts")
+def make_db_path(in_path: Union[str, os.PathLike, Path]) -> str:
+    return Path(in_path).resolve().as_posix().replace('/', '\\')
+
+
+class GidSqliteDatabase(Protocol):
+
+    def _pre_start_up(self, overwrite: bool = False) -> None:
+        ...
+
+    def _post_start_up(self, **kwargs) -> None:
+        ...
+
+    def start_up(self, overwrite: bool = False, database_proxy: DatabaseProxy = None) -> "GidSqliteDatabase":
+        ...
+
+    def shutdown(self, error: BaseException = None) -> None:
+        ...
+
+    def optimize(self) -> "GidSqliteDatabase":
+        ...
+
+    def vacuum(self) -> "GidSqliteDatabase":
+        ...
+
+    def backup(self, backup_path: Union[str, os.PathLike, Path] = None) -> "GidSqliteDatabase":
+        ...
 
 
 class GidSqliteQueueDatabase(SqliteQueueDatabase):
@@ -204,125 +147,220 @@ class GidSqliteQueueDatabase(SqliteQueueDatabase):
 
     def __init__(self,
                  database_path: Path = None,
-                 script_folder: Path = None,
+
                  config: "GidIniConfig" = None,
-                 record_class_manager: "RecordClassManager" = None,
+                 auto_backup: bool = True,
                  autoconnect=True,
-                 thread_safe=False,
+                 thread_safe=True,
                  queue_max_size=None,
                  results_timeout=None,
                  pragmas=None,
                  extensions=None):
-        self.path = self.default_db_path.joinpath(DEFAULT_DB_NAME) if database_path is None else Path(database_path)
-        self.script_folder = DEFAULT_SCRIPT_FOLDER if script_folder is None else Path(script_folder)
+        self.database_path = self.default_db_path.joinpath(DEFAULT_DB_NAME) if database_path is None else Path(database_path)
         self.config = CONFIG if config is None else config
-        self.record_class_manager = RecordClassManager() if record_class_manager is None else record_class_manager
-        self.script_provider = GidSQLiteScriptLoader(self.script_folder)
+        self.auto_backup = auto_backup
         self.started_up = False
+        self.session_meta_data: "DatabaseMetaData" = None
         extensions = self.default_extensions if extensions is None else extensions
         pragmas = DEFAULT_PRAGMAS.copy() if pragmas is None else pragmas
-        super().__init__(make_db_path(self.path), use_gevent=False, autostart=False, queue_max_size=queue_max_size, results_timeout=results_timeout, thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, **extensions)
+        super().__init__(make_db_path(self.database_path), use_gevent=False, autostart=False, queue_max_size=queue_max_size, results_timeout=results_timeout, thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, **extensions)
 
-    def start_up_db(self, overwrite: bool = False) -> None:
+    @property
+    def default_backup_path(self) -> Path:
+        return self.default_db_path.joinpath("backups")
 
-        if self.started_up is True:
+    def _pre_start_up(self, **kwargs) -> None:
+        self.database_path.parent.mkdir(exist_ok=True, parents=True)
+        if kwargs.get("overwrite", False) is True:
+            self.database_path.unlink(missing_ok=True)
+
+    def _post_start_up(self, **kwargs) -> None:
+        self.session_meta_data = DatabaseMetaData.new_session(started_at=kwargs.get("started_at", None), app_version=kwargs.get("app_version", None))
+
+    def start_up(self,
+                 overwrite: bool = False,
+                 force: bool = False,
+                 database_proxy: DatabaseProxy = None,
+                 started_at: datetime = None,
+                 app_version: "Version" = None) -> "GidSqliteQueueDatabase":
+        if self.started_up is True and force is False:
             return
-        self.path.parent.mkdir(exist_ok=True, parents=True)
-        self.script_folder.mkdir(exist_ok=True, parents=True)
-        if overwrite is True:
-            self.path.unlink(missing_ok=True)
-
+        log.info("starting up %r", self)
+        self._pre_start_up(overwrite=overwrite)
+        if database_proxy:
+            database_proxy.initialize(self)
         self.connect(reuse_if_open=True)
         self.start()
         setup_db()
 
         self.stop()
         self.start()
+        self._post_start_up(started_at=started_at, app_version=app_version)
         self.started_up = True
+        log.info("finished starting up %r", self)
+        return self
 
-    def optimize(self) -> None:
-        log.info("optimizing")
+    def restart(self) -> "GidSqliteQueueDatabase":
+        log.info("restarting %r", self)
+        self.stop()
+        self.start()
+        return self
 
+    def optimize(self) -> "GidSqliteQueueDatabase":
+        log.info("optimizing %r", self)
         self.execute_sql("OPTIMIZE")
+        return self
 
-    def vacuum(self) -> None:
-        log.info("vacuuming!")
-
+    def vacuum(self) -> "GidSqliteQueueDatabase":
+        log.info("vacuuming %r", self)
         self.execute_sql("VACUUM")
+        return self
 
-    def stop(self):
-        # self.pragma("optimize")
+    def backup(self, backup_path: Union[str, os.PathLike, Path] = None) -> "GidSqliteQueueDatabase":
+        log.info("backing up %r", self)
+        backup_path = self.default_backup_path if backup_path is None else Path(backup_path).resolve()
+        if backup_path.is_dir():
+            backup_path = backup_path.joinpath(self.database_path.name)
+        backup_path.parent.mkdir(exist_ok=True, parents=True)
+        shutil.copy(self.database_path, backup_path)
+        print(backup_path.with_suffix('.zip'))
+        with ZipFile(backup_path.with_suffix('.zip'), mode='w') as zippy:
+            zippy.write(backup_path.name, backup_path)
+        log.info("finished backing up %r", self)
 
-        sleep(1)
-
-        _out = super().stop()
-        while self.is_stopped() is False:
-            log.debug("...")
-            sleep(0.25)
-
-        return _out
-
-    def close(self):
-        for remote_manager in Server.remote_manager_cache.values():
-            log.debug(f"closing remote-manager {remote_manager!r}")
-            remote_manager.close()
-
-        return super().close()
-
-    def shutdown(self) -> None:
+    def shutdown(self,
+                 error: BaseException = None,
+                 backup_path: Union[str, os.PathLike, Path] = None) -> None:
+        log.debug("shutting down %r", self)
+        self.session_meta_data.save()
         self.stop()
         sleep(1)
         self.close()
+        if self.auto_backup is True and error is None:
+            self.backup(backup_path=backup_path)
+        log.debug("finished shutting down %r", self)
 
 
-def get_database(database_path: Path = None, script_folder: Path = None, overwrite_db: bool = False, config: "GidIniConfig" = None, **kwargs) -> GidSqliteQueueDatabase:
-    from antistasi_logbook.records.antistasi_records import ALL_ANTISTASI_RECORD_CLASSES
+class GidSqliteApswDatabase(APSWDatabase):
+    default_extensions = {"json_contains": True,
+                          "regexp_function": False}
 
-    raw_db = GidSqliteQueueDatabase(database_path=database_path, script_folder=script_folder, config=config, **kwargs)
+    default_db_path = META_PATHS.db_dir if os.getenv('IS_DEV', 'false') == "false" else THIS_FILE_DIR
 
-    database.initialize(raw_db)
+    def __init__(self,
+                 database_path: Path = None,
+                 config: "GidIniConfig" = None,
+                 auto_backup: bool = False,
+                 thread_safe=False,
+                 autoconnect=True,
+                 pragmas=None,
+                 extensions=None):
+        self.database_path = self.default_db_path.joinpath(DEFAULT_DB_NAME) if database_path is None else Path(database_path)
+        self.database_name = self.database_path.name
+        self.config = CONFIG if config is None else config
+        self.auto_backup = auto_backup
+        self.started_up = False
+        self.session_meta_data: "DatabaseMetaData" = None
+        extensions = self.default_extensions if extensions is None else extensions
+        pragmas = DEFAULT_PRAGMAS.copy() if pragmas is None else pragmas
+        super().__init__(make_db_path(self.database_path), thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, **extensions)
 
-    raw_db.start_up_db(overwrite=overwrite_db)
-    for record_class in ALL_ANTISTASI_RECORD_CLASSES:
-        raw_db.record_class_manager.register_record_class(record_class)
+    @property
+    def default_backup_folder(self) -> Path:
+        return self.database_path.parent.joinpath("backups")
 
-    return raw_db
+    def reconnect(self) -> None:
+        self.close()
+        self.connect(True)
+
+    def _pre_start_up(self, overwrite: bool = False) -> None:
+        self.database_path.parent.mkdir(exist_ok=True, parents=True)
+        if overwrite is True:
+            self.database_path.unlink(missing_ok=True)
+
+    def _post_start_up(self, **kwargs) -> None:
+        self.session_meta_data = DatabaseMetaData.new_session()
+
+    def start_up(self,
+                 overwrite: bool = False,
+                 force: bool = False,
+                 database_proxy: DatabaseProxy = None) -> "GidSqliteQueueDatabase":
+        if self.started_up is True and force is False:
+            return
+        log.info("starting up %r", self)
+        self._pre_start_up(overwrite=overwrite)
+        if database_proxy:
+            database_proxy.initialize(self)
+        self.connect(reuse_if_open=True)
+
+        setup_db()
+
+        self._post_start_up()
+        self.started_up = True
+        log.info("finished starting up %r", self)
+        return self
+
+    def optimize(self) -> "GidSqliteQueueDatabase":
+        log.info("optimizing %r", self)
+        self.pragma("OPTIMIZE")
+        return self
+
+    def vacuum(self) -> "GidSqliteQueueDatabase":
+        log.info("vacuuming %r", self)
+        self.execute_sql("VACUUM;")
+        return self
+
+    # TODO: make class or something, think about how it should work
+
+    def backup(self, backup_folder: Union[str, os.PathLike, Path] = None) -> "GidSqliteQueueDatabase":
+        def _get_backup_name(_backup_folder: Path) -> str:
+            _backup_folder.mkdir(exist_ok=True, parents=True)
+            number = 1
+            name = f"{self.database_path.stem}_backup_{number}"
+
+            while name in {item.stem for item in _backup_folder.iterdir() if item.is_file()}:
+                number += 1
+                name = f"{self.database_path.stem}_backup_{number}"
+            return name
+
+        def _limit_backups(_backup_folder: Path) -> None:
+            backups = [item for item in _backup_folder.iterdir() if item.is_file()]
+            backups = sorted(backups, key=lambda x: x.stat().st_ctime, reverse=True)
+            to_delete = backups[self.config.get("backup", "max_backups", default=3):]
+            for item in to_delete:
+                item.unlink(missing_ok=True)
+        log.info("backing up %r", self)
+        backup_folder = Path(backup_folder) if backup_folder is not None else self.default_backup_folder
+
+        backup_path = backup_folder.joinpath(_get_backup_name(backup_folder)).with_suffix(self.database_path.suffix)
+
+        shutil.copy(self.database_path, backup_path)
+
+        with ZipFile(backup_path.with_suffix('.zip'), mode='w', compression=ZIP_LZMA) as zippy:
+            zippy.write(backup_path, backup_path.name)
+        backup_path.unlink(missing_ok=True)
+        _limit_backups(backup_folder)
+        log.info("finished backing up %r", self)
+
+    def shutdown(self,
+                 error: BaseException = None,
+                 backup_folder: Union[str, os.PathLike, Path] = None) -> None:
+        log.debug("shutting down %r", self)
+        self.session_meta_data.save()
+
+        self.close()
+        if self.auto_backup is True and error is None:
+            self.backup(backup_folder=backup_folder)
+        log.debug("finished shutting down %r", self)
+
+    def __repr__(self) -> str:
+        repr_attrs = ("database_name", "config", "auto_backup", "thread_safe", "autoconnect")
+        _repr = f"{self.__class__.__name__}"
+        attr_text = ', '.join(f"{attr_name}={getattr(self, attr_name)}" for attr_name in repr_attrs)
+        return f"{_repr}({attr_text})"
 
 
 # region[Main_Exec]
 if __name__ == '__main__':
-    from antistasi_logbook.updating.updater import get_updater, get_update_thread
-    from dotenv import load_dotenv
-    from antistasi_logbook.parsing.parser import Parser
-    from antistasi_logbook.utilities.misc import frozen_time_giver
-    load_dotenv(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\antistasi_logbook\nextcloud.env")
-
-    db = get_database(overwrite_db=True, config=CONFIG)
-    update_thread = get_update_thread(database=db, use_fake_webdav_manager=False, config=CONFIG)  # , thread_pool_class=NoThreadPoolExecutor), get_now=frozen_time_giver("2021.11.11 0:0:0")
-
-    web_dav_rem = RemoteStorage.get_by_id(1)
-
-    web_dav_rem.set_login_and_password(login=os.getenv("NEXTCLOUD_USERNAME"), password=os.getenv("NEXTCLOUD_PASSWORD"), store_in_db=False)
-    log.info("starting")
-    duration = 150
-    with time_execution(f'must be {duration}', condition=True):
-        try:
-            update_thread._update()
-            # update_thread.start()
-
-            # sleep(duration)
-            # update_thread.shutdown()
-            update_thread.updater.parser.record_process_worker.inserter.wait()
-            log.debug("updating last parsed line numbers")
-            for log_file in LogFile.select():
-                log_file.set_last_parsed_line_number()
-        finally:
-            update_thread.updater.close()
-            db.shutdown()
-    log.debug(dict(vars(FakeWebdavManager.metrics)))
-    with time_execution("selecting log file count", condition=True):
-        log.debug(f"{LogFile.select().count()=}")
-    with time_execution("selecting log record count", condition=True):
-        log.debug(f"{LogRecord.select().count()=}")
-
-        # endregion[Main_Exec]
+    pass
+    # endregion[Main_Exec]

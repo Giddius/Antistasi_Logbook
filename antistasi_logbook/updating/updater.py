@@ -25,11 +25,9 @@ import platform
 import importlib
 import subprocess
 import inspect
-from antistasi_logbook import setup
-setup()
-import atexit
+
 from time import sleep, process_time, process_time_ns, perf_counter, perf_counter_ns
-from io import BytesIO, StringIO, TextIOWrapper
+from io import BytesIO, StringIO
 from abc import ABC, ABCMeta, abstractmethod
 from copy import copy, deepcopy
 from enum import Enum, Flag, auto, unique
@@ -47,35 +45,26 @@ from functools import wraps, partial, lru_cache, singledispatch, total_ordering,
 from importlib import import_module, invalidate_caches
 from contextlib import contextmanager, asynccontextmanager, nullcontext, closing, ExitStack, suppress
 from statistics import mean, mode, stdev, median, variance, pvariance, harmonic_mean, median_grouped
-from collections import Counter, ChainMap, deque, namedtuple, defaultdict, UserList
+from collections import Counter, ChainMap, deque, namedtuple, defaultdict
 from urllib.parse import urlparse
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, wait, ALL_COMPLETED, Future
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, wait, ALL_COMPLETED
 from importlib.machinery import SourceFileLoader
-from gidapptools import get_meta_config
-
-import mmap
-from threading import Thread, Event, Condition
-from antistasi_logbook.errors import UpdateExceptionHandler
-from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord
-from antistasi_logbook.parsing.parser import Parser, get_parser
-from rich.console import Console as RichConsole
-from antistasi_logbook.utilities.locks import UPDATE_LOCK, UPDATE_STOP_EVENT
-from antistasi_logbook.utilities.misc import NoThreadPoolExecutor
-from gidapptools.gid_signal.interface import get_signal
-from gidapptools.gid_logger.fake_logger import fake_logger
+from gidapptools import get_logger, get_meta_config, get_meta_paths, get_meta_info
 from dateutil.tz import UTC
-from antistasi_logbook.updating.time_handling import TimeClock
+from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord
+from threading import Event
+from antistasi_logbook.utilities.locks import WRITE_LOCK
+from gidapptools.gid_signal.interface import get_signal
 if TYPE_CHECKING:
-
-    from antistasi_logbook.updating.remote_managers import AbstractRemoteStorageManager, InfoItem
-    from antistasi_logbook.storage.database import GidSQLiteDatabase, GidSqliteQueueDatabase
     from gidapptools.gid_config.interface import GidIniConfig
+    from antistasi_logbook.updating.info_item import InfoItem
+    from antistasi_logbook.parsing.parsing_context import LogParsingContext
+    from antistasi_logbook.storage.database import GidSqliteDatabase, GidSqliteApswDatabase
 # endregion[Imports]
 
 # region [TODO]
 
-# Not sure if using stop_event via an Event is the right way and if it is implemented the right way here.
 
 # endregion [TODO]
 
@@ -88,97 +77,129 @@ if TYPE_CHECKING:
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
-CONFIG = get_meta_config().get_config("general")
-log = fake_logger
+log = get_logger(__name__)
+
 # endregion[Constants]
 
 
-class MaxitemList(UserList):
-
-    def __init__(self, max_size: int = None) -> None:
-        super().__init__()
-        self.max_size = max_size
-
-    @property
-    def is_full(self) -> bool:
-        return len(self.data) >= self.max_size
-
-    def append(self, item: Any) -> None:
-        while self.is_full:
-            sleep(0.1)
-        return super().append(item)
-
-
 class Updater:
-    remote_manager_classes: dict[str, type["AbstractRemoteStorageManager"]] = {}
-    threads_prefix = "log_file_update_"
-    config_name = "updater"
-    log_file_updated_signal = get_signal("log_file_updated")
-    tasks: list[Future] = []
+    """
+    Class to run updates of log_files from the remote drive.
+
+    """
+    config_name: str = "updating"
+    thread_prefix: str = "updating_threads"
+    new_log_file_signal = get_signal("new_log_file")
+    updated_log_file_signal = get_signal("updated_log_file")
 
     def __init__(self,
-                 database: "GidSqliteQueueDatabase",
-                 parser: Parser = None,
-                 thread_pool_class: type[ThreadPoolExecutor] = None,
-                 get_now: Callable[[], datetime] = None,
-                 config: "GidIniConfig" = None) -> None:
-        self.config = CONFIG if config is None else config
+                 config: "GidIniConfig",
+                 parsing_context_factory: Callable[["LogFile"], "LogParsingContext"],
+                 database: "GidSqliteApswDatabase",
+                 parser: object,
+                 stop_event: Event,
+                 pause_event: Event,
+                 thread_pool_class: type["ThreadPoolExecutor"] = None) -> None:
+        self.config = config
+        self.parsing_context_factory = parsing_context_factory
         self.database = database
-        self.parser = get_parser(database=self.database) if parser is None else parser
-        if thread_pool_class is None:
-            thread_pool_class = ThreadPoolExecutor
-        self.thread_pool = thread_pool_class(max_workers=self.max_threads, thread_name_prefix=self.threads_prefix)
-
-        self.get_now = partial(datetime.now, tz=UTC) if get_now is None else get_now
+        self.parser = parser
+        self.stop_event = stop_event
+        self.pause_event = pause_event
+        self.thread_pool = ThreadPoolExecutor(self.max_threads, thread_name_prefix=self.thread_prefix) if thread_pool_class is None else thread_pool_class(self.max_threads, thread_name_prefix=self.thread_prefix)
+        self.thread_pool._max_workers
 
     @property
-    def max_threads(self) -> Optional[int]:
-        return self.config.get(self.config_name, "max_threads", default=os.cpu_count())
+    def max_threads(self) -> int:
+        """
+        Max amount of threads the thread_pool is allowed to use.
+
+        Currently only has an effect when started.
+
+        Returns:
+            int: max amount of threads.
+        """
+        return self.config.get(self.config_name, "max_updating_threads", default=5)
 
     @property
     def remove_items_older_than_max_update_time_frame(self) -> bool:
+        """
+        If log-files that are older than the max update time-frame should be removed from the db.
+
+        If no max_update_time_frame is set, then this is ignored.
+
+        """
         if self.get_cutoff_datetime() is None:
             return False
         return self.config.get(self.config_name, "remove_items_older_than_max_update_time_frame", default=False)
 
     def get_cutoff_datetime(self) -> Optional[datetime]:
+        """
+        The max_update_time_frame converted to an absolute aware-datetime.
+
+        Uses UTC as timezone.
+
+        If no max_update_time_frame is set, None is returned.
+
+        """
         delta = self.config.get(self.config_name, "max_update_time_frame", default=None)
         if delta is None:
             return None
-        return self.get_now() - delta
-
-    @classmethod
-    def register_remote_manager_class(cls, remote_manager_class: type["AbstractRemoteStorageManager"]) -> None:
-        name = remote_manager_class.___remote_manager_name___
-        if name not in cls.remote_manager_classes:
-            cls.remote_manager_classes[name] = remote_manager_class
-
-    def _get_remote_manager(self, server: "Server") -> "AbstractRemoteStorageManager":
-        # takes about 0.0043135 s
-        manager_class = self.remote_manager_classes[server.remote_storage.manager_type]
-        return manager_class.from_remote_storage_item(server.remote_storage)
+        return datetime.now(tz=UTC) - delta
 
     def _create_new_log_file(self, server: "Server", remote_info: "InfoItem") -> LogFile:
-        new_log_file = LogFile(server=server, size=0, **{k: v for k, v in remote_info.as_dict().items() if k not in {"size"}})
+        """
+        Helper method to create a new `LogFile` instance.
 
+        The new log_file is saved to the database.
+
+        Args:
+            server (Server): the `Server`-model instance the log_file belongs to.
+            remote_info (InfoItem): The info_item that is received from the `RemoteStorageManager` implementation.
+
+        Returns:
+            LogFile: a new instance of the `LogFile`-model
+        """
+        new_log_file = LogFile(server=server, **remote_info.as_dict())
         new_log_file.save()
-
-        new_log_file.size = remote_info.size
-
+        self.new_log_file_signal.emit(log_file=new_log_file)
         return new_log_file
 
     def _update_log_file(self, log_file: LogFile, remote_info: "InfoItem") -> LogFile:
+        """
+        Helper Method to update an existing `LogFile`-model instance, from remote_info.
+
+        The log_file is not updated to the database at that point.
+
+        Args:
+            log_file (LogFile): the existing `LogFile`-model instance
+            remote_info (InfoItem): The info_item that is received from the `RemoteStorageManager` implementation.
+
+        Returns:
+            LogFile: the updated `logFile`-instance.
+        """
         log_file.modified_at = remote_info.modified_at
         log_file.size = remote_info.size
-        self.log_file_updated_signal.emit(log_file)
+        self.updated_log_file_signal.emit(log_file=log_file)
         return log_file
 
     def _get_updated_log_files(self, server: "Server"):
+        """
+        [summary]
+
+        [extended_summary]
+
+        Args:
+            server (Server): [description]
+
+        Returns:
+            [type]: [description]
+        """
         to_update_files = []
-        current_log_files = server.get_current_log_files()
+        current_log_files = {log_file.name: log_file for log_file in server.log_files}
         cutoff_datetime = self.get_cutoff_datetime()
 
-        for remote_info in server.get_remote_files(server.remote_manager):
+        for remote_info in server.get_remote_files():
             if cutoff_datetime is not None and remote_info.modified_at < cutoff_datetime:
                 continue
             stored_file: LogFile = current_log_files.get(remote_info.name, None)
@@ -188,148 +209,71 @@ class Updater:
 
             elif stored_file.modified_at < remote_info.modified_at or stored_file.size < remote_info.size:
                 to_update_files.append(self._update_log_file(log_file=stored_file, remote_info=remote_info))
-        return sorted(to_update_files, key=lambda x: x.modified_at, reverse=True)
+
+            for unfinished_log_file in [i for i in current_log_files.values() if cutoff_datetime is not None and i.last_parsed_datetime != i.modified_at and i.modified_at > cutoff_datetime]:
+                if unfinished_log_file not in to_update_files:
+                    to_update_files.append(unfinished_log_file)
+        return sorted(to_update_files, key=lambda x: x.size, reverse=True)
 
     def _handle_old_log_files(self, server: "Server") -> None:
         if self.remove_items_older_than_max_update_time_frame is False:
-            return
+            return 0
         cutoff_datetime = self.get_cutoff_datetime()
         if cutoff_datetime is None:
-            return
-
+            return 0
+        amount_deleted = 0
         for log_file in server.log_files.select().where(LogFile.modified_at < cutoff_datetime):
-            log.info(f"removing log_file {log_file.name!r} of server {log_file.server.name!r}")
-            q = LogRecord.delete().where(LogRecord.log_file == log_file)
-            q.execute()
+            log.info("removing log-file %r of server %r", log_file, server)
 
-            log_file.delete_instance()
+            log_file.delete_instance(True)
+            amount_deleted += 1
+        return amount_deleted
 
-    def update_server(self, server: "Server") -> None:
-        def _create_done_callback(_idx: int, _amount: int, _log_file: "LogFile"):
-            def _inner(future: Future):
-                log.info(f"<[b green]{_idx}[/b green]/[b red]{_amount}[/b red]> FINISHED PROCESSING LOGFILE", _log_file)
-            return _inner
-        server.ensure_remote_manager(remote_manager=self._get_remote_manager(server))
-        log_files = self._get_updated_log_files(server=server)
-        amount = len(log_files)
-        list(self.thread_pool.map(self.parser.process, log_files))
+    def process(self, server: "Server") -> None:
+        def _do(_log_file: "LogFile"):
+            sleep(random.uniform(0.0, 0.5))
+            if self.stop_event.is_set() is False:
+                with self.parsing_context_factory(log_file=_log_file) as context:
+                    log.debug("starting to parse %s", _log_file)
+                    for processed_record in self.parser(context=context):
+                        context.insert_record(processed_record)
 
-        # sleep(0.1)
-        # log.info(f"<[b green]{idx}[/b green]/[b red]{amount}[/b red]> STARTING PROCESSING LOGFILE", log_file)
-        # task = self.thread_pool.submit(self.parser.process, log_file)
+                    context.wait_on_futures()
+        tasks = []
+        self.database.connect(True)
+        for log_file in self._get_updated_log_files(server=server):
+            if self.stop_event.is_set() is False:
+                tasks.append(self.thread_pool.submit(_do, _log_file=log_file))
+        wait(tasks, return_when=ALL_COMPLETED, timeout=None)
+        if self.stop_event.is_set() is False:
+            return self._handle_old_log_files(server=server)
+        return 0
 
-        # self.tasks.append(task)
-        # task.add_done_callback(self.tasks.remove)
-        wait(self.tasks, timeout=None, return_when=ALL_COMPLETED)
-        self._handle_old_log_files(server=server)
+    def __call__(self) -> Any:
+        amount_deleted = 0
+        for server in list(Server.select()):
+            if server.is_updatable() is False:
+                continue
+            if self.stop_event.is_set() is True:
+                return
+            while self.pause_event.is_set() is True:
+                sleep(1)
+            log.info("STARTED updating %r", server)
+            amount_deleted += self.process(server=server)
+            log.info("FINISHED updating server %r", server)
 
-        return True
+            self.database.reconnect()
+        if amount_deleted > 0:
+            self.database.vacuum()
+            self.database.optimize()
+            self.database.reconnect()
 
-    def __call__(self, server: "Server") -> None:
-        if server.is_updatable() is False:
-            return False
-
-        return self.update_server(server)
-
-    def close(self) -> None:
+    def shutdown(self) -> None:
         self.thread_pool.shutdown(wait=True, cancel_futures=False)
-        self.parser.close()
-
-
-class UpdateThread(Thread):
-    config_name = "updater"
-    thread_name = "updater_thread"
-
-    def __init__(self, database: "GidSqliteQueueDatabase", updater: "Updater", intervall_keeper: "TimeClock", config: "GidIniConfig" = None) -> None:
-        super().__init__(name=self.thread_name)
-        self.updater = updater
-        self.database = database
-        self.config = CONFIG if config is None else config
-        self.intervaller = intervall_keeper
-        self.exception_handler = UpdateExceptionHandler()
-        self.is_updating: bool = False
-
-    @ property
-    def updates_enabled(self) -> bool:
-        return self.config.get(self.config_name, "updates_enabled", default=False)
-
-    @ contextmanager
-    def set_is_updating(self) -> None:
-        self.is_updating = True
-        yield
-        self.is_updating = False
-
-    def _update(self) -> None:
-        self.before_update()
-        try:
-            for server in tuple(Server.select()):
-                if UPDATE_STOP_EVENT.is_set():
-                    return
-                log.info(f"updating server {server.name!r}")
-
-                self.updater(server)
-
-        # except Exception as error:
-        #     self.exception_handler.handle_exception(error)
-        finally:
-            self.after_update()
-
-    def _update_task(self) -> None:
-        while not UPDATE_STOP_EVENT.is_set():
-            if self.updates_enabled is True:
-                with self.set_is_updating():
-                    self._update()
-            if UPDATE_STOP_EVENT.is_set():
-                break
-            self.intervaller.wait_for_trigger()
-
-    def before_update(self) -> None:
-        log.debug("connecting")
-        self.database.connect(reuse_if_open=True)
-
-    def after_update(self) -> None:
-        if not isinstance(self.updater.thread_pool, NoThreadPoolExecutor):
-            wait(self.updater.tasks, timeout=None, return_when=ALL_COMPLETED)
-
-    def run(self) -> None:
-        self._update_task()
-
-    def shutdown(self) -> bool:
-        UPDATE_STOP_EVENT.set()
-        self.updater.close()
-        self.join()
-        while self.is_alive() is True:
-            sleep(0.1)
-        UPDATE_STOP_EVENT.clear()
-
-
-def get_updater(database: "GidSqliteQueueDatabase", use_fake_webdav_manager: bool = False, get_now: Callable[[], datetime] = None, config: "GidIniConfig" = None, **kwargs) -> "Updater":
-    from antistasi_logbook.updating.remote_managers import ALL_REMOTE_MANAGERS_CLASSES, FakeWebdavManager, WebdavManager
-
-    if use_fake_webdav_manager is True:
-        test_data_dir = Path(os.getenv("TEST_DATA_DIR"))
-        ALL_REMOTE_MANAGERS_CLASSES = set(i for i in ALL_REMOTE_MANAGERS_CLASSES if i is not WebdavManager)
-        FakeWebdavManager.fake_files_folder = test_data_dir.joinpath("fake_log_files")
-        FakeWebdavManager.info_file = test_data_dir.joinpath("fake_info_data.json")
-        _ = FakeWebdavManager.info_data
-        ALL_REMOTE_MANAGERS_CLASSES.add(FakeWebdavManager)
-
-    updater = Updater(database=database, get_now=get_now, config=config, **kwargs)
-
-    for remote_manager_class in ALL_REMOTE_MANAGERS_CLASSES:
-        remote_manager_class.config = config
-        updater.register_remote_manager_class(remote_manager_class)
-    return updater
-
-
-def get_update_thread(database: "GidSqliteQueueDatabase", use_fake_webdav_manager: bool = False, get_now: Callable[[], datetime] = None, config: "GidIniConfig" = None, ** kwargs) -> "UpdateThread":
-    updater = get_updater(database=database, use_fake_webdav_manager=use_fake_webdav_manager, get_now=get_now, config=config, ** kwargs)
-    intervall_keeper = TimeClock(now_factory=get_now, trigger_interval=config.get_entry_accessor("updater", "update_intervall", default=300), stop_event=UPDATE_STOP_EVENT)
-    update_thread = UpdateThread(database=database, updater=updater, intervall_keeper=intervall_keeper, config=config)
-    return update_thread
 
 
 # region[Main_Exec]
 if __name__ == '__main__':
     pass
+
 # endregion[Main_Exec]

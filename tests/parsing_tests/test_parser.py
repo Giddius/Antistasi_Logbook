@@ -7,8 +7,8 @@ from datetime import datetime
 from dateutil.tz import UTC
 from dateutil.parser import parse as dateutil_parse
 from functools import partial
+from threading import Event
 
-RawRecord = partial(RawRecord, log_file=None)
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
@@ -102,7 +102,7 @@ test_parse_entries_parameter.append((test_parse_entries_parameter_6_file, test_p
 
 @pytest.mark.parametrize("log_file, expected", test_parse_entries_parameter, ids=[i[0].stem for i in test_parse_entries_parameter])
 def test_parse_entries(fake_parsing_context_class, log_file, expected):
-    parser = Parser(database=None, regex_keeper=SimpleRegexKeeper(), record_processor_worker=None, foreign_key_cache=None)
+    parser = Parser(regex_keeper=SimpleRegexKeeper(), record_processor=None, stop_event=Event())
     with fake_parsing_context_class(log_file=log_file) as context:
         result = list(parser.parse_entries(context=context))
     for idx, r in enumerate(result):
@@ -137,7 +137,7 @@ test_parse_header_lines_parameter.append((parse_header_lines_file_1, parse_heade
 
 @pytest.mark.parametrize("log_file, expected", test_parse_header_lines_parameter, ids=[i[0].stem for i in test_parse_header_lines_parameter])
 def test_parse_header_lines(fake_parsing_context_class, log_file, expected):
-    parser = Parser(database=None, regex_keeper=SimpleRegexKeeper(), record_processor_worker=None, foreign_key_cache=None)
+    parser = Parser(regex_keeper=SimpleRegexKeeper(), record_processor=None, stop_event=Event())
     with fake_parsing_context_class(log_file=log_file) as context:
         result = parser._parse_header_text(context)
         assert '\n'.join(i.content for i in result if i.content) == '\n'.join(x for x in expected.splitlines() if x)
@@ -181,7 +181,7 @@ test_parse_startup_entries_test_parameter.append((parse_startup_entries_file_1, 
 
 @pytest.mark.parametrize("log_file, expected", test_parse_startup_entries_test_parameter, ids=[i[0].stem for i in test_parse_startup_entries_test_parameter])
 def test_parse_startup_entries(fake_parsing_context_class, log_file, expected):
-    parser = Parser(database=None, regex_keeper=SimpleRegexKeeper(), record_processor_worker=None, foreign_key_cache=None)
+    parser = Parser(regex_keeper=SimpleRegexKeeper(), record_processor=None, stop_event=Event())
     with fake_parsing_context_class(log_file=log_file) as context:
         result = parser._parse_startup_entries(context=context)
     for idx, i in enumerate(result):
@@ -203,6 +203,12 @@ class MetaDataTestParam:
         self.full_datetime_expected: tuple[datetime, datetime] = None
         self.version_expected: Version = None
         self.mods_expected: list[ModItem] = []
+        self.campaign_id_expected: int = None
+        self.is_new_campaign_expected: bool = None
+
+    def add_campaign_id_info(self, campaign_id: int, is_new_campaign: bool) -> None:
+        self.campaign_id_expected = campaign_id
+        self.is_new_campaign_expected = is_new_campaign
 
     def add_mod_item(self, mod_item: Union[Mapping[str, str], ModItem, str]) -> None:
         if isinstance(mod_item, Mapping):
@@ -226,11 +232,12 @@ class MetaDataTestParam:
         self.full_datetime_expected = full_datetime
 
     def to_params(self) -> tuple:
-        return (self.log_file, self.game_map_expected, self.full_datetime_expected, self.version_expected, self.mods_expected)
+        return (self.log_file, self.game_map_expected, self.full_datetime_expected, self.version_expected, self.mods_expected, self.campaign_id_expected, self.is_new_campaign_expected)
 
 
 first_meta_data_test_param = MetaDataTestParam(ALL_LOG_FILES_DIR.joinpath("Mainserver_1", "arma3server_x64_2021-10-20_22-12-41.txt"))
 first_meta_data_test_param.game_map_expected = "Altis"
+first_meta_data_test_param.add_campaign_id_info(81082, False)
 first_meta_data_test_param.add_version(Version(2, 5, 3))
 first_meta_data_test_param.add_full_datetime("2021/10/20, 22:14:58|2021-10-21 05:14:58:205")
 
@@ -273,12 +280,14 @@ for line in mod_text_1.splitlines():
 test_get_log_file_meta_data_params.append(first_meta_data_test_param.to_params())
 
 
-@pytest.mark.parametrize("log_file, game_map_expected, full_datetime_expected, version_expected, mods_expected", test_get_log_file_meta_data_params, ids=[i[0].stem for i in test_get_log_file_meta_data_params])
-def test_get_log_file_meta_data(fake_parsing_context_class, log_file: Path, game_map_expected: str, full_datetime_expected: tuple[datetime, datetime], version_expected: Version, mods_expected: list[ModItem]):
-    parser = Parser(database=None, regex_keeper=SimpleRegexKeeper(), record_processor_worker=None, foreign_key_cache=None)
+@pytest.mark.parametrize("log_file, game_map_expected, full_datetime_expected, version_expected, mods_expected, campaign_id_expected, is_new_campaign_expected", test_get_log_file_meta_data_params, ids=[i[0].stem for i in test_get_log_file_meta_data_params])
+def test_get_log_file_meta_data(fake_parsing_context_class, log_file: Path, game_map_expected: str, full_datetime_expected: tuple[datetime, datetime], version_expected: Version, mods_expected: list[ModItem], campaign_id_expected: int, is_new_campaign_expected: bool):
+    parser = Parser(regex_keeper=SimpleRegexKeeper(), record_processor=None, stop_event=None)
     with fake_parsing_context_class(log_file=log_file) as context:
         finder = parser._get_log_file_meta_data(context=context)
     assert finder.game_map == game_map_expected
     assert finder.full_datetime == full_datetime_expected
     assert finder.version == version_expected
     assert set(finder.mods) == set(mods_expected)
+    assert finder.campaign_id == campaign_id_expected
+    assert finder.is_new_campaign == is_new_campaign_expected

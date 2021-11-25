@@ -20,7 +20,7 @@ import attr
 import tzlocal
 from gidapptools.general_helper.string_helper import replace_by_dict, extract_by_map
 from gidapptools.general_helper.timing import time_execution, time_func
-from gidapptools.gid_logger.fake_logger import fake_logger
+from gidapptools import get_logger
 
 # endregion[Imports]
 
@@ -33,7 +33,7 @@ from gidapptools.gid_logger.fake_logger import fake_logger
 
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 get_dummy_profile_decorator_in_globals()
-log = fake_logger
+log = get_logger(__name__)
 
 # endregion[Logging]
 

@@ -1,18 +1,20 @@
 """Antistasi_Serverlog_Statistics"""
 
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 
 from gidapptools.meta_data import setup_meta_data
-
+from gidapptools import get_main_logger
 from pathlib import Path
 import rich.traceback
 from rich.console import Console as RichConsole
 import atexit
 import os
 
-ERROR_CONSOLE = RichConsole(soft_wrap=True, record=True)
+log = get_main_logger("__main__", Path(__file__).resolve())
 
-rich.traceback.install(console=ERROR_CONSOLE)
+ERROR_CONSOLE = RichConsole(soft_wrap=True, record=True, width=150)
+
+rich.traceback.install(console=ERROR_CONSOLE, width=150)
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
@@ -22,6 +24,9 @@ def setup():
                     configs_to_create=[THIS_FILE_DIR.joinpath("data", "general_config.ini")],
                     spec_to_create=[THIS_FILE_DIR.joinpath("data", "general_configspec.json")],
                     file_changed_parameter="changed_time")
+
+
+# os.environ["ERRORS_TO_FILE"] = "1"
 
 
 @atexit.register

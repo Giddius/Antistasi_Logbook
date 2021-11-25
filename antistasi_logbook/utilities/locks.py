@@ -1,3 +1,12 @@
+"""
+Most locks here were from experiments and are not used anymore.
+
+Needs cleanup.
+
+
+"""
+# region [Imports]
+
 from threading import RLock, Lock, Semaphore, Barrier, BoundedSemaphore, Condition, Event, _RLock, get_ident, get_native_id
 from typing import Optional, Iterable, Hashable, Union, Any, TYPE_CHECKING
 from time import sleep
@@ -8,14 +17,21 @@ from time import thread_time, time, process_time
 from pathlib import Path
 if TYPE_CHECKING:
     from antistasi_logbook.storage.models.models import LogFile
-from gidapptools.gid_logger.fake_logger import fake_logger
+from gidapptools import get_logger
 
-log = fake_logger
+
+# endregion[Imports]
+
+
+log = get_logger(__name__)
 DB_LOCK = RLock()
 
 UPDATE_LOCK = Lock()
 
 UPDATE_STOP_EVENT = Event()
+
+
+WRITE_LOCK = RLock()
 
 
 class FileLocks:

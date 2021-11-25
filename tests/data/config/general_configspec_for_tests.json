@@ -1,8 +1,9 @@
 {
-    "updater": {
+    "updating": {
         "updates_enabled": { "converter": "boolean" },
-        "update_intervall": { "converter": "timedelta" },
-        "max_threads": { "converter": "integer" },
+        "update_interval": { "converter": "timedelta" },
+        "max_updating_threads": { "converter": "integer" },
+        "max_inserting_threads": { "converter": "integer" },
         "max_update_time_frame": {
             "converter": "timedelta"
         },
