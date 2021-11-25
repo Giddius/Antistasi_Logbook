@@ -166,3 +166,4 @@ record_parsing_errors.txt
 /tests/reports
 /antistasi_logbook/raised_errors.html
 antistasi_logbook/raised_errors.txt
+/tests/data/fake_log_files
