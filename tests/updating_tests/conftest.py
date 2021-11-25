@@ -51,7 +51,7 @@ def general_database(tmpdir, general_config: "GidIniConfig"):
 def general_backend(general_database: "GidSqliteDatabase", general_config: "GidIniConfig"):
     backend = Backend(database=general_database, config=general_config, database_proxy=database_proxy)
 
-    FakeWebdavManager.fake_files_folder = DATA_DIR.joinpath("fake_log_files")
+    FakeWebdavManager.fake_files_folder = DATA_DIR.joinpath("fake_log_files.7z")
     FakeWebdavManager.info_file = DATA_DIR.joinpath("fake_info_data.json")
     FakeWebdavManager.config = general_config
     backend.remote_manager_registry.register_manager_class(FakeWebdavManager, force=True)

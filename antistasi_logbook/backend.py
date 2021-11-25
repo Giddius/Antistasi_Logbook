@@ -237,7 +237,8 @@ class Backend:
 
         if self.update_manager.is_alive() is True:
             self.update_manager.shutdown()
-
+        for remote_storage in self.remote_manager_registry.manager_cache.values():
+            remote_storage.close()
         self.updater.shutdown()
         self.records_inserter.shutdown()
         self.database.shutdown()

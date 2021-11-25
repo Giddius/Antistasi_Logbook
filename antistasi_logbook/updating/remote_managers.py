@@ -388,6 +388,13 @@ class FakeWebdavManager(AbstractRemoteStorageManager):
         super().__init__(base_url=base_url, login=login, password=password)
         self.full_base_url = self._make_full_base_url()
         self.download_semaphore = self._get_download_semaphore()
+        self.is_unpacked = False
+        if self.fake_files_folder.suffix in {".zip", ".7z"}:
+            tgt = self.fake_files_folder.parent
+            with ZipFile(self.fake_files_folder, 'r') as zippy:
+                zippy.extractall(tgt)
+                self.fake_files_folder = tgt.joinpath(self.fake_files_folder.name)
+                self.is_unpacked = True
 
     @property
     def max_connections(self) -> Optional[int]:
@@ -458,6 +465,10 @@ class FakeWebdavManager(AbstractRemoteStorageManager):
         log_file.is_downloaded = True
 
         return local_path
+
+    def close(self) -> None:
+        if self.is_unpacked is True:
+            shutil.rmtree(self.fake_files_folder)
 
     @classmethod
     @property
