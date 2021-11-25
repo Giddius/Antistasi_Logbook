@@ -4,6 +4,12 @@
 
 ### Database
 
+
+
 #### ERD
 
-![Database ER-Diagram](./docs/erd.png)
+---
+
+![Database ER-Diagram](./docs/images/erd.png)
+
+---
