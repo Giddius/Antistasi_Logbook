@@ -1,10 +1,17 @@
-# Antistasi_Serverlog_Statistics
+# Antistasi Logbook
 
 
 
 ### Database
 
+#### Type
 
+Antistasi Logbook uses [SQLite](https://www.sqlite.org), actually it uses [APSW](https://github.com/rogerbinns/apsw) wrapper of SQLite.
+
+
+#### ORM
+
+[peewee](https://github.com/coleifer/peewee) is used as an orm to interact with the [SQLite](https://www.sqlite.org) database.
 
 #### ERD
 
