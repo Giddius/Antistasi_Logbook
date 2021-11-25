@@ -49,7 +49,7 @@ def test_simple_update(general_backend: "Backend"):
 
         stored_log_file_models_file = THIS_FILE_DIR.joinpath("random_log_files.json")
 
-        all_log_files = LogFile.select()
+        # all_log_files = LogFile.select()
         # with stored_log_file_models_file.open('w', encoding='utf-8', errors='ignore') as f:
         #     only_fields = (LogFile.name, LogFile.modified_at, LogFile.last_parsed_line_number, LogFile.remote_path, LogFile.version,
         #                    LogFile.unparsable, LogFile.is_new_campaign, LogFile.size, LogFile.campaign_id, LogFile.last_parsed_datetime, LogFile.server)

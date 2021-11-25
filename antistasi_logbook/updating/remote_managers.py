@@ -393,7 +393,7 @@ class FakeWebdavManager(AbstractRemoteStorageManager):
             tgt = self.fake_files_folder.parent
             with ZipFile(self.fake_files_folder, 'r') as zippy:
                 zippy.extractall(tgt)
-                self.fake_files_folder = tgt.joinpath(self.fake_files_folder.name)
+                self.fake_files_folder = tgt.joinpath(self.fake_files_folder.stem)
                 self.is_unpacked = True
 
     @property
