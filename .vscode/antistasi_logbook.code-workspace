@@ -1,0 +1,126 @@
+{
+    "folders": [
+        {
+            "path": "../"
+        }
+    ],
+    "tasks": {
+        "version": "2.0.0",
+        "tasks": [
+            {
+                "label": "upgrade_pip",
+                "type": "shell",
+                "command": "${config:python.pythonPath} -m pip install --upgrade pip",
+                "options": {
+                    "cwd": "${config:python.pythonPath}/..",
+                    "env": {}
+                },
+                "presentation": {
+                    "echo": true,
+                    "reveal": "always",
+                    "focus": false,
+                    "panel": "shared",
+                    "showReuseMessage": false,
+                    "clear": false
+                }
+            },
+            {
+                "label": "recreate_venv",
+                "type": "shell",
+                "command": "call tools/log_pipe_create_venv.cmd",
+                "options": {
+                    "cwd": "${workspaceFolder}"
+                },
+                "presentation": {
+                    "echo": true,
+                    "reveal": "always",
+                    "focus": false,
+                    "panel": "shared",
+                    "showReuseMessage": false,
+                    "clear": false
+                }
+            },
+            {
+                "label": "memory_profile_file",
+                "type": "shell",
+                "command": "${workspaceFolder}/tools/memory_profiling_time.cmd ${file}",
+                "options": {
+                    "cwd": "${workspaceFolder}"
+                },
+                "presentation": {
+                    "echo": true,
+                    "reveal": "always",
+                    "focus": false,
+                    "panel": "shared",
+                    "showReuseMessage": true,
+                    "clear": true
+                }
+            },
+            {
+                "label": "graph_profile_file",
+                "type": "shell",
+                "command": "${workspaceFolder}/tools/profiling_to_graph.cmd ${file}",
+                "options": {
+                    "cwd": "${workspaceFolder}"
+                },
+                "presentation": {
+                    "echo": true,
+                    "reveal": "always",
+                    "focus": false,
+                    "panel": "shared",
+                    "showReuseMessage": true,
+                    "clear": true
+                }
+            },
+            {
+                "label": "cProfile_text_profile_file",
+                "type": "shell",
+                "command": "${workspaceFolder}/tools/profiling_to_text.cmd ${file}",
+                "options": {
+                    "cwd": "${workspaceFolder}"
+                },
+                "presentation": {
+                    "echo": true,
+                    "reveal": "always",
+                    "focus": false,
+                    "panel": "shared",
+                    "showReuseMessage": true,
+                    "clear": true
+                }
+            },
+            {
+                "label": "PROFILE_FILE_WITH_ALL_PROFILER",
+                "type": "shell",
+                "command": "${workspaceFolder}/tools/profile_with_all_profiler.cmd ${file}",
+                "options": {
+                    "cwd": "${workspaceFolder}"
+                },
+                "presentation": {
+                    "echo": true,
+                    "reveal": "always",
+                    "focus": false,
+                    "panel": "shared",
+                    "showReuseMessage": true,
+                    "clear": true
+                }
+            },
+            {
+                "label": "line_profile_file",
+                "type": "shell",
+                "command": "${workspaceFolder}/tools/line_profile_it.cmd ${file}",
+                "options": {
+                    "cwd": "${workspaceFolder}"
+                },
+                "presentation": {
+                    "echo": true,
+                    "reveal": "always",
+                    "focus": false,
+                    "panel": "shared",
+                    "showReuseMessage": true,
+                    "clear": true
+                }
+            }
+        ]
+    },
+    "settings": {}
+}
