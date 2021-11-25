@@ -1,0 +1,24 @@
+{
+    "updating": {
+        "updates_enabled": { "converter": "boolean" },
+        "update_interval": { "converter": "timedelta" },
+        "max_updating_threads": { "converter": "integer" },
+        "max_inserting_threads": { "converter": "integer" },
+        "max_update_time_frame": {
+            "converter": "timedelta"
+        },
+        "remove_items_older_than_max_update_time_frame": {
+            "converter": "boolean"
+        }
+    },
+    "folder": { "local_storage_folder": { "converter": "path" } },
+    "downloading": {
+        "keep_downloaded_files": { "converter": "boolean" },
+        "chunk_size": { "converter": "file_size" }
+    },
+    "webdav": {
+        "max_concurrent_connections": { "converter": "integer" },
+        "delay_between_downloads": { "converter": "timedelta" },
+        "minimum_download_duration": { "converter": "timedelta" }
+    }
+}

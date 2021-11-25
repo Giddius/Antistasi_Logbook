@@ -153,3 +153,16 @@ misc/
 /antistasi_serverlog_statistic/nextcloud.env
 /tools/create_venv_logs
 */workspace.code-workspace
+/.vscode
+
+/antistasi_logbook/storage/storage.db
+/antistasi_logbook/dev_temp
+/antistasi_logbook/record_parsing_errors.txt
+/pyinstaller_output
+*.db-wal
+*.db-shm
+/antistasi_logbook/regex/grammar_test_file.txt
+record_parsing_errors.txt
+/tests/reports
+/antistasi_logbook/raised_errors.html
+antistasi_logbook/raised_errors.txt

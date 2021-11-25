@@ -7,7 +7,7 @@ Soon.
 # region [Imports]
 
 import os
-import re
+
 import sys
 import json
 import queue
@@ -50,8 +50,11 @@ from urllib.parse import urlparse
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
-from antistasi_serverlog_statistic.regex.regex_pattern import RegexPattern
 
+from gidapptools.general_helper.timing import time_execution
+import re
+if TYPE_CHECKING:
+    from antistasi_logbook.storage.models.models import LogRecord
 # endregion[Imports]
 
 # region [TODO]
@@ -71,200 +74,84 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 # endregion[Constants]
 
 
-def multiline_to_single_line(in_string: str) -> str:
-    return r"".join([line.lstrip() for line in in_string.splitlines()])
+class SimpleRegexKeeper:
 
-
-class RegexKeeper:
-    only_time = RegexPattern(r"^([0-2\s]?\d)[^\d]([0-6]\d)[^\d]([0-6]\d)")
-
-    local_datetime = RegexPattern(multiline_to_single_line(r"""^(?P<local_year>\d{4})
-                                            [^\d]
-                                            (?P<local_month>[01]?\d)
-                                            [^\d]
-                                            (?P<local_day>[0-3]?\d)
-                                            \,\s+
-                                            (?P<local_hour>[0-2\s]?\d)
-                                            [^\d]
-                                            (?P<local_minute>[0-6]\d)
-                                            [^\d]
-                                            (?P<local_second>[0-6]\d)"""))
-
-    utc_datetime = RegexPattern(multiline_to_single_line(r"""\s
-                                    (?P<utc_year>\d{4})
-                                    [^\d]
-                                    (?P<utc_month>[01]?\d)
-                                    [^\d]
-                                    (?P<utc_day>[0-3]?\d)
-                                    [^\d]
-                                    (?P<utc_hour>[0-2\s]?\d)
-                                    [^\d]
-                                    (?P<utc_minute>[0-6]\d)
-                                    [^\d]
-                                    (?P<utc_second>[0-6]\d)
-                                    [^\d]
-                                    (?P<utc_microsecond>\d+)"""))
-
-    antistasi_identifier = RegexPattern(r"(?P<identifier>Antistasi)")
-
-    file = RegexPattern(r"File\:\s*(?P<file>[\w\_\.]*)")
-
-    caller = RegexPattern(r"Called By\:\s*(?P<called_by>[\w\_\.]*)")
-
-    client = RegexPattern(r"Client:\s(?P<client>[^\|]+)")
-
-    default_message = RegexPattern(r"(?P<message>[^\|]*)")
-
-    full_datetime = local_datetime + utc_datetime
-
-    start_mod_table = only_time + RegexPattern(r"\s*\=+\s+List of mods\s+\=+")
-
-    end_mod_table = only_time + RegexPattern(r"\s*\=+$")
-
-    game_map = local_datetime + RegexPattern(r"\s+Mission world\:\s(?P<game_map>.*)")
-
-    def __init__(self, log_level_values: Iterable[str] = None, punishment_action_values: Iterable[str] = None) -> None:
-        self.log_level = RegexPattern(r"(?P<log_level>)")
-        self.punishment_action = RegexPattern(r"(?P<punishment_action>)")
-        self.generic_entry = self.local_datetime + self.default_message
-        self.antistasi_entry = RegexPattern(r'|').join([self.full_datetime, self.antistasi_identifier, self.file, self.caller, self.client, self.log_level, self.punishment_action, self.default_message])
-        self._log_level_values = log_level_values
-        self._punishment_action_values = punishment_action_values
-        if self._log_level_values is not None:
-            self._set_log_level_values(*self._log_level_values)
-        if self._punishment_action_values is not None:
-            self._set_punishment_action_values(*self._punishment_action_values)
-
-    @property
-    def log_level_values(self) -> tuple[str]:
-        if self._log_level_values is None:
-            return tuple()
-        return tuple(self._log_level_values)
-
-    @log_level_values.setter
-    def log_level_values(self, value) -> None:
-        self._log_level_values = value
-        self._set_log_level_values(*self._log_level_values)
-
-    @property
-    def punishment_action_values(self) -> tuple[str]:
-        if self._punishment_action_values is None:
-            return tuple()
-        return tuple(self._punishment_action_values)
-
-    @punishment_action_values.setter
-    def punishment_action_values(self, value) -> None:
-        self._punishment_action_values = value
-        self._set_punishment_action_values(*self._punishment_action_values)
-
-    def _set_log_level_values(self, *values: str) -> None:
-        self.log_level = self.log_level.format_group_values(log_level=r"|".join(values))
-        self.antistasi_entry = self.antistasi_entry.format_group_values(log_level=r"|".join(values))
-
-    def _set_punishment_action_values(self, *values: str) -> None:
-        self.punishment_action = self.punishment_action.format_group_values(punishment_action=r"|".join(values))
-        self.antistasi_entry = self.antistasi_entry.format_group_values(punishment_action=r"|".join(values))
-
-
-class LogRegex:
-
-    _patterns = {
-        'only_time': r"^([012\s]?\d)[^\d]([0123456]\d)[^\d]([0123456]\d)",
-        'local_datetime': r"^(?P<local_year>\d\d\d\d)[^\d](?P<local_month>\d+?)[^\d](?P<local_day>\d+)\,\s+(?P<local_hour>[012\s]?\d)[^\d](?P<local_minute>[0123456]\d)[^\d](?P<local_second>[0123456]\d)",
-        # 'local_datetime': r"^(?P<local_hour>[012\s]?\d)[^\d](?P<local_minute>[0123456]\d)[^\d](?P<local_second>[0123456]\d)",
-        'utc_datetime': r"\s(?P<utc_year>\d\d\d\d)[^\d](?P<utc_month>\d+?)[^\d](?P<utc_day>\d+)[^\d](?P<utc_hour>[012\s]?\d)[^\d](?P<utc_minute>[0123456]\d)[^\d](?P<utc_second>[0123456]\d)[^\d](?P<utc_microsecond>\d+)",
-        'antistasi_identifier': r"(?P<identifier>Antistasi)",
-        'log_level': r"(?P<log_level>Info|Debug|Warning|Critical|Error)",
-        'punishment_action': r"(?P<punishment_action>DAMAGE|WARNING)",
-        'file': r"File\:\s*(?P<file>[\w\_\.]*)",
-        'caller': r"Called By\:\s*(?P<called_by>[\w\_\.]*)",
-        'client': r"Client:\s(?P<client>[^\|]+)",
-        'default_message': r"(?P<message>[^\|]*)"
-
-    }
-
-    antistasi_entry_flags: re.RegexFlag = None
-    excluded_antistasi_entry_keys = {'local_year', 'local_month', 'local_day', 'local_hour', 'local_minute', 'local_second', 'identifier'}
-    _is_init: bool = False
+    __slots__ = ("only_time", "local_datetime", "continued_record", "generic_record", "full_datetime", "called_by", "game_map", "game_file", "mods", "mod_time_strip", "campaign_id", "first_full_datetime")
 
     def __init__(self) -> None:
-        self.additional_patterns = {
-            'full_datetime': self._patterns['local_datetime'] + self._patterns['utc_datetime'],
-            'start_mod_table': self._patterns['only_time'] + r"\s*\=+\s+List of mods\s+\=+",
-            'end_mod_table': self._patterns['only_time'] + r"\s*\=+$"
-        }
-        self.regexes = {}
-        self.antistasi_entry: re.Pattern = None
-        self.generic_entry: re.Pattern = None
-        self.compile_all_regexes()
-        self.compile_antistasi_entry_regex()
-        self.compile_generic_entry_regex()
-        self._is_init = True
 
-    @ property
-    def patterns(self):
-        return self._patterns | self.additional_patterns
+        self.only_time = re.compile(r"[1-2\s]\d\:[0-6]\d\:[0-6]\d(?=\s)")
 
-    def compile_all_regexes(self):
-        for key, value in self.patterns.items():
-            self.regexes[key] = re.compile(value)
+        self.local_datetime = re.compile(r"\d{4}/[01]\d/[0-3]\d\,\s[0-2]\d\:[0-6]\d\:[0-6]\d(?=\s)")
 
-    def _antistasi_entry_patterns(self):
-        part_key_names = ['full_datetime', 'antistasi_identifier', 'file', 'caller', 'client', 'log_level', 'punishment_action', 'default_message']
-        return [self.patterns.get(key_name) for key_name in part_key_names if self.patterns.get(key_name)]
+        self.continued_record = re.compile(r"\d{4}/[01]\d/[0-3]\d\,\s[0-2]\d\:[0-6]\d\:[0-6]\d" + r"\s+(?P<content>\>{3}\s*.*)")
 
-    def compile_generic_entry_regex(self):
-        self.generic_entry = re.compile(self._patterns['local_datetime'] + self._patterns['default_message'])
+        self.generic_record = re.compile(r"""(?P<year>\d{4})/(?P<month>[01]\d)/(?P<day>[0-3]\d)\,\s(?P<hour>[0-2]\d)\:(?P<minute>[0-6]\d)\:(?P<second>[0-6]\d)\s(?P<message>.*)""")
 
-    def compile_antistasi_entry_regex(self):
-        pattern = r'|'.join(self._antistasi_entry_patterns())
-        if self.antistasi_entry_flags is None:
-            self.antistasi_entry = re.compile(pattern)
-        else:
-            self.antistasi_entry = re.compile(pattern, self.antistasi_parts_flags)
+        self.full_datetime = re.compile(r"\d{4}/[01]\d/[0-3]\d\,\s[0-2]\d\:[0-6]\d\:[0-6]\d\s(?P<year>\d{4})\-(?P<month>[01]\d)\-(?P<day>[0-3]\d)\s(?P<hour>[0-2]\d)\:(?P<minute>[0-6]\d)\:(?P<second>[0-6]\d)\:(?P<microsecond>\d{3})\s")
 
-    def _get_default_entry_dict(self):
-        entry_dict = {key: None for key in self.antistasi_entry.groupindex if key not in self.excluded_antistasi_entry_keys}
-        entry_dict['message'] = []
-        return entry_dict
+        self.called_by = re.compile(r"(.*)(?:\s\|\s*Called\sBy\:\s*)([^\s\|]+)(.*)")
 
-    def _parse_antistasi_entry(self, entry: "LogEntry") -> dict[str, str]:
-        _out = self._get_default_entry_dict()
-        for part in entry.content.split('|'):
-            part = part.strip()
-            part_match = self.antistasi_entry.search(part)
-            if part_match:
-                for key, value in part_match.groupdict().items():
-                    if value:
-                        if key == 'message':
-                            _out[key].append(value)
-                        else:
-                            _out[key] = value
-        _out['message'] = '||'.join(_out['message']).replace('\n', '')
-        return _out
+        self.game_map = re.compile(r"\sMission world\:\s*(?P<game_map>.*)")
+        self.game_file = re.compile(r"\s+Mission file\:\s*(?P<game_file>.*)")
+        self.campaign_id = re.compile(r"((?P<text_loading>Loading last campaign ID)|(?P<text_creating>Creating new campaign with ID))\s*(?P<campaign_id>\d+)")
+        self.mods = re.compile(r"""^([0-2\s]?\d)
+                                          [^\d]
+                                          ([0-6]\d)
+                                          [^\d]
+                                          ([0-6]\d)
+                                          \s?\=+\sList\sof\smods\s\=*
+                                          \n
+                                          (?P<mod_lines>(^([0-2\s]?\d)
+                                                          [^\d]
+                                                          ([0-6]\d)
+                                                          [^\d]
+                                                          ([0-6]\d)
+                                                          \s(?!\=).*\n)
+                                                          +
+                                          )
+                                          ^([0-2\s]?\d)
+                                          [^\d]
+                                          ([0-6]\d)
+                                          [^\d]
+                                          ([0-6]\d)
+                                          \s?\=+""", re.VERBOSE | re.MULTILINE)
 
-    def _parse_generic_entry(self, entry: "LogEntry") -> dict[str, str]:
-        entry_match = self.generic_entry.search(entry.content)
-        if entry_match:
-            return entry_match.groupdict()
-
-    def parse_entry(self, entry: "LogEntry"):
-        if '| Antistasi |' in entry.content:
-            return self._parse_antistasi_entry(entry=entry)
-        else:
-            return self._parse_generic_entry(entry=entry)
-
-    def __getattr__(self, name: str) -> Any:
-        if not name.startswith('_'):
-            try:
-                return self.regexes[name]
-            except KeyError:
-                pass
-        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+        self.mod_time_strip = re.compile(r"""^([0-2\s]?\d)
+                                                    [^\d]
+                                                    ([0-6]\d)
+                                                    [^\d]
+                                                    ([0-6]\d)""", re.VERBOSE)
+        self.first_full_datetime = re.compile(r"""^
+                                         (?P<local_year>\d{4})
+                                         /
+                                         (?P<local_month>[01]\d)
+                                         /
+                                         (?P<local_day>[0-3]\d)
+                                         \,\s+
+                                         (?P<local_hour>[0-2]\d)
+                                         \:
+                                         (?P<local_minute>[0-6]\d)
+                                         \:
+                                         (?P<local_second>[0-6]\d)
+                                         \s
+                                         (?P<year>\d{4})
+                                         \-
+                                         (?P<month>[01]\d)
+                                         \-
+                                         (?P<day>[0-3]\d)
+                                         \s
+                                         (?P<hour>[0-2]\d)
+                                         \:
+                                         (?P<minute>[0-6]\d)
+                                         \:
+                                         (?P<second>[0-6]\d)
+                                         \:
+                                         (?P<microsecond>\d{3})
+                                         (?=\s)""", re.VERBOSE | re.MULTILINE)
 
 
 # region[Main_Exec]
 if __name__ == '__main__':
     pass
-
 # endregion[Main_Exec]

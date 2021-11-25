@@ -1,0 +1,1 @@
+from .antistasi_records import ALL_ANTISTASI_RECORD_CLASSES

@@ -5,7 +5,8 @@ Soon.
 """
 
 # region [Imports]
-import antistasi_serverlog_statistic
+from antistasi_logbook import setup
+setup()
 
 import gc
 import os
@@ -53,16 +54,18 @@ from urllib.parse import urlparse
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
-from gidapptools.meta_data import get_meta_info, get_meta_paths, get_meta_item
-from gidapptools.meta_data.interface import app_meta
+from gidapptools.meta_data import get_meta_info, get_meta_paths
+from gidapptools.meta_data.interface import app_meta, get_meta_config
 from dotenv import load_dotenv
 from gidapptools.general_helper.timing import time_execution
-from antistasi_serverlog_statistic.webdav.webdav_manager import WebdavManager
-from antistasi_serverlog_statistic.items.base_item import AbstractBaseItem
-
-from antistasi_serverlog_statistic.storage.storage_db import StorageDB
-from antistasi_serverlog_statistic.updater import Updater
+import click
+from gidapptools import get_logger
+from gidapptools.gid_signal.interface import get_signal
 import atexit
+from antistasi_logbook.storage.models.models import Server, RemoteStorage, database as database_proxy
+from antistasi_logbook.backend import Backend, GidSqliteApswDatabase
+if TYPE_CHECKING:
+    from gidapptools.gid_config.interface import GidIniConfig
 # endregion[Imports]
 
 
@@ -83,46 +86,79 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 META_PATHS = get_meta_paths()
 META_INFO = get_meta_info()
+CONFIG: "GidIniConfig" = get_meta_config().get_config('general')
+CONFIG.config.load()
+log = get_logger(__name__)
 # endregion[Constants]
 
 
-class NoThreadPoolExecutor:
-
-    def map(self, func, items):
-        return map(func, items)
-
-    def shutdown(self):
-        return
+@click.group(name='antistasi-logbook')
+def cli():
+    ...
 
 
-def main():
-    load_dotenv(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_ServerLog_Statistic\antistasi_serverlog_statistic\nextcloud.env")
-    for item in AbstractBaseItem.__subclasses__():
-        if inspect.isabstract(item) is False:
-            StorageDB.register_item(item)
-    db = StorageDB()
+settings_names = []
+for section, values in CONFIG.as_dict().items():
+    for key, _value in values.items():
+        settings_names.append(f"{section}.{key}")
 
-    web_dav = WebdavManager(log_folder_remote_path="Antistasi_Community_Logs", database=db)
-    updater = Updater(timedelta(seconds=10000), db, web_dav, thread_pool=ThreadPoolExecutor(100))
-    # updater.start()
-    updater._update()
-    run_for = 600
-    steps = 5
-    sleep_amount = run_for / steps
-    start_t = time()
-    theoretical_end_time = start_t + run_for
-    with time_execution(f"should be {run_for} s"):
-        for i in range(steps):
-            # if i == 3:
-            #     print(f"{'!|!'*50}\ntriggering update\n{'!|!'*50}")
-            #     updater.update()
-            sleep(sleep_amount)
-            print(f"sleept for {sleep_amount} s\n| remaining time: {run_for-((i+1)*sleep_amount)} s |\n{'-'*25}")
-            print(f"{updater.is_alive()=}")
-        updater.close()
+
+@cli.command(name="settings", help="change the Application settings without the GUI.")
+@click.argument("setting_name", type=click.Choice(settings_names))
+@click.argument("value")
+def settings(setting_name, value):
+    section, key = setting_name.split('.')
+    CONFIG.set(section_name=section, entry_key=key, entry_value=value)
+    current_value = CONFIG.get(section, key)
+    click.echo(f"{setting_name} is set to {str(current_value)!r}")
+
+
+@cli.command(help="Runs a single update of all enabled Server without starting the GUI.")
+@click.option('--login', '-l', default=None)
+@click.option('--password', '-p', default=None)
+def update(login, password):
+
+    def set_auth():
+        if login is not None and password is not None:
+            item: RemoteStorage = RemoteStorage.get(name='community_webdav')
+            item.set_login_and_password(login=login, password=password, store_in_db=False)
+
+    database = GidSqliteApswDatabase(config=CONFIG)
+
+    backend = Backend(database=database, config=CONFIG, database_proxy=database_proxy)
+    set_auth()
+    try:
+        backend.updater()
+    finally:
+        amount_updated = database.session_meta_data.new_log_files + database.session_meta_data.updated_log_files
+        click.echo(f"{amount_updated} log files were updated.")
+        backend.shutdown()
+
+
+def debug_update(login, password):
+
+    def set_auth():
+        if login is not None and password is not None:
+            item: RemoteStorage = RemoteStorage.get(name='community_webdav')
+            item.set_login_and_password(login=login, password=password, store_in_db=False)
+
+    database = GidSqliteApswDatabase(config=CONFIG)
+
+    backend = Backend(database=database, config=CONFIG, database_proxy=database_proxy)
+    backend.start_up(overwrite=True)
+    set_auth()
+    try:
+        backend.updater()
+    finally:
+        amount_updated = database.session_meta_data.new_log_files + database.session_meta_data.updated_log_files
+        log.info(f"{amount_updated} log files were updated.")
+        backend.shutdown()
 
 
 # region[Main_Exec]
 if __name__ == '__main__':
-    main()
+    # if getattr(sys, 'frozen', False):
+    #     cli(sys.argv[1:])
+    load_dotenv(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\tests\data\nextcloud.env")
+    debug_update(login=os.getenv("NEXTCLOUD_USERNAME"), password=os.getenv("NEXTCLOUD_PASSWORD"))
 # endregion[Main_Exec]

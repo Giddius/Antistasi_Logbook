@@ -1,2 +1,5 @@
 pytest
-Faker
+pytest-html
+allure-pytest
+pyparsing==3.0.6
+time-machine>=2.4.0

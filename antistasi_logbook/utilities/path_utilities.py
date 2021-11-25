@@ -51,8 +51,11 @@ from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from rich.panel import Panel
 from importlib.machinery import SourceFileLoader
-from antistasi_serverlog_statistic.utilities.nextcloud import get_username
-from antistasi_serverlog_statistic.utilities.rich_styles import PANEL_BORDER_STYLE, PANEL_STYLE
+from antistasi_logbook.utilities.nextcloud import get_username
+from antistasi_logbook.utilities.rich_styles import PANEL_BORDER_STYLE, PANEL_STYLE
+import urllib.parse as urllib_parse
+import urllib.request as urllib_request
+from gidapptools import get_logger
 # endregion[Imports]
 
 # region [TODO]
@@ -69,6 +72,9 @@ from antistasi_serverlog_statistic.utilities.rich_styles import PANEL_BORDER_STY
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
+log = get_logger(__name__)
 # endregion[Constants]
 
 
@@ -118,6 +124,24 @@ class RemotePath(UserString):
     def __conform__(self, protocol):
         if protocol is sqlite3.PrepareProtocol:
             return self.__fspath__()
+
+
+def url_to_path(url: str) -> Path:
+    """
+    Convert a file: URL to a path.
+    """
+    if not isinstance(url, str):
+        url = str(url)
+    assert url.startswith('file:'), (f"You can only turn file: urls into filenames (not {url!r})")
+
+    _, netloc, path, _, _ = urllib_parse.urlsplit(url)
+
+    # if we have a UNC path, prepend UNC share notation
+    if netloc:
+        netloc = '\\\\' + netloc
+
+    path = urllib_request.url2pathname(netloc + path)
+    return Path(path)
 # region[Main_Exec]
 
 

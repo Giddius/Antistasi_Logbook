@@ -55,7 +55,7 @@ from importlib.machinery import SourceFileLoader
 
 from gidapptools.general_helper.enums import BaseGidEnum
 from gidapptools.meta_data import get_meta_info, get_meta_paths, get_meta_item, app_meta
-import logging
+from gidapptools import get_logger
 # endregion[Imports]
 
 # region [TODO]
@@ -64,33 +64,25 @@ import logging
 # endregion [TODO]
 
 # region [Logging]
-log = logging.getLogger(__name__)
 
+
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
+log = get_logger(__name__)
 # endregion[Logging]
 
 # region [Constants]
 if app_meta.is_setup is False:
-    import antistasi_serverlog_statistic
+    import antistasi_logbook
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 META_PATHS = get_meta_paths()
 META_INFO = get_meta_info()
 
 
 # endregion[Constants]
-@unique
-class LogLevel(BaseGidEnum):
-    """
-    Representing the parsed log-level.
-    """
-    NO_LEVEL = None
-    DEBUG = 1
-    INFO = 2
-    WARNING = 3
-    CRITICAL = 4
-    ERROR = 5
 
 
-class RemoteItemType(Enum):
+class RemoteItemType(BaseGidEnum):
     DIRECTORY = "directory"
     FILE = "file"
 

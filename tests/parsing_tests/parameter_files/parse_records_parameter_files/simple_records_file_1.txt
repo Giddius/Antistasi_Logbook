@@ -1,0 +1,4 @@
+2021/10/05, 08:40:59 [CBA] (xeh) INFO: [12189,153.042,0] PreInit finished.
+2021/10/05, 08:40:59 "armahosts/BIS_fnc_log: [preInit] CBA_fnc_preInit (707.001 ms)"
+2021/10/05, 08:40:59 "armahosts/BIS_fnc_log: [preInit] HR_GRG_fnc_initServer (1.00708 ms)"
+2021/10/05, 08:40:59 PortableHelipadLight_01_white_F: light_1_blinking - unknown animation source MarkerLight (defined in AnimationSources::Light_1_source)
