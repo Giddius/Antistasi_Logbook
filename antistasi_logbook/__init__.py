@@ -1,6 +1,6 @@
-"""Antistasi_Serverlog_Statistics"""
+"""Antistasi Logbook"""
 
-__version__ = '0.1.1'
+__version__ = '0.1.2'
 
 from gidapptools.meta_data import setup_meta_data
 from gidapptools import get_main_logger
