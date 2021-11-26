@@ -191,7 +191,7 @@ def test_parse_startup_entries(fake_parsing_context_class, log_file, expected):
 
 
 ALL_LOG_FILES_DIR = THIS_FILE_DIR.parent.joinpath("data", "fake_log_files")
-
+EXTRA_LOG_FILES_DIR = THIS_FILE_DIR.parent.joinpath("data")
 test_get_log_file_meta_data_params = []
 
 
@@ -235,7 +235,7 @@ class MetaDataTestParam:
         return (self.log_file, self.game_map_expected, self.full_datetime_expected, self.version_expected, self.mods_expected, self.campaign_id_expected, self.is_new_campaign_expected)
 
 
-first_meta_data_test_param = MetaDataTestParam(ALL_LOG_FILES_DIR.joinpath("Mainserver_1", "arma3server_x64_2021-10-20_22-12-41.txt"))
+first_meta_data_test_param = MetaDataTestParam(EXTRA_LOG_FILES_DIR.joinpath("arma3server_x64_2021-10-20_22-12-41.txt"))
 first_meta_data_test_param.game_map_expected = "Altis"
 first_meta_data_test_param.add_campaign_id_info(81082, False)
 first_meta_data_test_param.add_version(Version(2, 5, 3))
