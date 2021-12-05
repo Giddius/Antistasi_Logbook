@@ -1,17 +1,20 @@
 import antistasi_logbook
 antistasi_logbook.setup()
 from antistasi_logbook.backend import Backend, GidSqliteApswDatabase, get_meta_config
-from antistasi_logbook.storage.models.models import database as database_proxy, RemoteStorage, LogFile, LogRecord
+from antistasi_logbook.storage.models.models import RemoteStorage, LogFile, LogRecord
 import os
-from gidapptools.general_helper.timing import time_func
+from gidapptools.general_helper.timing import time_func, time_execution
+from peewee import Query, Select
+from pathlib import Path
 
 
-@time_func(condition=True)
+@time_func(condition=True, also_pretty=True)
 def main():
     config = get_meta_config().get_config('general')
-    config.set("updating", "max_update_time_frame", None)
+    old_value = config.get("updating", "max_update_time_frame", default=None)
+    config.set("updating", "max_update_time_frame", "10 days")
     db = GidSqliteApswDatabase(config=config)
-    b = Backend(database=db, config=config, database_proxy=database_proxy)
+    b = Backend(database=db, config=config)
 
     b.start_up(True)
     import dotenv
@@ -23,6 +26,7 @@ def main():
         print(f"{LogFile.select().count()=}")
         print(f"{LogRecord.select().count()=}")
     b.shutdown()
+    config.set("updating", "max_update_time_frame", old_value)
 
 
 if __name__ == '__main__':

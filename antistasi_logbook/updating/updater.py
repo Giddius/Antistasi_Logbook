@@ -48,7 +48,7 @@ from statistics import mean, mode, stdev, median, variance, pvariance, harmonic_
 from collections import Counter, ChainMap, deque, namedtuple, defaultdict
 from urllib.parse import urlparse
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, wait, ALL_COMPLETED
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, wait, ALL_COMPLETED, Future
 from importlib.machinery import SourceFileLoader
 from gidapptools import get_logger, get_meta_config, get_meta_paths, get_meta_info
 from dateutil.tz import UTC
@@ -92,6 +92,8 @@ class Updater:
     new_log_file_signal = get_signal("new_log_file")
     updated_log_file_signal = get_signal("updated_log_file")
 
+    __slots__ = ("config", "parsing_context_factory", "database", "parser", "stop_event", "pause_event", "thread_pool", "_to_close_contexts")
+
     def __init__(self,
                  config: "GidIniConfig",
                  parsing_context_factory: Callable[["LogFile"], "LogParsingContext"],
@@ -107,7 +109,7 @@ class Updater:
         self.stop_event = stop_event
         self.pause_event = pause_event
         self.thread_pool = ThreadPoolExecutor(self.max_threads, thread_name_prefix=self.thread_prefix) if thread_pool_class is None else thread_pool_class(self.max_threads, thread_name_prefix=self.thread_prefix)
-        self.thread_pool._max_workers
+        self._to_close_contexts = queue.Queue()
 
     @property
     def max_threads(self) -> int:
@@ -196,7 +198,7 @@ class Updater:
             [type]: [description]
         """
         to_update_files = []
-        current_log_files = {log_file.name: log_file for log_file in server.log_files}
+        current_log_files = {log_file.name: log_file for log_file in self.database.get_log_files(server=server)}
         cutoff_datetime = self.get_cutoff_datetime()
 
         for remote_info in server.get_remote_files():
@@ -213,7 +215,7 @@ class Updater:
             for unfinished_log_file in [i for i in current_log_files.values() if cutoff_datetime is not None and i.last_parsed_datetime != i.modified_at and i.modified_at > cutoff_datetime]:
                 if unfinished_log_file not in to_update_files:
                     to_update_files.append(unfinished_log_file)
-        return sorted(to_update_files, key=lambda x: x.size, reverse=True)
+        return sorted(to_update_files, key=lambda x: x.modified_at, reverse=True)
 
     def _handle_old_log_files(self, server: "Server") -> None:
         if self.remove_items_older_than_max_update_time_frame is False:
@@ -230,43 +232,54 @@ class Updater:
         return amount_deleted
 
     def process(self, server: "Server") -> None:
-        def _do(_log_file: "LogFile"):
-            sleep(random.uniform(0.0, 0.5))
-            if self.stop_event.is_set() is False:
-                with self.parsing_context_factory(log_file=_log_file) as context:
-                    log.debug("starting to parse %s", _log_file)
-                    for processed_record in self.parser(context=context):
-                        context.insert_record(processed_record)
 
-                    context.wait_on_futures()
+        def _do(_log_file: "LogFile"):
+            sleep(random.uniform(0.1, 2.0))
+            if self.stop_event.is_set() is False:
+                context = self.parsing_context_factory(log_file=_log_file)
+                context.__enter__()
+                log.debug("starting to parse %s", _log_file)
+                for processed_record in self.parser(context=context):
+                    context.insert_record(processed_record)
+                context._dump_rest()
+                return context
         tasks = []
+
         self.database.connect(True)
         for log_file in self._get_updated_log_files(server=server):
             if self.stop_event.is_set() is False:
-                tasks.append(self.thread_pool.submit(_do, _log_file=log_file))
+                sub_task = self.thread_pool.submit(_do, _log_file=log_file)
+                sub_task.add_done_callback(lambda x: self._to_close_contexts.put(x.result()))
+                tasks.append(sub_task)
         wait(tasks, return_when=ALL_COMPLETED, timeout=None)
-        if self.stop_event.is_set() is False:
-            return self._handle_old_log_files(server=server)
-        return 0
+        while self._to_close_contexts.empty() is False:
+            ctx = self._to_close_contexts.get()
+            log.debug("waiting on %r to close", ctx)
+            ctx.__exit__()
+            self._to_close_contexts.task_done()
 
     def __call__(self) -> Any:
-        amount_deleted = 0
-        for server in list(Server.select()):
+
+        for server in self.database.get_all_server():
             if server.is_updatable() is False:
                 continue
             if self.stop_event.is_set() is True:
                 return
             while self.pause_event.is_set() is True:
-                sleep(1)
+                sleep(0.25)
             log.info("STARTED updating %r", server)
-            amount_deleted += self.process(server=server)
+            self.process(server=server)
             log.info("FINISHED updating server %r", server)
 
-            self.database.reconnect()
+        amount_deleted = 0
+        for server in self.database.get_all_server():
+            if self.stop_event.is_set() is False:
+                amount_deleted += self._handle_old_log_files(server=server)
+
         if amount_deleted > 0:
-            self.database.vacuum()
-            self.database.optimize()
-            self.database.reconnect()
+            if self.stop_event.is_set() is False:
+                self.database.vacuum()
+                self.database.optimize()
 
     def shutdown(self) -> None:
         self.thread_pool.shutdown(wait=True, cancel_futures=False)

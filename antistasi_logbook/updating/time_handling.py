@@ -55,6 +55,8 @@ from dateutil.tz import UTC
 from gidapptools import get_meta_config
 from antistasi_logbook import setup
 from gidapptools import get_logger
+if TYPE_CHECKING:
+    from gidapptools.gid_config.interface import GidIniConfig
 # endregion[Imports]
 
 # region [TODO]
@@ -88,10 +90,10 @@ TRIGGER_INTERVAL_TYPE = Union[TRIGGER_RESULT_TYPE, Callable[[], TRIGGER_RESULT_T
 class TimeClock:
 
     def __init__(self,
-                 trigger_interval: TRIGGER_INTERVAL_TYPE,
+                 config: "GidIniConfig",
                  stop_event: Event = None) -> None:
         self.time_zone = UTC
-        self._trigger_interval = trigger_interval
+        self.config = config
         self.stop_event = Event() if stop_event is None else stop_event
         self.next_trigger: datetime = None
 
@@ -101,19 +103,7 @@ class TimeClock:
 
     @property
     def trigger_interval(self) -> timedelta:
-        if self._trigger_interval is None:
-            raise ValueError(f"'trigger_interval' can only be used if a trigger_interval was provided, {self._trigger_interval!r}.")
-
-        if callable(self._trigger_interval):
-            return self._trigger_interval()
-
-        if isinstance(self._trigger_interval, timedelta):
-            return self._trigger_interval
-
-        if isinstance(self._trigger_interval, (int, float)):
-            return timedelta(seconds=self._trigger_interval)
-
-        raise TypeError(f"Unknown type for 'trigger_intervall', {type(self._trigger_interval)}.")
+        return self.config.get("updating", "update_interval", default=timedelta(seconds=600))
 
     def wait_for_trigger(self):
         if self.stop_event.is_set():

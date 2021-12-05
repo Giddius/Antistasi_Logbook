@@ -1,0 +1,1 @@
+INSERT INTO "LogRecord" ("start", "end", "message", "recorded_at", "called_by", "is_antistasi_record", "logged_from", "log_file", "log_level", "record_class", "marked") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

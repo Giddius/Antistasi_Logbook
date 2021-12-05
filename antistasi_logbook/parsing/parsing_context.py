@@ -63,9 +63,10 @@ from antistasi_logbook.storage.models.models import LogFile, Mod, LogFileAndModJ
 from traceback import format_tb, print_tb
 from gidapptools import get_logger
 from dateutil.tz import tzoffset, UTC
+
 from playhouse.shortcuts import model_to_dict, dict_to_model, update_model_from_dict
 from antistasi_logbook.utilities.misc import Version
-from antistasi_logbook.parsing.foreign_key_cache import foreign_key_cache
+
 from antistasi_logbook.utilities.locks import WRITE_LOCK
 from gidapptools.gid_signal.interface import get_signal
 if TYPE_CHECKING:
@@ -73,6 +74,9 @@ if TYPE_CHECKING:
     from antistasi_logbook.parsing.parser import MetaFinder, RawRecord, ModItem, ForeignKeyCache
     from antistasi_logbook.storage.database import GidSQLiteDatabase
     from antistasi_logbook.parsing.record_processor import ManyRecordsInsertResult
+    from antistasi_logbook.parsing.record_processor import RecordInserter
+    from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
+    from gidapptools.gid_config.interface import GidIniConfig
 # endregion[Imports]
 
 # region [TODO]
@@ -184,14 +188,16 @@ class LineCache(deque):
 class LogParsingContext:
     new_log_record_signal = get_signal("new_log_record")
     __slots__ = ("__weakref__", "_log_file", "record_lock", "log_file_data", "data_lock", "foreign_key_cache", "line_cache", "_line_iterator",
-                 "_current_line", "_current_line_number", "futures", "record_storage", "inserter", "_bulk_create_batch_size")
+                 "_current_line", "_current_line_number", "futures", "record_storage", "inserter", "_bulk_create_batch_size", "database", "config")
 
-    def __init__(self, log_file: "LogFile", inserter) -> None:
+    def __init__(self, log_file: "LogFile", inserter: "RecordInserter", config: "GidIniConfig", foreign_key_cache: "ForeignKeyCache") -> None:
         self._log_file = log_file
+        self.database = self._log_file.get_meta().database
         self.inserter = inserter
         self.log_file_data = model_to_dict(self._log_file, exclude=[LogFile.log_records, LogFile.mods, LogFile.comments, LogFile.marked])
         self.data_lock = RLock()
         self.foreign_key_cache = foreign_key_cache
+        self.config = config
         self.line_cache = LineCache()
         self.record_storage: list["RawRecord"] = []
         self._line_iterator: LINE_ITERATOR_TYPE = None
@@ -203,9 +209,9 @@ class LogParsingContext:
 
     @property
     def _log_record_batch_size(self) -> int:
-        if self._bulk_create_batch_size is None:
 
-            self._bulk_create_batch_size = (32767 // (len(LogRecord.get_meta().columns) * 1))
+        if self._bulk_create_batch_size is None:
+            self._bulk_create_batch_size = self.config.get("parsing", "record_insert_batch_size", default=(32767 // (len(LogRecord.get_meta().columns) * 1)))
 
         return self._bulk_create_batch_size
 
@@ -216,6 +222,7 @@ class LogParsingContext:
     def set_unparsable(self) -> None:
         self.log_file_data["unparsable"] = True
 
+    @profile
     def set_found_meta_data(self, finder: "MetaFinder") -> None:
 
         # TODO: Refractor this Monster!
@@ -228,10 +235,9 @@ class LogParsingContext:
             game_map_item = self.foreign_key_cache.all_game_map_objects.get(finder.game_map)
             if game_map_item is None:
                 game_map_item = GameMap(name=finder.game_map, full_name=f"PLACE_HOLDER {finder.game_map}")
-                with WRITE_LOCK:
-                    game_map_item.save()
+                self.futures.append(self.inserter.insert_game_map(game_map=game_map_item))
 
-            self.log_file_data["game_map"] = game_map_item.id
+            self.log_file_data["game_map"] = game_map_item
 
         if self.log_file_data.get("version") is None:
             self.log_file_data["version"] = finder.version
@@ -253,18 +259,7 @@ class LogParsingContext:
 
         if finder.mods is not None and finder.mods is not MiscEnum.DEFAULT:
 
-            def validation_check_amount_inserted(query, target_amount: int, log_file: "LogFile"):
-                if query.execute() != target_amount:
-                    # TODO: Custom Error
-                    # raise ValueError(f"Not all mods have been inserted for {self._log_file}")
-                    pass
-            data = [mod_item.as_dict() for mod_item in finder.mods]
-
-            Mod.insert_many(data).on_conflict_ignore().execute()
-
-            mods_log_file_join_insert_query = LogFileAndModJoin.insert_many([{"log_file": self._log_file.id, "mod": Mod.get(**m_item.as_dict())} for m_item in finder.mods]).on_conflict_ignore()
-
-            validation_check_amount_inserted(query=mods_log_file_join_insert_query, target_amount=len(finder.mods), log_file=self._log_file)
+            self.futures.append(self.inserter.insert_mods(mod_items=tuple(finder.mods), log_file=self._log_file))
 
     def set_header_text(self, lines: Iterable["RecordLine"]) -> None:
         # takes about 0.0003763 s
@@ -315,6 +310,7 @@ class LogParsingContext:
             self._line_iterator.close()
         self._log_file._cleanup()
 
+    @profile
     def _future_callback(self, result: "ManyRecordsInsertResult") -> None:
         max_line_number = result.max_line_number
         max_recorded_at = result.max_recorded_at
@@ -337,6 +333,7 @@ class LogParsingContext:
                 log.error(error)
                 log.debug(max_recorded_at)
 
+    @profile
     def insert_record(self, record: "RawRecord") -> None:
         with self.record_lock:
             self.record_storage.append(record)
@@ -345,11 +342,12 @@ class LogParsingContext:
                 self.futures.append(self.inserter(records=tuple(self.record_storage), context=self))
                 self.record_storage.clear()
 
-    def wait_on_futures(self, timeout: float = None) -> None:
+    def _dump_rest(self) -> None:
         if len(self.record_storage) > 0:
             self.futures.append(self.inserter(records=tuple(self.record_storage), context=self))
             self.record_storage.clear()
 
+    def wait_on_futures(self, timeout: float = None) -> None:
         done, not_done = wait(self.futures, return_when=FIRST_EXCEPTION, timeout=timeout)
         if len(not_done) == 0:
             with self.data_lock:
@@ -359,13 +357,19 @@ class LogParsingContext:
         self._log_file.download()
         return self
 
+    @profile
     def __exit__(self, exception_type: type = None, exception_value: BaseException = None, traceback: Any = None) -> None:
-        with self.data_lock:
-            update_model_from_dict(self._log_file, self.log_file_data).save()
         if exception_value is not None:
             log.error("%s, %s", exception_type, exception_value, exc_info=True)
+        self.wait_on_futures()
+        with self.data_lock:
 
+            task = self.inserter.update_log_file_from_dict(log_file=self._log_file, in_dict=self.log_file_data)
+        task.result()
         self.close()
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(log_file={self._log_file!r})"
 
 
 # region[Main_Exec]

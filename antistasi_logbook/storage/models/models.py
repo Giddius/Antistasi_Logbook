@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     from antistasi_logbook.updating.remote_managers import AbstractRemoteStorageManager, InfoItem
     from gidapptools.gid_config.meta_factory import GidIniConfig
     from antistasi_logbook.records.record_class_manager import RECORD_CLASS_TYPE, RecordClassManager
-
+    from antistasi_logbook.storage.database import GidSqliteApswDatabase
 
 from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
 
@@ -47,16 +47,19 @@ get_dummy_profile_decorator_in_globals()
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
-database = DatabaseProxy()
+
 META_PATHS = get_meta_paths()
 CONFIG: "GidIniConfig" = get_meta_config().get_config('general')
 META_INFO = get_meta_info()
 log = get_logger(__name__)
 
 
+database_proxy = DatabaseProxy()
+
+
 class BaseModel(Model):
     class Meta:
-        database = database
+        database = database_proxy
 
     @classmethod
     def create_or_get(cls, **kwargs) -> "BaseModel":
@@ -80,11 +83,11 @@ class AntstasiFunction(BaseModel):
     class Meta:
         table_name = 'AntstasiFunction'
 
-    @property
+    @cached_property
     def file_name(self) -> str:
         return f"fn_{self.name}.sqf"
 
-    @property
+    @cached_property
     def function_name(self) -> str:
         return f"A3A_fnc_{self.name}"
 
@@ -182,15 +185,6 @@ class Server(BaseModel):
 
     def get_remote_files(self) -> Generator["InfoItem", None, None]:
         yield from self.remote_manager.get_files(self.remote_path)
-
-    def get_current_log_files(self) -> dict[str, "LogFile"]:
-        _out = {}
-
-        for log_file in self.log_files:
-            _ = log_file.game_map
-            _ = log_file.server
-            _out[log_file.name] = log_file
-        return _out
 
     @cached_property
     def full_local_path(self) -> Path:
@@ -336,6 +330,9 @@ class LogFile(BaseModel):
     def __rich__(self):
         return f"[u b blue]{self.server.name}/{self.name}[/u b blue]"
 
+    def __repr__(self) -> str:
+        return str(self)
+
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(server={self.server.name!r}, modified_at={self.modified_at.strftime('%Y-%m-%d %H:%M:%S')!r})"
 
@@ -447,7 +444,8 @@ class DatabaseMetaData(BaseModel):
         started_at = datetime.now(tz=UTC) if started_at is None else started_at
         app_version = Version.from_string(META_INFO.version) if app_version is None else app_version
         item = cls(started_at=started_at, app_version=app_version)
-        item.save()
+        with cls._meta.database:
+            item.save()
         return item
 
     def count_log_files(self, server: "Server" = None) -> int:
@@ -481,10 +479,10 @@ class DatabaseMetaData(BaseModel):
             self.added_log_records += amount
 
 
-def setup_db():
-    all_models = BaseModel.__subclasses__()
+def setup_db(database: "GidSqliteApswDatabase"):
+    database_proxy.initialize(database)
 
-    database.create_tables(all_models)
+    all_models = BaseModel.__subclasses__()
 
     setup_data = {RemoteStorage: [{"name": "local_files", "id": 0, "base_url": "--LOCAL--", "manager_type": "LocalManager"},
                                   {"name": "community_webdav", "id": 1, "base_url": "https://antistasi.de", "manager_type": "WebdavManager"}],
@@ -769,7 +767,10 @@ def setup_db():
                                      {"id": 184, "name": "surrenderAction"},
                                      {"id": 185, "name": "arePositionsConnected"},
                                      {"id": 186, "name": "moveHQObject"}]}
+    with database:
+        database.create_tables(all_models)
     for model, data in setup_data.items():
         x = model.insert_many(data).on_conflict_ignore()
-        database.execute(x)
+        with database:
+            x.execute()
     sleep(0.5)

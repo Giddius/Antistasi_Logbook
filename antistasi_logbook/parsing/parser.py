@@ -71,7 +71,7 @@ from gidapptools import get_logger
 from threading import RLock, Semaphore, Event
 from antistasi_logbook.parsing.raw_record import RawRecord
 from antistasi_logbook.parsing.record_processor import RecordProcessor, RecordInserter
-from antistasi_logbook.parsing.foreign_key_cache import foreign_key_cache
+from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 from antistasi_logbook.parsing.meta_log_finder import MetaFinder
 if TYPE_CHECKING:
 
@@ -109,8 +109,7 @@ class Parser:
 
     __slots__ = ("database", "regex_keeper", "record_processor", "foreign_key_cache", "stop_event")
 
-    def __init__(self, record_processor: "RecordProcessor", regex_keeper: "SimpleRegexKeeper", stop_event: Event) -> None:
-
+    def __init__(self, record_processor: "RecordProcessor", foreign_key_cache: "ForeignKeyCache", regex_keeper: "SimpleRegexKeeper", stop_event: Event) -> None:
         self.foreign_key_cache = foreign_key_cache
         self.record_processor = record_processor
         self.regex_keeper = regex_keeper

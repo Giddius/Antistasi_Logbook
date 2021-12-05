@@ -61,7 +61,7 @@ from gidapptools.gid_signal.interface import get_signal
 from gidapptools.meta_data.interface import get_meta_paths, MetaPaths, get_meta_config, get_meta_info
 from gidapptools.general_helper.conversion import human2bytes
 from antistasi_logbook.utilities.locks import UPDATE_LOCK
-from antistasi_logbook.storage.models.models import database, Server, RemoteStorage, LogFile, RecordClass, LogRecord, AntstasiFunction, setup_db, DatabaseMetaData
+from antistasi_logbook.storage.models.models import Server, RemoteStorage, LogFile, RecordClass, LogRecord, AntstasiFunction, setup_db, DatabaseMetaData, GameMap, LogLevel
 from antistasi_logbook.updating.remote_managers import AbstractRemoteStorageManager, LocalManager, WebdavManager, FakeWebdavManager
 from antistasi_logbook.utilities.misc import NoThreadPoolExecutor, Version
 from rich.console import Console as RichConsole
@@ -106,7 +106,8 @@ DEFAULT_PRAGMAS = {
     "ignore_check_constraints": 0,
     "foreign_keys": 1,
     "temp_store": "MEMORY",
-    "wal_autocheckpoint": "1"
+    "threads": 5,
+    "mmap_size": human2bytes("1 gb")
 }
 
 
@@ -138,109 +139,6 @@ class GidSqliteDatabase(Protocol):
         ...
 
 
-class GidSqliteQueueDatabase(SqliteQueueDatabase):
-
-    default_extensions = {"json_contains": True,
-                          "regexp_function": False}
-
-    default_db_path = META_PATHS.db_dir if os.getenv('IS_DEV', 'false') == "false" else THIS_FILE_DIR
-
-    def __init__(self,
-                 database_path: Path = None,
-
-                 config: "GidIniConfig" = None,
-                 auto_backup: bool = True,
-                 autoconnect=True,
-                 thread_safe=True,
-                 queue_max_size=None,
-                 results_timeout=None,
-                 pragmas=None,
-                 extensions=None):
-        self.database_path = self.default_db_path.joinpath(DEFAULT_DB_NAME) if database_path is None else Path(database_path)
-        self.config = CONFIG if config is None else config
-        self.auto_backup = auto_backup
-        self.started_up = False
-        self.session_meta_data: "DatabaseMetaData" = None
-        extensions = self.default_extensions if extensions is None else extensions
-        pragmas = DEFAULT_PRAGMAS.copy() if pragmas is None else pragmas
-        super().__init__(make_db_path(self.database_path), use_gevent=False, autostart=False, queue_max_size=queue_max_size, results_timeout=results_timeout, thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, **extensions)
-
-    @property
-    def default_backup_path(self) -> Path:
-        return self.default_db_path.joinpath("backups")
-
-    def _pre_start_up(self, **kwargs) -> None:
-        self.database_path.parent.mkdir(exist_ok=True, parents=True)
-        if kwargs.get("overwrite", False) is True:
-            self.database_path.unlink(missing_ok=True)
-
-    def _post_start_up(self, **kwargs) -> None:
-        self.session_meta_data = DatabaseMetaData.new_session(started_at=kwargs.get("started_at", None), app_version=kwargs.get("app_version", None))
-
-    def start_up(self,
-                 overwrite: bool = False,
-                 force: bool = False,
-                 database_proxy: DatabaseProxy = None,
-                 started_at: datetime = None,
-                 app_version: "Version" = None) -> "GidSqliteQueueDatabase":
-        if self.started_up is True and force is False:
-            return
-        log.info("starting up %r", self)
-        self._pre_start_up(overwrite=overwrite)
-        if database_proxy:
-            database_proxy.initialize(self)
-        self.connect(reuse_if_open=True)
-        self.start()
-        setup_db()
-
-        self.stop()
-        self.start()
-        self._post_start_up(started_at=started_at, app_version=app_version)
-        self.started_up = True
-        log.info("finished starting up %r", self)
-        return self
-
-    def restart(self) -> "GidSqliteQueueDatabase":
-        log.info("restarting %r", self)
-        self.stop()
-        self.start()
-        return self
-
-    def optimize(self) -> "GidSqliteQueueDatabase":
-        log.info("optimizing %r", self)
-        self.execute_sql("OPTIMIZE")
-        return self
-
-    def vacuum(self) -> "GidSqliteQueueDatabase":
-        log.info("vacuuming %r", self)
-        self.execute_sql("VACUUM")
-        return self
-
-    def backup(self, backup_path: Union[str, os.PathLike, Path] = None) -> "GidSqliteQueueDatabase":
-        log.info("backing up %r", self)
-        backup_path = self.default_backup_path if backup_path is None else Path(backup_path).resolve()
-        if backup_path.is_dir():
-            backup_path = backup_path.joinpath(self.database_path.name)
-        backup_path.parent.mkdir(exist_ok=True, parents=True)
-        shutil.copy(self.database_path, backup_path)
-        print(backup_path.with_suffix('.zip'))
-        with ZipFile(backup_path.with_suffix('.zip'), mode='w') as zippy:
-            zippy.write(backup_path.name, backup_path)
-        log.info("finished backing up %r", self)
-
-    def shutdown(self,
-                 error: BaseException = None,
-                 backup_path: Union[str, os.PathLike, Path] = None) -> None:
-        log.debug("shutting down %r", self)
-        self.session_meta_data.save()
-        self.stop()
-        sleep(1)
-        self.close()
-        if self.auto_backup is True and error is None:
-            self.backup(backup_path=backup_path)
-        log.debug("finished shutting down %r", self)
-
-
 class GidSqliteApswDatabase(APSWDatabase):
     default_extensions = {"json_contains": True,
                           "regexp_function": False}
@@ -251,7 +149,7 @@ class GidSqliteApswDatabase(APSWDatabase):
                  database_path: Path = None,
                  config: "GidIniConfig" = None,
                  auto_backup: bool = False,
-                 thread_safe=False,
+                 thread_safe=True,
                  autoconnect=True,
                  pragmas=None,
                  extensions=None):
@@ -261,17 +159,13 @@ class GidSqliteApswDatabase(APSWDatabase):
         self.auto_backup = auto_backup
         self.started_up = False
         self.session_meta_data: "DatabaseMetaData" = None
-        extensions = self.default_extensions if extensions is None else extensions
-        pragmas = DEFAULT_PRAGMAS.copy() if pragmas is None else pragmas
-        super().__init__(make_db_path(self.database_path), thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, **extensions)
+        extensions = self.default_extensions.copy() | (extensions or {})
+        pragmas = DEFAULT_PRAGMAS.copy() | (pragmas or {})
+        super().__init__(make_db_path(self.database_path), thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, timeout=30, **extensions)
 
     @property
     def default_backup_folder(self) -> Path:
         return self.database_path.parent.joinpath("backups")
-
-    def reconnect(self) -> None:
-        self.close()
-        self.connect(True)
 
     def _pre_start_up(self, overwrite: bool = False) -> None:
         self.database_path.parent.mkdir(exist_ok=True, parents=True)
@@ -283,64 +177,28 @@ class GidSqliteApswDatabase(APSWDatabase):
 
     def start_up(self,
                  overwrite: bool = False,
-                 force: bool = False,
-                 database_proxy: DatabaseProxy = None) -> "GidSqliteQueueDatabase":
+                 force: bool = False) -> "GidSqliteApswDatabase":
         if self.started_up is True and force is False:
             return
         log.info("starting up %r", self)
         self._pre_start_up(overwrite=overwrite)
-        if database_proxy:
-            database_proxy.initialize(self)
+
+        setup_db(self)
         self.connect(reuse_if_open=True)
-
-        setup_db()
-
         self._post_start_up()
         self.started_up = True
         log.info("finished starting up %r", self)
         return self
 
-    def optimize(self) -> "GidSqliteQueueDatabase":
+    def optimize(self) -> "GidSqliteApswDatabase":
         log.info("optimizing %r", self)
         self.pragma("OPTIMIZE")
         return self
 
-    def vacuum(self) -> "GidSqliteQueueDatabase":
+    def vacuum(self) -> "GidSqliteApswDatabase":
         log.info("vacuuming %r", self)
         self.execute_sql("VACUUM;")
         return self
-
-    # TODO: make class or something, think about how it should work
-
-    def backup(self, backup_folder: Union[str, os.PathLike, Path] = None) -> "GidSqliteQueueDatabase":
-        def _get_backup_name(_backup_folder: Path) -> str:
-            _backup_folder.mkdir(exist_ok=True, parents=True)
-            number = 1
-            name = f"{self.database_path.stem}_backup_{number}"
-
-            while name in {item.stem for item in _backup_folder.iterdir() if item.is_file()}:
-                number += 1
-                name = f"{self.database_path.stem}_backup_{number}"
-            return name
-
-        def _limit_backups(_backup_folder: Path) -> None:
-            backups = [item for item in _backup_folder.iterdir() if item.is_file()]
-            backups = sorted(backups, key=lambda x: x.stat().st_ctime, reverse=True)
-            to_delete = backups[self.config.get("backup", "max_backups", default=3):]
-            for item in to_delete:
-                item.unlink(missing_ok=True)
-        log.info("backing up %r", self)
-        backup_folder = Path(backup_folder) if backup_folder is not None else self.default_backup_folder
-
-        backup_path = backup_folder.joinpath(_get_backup_name(backup_folder)).with_suffix(self.database_path.suffix)
-
-        shutil.copy(self.database_path, backup_path)
-
-        with ZipFile(backup_path.with_suffix('.zip'), mode='w', compression=ZIP_LZMA) as zippy:
-            zippy.write(backup_path, backup_path.name)
-        backup_path.unlink(missing_ok=True)
-        _limit_backups(backup_folder)
-        log.info("finished backing up %r", self)
 
     def shutdown(self,
                  error: BaseException = None,
@@ -350,8 +208,31 @@ class GidSqliteApswDatabase(APSWDatabase):
 
         self.close()
         if self.auto_backup is True and error is None:
-            self.backup(backup_folder=backup_folder)
+            # self.backup(backup_folder=backup_folder)
+            log.warning("'backup-method' is not written!")
         log.debug("finished shutting down %r", self)
+
+    def get_all_server(self, ordered_by=Server.id) -> tuple[Server]:
+        with self:
+            return tuple(Server.select().join(RemoteStorage).order_by(ordered_by))
+
+    def get_log_files(self, server: Server = None, ordered_by=LogFile.id) -> tuple[LogFile]:
+        with self:
+            if server is None:
+                return tuple(LogFile.select().join(GameMap).switch(LogFile).join(Server).order_by(ordered_by))
+            return tuple(LogFile.select().join(GameMap).switch(LogFile).join(Server).where(LogFile.server == Server).order_by(ordered_by))
+
+    def get_all_log_levels(self, ordered_by=LogLevel.id) -> tuple[LogLevel]:
+        with self:
+            return tuple(LogLevel.select().order_by(ordered_by))
+
+    def get_all_antistasi_functions(self, ordered_by=AntstasiFunction.id) -> tuple[AntstasiFunction]:
+        with self:
+            return tuple(AntstasiFunction.select().order_by(ordered_by))
+
+    def get_all_game_maps(self, ordered_by=GameMap.id) -> tuple[GameMap]:
+        with self:
+            return tuple(GameMap.select().order_by(ordered_by))
 
     def __repr__(self) -> str:
         repr_attrs = ("database_name", "config", "auto_backup", "thread_safe", "autoconnect")

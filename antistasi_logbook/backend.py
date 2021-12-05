@@ -50,12 +50,12 @@ from urllib.parse import urlparse
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
-from antistasi_logbook.storage.models.models import LogFile, LogRecord, LogLevel, AntstasiFunction, DatabaseMetaData, GameMap, Mod, LogFileAndModJoin, RecordClass, RemoteStorage, database as proxy_database
+from antistasi_logbook.storage.models.models import LogFile, Server, LogRecord, LogLevel, AntstasiFunction, DatabaseMetaData, GameMap, Mod, LogFileAndModJoin, RecordClass, RemoteStorage
 from antistasi_logbook.parsing.parsing_context import LogParsingContext
 from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 from antistasi_logbook.regex.regex_keeper import SimpleRegexKeeper
 from antistasi_logbook.records.record_class_manager import RecordClassManager, RECORD_CLASS_TYPE
-from antistasi_logbook.storage.database import GidSqliteQueueDatabase, GidSqliteDatabase, GidSqliteApswDatabase
+from antistasi_logbook.storage.database import GidSqliteApswDatabase
 from dateutil.tz import UTC
 from peewee import DatabaseProxy
 from antistasi_logbook.updating.time_handling import TimeClock
@@ -67,6 +67,7 @@ from antistasi_logbook.updating.remote_managers import remote_manager_registry
 from antistasi_logbook.updating.updater import Updater
 from antistasi_logbook.parsing.parsing_context import LogParsingContext
 from antistasi_logbook.parsing.parser import Parser
+from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 from antistasi_logbook.parsing.record_processor import RecordProcessor, RecordInserter
 from weakref import WeakSet
 import attr
@@ -146,22 +147,22 @@ class Backend:
     """
     all_parsing_context: WeakSet["LogParsingContext"] = WeakSet()
 
-    def __init__(self, database: "GidSqliteDatabase", config: "GidIniConfig", database_proxy: "DatabaseProxy") -> None:
+    def __init__(self, database: "GidSqliteApswDatabase", config: "GidIniConfig") -> None:
         self.events = Events()
         self.locks = Locks()
         self.signals = Signals()
         self.config = config
         self.database = database
-        self.database_proxy = database_proxy
+        self.foreign_key_cache = ForeignKeyCache(database=self.database)
         self.record_class_manager = RecordClassManager()
-        self.time_clock = TimeClock(trigger_interval=self.get_trigger_interval, stop_event=self.events.stop)
+        self.time_clock = TimeClock(config=self.config, stop_event=self.events.stop)
         self.remote_manager_registry = remote_manager_registry
-        self.record_processor = RecordProcessor(regex_keeper=SimpleRegexKeeper(), record_class_manager=self.record_class_manager)
-        self.parser = Parser(record_processor=self.record_processor, regex_keeper=SimpleRegexKeeper(), stop_event=self.events.stop)
+        self.record_processor = RecordProcessor(regex_keeper=SimpleRegexKeeper(), record_class_manager=self.record_class_manager, foreign_key_cache=self.foreign_key_cache)
+        self.parser = Parser(record_processor=self.record_processor, regex_keeper=SimpleRegexKeeper(), stop_event=self.events.stop, foreign_key_cache=self.foreign_key_cache)
         self.updater = Updater(config=self.config, parsing_context_factory=self.get_parsing_context, parser=self.parser, stop_event=self.events.stop, pause_event=self.events.pause, database=self.database)
         self.records_inserter = RecordInserter(config=self.config, database=self.database)
         # thread
-        self.update_manager = self.get_update_manager()
+        self.update_manager: UpdateManager = None
 
     def get_update_manager(self) -> "UpdateManager":
         """
@@ -186,18 +187,9 @@ class Backend:
         Returns:
             `LogParsingContext`: Instantiated `LogParsingContext` with the provided `LogFile` model.
         """
-        context = LogParsingContext(log_file=log_file, inserter=self.records_inserter)
+        context = LogParsingContext(log_file=log_file, inserter=self.records_inserter, foreign_key_cache=self.foreign_key_cache, config=self.config)
         self.all_parsing_context.add(context)
         return context
-
-    def get_trigger_interval(self) -> timedelta:
-        """
-        Method to provide a dynamic time interval to the `TimeClock`.
-
-        Returns:
-            timedelta: the interval
-        """
-        return self.config.get("updating", "update_interval", default=600)
 
     def register_record_classes(self, record_classes: Iterable[RECORD_CLASS_TYPE]) -> "Backend":
         for record_class in record_classes:
@@ -210,7 +202,7 @@ class Backend:
 
         """
 
-        self.database.start_up(database_proxy=self.database_proxy, overwrite=overwrite)
+        self.database.start_up(overwrite=overwrite)
 
         from antistasi_logbook.records import ALL_ANTISTASI_RECORD_CLASSES
         for record_class in ALL_ANTISTASI_RECORD_CLASSES:
@@ -235,13 +227,19 @@ class Backend:
             all_futures += context.futures
         wait(all_futures, return_when=ALL_COMPLETED, timeout=3.0)
 
-        if self.update_manager.is_alive() is True:
+        if self.update_manager is not None and self.update_manager.is_alive() is True:
             self.update_manager.shutdown()
         for remote_storage in self.remote_manager_registry.manager_cache.values():
             remote_storage.close()
         self.updater.shutdown()
         self.records_inserter.shutdown()
         self.database.shutdown()
+
+    def start_update_loop(self) -> "Backend":
+        if self.update_manager is None:
+            self.update_manager = self.get_update_manager()
+        self.update_manager.start()
+        return self
 
 
 # region[Main_Exec]
