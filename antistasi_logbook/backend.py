@@ -67,6 +67,7 @@ from antistasi_logbook.updating.remote_managers import remote_manager_registry
 from antistasi_logbook.updating.updater import Updater
 from antistasi_logbook.parsing.parsing_context import LogParsingContext
 from antistasi_logbook.parsing.parser import Parser
+from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 from antistasi_logbook.parsing.record_processor import RecordProcessor, RecordInserter
 from weakref import WeakSet
 import attr
@@ -152,15 +153,16 @@ class Backend:
         self.signals = Signals()
         self.config = config
         self.database = database
+        self.foreign_key_cache = ForeignKeyCache(database=self.database)
         self.record_class_manager = RecordClassManager()
         self.time_clock = TimeClock(config=self.config, stop_event=self.events.stop)
         self.remote_manager_registry = remote_manager_registry
-        self.record_processor = RecordProcessor(regex_keeper=SimpleRegexKeeper(), record_class_manager=self.record_class_manager)
-        self.parser = Parser(record_processor=self.record_processor, regex_keeper=SimpleRegexKeeper(), stop_event=self.events.stop)
+        self.record_processor = RecordProcessor(regex_keeper=SimpleRegexKeeper(), record_class_manager=self.record_class_manager, foreign_key_cache=self.foreign_key_cache)
+        self.parser = Parser(record_processor=self.record_processor, regex_keeper=SimpleRegexKeeper(), stop_event=self.events.stop, foreign_key_cache=self.foreign_key_cache)
         self.updater = Updater(config=self.config, parsing_context_factory=self.get_parsing_context, parser=self.parser, stop_event=self.events.stop, pause_event=self.events.pause, database=self.database)
         self.records_inserter = RecordInserter(config=self.config, database=self.database)
         # thread
-        self.update_manager = self.get_update_manager()
+        self.update_manager: UpdateManager = None
 
     def get_update_manager(self) -> "UpdateManager":
         """
@@ -185,7 +187,7 @@ class Backend:
         Returns:
             `LogParsingContext`: Instantiated `LogParsingContext` with the provided `LogFile` model.
         """
-        context = LogParsingContext(log_file=log_file, inserter=self.records_inserter)
+        context = LogParsingContext(log_file=log_file, inserter=self.records_inserter, foreign_key_cache=self.foreign_key_cache, config=self.config)
         self.all_parsing_context.add(context)
         return context
 
@@ -225,13 +227,19 @@ class Backend:
             all_futures += context.futures
         wait(all_futures, return_when=ALL_COMPLETED, timeout=3.0)
 
-        if self.update_manager.is_alive() is True:
+        if self.update_manager is not None and self.update_manager.is_alive() is True:
             self.update_manager.shutdown()
         for remote_storage in self.remote_manager_registry.manager_cache.values():
             remote_storage.close()
         self.updater.shutdown()
         self.records_inserter.shutdown()
         self.database.shutdown()
+
+    def start_update_loop(self) -> "Backend":
+        if self.update_manager is None:
+            self.update_manager = self.get_update_manager()
+        self.update_manager.start()
+        return self
 
 
 # region[Main_Exec]

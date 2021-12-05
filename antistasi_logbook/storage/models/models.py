@@ -83,11 +83,11 @@ class AntstasiFunction(BaseModel):
     class Meta:
         table_name = 'AntstasiFunction'
 
-    @property
+    @cached_property
     def file_name(self) -> str:
         return f"fn_{self.name}.sqf"
 
-    @property
+    @cached_property
     def function_name(self) -> str:
         return f"A3A_fnc_{self.name}"
 

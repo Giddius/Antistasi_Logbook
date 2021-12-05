@@ -5,13 +5,14 @@ from antistasi_logbook.storage.models.models import RemoteStorage, LogFile, LogR
 import os
 from gidapptools.general_helper.timing import time_func, time_execution
 from peewee import Query, Select
+from pathlib import Path
 
 
 @time_func(condition=True, also_pretty=True)
 def main():
     config = get_meta_config().get_config('general')
     old_value = config.get("updating", "max_update_time_frame", default=None)
-    config.set("updating", "max_update_time_frame", "3 days")
+    config.set("updating", "max_update_time_frame", "10 days")
     db = GidSqliteApswDatabase(config=config)
     b = Backend(database=db, config=config)
 

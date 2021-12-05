@@ -55,6 +55,8 @@ from playhouse.signals import post_save, pre_save, pre_delete, pre_init
 from antistasi_logbook.storage.models.models import GameMap, LogFile, LogRecord, LogLevel, AntstasiFunction, Server
 from playhouse.shortcuts import model_to_dict, dict_to_model
 from gidapptools import get_logger
+if TYPE_CHECKING:
+    from antistasi_logbook.storage.database import GidSqliteApswDatabase
 # endregion[Imports]
 
 # region [TODO]
@@ -82,9 +84,10 @@ class ForeignKeyCache:
     _all_antistasi_file_objects: dict[str, AntstasiFunction] = None
     _all_game_map_objects: dict[str, GameMap] = None
 
-    __slots__ = ("update_map")
+    __slots__ = ("update_map", "database")
 
-    def __init__(self) -> None:
+    def __init__(self, database: "GidSqliteApswDatabase") -> None:
+        self.database = database
         self.update_map = {AntstasiFunction: (self.antistasi_file_model_blocker, "_all_antistasi_file_objects"),
                            GameMap: (self.game_map_model_blocker, "_all_game_map_objects"),
                            LogLevel: (self.log_levels_blocker, "_all_log_levels")}
@@ -102,7 +105,7 @@ class ForeignKeyCache:
 
         if self.__class__._all_log_levels is None:
             self.log_levels_blocker.wait()
-            self.__class__._all_log_levels = {item.name: item for item, _id in ((i, i.id) for i in LogLevel.select())}
+            self.__class__._all_log_levels = {log_level.name: log_level for log_level in self.database.get_all_log_levels()}
 
         return self.__class__._all_log_levels
 
@@ -111,7 +114,7 @@ class ForeignKeyCache:
 
         if self.__class__._all_antistasi_file_objects is None:
             self.antistasi_file_model_blocker.wait()
-            self.__class__._all_antistasi_file_objects = {item.name: item for item, _id in ((i, i.id) for i in AntstasiFunction.select())}
+            self.__class__._all_antistasi_file_objects = {antistasi_file.name: antistasi_file for antistasi_file in self.database.get_all_antistasi_functions()}
 
         return self.__class__._all_antistasi_file_objects
 
@@ -120,7 +123,7 @@ class ForeignKeyCache:
 
         if self.__class__._all_game_map_objects is None:
             self.game_map_model_blocker.wait()
-            self.__class__._all_game_map_objects = {item.name: item for item, _id in ((i, i.id) for i in GameMap.select())}
+            self.__class__._all_game_map_objects = {game_map.name: game_map for game_map in self.database.get_all_game_maps()}
 
         return self.__class__._all_game_map_objects
 
@@ -131,14 +134,10 @@ class ForeignKeyCache:
                 return
             with event:
                 setattr(self.__class__, class_attr_name, None)
-            log.warning(f" reseted '{class_attr_name}', because {model_to_dict(instance, recurse=False)} of {sender.__name__!r} was created:{created!r}")
-
-
-foreign_key_cache = ForeignKeyCache()
+            log.warning(" reseted %r, because %r of %r was created: %r", class_attr_name, model_to_dict(instance, recurse=False), sender.__name__, created)
 
 
 # region[Main_Exec]
-
 if __name__ == '__main__':
     pass
 

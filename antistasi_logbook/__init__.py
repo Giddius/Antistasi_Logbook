@@ -26,7 +26,7 @@ def setup():
                     file_changed_parameter="changed_time")
 
 
-os.environ["ERRORS_TO_FILE"] = "1"
+# os.environ["ERRORS_TO_FILE"] = "1"
 
 
 @atexit.register

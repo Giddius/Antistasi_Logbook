@@ -61,7 +61,7 @@ from gidapptools.gid_signal.interface import get_signal
 from gidapptools.meta_data.interface import get_meta_paths, MetaPaths, get_meta_config, get_meta_info
 from gidapptools.general_helper.conversion import human2bytes
 from antistasi_logbook.utilities.locks import UPDATE_LOCK
-from antistasi_logbook.storage.models.models import Server, RemoteStorage, LogFile, RecordClass, LogRecord, AntstasiFunction, setup_db, DatabaseMetaData, GameMap
+from antistasi_logbook.storage.models.models import Server, RemoteStorage, LogFile, RecordClass, LogRecord, AntstasiFunction, setup_db, DatabaseMetaData, GameMap, LogLevel
 from antistasi_logbook.updating.remote_managers import AbstractRemoteStorageManager, LocalManager, WebdavManager, FakeWebdavManager
 from antistasi_logbook.utilities.misc import NoThreadPoolExecutor, Version
 from rich.console import Console as RichConsole
@@ -100,14 +100,14 @@ log = get_logger(__name__)
 DEFAULT_DB_NAME = "storage.db"
 
 DEFAULT_PRAGMAS = {
-    "cache_size": -1 * 128000,
+    "cache_size": -1 * 64000,
     "journal_mode": 'wal',
     "synchronous": 0,
     "ignore_check_constraints": 0,
     "foreign_keys": 1,
     "temp_store": "MEMORY",
     "threads": 5,
-    "mmap_size": human2bytes("500mb")
+    "mmap_size": human2bytes("1 gb")
 }
 
 
@@ -221,6 +221,18 @@ class GidSqliteApswDatabase(APSWDatabase):
             if server is None:
                 return tuple(LogFile.select().join(GameMap).switch(LogFile).join(Server).order_by(ordered_by))
             return tuple(LogFile.select().join(GameMap).switch(LogFile).join(Server).where(LogFile.server == Server).order_by(ordered_by))
+
+    def get_all_log_levels(self, ordered_by=LogLevel.id) -> tuple[LogLevel]:
+        with self:
+            return tuple(LogLevel.select().order_by(ordered_by))
+
+    def get_all_antistasi_functions(self, ordered_by=AntstasiFunction.id) -> tuple[AntstasiFunction]:
+        with self:
+            return tuple(AntstasiFunction.select().order_by(ordered_by))
+
+    def get_all_game_maps(self, ordered_by=GameMap.id) -> tuple[GameMap]:
+        with self:
+            return tuple(GameMap.select().order_by(ordered_by))
 
     def __repr__(self) -> str:
         repr_attrs = ("database_name", "config", "auto_backup", "thread_safe", "autoconnect")
