@@ -107,10 +107,9 @@ class Parser:
     log_file_data_scan_chunk_increase = 27239
     log_file_data_scan_chunk_initial = (104997 // 2)
 
-    __slots__ = ("database", "regex_keeper", "record_processor", "foreign_key_cache", "stop_event")
+    __slots__ = ("database", "regex_keeper", "record_processor", "stop_event")
 
-    def __init__(self, record_processor: "RecordProcessor", foreign_key_cache: "ForeignKeyCache", regex_keeper: "SimpleRegexKeeper", stop_event: Event) -> None:
-        self.foreign_key_cache = foreign_key_cache
+    def __init__(self, record_processor: "RecordProcessor", regex_keeper: "SimpleRegexKeeper", stop_event: Event) -> None:
         self.record_processor = record_processor
         self.regex_keeper = regex_keeper
         self.stop_event = stop_event
