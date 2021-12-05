@@ -50,12 +50,12 @@ from urllib.parse import urlparse
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
-from antistasi_logbook.storage.models.models import LogFile, LogRecord, LogLevel, AntstasiFunction, DatabaseMetaData, GameMap, Mod, LogFileAndModJoin, RecordClass, RemoteStorage, database as proxy_database
+from antistasi_logbook.storage.models.models import LogFile, Server, LogRecord, LogLevel, AntstasiFunction, DatabaseMetaData, GameMap, Mod, LogFileAndModJoin, RecordClass, RemoteStorage
 from antistasi_logbook.parsing.parsing_context import LogParsingContext
 from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 from antistasi_logbook.regex.regex_keeper import SimpleRegexKeeper
 from antistasi_logbook.records.record_class_manager import RecordClassManager, RECORD_CLASS_TYPE
-from antistasi_logbook.storage.database import GidSqliteQueueDatabase, GidSqliteDatabase, GidSqliteApswDatabase
+from antistasi_logbook.storage.database import GidSqliteApswDatabase
 from dateutil.tz import UTC
 from peewee import DatabaseProxy
 from antistasi_logbook.updating.time_handling import TimeClock
@@ -146,15 +146,14 @@ class Backend:
     """
     all_parsing_context: WeakSet["LogParsingContext"] = WeakSet()
 
-    def __init__(self, database: "GidSqliteDatabase", config: "GidIniConfig", database_proxy: "DatabaseProxy") -> None:
+    def __init__(self, database: "GidSqliteApswDatabase", config: "GidIniConfig") -> None:
         self.events = Events()
         self.locks = Locks()
         self.signals = Signals()
         self.config = config
         self.database = database
-        self.database_proxy = database_proxy
         self.record_class_manager = RecordClassManager()
-        self.time_clock = TimeClock(trigger_interval=self.get_trigger_interval, stop_event=self.events.stop)
+        self.time_clock = TimeClock(config=self.config, stop_event=self.events.stop)
         self.remote_manager_registry = remote_manager_registry
         self.record_processor = RecordProcessor(regex_keeper=SimpleRegexKeeper(), record_class_manager=self.record_class_manager)
         self.parser = Parser(record_processor=self.record_processor, regex_keeper=SimpleRegexKeeper(), stop_event=self.events.stop)
@@ -190,15 +189,6 @@ class Backend:
         self.all_parsing_context.add(context)
         return context
 
-    def get_trigger_interval(self) -> timedelta:
-        """
-        Method to provide a dynamic time interval to the `TimeClock`.
-
-        Returns:
-            timedelta: the interval
-        """
-        return self.config.get("updating", "update_interval", default=600)
-
     def register_record_classes(self, record_classes: Iterable[RECORD_CLASS_TYPE]) -> "Backend":
         for record_class in record_classes:
             self.record_class_manager.register_record_class(record_class=record_class)
@@ -210,7 +200,7 @@ class Backend:
 
         """
 
-        self.database.start_up(database_proxy=self.database_proxy, overwrite=overwrite)
+        self.database.start_up(overwrite=overwrite)
 
         from antistasi_logbook.records import ALL_ANTISTASI_RECORD_CLASSES
         for record_class in ALL_ANTISTASI_RECORD_CLASSES:

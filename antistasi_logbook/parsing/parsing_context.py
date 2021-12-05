@@ -73,6 +73,7 @@ if TYPE_CHECKING:
     from antistasi_logbook.parsing.parser import MetaFinder, RawRecord, ModItem, ForeignKeyCache
     from antistasi_logbook.storage.database import GidSQLiteDatabase
     from antistasi_logbook.parsing.record_processor import ManyRecordsInsertResult
+    from antistasi_logbook.parsing.record_processor import RecordInserter
 # endregion[Imports]
 
 # region [TODO]
@@ -184,10 +185,11 @@ class LineCache(deque):
 class LogParsingContext:
     new_log_record_signal = get_signal("new_log_record")
     __slots__ = ("__weakref__", "_log_file", "record_lock", "log_file_data", "data_lock", "foreign_key_cache", "line_cache", "_line_iterator",
-                 "_current_line", "_current_line_number", "futures", "record_storage", "inserter", "_bulk_create_batch_size")
+                 "_current_line", "_current_line_number", "futures", "record_storage", "inserter", "_bulk_create_batch_size", "database")
 
-    def __init__(self, log_file: "LogFile", inserter) -> None:
+    def __init__(self, log_file: "LogFile", inserter: "RecordInserter") -> None:
         self._log_file = log_file
+        self.database = self._log_file.get_meta().database
         self.inserter = inserter
         self.log_file_data = model_to_dict(self._log_file, exclude=[LogFile.log_records, LogFile.mods, LogFile.comments, LogFile.marked])
         self.data_lock = RLock()
@@ -216,6 +218,7 @@ class LogParsingContext:
     def set_unparsable(self) -> None:
         self.log_file_data["unparsable"] = True
 
+    @profile
     def set_found_meta_data(self, finder: "MetaFinder") -> None:
 
         # TODO: Refractor this Monster!
@@ -228,8 +231,7 @@ class LogParsingContext:
             game_map_item = self.foreign_key_cache.all_game_map_objects.get(finder.game_map)
             if game_map_item is None:
                 game_map_item = GameMap(name=finder.game_map, full_name=f"PLACE_HOLDER {finder.game_map}")
-                with WRITE_LOCK:
-                    game_map_item.save()
+                game_map_item.save()
 
             self.log_file_data["game_map"] = game_map_item.id
 
@@ -253,18 +255,7 @@ class LogParsingContext:
 
         if finder.mods is not None and finder.mods is not MiscEnum.DEFAULT:
 
-            def validation_check_amount_inserted(query, target_amount: int, log_file: "LogFile"):
-                if query.execute() != target_amount:
-                    # TODO: Custom Error
-                    # raise ValueError(f"Not all mods have been inserted for {self._log_file}")
-                    pass
-            data = [mod_item.as_dict() for mod_item in finder.mods]
-
-            Mod.insert_many(data).on_conflict_ignore().execute()
-
-            mods_log_file_join_insert_query = LogFileAndModJoin.insert_many([{"log_file": self._log_file.id, "mod": Mod.get(**m_item.as_dict())} for m_item in finder.mods]).on_conflict_ignore()
-
-            validation_check_amount_inserted(query=mods_log_file_join_insert_query, target_amount=len(finder.mods), log_file=self._log_file)
+            self.inserter.insert_mods(mod_items=tuple(finder.mods), log_file=self._log_file)
 
     def set_header_text(self, lines: Iterable["RecordLine"]) -> None:
         # takes about 0.0003763 s
@@ -345,11 +336,12 @@ class LogParsingContext:
                 self.futures.append(self.inserter(records=tuple(self.record_storage), context=self))
                 self.record_storage.clear()
 
-    def wait_on_futures(self, timeout: float = None) -> None:
+    def _dump_rest(self) -> None:
         if len(self.record_storage) > 0:
             self.futures.append(self.inserter(records=tuple(self.record_storage), context=self))
             self.record_storage.clear()
 
+    def wait_on_futures(self, timeout: float = None) -> None:
         done, not_done = wait(self.futures, return_when=FIRST_EXCEPTION, timeout=timeout)
         if len(not_done) == 0:
             with self.data_lock:
@@ -360,12 +352,16 @@ class LogParsingContext:
         return self
 
     def __exit__(self, exception_type: type = None, exception_value: BaseException = None, traceback: Any = None) -> None:
-        with self.data_lock:
-            update_model_from_dict(self._log_file, self.log_file_data).save()
         if exception_value is not None:
             log.error("%s, %s", exception_type, exception_value, exc_info=True)
-
+        self.wait_on_futures()
+        with self.data_lock:
+            with self.database:
+                update_model_from_dict(self._log_file, self.log_file_data).save()
         self.close()
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(log_file={self._log_file!r})"
 
 
 # region[Main_Exec]

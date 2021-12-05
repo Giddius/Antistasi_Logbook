@@ -54,6 +54,7 @@ from gidapptools.general_helper.concurrency.events import BlockingEvent
 from playhouse.signals import post_save, pre_save, pre_delete, pre_init
 from antistasi_logbook.storage.models.models import GameMap, LogFile, LogRecord, LogLevel, AntstasiFunction, Server
 from playhouse.shortcuts import model_to_dict, dict_to_model
+from gidapptools import get_logger
 # endregion[Imports]
 
 # region [TODO]
@@ -69,7 +70,7 @@ from playhouse.shortcuts import model_to_dict, dict_to_model
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
-
+log = get_logger(__name__)
 # endregion[Constants]
 
 

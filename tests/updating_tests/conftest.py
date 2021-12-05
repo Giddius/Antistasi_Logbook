@@ -1,8 +1,8 @@
 import pytest
 
-from antistasi_logbook.storage.database import GidSqliteQueueDatabase, GidSqliteApswDatabase, GidSqliteDatabase
+from antistasi_logbook.storage.database import GidSqliteApswDatabase
 from antistasi_logbook.backend import Backend
-from antistasi_logbook.storage.models.models import RemoteStorage, database as database_proxy
+from antistasi_logbook.storage.models.models import RemoteStorage
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from dateutil.tz import UTC
@@ -48,8 +48,8 @@ def general_database(tmpdir, general_config: "GidIniConfig"):
 
 
 @pytest.fixture
-def general_backend(general_database: "GidSqliteDatabase", general_config: "GidIniConfig"):
-    backend = Backend(database=general_database, config=general_config, database_proxy=database_proxy)
+def general_backend(general_database: "GidSqliteApswDatabase", general_config: "GidIniConfig"):
+    backend = Backend(database=general_database, config=general_config)
 
     FakeWebdavManager.fake_files_folder = DATA_DIR.joinpath("fake_log_files.zip")
     FakeWebdavManager.info_file = DATA_DIR.joinpath("fake_info_data.json")
