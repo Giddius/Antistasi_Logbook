@@ -435,6 +435,8 @@ class DatabaseMetaData(BaseModel):
     updated_log_files = IntegerField(default=0)
     added_log_records = IntegerField(default=0)
     errored = TextField(null=True)
+    last_update_started_at = BetterDateTimeField(null=True)
+    last_update_finished_at = BetterDateTimeField(null=True)
 
     class Meta:
         table_name = 'DatabaseMetaData'
@@ -446,6 +448,16 @@ class DatabaseMetaData(BaseModel):
         item = cls(started_at=started_at, app_version=app_version)
         with cls._meta.database:
             item.save()
+        return item
+
+    def get_absolute_last_update_finished_at(self) -> datetime:
+        item = DatabaseMetaData.select(DatabaseMetaData.last_update_finished_at).where(DatabaseMetaData.last_update_finished_at != None).order_by(-DatabaseMetaData.last_update_finished_at).scalar()
+        if self.last_update_finished_at is None:
+            return item
+        if item is None:
+            return self.last_update_finished_at
+        if item < self.last_update_finished_at:
+            return self.last_update_finished_at
         return item
 
     def count_log_files(self, server: "Server" = None) -> int:

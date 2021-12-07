@@ -191,6 +191,9 @@ class AbstractRemoteStorageManager(ABC):
     def close(self) -> None:
         pass
 
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(base_url={self.base_url!r})"
+
 
 @remote_manager_registry.register_decorator()
 class LocalManager(AbstractRemoteStorageManager):
@@ -264,7 +267,8 @@ class WebdavManager(AbstractRemoteStorageManager):
         return WebdavClient(base_url=str(self.full_base_url),
                             auth=(self.login, self.password),
                             retry=True,
-                            timeout=httpx.Timeout(timeout=None))
+                            timeout=httpx.Timeout(300, pool=None),
+                            limits=Limits(max_connections=self.max_connections, max_keepalive_connections=self.max_connections // 2, keepalive_expiry=30))
 
     @property
     def client(self) -> WebdavClient:
@@ -311,7 +315,7 @@ class WebdavManager(AbstractRemoteStorageManager):
 
     def close(self) -> None:
         if self._client is not None:
-            log.debug("closing %s", self._client.http)
+            log.debug("closing %r", self)
             self._client.http.close()
             self._client = None
 

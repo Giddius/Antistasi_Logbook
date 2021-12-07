@@ -165,6 +165,10 @@ class Backend:
         # thread
         self.update_manager: UpdateManager = None
 
+    @property
+    def session_meta_data(self) -> "DatabaseMetaData":
+        return self.database.session_meta_data
+
     def get_update_manager(self) -> "UpdateManager":
         """
         Creates a new `UpdateManager` thread.

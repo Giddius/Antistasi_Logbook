@@ -56,10 +56,11 @@ from importlib.machinery import SourceFileLoader
 from gidapptools import get_logger, get_meta_config, get_meta_info, get_meta_paths
 import PySide6
 # from __feature__ import true_property
-from PySide6.QtCore import QCoreApplication, QDate, QDateTime, QLocale, QMetaObject, QObject, QPoint, QRect, QSize, QTime, QUrl, Qt, QEvent, QThread, QThreadPool, QRunnable
+from PySide6.QtCore import QCoreApplication, QDate, QDateTime, QLocale, QMetaObject, QObject, QPoint, QRect, QSize, QTime, QUrl, Qt, QEvent, QThread, QThreadPool, QRunnable, Signal, Slot
 from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QGradient, QIcon, QImage, QKeySequence,
                            QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform, QCloseEvent)
 from PySide6.QtWidgets import QSystemTrayIcon, QApplication, QGridLayout, QMainWindow, QMenu, QMessageBox, QMenuBar, QSizePolicy, QStatusBar, QWidget, QPushButton, QBoxLayout, QHBoxLayout, QVBoxLayout, QSizePolicy, QLayout
+
 from threading import Thread
 from PySide6 import QtCore, QtGui
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
@@ -71,6 +72,7 @@ from gidapptools.utility._debug_tools import obj_inspection
 from gidapptools.general_helper.string_helper import StringCaseConverter
 from antistasi_logbook.backend import Backend, GidSqliteApswDatabase
 from antistasi_logbook.storage.models.models import RemoteStorage
+from antistasi_logbook.gui.status_bar import LogbookStatusBar
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
 
@@ -96,19 +98,9 @@ META_INFO = get_meta_info()
 # endregion[Constants]
 
 
-class UpdateRunnable(QRunnable):
-    def __init__(self, func, call_back) -> None:
-        self.func = func
-        self.call_back = call_back
-        super().__init__()
-
-    def run(self) -> None:
-        self.func()
-        log.info("done updating")
-        self.call_back()
-
-
 class AntistasiLogbookMainWindow(QMainWindow):
+    update_started = Signal()
+    update_finished = Signal()
 
     def __init__(self, app: QApplication, config: "GidIniConfig") -> None:
         self.app = app
@@ -116,7 +108,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.backend: "Backend" = None
         self.main_widget: QWidget = None
         self.menubar: QMenuBar = None
-        self.statusbar: QStatusBar = None
+        self.statusbar: LogbookStatusBar = None
 
         self.sys_tray: "LogbookSystemTray" = None
         self.name: str = None
@@ -140,8 +132,13 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.set_main_widget(MainWidget(self))
         self.sys_tray = LogbookSystemTray(self, self.app)
         self.sys_tray.show()
-        self.setup_statusbar()
+
         self.setup_backend()
+        self.setup_statusbar()
+        self.backend.updater.signaler.update_started.connect(self.statusbar.switch_labels)
+        self.backend.updater.signaler.update_finished.connect(self.statusbar.switch_labels)
+        self.backend.updater.signaler.update_info.connect(self.statusbar.start_progress_bar)
+        self.backend.updater.signaler.update_increment.connect(self.statusbar.increment_progress_bar)
 
     def setup_backend(self) -> None:
         db_path = self.config.get('database', "database_path", default=None)
@@ -152,7 +149,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.menubar.reset_database_action.triggered.connect(self._reset_database)
 
     def setup_statusbar(self) -> None:
-        self.statusbar = QStatusBar(self)
+        self.statusbar = LogbookStatusBar(self)
         self.setStatusBar(self.statusbar)
 
     def set_menubar(self, menubar: QMenuBar) -> None:
@@ -173,7 +170,9 @@ class AntistasiLogbookMainWindow(QMainWindow):
     def _single_update(self) -> None:
         def _run_update():
             self.menubar.single_update_action.setEnabled(False)
+            self.update_started.emit()
             self.backend.updater()
+            self.update_finished.emit()
             self.menubar.single_update_action.setEnabled(True)
 
         x = Thread(target=_run_update)
@@ -200,15 +199,19 @@ class AntistasiLogbookMainWindow(QMainWindow):
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}"
 
+
         # region[Main_Exec]
 if __name__ == '__main__':
+
     import dotenv
     dotenv.load_dotenv(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\antistasi_logbook\nextcloud.env")
     _app = QApplication(sys.argv)
 
     _app.icon = AllResourceItems.placeholder.get_as_icon()
     m = AntistasiLogbookMainWindow(_app, META_CONFIG.get_config('general'))
+
     RemoteStorage.get(name="community_webdav").set_login_and_password(login=os.getenv("NEXTCLOUD_USERNAME"), password=os.getenv("NEXTCLOUD_PASSWORD"), store_in_db=False)
+
     m.show()
     _app.exec()
 

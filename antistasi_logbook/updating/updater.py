@@ -56,6 +56,8 @@ from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord
 from threading import Event, Lock, RLock, Condition
 from antistasi_logbook.utilities.locks import WRITE_LOCK
 from gidapptools.gid_signal.interface import get_signal
+from antistasi_logbook.updating.remote_managers import remote_manager_registry
+from PySide6.QtCore import Signal, SignalInstance, QObject
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
     from antistasi_logbook.updating.info_item import InfoItem
@@ -82,6 +84,16 @@ log = get_logger(__name__)
 # endregion[Constants]
 
 
+class UpdaterSignaler(QObject):
+    update_started = Signal(bool)
+    update_finished = Signal(bool)
+    update_info = Signal(int, str)
+    update_increment = Signal()
+
+    def increment_update(self):
+        self.update_increment.emit()
+
+
 class Updater:
     """
     Class to run updates of log_files from the remote drive.
@@ -91,9 +103,11 @@ class Updater:
     thread_prefix: str = "updating_threads"
     new_log_file_signal = get_signal("new_log_file")
     updated_log_file_signal = get_signal("updated_log_file")
+    update_started_signal = Signal(bool)
+    update_finished_signal = Signal(bool)
     is_updating_event: Event = Event()
 
-    __slots__ = ("config", "parsing_context_factory", "database", "parser", "stop_event", "pause_event", "thread_pool", "_to_close_contexts")
+    __slots__ = ("config", "parsing_context_factory", "database", "parser", "stop_event", "pause_event", "thread_pool", "_to_close_contexts", "signaler")
 
     def __init__(self,
                  config: "GidIniConfig",
@@ -102,7 +116,8 @@ class Updater:
                  parser: object,
                  stop_event: Event,
                  pause_event: Event,
-                 thread_pool_class: type["ThreadPoolExecutor"] = None) -> None:
+                 thread_pool_class: type["ThreadPoolExecutor"] = None,
+                 signaler: "QObject" = None) -> None:
         self.config = config
         self.parsing_context_factory = parsing_context_factory
         self.database = database
@@ -111,6 +126,7 @@ class Updater:
         self.pause_event = pause_event
         self.thread_pool = ThreadPoolExecutor(self.max_threads, thread_name_prefix=self.thread_prefix) if thread_pool_class is None else thread_pool_class(self.max_threads, thread_name_prefix=self.thread_prefix)
         self._to_close_contexts = queue.Queue()
+        self.signaler = UpdaterSignaler() if signaler is None else signaler
 
     @property
     def max_threads(self) -> int:
@@ -245,14 +261,17 @@ class Updater:
                         break
                     context.insert_record(processed_record)
                 context._dump_rest()
+                self.signaler.increment_update()
                 return context
         tasks = []
-
-        for log_file in self._get_updated_log_files(server=server):
+        to_update_log_files = self._get_updated_log_files(server=server)
+        self.signaler.update_info.emit(len(to_update_log_files) * 2, server.name)
+        for log_file in to_update_log_files:
             if self.stop_event.is_set() is False:
                 sub_task = self.thread_pool.submit(_do, _log_file=log_file)
                 sub_task.add_done_callback(lambda x: self._to_close_contexts.put(x.result()))
                 tasks.append(sub_task)
+
         wait(tasks, return_when=ALL_COMPLETED, timeout=None)
         while self._to_close_contexts.empty() is False:
             ctx = self._to_close_contexts.get()
@@ -261,35 +280,50 @@ class Updater:
             log.debug("waiting on %r to close", ctx)
             ctx.__exit__()
             self._to_close_contexts.task_done()
+            self.signaler.increment_update()
+
+    def before_updates(self):
+        log.debug("emiting before_updates_signal")
+        self.signaler.update_started.emit(True)
+
+    def after_updates(self):
+        log.debug("emiting after_updates_signal")
+        self.signaler.update_finished.emit(False)
+        remote_manager_registry.close()
 
     def update(self) -> None:
         if self.is_updating_event.is_set() is True:
             return
         self.is_updating_event.set()
+        self.before_updates()
+        try:
+            self.database.session_meta_data.last_update_started_at = datetime.now(tz=UTC)
+            for server in self.database.get_all_server():
+                if server.is_updatable() is False:
+                    continue
+                if self.stop_event.is_set() is False:
 
-        for server in self.database.get_all_server():
-            if server.is_updatable() is False:
-                continue
-            if self.stop_event.is_set() is False:
+                    while self.pause_event.is_set() is True:
+                        sleep(0.25)
+                    log.info("STARTED updating %r", server)
+                    self.process(server=server)
+                    log.info("FINISHED updating server %r", server)
 
-                while self.pause_event.is_set() is True:
-                    sleep(0.25)
-                log.info("STARTED updating %r", server)
-                self.process(server=server)
-                log.info("FINISHED updating server %r", server)
+            amount_deleted = 0
+            for server in self.database.get_all_server():
+                if self.stop_event.is_set() is False:
+                    log.info("checking old log_files to delete for server %r", server)
+                    amount_deleted += self._handle_old_log_files(server=server)
 
-        amount_deleted = 0
-        for server in self.database.get_all_server():
-            if self.stop_event.is_set() is False:
-                log.info("checking old log_files to delete for server %r", server)
-                amount_deleted += self._handle_old_log_files(server=server)
+            if amount_deleted > 0:
+                if self.stop_event.is_set() is False:
+                    self.database.vacuum()
+                    self.database.optimize()
+            self.database.session_meta_data.last_update_finished_at = datetime.now(tz=UTC)
 
-        if amount_deleted > 0:
-            if self.stop_event.is_set() is False:
-                self.database.vacuum()
-                self.database.optimize()
-
-        self.is_updating_event.clear()
+        finally:
+            self.is_updating_event.clear()
+            self.after_updates()
 
     def __call__(self) -> Any:
         return self.update()
