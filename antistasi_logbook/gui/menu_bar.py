@@ -85,9 +85,13 @@ class LogbookMenuBar(BaseMenuBar):
 
     def setup_menus(self) -> None:
         super().setup_menus()
-        self.exit_action.setIcon(AllResourceItems.close_cancel.get_as_icon())
-        self.reset_database_action = self.add_new_action(self.settings_menu, "Reset Database")
+        self.database_menu = self.add_new_menu("Database", add_before=self.help_menu.menuAction())
+        self.single_update_action = self.add_new_action(self.database_menu, "Update Once")
+        self.database_menu.addSeparator()
+        self.reset_database_action = self.add_new_action(self.database_menu, "Reset Database")
         self.reset_database_action.setIcon(AllResourceItems.warning_sign_round_yellow.get_as_icon())
+
+        self.exit_action.setIcon(AllResourceItems.close_cancel.get_as_icon())
 # region[Main_Exec]
 
 

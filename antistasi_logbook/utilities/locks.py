@@ -45,6 +45,9 @@ class FileLocks:
             self.locks[id_string] = RLock()
         return self.locks[id_string]
 
+    def reset(self) -> None:
+        self.locks: dict[str, RLock] = {}
+
 
 FILE_LOCKS = FileLocks()
 

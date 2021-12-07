@@ -389,7 +389,7 @@ class RecordClass(BaseModel):
     class Meta:
         table_name = 'RecordClass'
 
-    @ cached_property
+    @ property
     def record_class(self) -> "RECORD_CLASS_TYPE":
         return self.record_class_manager.get_by_name(self.name)
 

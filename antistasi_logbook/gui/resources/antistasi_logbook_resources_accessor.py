@@ -12,37 +12,32 @@ from enum import Enum, auto, Flag
 from pathlib import Path
 from PySide6.QtGui import QPixmap, QIcon,QImage
 from typing import Union, Optional, Iterable, TYPE_CHECKING
-from gidapptools.gidapptools_qt.resources_helper import ressource_item_factory
+from gidapptools.gidapptools_qt.resources_helper import ressource_item_factory,ResourceItem,AllResourceItemsMeta
 from . import antistasi_logbook_resources
 
 # endregion[Imports]
 
 
 
-PLACEHOLDER = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/placeholder.png', qt_path=':/images/placeholder.png')
-
-
 WARNING_SIGN_TRIANGLE_RED = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/warning_sign_triangle_red.png', qt_path=':/images/warning_sign_triangle_red.png')
-
 
 WARNING_SIGN_ROUND_YELLOW = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/warning_sign_round_yellow.svg', qt_path=':/images/warning_sign_round_yellow.svg')
 
-
 CLOSE_CANCEL = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/close-cancel.svg', qt_path=':/images/close-cancel.svg')
 
+CLOSED_EYE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/closed_eye.svg', qt_path=':/images/closed_eye.svg')
 
-HIDDEN = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/hidden.svg', qt_path=':/images/hidden.svg')
+OPEN_EYE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/open_eye.svg', qt_path=':/images/open_eye.svg')
+
+PLACEHOLDER = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/placeholder.png', qt_path=':/images/placeholder.png')
 
 
-VIEW = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/view.svg', qt_path=':/images/view.svg')
+class AllResourceItems(metaclass=AllResourceItemsMeta):
 
 
-
-class AllResourceItems:
-
-    placeholder = PLACEHOLDER
     warning_sign_triangle_red = WARNING_SIGN_TRIANGLE_RED
     warning_sign_round_yellow = WARNING_SIGN_ROUND_YELLOW
     close_cancel = CLOSE_CANCEL
-    hidden = HIDDEN
-    view = VIEW
+    closed_eye = CLOSED_EYE
+    open_eye = OPEN_EYE
+    placeholder = PLACEHOLDER

@@ -73,6 +73,7 @@ from weakref import WeakSet
 import attr
 from gidapptools.gid_signal.interface import get_signal
 from concurrent.futures import wait, ALL_COMPLETED
+from antistasi_logbook.utilities.locks import FILE_LOCKS
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
     from gidapptools.gid_signal.signals import abstract_signal
@@ -153,7 +154,7 @@ class Backend:
         self.signals = Signals()
         self.config = config
         self.database = database
-        self.foreign_key_cache = ForeignKeyCache(database=self.database)
+        self.foreign_key_cache = self.database.foreign_key_cache
         self.record_class_manager = RecordClassManager()
         self.time_clock = TimeClock(config=self.config, stop_event=self.events.stop)
         self.remote_manager_registry = remote_manager_registry
@@ -223,17 +224,34 @@ class Backend:
         """
         self.events.stop.set()
         all_futures = []
-        for context in self.all_parsing_context:
-            all_futures += context.futures
+        for ctx in self.all_parsing_context:
+
+            while ctx.is_open is True:
+                sleep(0.1)
+            all_futures += ctx.futures
+
         wait(all_futures, return_when=ALL_COMPLETED, timeout=3.0)
 
         if self.update_manager is not None and self.update_manager.is_alive() is True:
             self.update_manager.shutdown()
-        for remote_storage in self.remote_manager_registry.manager_cache.values():
-            remote_storage.close()
+        self.remote_manager_registry.close()
         self.updater.shutdown()
         self.records_inserter.shutdown()
         self.database.shutdown()
+
+    def remove_and_reset_database(self) -> None:
+        self.shutdown()
+
+        self.events.stop.clear()
+        FILE_LOCKS.reset()
+
+        self.parser = Parser(record_processor=self.record_processor, regex_keeper=SimpleRegexKeeper(), stop_event=self.events.stop)
+        self.updater = Updater(config=self.config, parsing_context_factory=self.get_parsing_context, parser=self.parser, stop_event=self.events.stop, pause_event=self.events.pause, database=self.database)
+        self.records_inserter = RecordInserter(config=self.config, database=self.database)
+        self.update_manager: UpdateManager = None
+        self.foreign_key_cache.reset_all()
+        self.start_up(True)
+        self.record_class_manager.reset()
 
     def start_update_loop(self) -> "Backend":
         if self.update_manager is None:

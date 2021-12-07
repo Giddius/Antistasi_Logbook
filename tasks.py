@@ -1,6 +1,8 @@
 from invoke import task, Result, Context
 import sqlite3
 import os
+import logging
+
 import shutil
 from tomlkit.toml_file import TOMLFile
 from tomlkit.toml_document import TOMLDocument
@@ -496,7 +498,7 @@ from enum import Enum, auto, Flag
 from pathlib import Path
 from PySide6.QtGui import QPixmap, QIcon,QImage
 from typing import Union, Optional, Iterable, TYPE_CHECKING
-from gidapptools.gidapptools_qt.resources_helper import ressource_item_factory
+from gidapptools.gidapptools_qt.resources_helper import ressource_item_factory,ResourceItem,AllResourceItemsMeta
 from . import {converted_module_path}
 
 # endregion[Imports]
@@ -505,7 +507,8 @@ from . import {converted_module_path}
 """
 
 RESOURCE_ITEM_COLLECTION_TEXT = """
-class AllResourceItems:
+class AllResourceItems(metaclass=AllResourceItemsMeta):
+
 """
 RESSOURCE_ITEM_COLLECTION_ATTRIBUTE_TEMPLATE = "    {att_name} = {obj_name}"
 
@@ -534,7 +537,7 @@ def _write_resource_list_mapping(raw_text: str, tgt_file: Path, converted_file_p
             _file_path = Path(file_path)
             obj_name = make_attribute_name(_file_path.stem).upper()
             all_obj_names.append(obj_name)
-            text_lines.append(f"{obj_name} = ressource_item_factory(file_path={_file_path.as_posix()!r}, qt_path={qt_path!r})\n\n")
+            text_lines.append(f"{obj_name} = ressource_item_factory(file_path={_file_path.as_posix()!r}, qt_path={qt_path!r})\n")
 
         text_lines.append(RESOURCE_ITEM_COLLECTION_TEXT)
         for obj_name in all_obj_names:

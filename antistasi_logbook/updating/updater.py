@@ -53,7 +53,7 @@ from importlib.machinery import SourceFileLoader
 from gidapptools import get_logger, get_meta_config, get_meta_paths, get_meta_info
 from dateutil.tz import UTC
 from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord
-from threading import Event
+from threading import Event, Lock, RLock, Condition
 from antistasi_logbook.utilities.locks import WRITE_LOCK
 from gidapptools.gid_signal.interface import get_signal
 if TYPE_CHECKING:
@@ -91,6 +91,7 @@ class Updater:
     thread_prefix: str = "updating_threads"
     new_log_file_signal = get_signal("new_log_file")
     updated_log_file_signal = get_signal("updated_log_file")
+    is_updating_event: Event = Event()
 
     __slots__ = ("config", "parsing_context_factory", "database", "parser", "stop_event", "pause_event", "thread_pool", "_to_close_contexts")
 
@@ -240,12 +241,13 @@ class Updater:
                 context.__enter__()
                 log.debug("starting to parse %s", _log_file)
                 for processed_record in self.parser(context=context):
+                    if self.stop_event.is_set() is True:
+                        break
                     context.insert_record(processed_record)
                 context._dump_rest()
                 return context
         tasks = []
 
-        self.database.connect(True)
         for log_file in self._get_updated_log_files(server=server):
             if self.stop_event.is_set() is False:
                 sub_task = self.thread_pool.submit(_do, _log_file=log_file)
@@ -254,22 +256,27 @@ class Updater:
         wait(tasks, return_when=ALL_COMPLETED, timeout=None)
         while self._to_close_contexts.empty() is False:
             ctx = self._to_close_contexts.get()
+            if ctx is None:
+                continue
             log.debug("waiting on %r to close", ctx)
             ctx.__exit__()
             self._to_close_contexts.task_done()
 
-    def __call__(self) -> Any:
+    def update(self) -> None:
+        if self.is_updating_event.is_set() is True:
+            return
+        self.is_updating_event.set()
 
         for server in self.database.get_all_server():
             if server.is_updatable() is False:
                 continue
-            if self.stop_event.is_set() is True:
-                return
-            while self.pause_event.is_set() is True:
-                sleep(0.25)
-            log.info("STARTED updating %r", server)
-            self.process(server=server)
-            log.info("FINISHED updating server %r", server)
+            if self.stop_event.is_set() is False:
+
+                while self.pause_event.is_set() is True:
+                    sleep(0.25)
+                log.info("STARTED updating %r", server)
+                self.process(server=server)
+                log.info("FINISHED updating server %r", server)
 
         amount_deleted = 0
         for server in self.database.get_all_server():
@@ -281,6 +288,11 @@ class Updater:
             if self.stop_event.is_set() is False:
                 self.database.vacuum()
                 self.database.optimize()
+
+        self.is_updating_event.clear()
+
+    def __call__(self) -> Any:
+        return self.update()
 
     def shutdown(self) -> None:
         self.thread_pool.shutdown(wait=True, cancel_futures=False)

@@ -71,7 +71,8 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 # endregion[Constants]
@@ -94,16 +95,19 @@ class RecordClassManager:
     antistasi_record_classes: SortedSet[StoredRecordClass] = SortedSet(key=lambda x: -x.concrete_class.___specificity___)
 
     def __init__(self, default_record_class: RECORD_CLASS_TYPE = None) -> None:
-        self._default_record_class = BaseRecord if default_record_class is None else default_record_class
+        self._default_record_concrete_class = BaseRecord if default_record_class is None else default_record_class
+        self._default_record_class: "StoredRecordClass" = None
 
-    @cached_property
+    @property
     def default_record_class(self) -> StoredRecordClass:
-        try:
-            model = RecordClass.select().where(RecordClass.name == self._default_record_class.__name__)[0]
-        except IndexError:
-            model = RecordClass(name=self._default_record_class.__name__)
-            model.save()
-        return StoredRecordClass(self._default_record_class, model)
+        if self._default_record_class is None:
+            try:
+                model = RecordClass.select().where(RecordClass.name == self._default_record_concrete_class.__name__)[0]
+            except IndexError:
+                model = RecordClass(name=self._default_record_concrete_class.__name__)
+                model.save()
+            self._default_record_class = StoredRecordClass(self._default_record_concrete_class, model)
+        return self._default_record_class
 
     @classmethod
     def register_record_class(cls, record_class: RECORD_CLASS_TYPE) -> None:
@@ -125,13 +129,23 @@ class RecordClassManager:
     def get_by_name(self, name: str) -> RECORD_CLASS_TYPE:
         return self.record_class_registry.get(name, self.default_record_class).concrete_class
 
+    @profile
     def determine_record_class(self, raw_record: "RawRecord") -> "RecordClass":
         record_classes = self.antistasi_record_classes if raw_record.is_antistasi_record is True else self.generic_record_classes
         for stored_class in record_classes:
             if stored_class.check(raw_record) is True:
                 return stored_class.model
         return self.default_record_class.model
-        # region[Main_Exec]
+
+    def reset(self) -> None:
+        all_registered_classes = list(self.record_class_registry.values())
+        self.record_class_registry.clear()
+        self.antistasi_record_classes.clear()
+        self.generic_record_classes.clear()
+        self._default_record_class = None
+        for registered_class in all_registered_classes:
+            self.register_record_class(registered_class.concrete_class)
+# region[Main_Exec]
 
 
 if __name__ == '__main__':

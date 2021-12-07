@@ -12,7 +12,7 @@ from pathlib import Path
 def main():
     config = get_meta_config().get_config('general')
     old_value = config.get("updating", "max_update_time_frame", default=None)
-    config.set("updating", "max_update_time_frame", "10 days")
+    config.set("updating", "max_update_time_frame", "5 days")
     db = GidSqliteApswDatabase(config=config)
     b = Backend(database=db, config=config)
 

@@ -117,7 +117,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.main_widget: QWidget = None
         self.menubar: QMenuBar = None
         self.statusbar: QStatusBar = None
-        self.update_button: QPushButton = None
+
         self.sys_tray: "LogbookSystemTray" = None
         self.name: str = None
         self.title: str = None
@@ -148,12 +148,11 @@ class AntistasiLogbookMainWindow(QMainWindow):
         database = GidSqliteApswDatabase(db_path, config=self.config)
         self.backend = Backend(database=database, config=self.config)
         self.backend.start_up()
-        self.update_button.clicked.connect(self._do_update)
+        self.menubar.single_update_action.triggered.connect(self._single_update)
+        self.menubar.reset_database_action.triggered.connect(self._reset_database)
 
     def setup_statusbar(self) -> None:
         self.statusbar = QStatusBar(self)
-        self.update_button = QPushButton("Update")
-        self.statusbar.addWidget(self.update_button)
         self.setStatusBar(self.statusbar)
 
     def set_menubar(self, menubar: QMenuBar) -> None:
@@ -164,11 +163,18 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.main_widget = main_widget
         self.setCentralWidget(main_widget)
 
-    def _do_update(self) -> None:
+    def _reset_database(self) -> None:
+        reply = QMessageBox.warning(self, 'THIS IS IRREVERSIBLE', 'Are you sure you want to REMOVE the existing Database and REBUILD it?', QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            self.menubar.single_update_action.setEnabled(False)
+            self.backend.remove_and_reset_database()
+            self.menubar.single_update_action.setEnabled(True)
+
+    def _single_update(self) -> None:
         def _run_update():
-            self.update_button.setEnabled(False)
+            self.menubar.single_update_action.setEnabled(False)
             self.backend.updater()
-            self.update_button.setEnabled(True)
+            self.menubar.single_update_action.setEnabled(True)
 
         x = Thread(target=_run_update)
         x.start()
@@ -193,7 +199,6 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}"
-
 
         # region[Main_Exec]
 if __name__ == '__main__':

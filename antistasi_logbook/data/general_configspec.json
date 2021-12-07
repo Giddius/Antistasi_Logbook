@@ -1,4 +1,5 @@
 {
+    "database": { "database_path": { "converter": "path" } },
     "updating": {
         "updates_enabled": { "converter": "boolean" },
         "update_interval": { "converter": "timedelta" },
@@ -15,6 +16,11 @@
     "downloading": {
         "keep_downloaded_files": { "converter": "boolean" },
         "chunk_size": { "converter": "file_size" }
+    },
+    "webdav": {
+        "max_concurrent_connections": { "converter": "integer" },
+        "delay_between_downloads": { "converter": "timedelta" },
+        "minimum_download_duration": { "converter": "timedelta" }
     },
     "parsing": { "record_insert_batch_size": { "converter": "integer" } }
 }

@@ -69,7 +69,7 @@ import threading
 from playhouse.apsw_ext import APSWDatabase
 from rich import inspect as rinspect
 from dateutil.tz import UTC
-
+from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 
 from gidapptools import get_main_logger, get_logger
 if TYPE_CHECKING:
@@ -162,6 +162,7 @@ class GidSqliteApswDatabase(APSWDatabase):
         extensions = self.default_extensions.copy() | (extensions or {})
         pragmas = DEFAULT_PRAGMAS.copy() | (pragmas or {})
         super().__init__(make_db_path(self.database_path), thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, timeout=30, **extensions)
+        self.foreign_key_cache = ForeignKeyCache(self)
 
     @property
     def default_backup_folder(self) -> Path:
@@ -178,15 +179,17 @@ class GidSqliteApswDatabase(APSWDatabase):
     def start_up(self,
                  overwrite: bool = False,
                  force: bool = False) -> "GidSqliteApswDatabase":
+
         if self.started_up is True and force is False:
             return
         log.info("starting up %r", self)
         self._pre_start_up(overwrite=overwrite)
-
-        setup_db(self)
         self.connect(reuse_if_open=True)
+        setup_db(self)
+
         self._post_start_up()
         self.started_up = True
+        self.foreign_key_cache.reset_all()
         log.info("finished starting up %r", self)
         return self
 
@@ -200,6 +203,9 @@ class GidSqliteApswDatabase(APSWDatabase):
         self.execute_sql("VACUUM;")
         return self
 
+    def close(self):
+        return super().close()
+
     def shutdown(self,
                  error: BaseException = None,
                  backup_folder: Union[str, os.PathLike, Path] = None) -> None:
@@ -207,10 +213,12 @@ class GidSqliteApswDatabase(APSWDatabase):
         self.session_meta_data.save()
 
         self.close()
+
         if self.auto_backup is True and error is None:
             # self.backup(backup_folder=backup_folder)
             log.warning("'backup-method' is not written!")
         log.debug("finished shutting down %r", self)
+        self.started_up = False
 
     def get_all_server(self, ordered_by=Server.id) -> tuple[Server]:
         with self:

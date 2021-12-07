@@ -188,7 +188,7 @@ class LineCache(deque):
 class LogParsingContext:
     new_log_record_signal = get_signal("new_log_record")
     __slots__ = ("__weakref__", "_log_file", "record_lock", "log_file_data", "data_lock", "foreign_key_cache", "line_cache", "_line_iterator",
-                 "_current_line", "_current_line_number", "futures", "record_storage", "inserter", "_bulk_create_batch_size", "database", "config")
+                 "_current_line", "_current_line_number", "futures", "record_storage", "inserter", "_bulk_create_batch_size", "database", "config", "is_open")
 
     def __init__(self, log_file: "LogFile", inserter: "RecordInserter", config: "GidIniConfig", foreign_key_cache: "ForeignKeyCache") -> None:
         self._log_file = log_file
@@ -206,6 +206,7 @@ class LogParsingContext:
         self.futures: list[Future] = []
         self._bulk_create_batch_size: int = None
         self.record_lock = Lock()
+        self.is_open: bool = False
 
     @property
     def _log_record_batch_size(self) -> int:
@@ -309,6 +310,7 @@ class LogParsingContext:
         if self._line_iterator is not None:
             self._line_iterator.close()
         self._log_file._cleanup()
+        self.is_open = False
 
     @profile
     def _future_callback(self, result: "ManyRecordsInsertResult") -> None:
@@ -355,6 +357,7 @@ class LogParsingContext:
 
     def __enter__(self) -> "LogParsingContext":
         self._log_file.download()
+        self.is_open = True
         return self
 
     @profile
