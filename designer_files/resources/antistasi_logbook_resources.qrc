@@ -1,0 +1,7 @@
+<RCC>
+  <qresource prefix="images">
+    <file>Antistasi_Logo_Gun_1.png</file>
+    <file>arma_image_icon.png</file>
+  </qresource>
+
+</RCC>

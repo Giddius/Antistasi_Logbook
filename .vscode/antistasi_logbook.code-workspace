@@ -119,8 +119,41 @@
                     "showReuseMessage": true,
                     "clear": true
                 }
-            }
+            },
+                        {
+                            "label": "convert_resources",
+                            "type": "shell",
+                            "command": "${config:python.pythonPath} -m invoke convert-resources",
+                            "options": {
+                                "cwd": "${workspaceFolder}"
+                            },
+                            "presentation": {
+                                "echo": true,
+                                "reveal": "always",
+                                "focus": false,
+                                "panel": "shared",
+                                "showReuseMessage": true,
+                                "clear": true
+                            }
+                        },
+
+                        {
+                            "label": "echo_python",
+                            "type": "shell",
+                            "command": "echo ${config:python.pythonPath}",
+                            "options": {
+                                "cwd": "${workspaceFolder}"
+                            },
+                            "presentation": {
+                                "echo": true,
+                                "reveal": "always",
+                                "focus": false,
+                                "panel": "shared",
+                                "showReuseMessage": true,
+                                "clear": true
+                            }
+                        }
         ]
     },
-    "settings": {}
+    "settings": {"python.pythonPath": "${workspaceFolder}/.venv/scripts/python"}
 }

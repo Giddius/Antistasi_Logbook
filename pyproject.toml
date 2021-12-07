@@ -25,7 +25,8 @@ dependencies = [
     "sortedcontainers>=2.4.0",
     "marshmallow>=3.14.0",
     "gidapptools>=0.1.9",
-    "PySide6>=6.2.1"
+    "PySide6>=6.2.2",
+    "pyqtgraph>=0.12.3"
 ]
 
 [project.urls]
