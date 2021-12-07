@@ -56,7 +56,7 @@ from PySide6.QtCore import (QCoreApplication, QDate, QDateTime, QLocale, QMetaOb
 from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QGradient, QIcon, QImage, QKeySequence,
                            QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QApplication, QGridLayout, QMainWindow, QMenu, QMenuBar, QSizePolicy, QStatusBar, QWidget, QPushButton,
-                               QBoxLayout, QHBoxLayout, QVBoxLayout, QSizePolicy, QLayout, QGroupBox, QDockWidget, QTabWidget)
+                               QBoxLayout, QHBoxLayout, QVBoxLayout, QSizePolicy, QLayout, QGroupBox, QDockWidget, QTabWidget, QTableView, QListView, QTreeView, QColumnView)
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 if TYPE_CHECKING:
     from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow
@@ -136,11 +136,11 @@ class MainWidget(QWidget):
         self.main_tabs_widget.setSizePolicy(size_policy)
         self.main_tabs_widget.setMinimumSize(QSize(250, 100))
 
-        self.server_tab = QWidget()
+        self.server_tab = QTreeView(self)
         self.main_tabs_widget.addTab(self.server_tab, AllResourceItems.placeholder.get_as_icon(), "Server")
-        self.log_files_tab = QWidget()
+        self.log_files_tab = QTreeView(self)
         self.main_tabs_widget.addTab(self.log_files_tab, AllResourceItems.placeholder.get_as_icon(), "Log-Files")
-        self.query_result_tab = QWidget()
+        self.query_result_tab = QTableView(self)
         self.main_tabs_widget.addTab(self.query_result_tab, AllResourceItems.placeholder.get_as_icon(), "Query Result")
 
         self.main_layout.addWidget(self.main_tabs_widget, 1, 1, 1, 1)
