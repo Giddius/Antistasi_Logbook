@@ -2,13 +2,15 @@ from json import JSONDecoder, JSONEncoder
 from typing import Any, Callable, Union, Optional, Generator
 from datetime import datetime, timezone, timedelta
 import attr
-from typing import Union, Optional, ClassVar, Iterable
+from typing import Union, Optional, ClassVar, Iterable, Literal
 import re
 from gidapptools.general_helper.conversion import str_to_bool
 from pathlib import Path
 from dateutil.parser import parse as dateutil_parse
 from dateutil.tz import UTC
 from gidapptools import get_logger
+from rich import inspect as rinspect
+from rich.console import Console as RichConsole
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 get_dummy_profile_decorator_in_globals()
 log = get_logger(__name__)
@@ -157,6 +159,22 @@ def frozen_time_giver(utc_date_time: Union[str, datetime]):
         return datetime.now(tz=UTC) - difference
 
     return _inner
+
+
+def obj_inspection(obj: object, out_dir: Path = None, out_type: Literal["txt", "html"] = 'html') -> None:
+    console = RichConsole(soft_wrap=True, record=True)
+    rinspect(obj=obj, methods=True, help=True, console=console)
+    out_dir = Path.cwd() if out_dir is None else Path(out_dir)
+    try:
+        name = obj.__class__.__name__
+    except AttributeError:
+
+        name = obj.__name__
+    out_file = out_dir.joinpath(f"{name.casefold()}.{out_type}")
+    if out_type == "html":
+        console.save_html(out_file)
+    elif out_type == "txt":
+        console.save_text(out_file)
 
 
 if __name__ == '__main__':

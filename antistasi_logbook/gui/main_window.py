@@ -63,6 +63,8 @@ from PySide6.QtWidgets import QApplication, QGridLayout, QMainWindow, QMenu, QMe
 
 from PySide6 import QtCore, QtGui
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
+from antistasi_logbook.utilities.misc import obj_inspection
+from gidapptools.gidapptools_qt.basics.menu_bar import MenuBar
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
 # endregion[Imports]
@@ -117,18 +119,27 @@ class AntistasiLogbookMainWindow(QMainWindow):
         return self.config.get("main_window", "initial_size", default=[1000, 800])
 
     def setup(self) -> None:
+        self.set_menubar(MenuBar(self))
+
         self.resize(*self.initial_size)
         self.setWindowIcon(AllResourceItems.arma_image_icon.get_as_pixmap())
         self.set_main_widget(MainWidget(self))
 
+    def set_menubar(self, menubar: QMenuBar) -> None:
+        self.menubar = menubar
+        self.setMenuBar(menubar)
+
     def set_main_widget(self, main_widget: QWidget) -> None:
-        # main_widget.setParent(self)
         self.main_widget = main_widget
         self.setCentralWidget(main_widget)
+
+    def close(self) -> bool:
+        return super().close()
 
     def closeEvent(self, event):
         log.info("closing application because of %s", event.type())
         self.close()
+
 
         # region[Main_Exec]
 if __name__ == '__main__':
