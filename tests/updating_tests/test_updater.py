@@ -165,3 +165,4 @@ def test_simple_update(general_backend: "Backend"):
         log.info(f"{general_backend.database.session_meta_data.new_log_files=}")
         log.info(f"{general_backend.database.session_meta_data.updated_log_files=}")
         log.info(f"{general_backend.database.session_meta_data.added_log_records=}")
+        general_backend.updater()

@@ -31,6 +31,12 @@
      <property name="title">
       <string>GroupBox</string>
      </property>
+     <property name="flat">
+      <bool>false</bool>
+     </property>
+     <property name="checkable">
+      <bool>false</bool>
+     </property>
     </widget>
    </item>
    <item row="1" column="0">
@@ -55,6 +61,9 @@
      </property>
      <property name="floating">
       <bool>true</bool>
+     </property>
+     <property name="allowedAreas">
+      <set>Qt::LeftDockWidgetArea</set>
      </property>
      <widget class="QWidget" name="dockWidgetContents"/>
     </widget>
@@ -107,6 +116,9 @@
      </property>
      <property name="floating">
       <bool>true</bool>
+     </property>
+     <property name="allowedAreas">
+      <set>Qt::RightDockWidgetArea</set>
      </property>
      <widget class="QWidget" name="dockWidgetContents_2"/>
     </widget>

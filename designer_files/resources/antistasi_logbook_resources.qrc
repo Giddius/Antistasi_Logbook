@@ -1,7 +1,11 @@
 <RCC>
   <qresource prefix="images">
-    <file>Antistasi_Logo_Gun_1.png</file>
-    <file>arma_image_icon.png</file>
+  <file>placeholder.png</file>
+    <file>warning_sign_triangle_red.png</file>
+    <file>warning_sign_round_yellow.svg</file>
+    <file>hidden.svg</file>
+    <file>view.svg</file>
+    <file>close-cancel.svg</file>
   </qresource>
 
 </RCC>

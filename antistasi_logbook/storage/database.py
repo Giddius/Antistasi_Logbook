@@ -219,8 +219,8 @@ class GidSqliteApswDatabase(APSWDatabase):
     def get_log_files(self, server: Server = None, ordered_by=LogFile.id) -> tuple[LogFile]:
         with self:
             if server is None:
-                return tuple(LogFile.select().join(GameMap).switch(LogFile).join(Server).order_by(ordered_by))
-            return tuple(LogFile.select().join(GameMap).switch(LogFile).join(Server).where(LogFile.server == Server).order_by(ordered_by))
+                return tuple(LogFile.select().order_by(ordered_by))
+            return tuple(LogFile.select().where(LogFile.server_id == server.id).order_by(ordered_by))
 
     def get_all_log_levels(self, ordered_by=LogLevel.id) -> tuple[LogLevel]:
         with self:

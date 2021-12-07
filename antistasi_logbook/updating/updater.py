@@ -212,9 +212,9 @@ class Updater:
             elif stored_file.modified_at < remote_info.modified_at or stored_file.size < remote_info.size:
                 to_update_files.append(self._update_log_file(log_file=stored_file, remote_info=remote_info))
 
-            for unfinished_log_file in [i for i in current_log_files.values() if cutoff_datetime is not None and i.last_parsed_datetime != i.modified_at and i.modified_at > cutoff_datetime]:
-                if unfinished_log_file not in to_update_files:
-                    to_update_files.append(unfinished_log_file)
+            elif stored_file.last_parsed_datetime != stored_file.modified_at and stored_file.unparsable is False:
+                to_update_files.append(stored_file)
+
         return sorted(to_update_files, key=lambda x: x.modified_at, reverse=True)
 
     def _handle_old_log_files(self, server: "Server") -> None:
@@ -274,6 +274,7 @@ class Updater:
         amount_deleted = 0
         for server in self.database.get_all_server():
             if self.stop_event.is_set() is False:
+                log.info("checking old log_files to delete for server %r", server)
                 amount_deleted += self._handle_old_log_files(server=server)
 
         if amount_deleted > 0:

@@ -52,11 +52,13 @@ from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
 
 
-from PySide6.QtCore import QCoreApplication, QDate, QDateTime, QLocale, QMetaObject, QObject, QPoint, QRect, QSize, QTime, QUrl, Qt
+from PySide6.QtCore import QCoreApplication, QDate, QDateTime, QLocale, QMetaObject, QObject, QPoint, QRect, QSize, QTime, QUrl, Qt, QAbstractTableModel, QAbstractItemModel, QAbstractListModel
 from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QGradient, QIcon, QImage, QKeySequence,
                            QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import QApplication, QGridLayout, QMainWindow, QMenu, QMenuBar, QSizePolicy, QStatusBar, QWidget
+from PySide6.QtWidgets import QApplication, QGridLayout, QMainWindow, QMenu, QMenuBar, QSizePolicy, QStatusBar, QWidget, QPushButton, QBoxLayout, QHBoxLayout, QVBoxLayout, QSizePolicy, QLayout
 
+from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
+from gidapptools.gidapptools_qt.basics.menu_bar import BaseMenuBar
 # endregion[Imports]
 
 # region [TODO]
@@ -76,7 +78,18 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 # endregion[Constants]
 
 
+class LogbookMenuBar(BaseMenuBar):
+
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
+        super().__init__(parent=parent, auto_connect_standard_actions=True)
+
+    def setup_menus(self) -> None:
+        super().setup_menus()
+        self.exit_action.setIcon(AllResourceItems.close_cancel.get_as_icon())
+        self.reset_database_action = self.add_new_action(self.settings_menu, "Reset Database")
+        self.reset_database_action.setIcon(AllResourceItems.warning_sign_round_yellow.get_as_icon())
 # region[Main_Exec]
+
 
 if __name__ == '__main__':
     pass

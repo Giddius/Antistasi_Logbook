@@ -26,7 +26,7 @@ from itertools import repeat
 import re
 from rich.rule import Rule
 from zipfile import ZipFile, ZIP_LZMA
-
+from gidapptools.general_helper.string_helper import make_attribute_name
 import subprocess
 from typing import Union, Optional, Iterable, Hashable, Generator, Mapping, MutableMapping, Any
 import logging
@@ -446,7 +446,7 @@ def create_models(c, db_file=None):
 
 @task(name="convert-designer-files")
 def convert_designer_files(c, target_folder=None):
-    target_folder = RAW_WIDGETS_FOLDER if target_folder is None else Path(target_folder)
+    target_folder = DESIGNER_FILES_FOLDER if target_folder is None else Path(target_folder)
     to_convert: dict[Path:Path] = {}
     for file in DESIGNER_FILES_FOLDER.iterdir():
         if file.is_file() and file.suffix == '.ui':
@@ -532,7 +532,7 @@ def _write_resource_list_mapping(raw_text: str, tgt_file: Path, converted_file_p
         all_obj_names = []
         for qt_path, file_path in items:
             _file_path = Path(file_path)
-            obj_name = _file_path.stem.upper()
+            obj_name = make_attribute_name(_file_path.stem).upper()
             all_obj_names.append(obj_name)
             text_lines.append(f"{obj_name} = ressource_item_factory(file_path={_file_path.as_posix()!r}, qt_path={qt_path!r})\n\n")
 

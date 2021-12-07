@@ -135,12 +135,27 @@
                                 "showReuseMessage": true,
                                 "clear": true
                             }
+                        },{
+                            "label": "convert_ui",
+                            "type": "shell",
+                            "command": "${config:python.pythonPath} -m invoke convert-designer-files ",
+                            "options": {
+                                "cwd": "${workspaceFolder}"
+                            },
+                            "presentation": {
+                                "echo": true,
+                                "reveal": "always",
+                                "focus": false,
+                                "panel": "shared",
+                                "showReuseMessage": true,
+                                "clear": true
+                            }
                         },
 
                         {
-                            "label": "echo_python",
+                            "label": "launch designer",
                             "type": "shell",
-                            "command": "echo ${config:python.pythonPath}",
+                            "command": "${workspaceFolder}/.venv/scripts/activate&&pyside6-designer.exe",
                             "options": {
                                 "cwd": "${workspaceFolder}"
                             },
