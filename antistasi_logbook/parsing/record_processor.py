@@ -293,7 +293,7 @@ class RecordProcessor:
             parsed_data["called_by"] = _get_or_create_antistasi_file(parsed_data["called_by"])
 
         if parsed_data.get("local_recorded_at"):
-            parsed_data["recorded_at"] = parsed_data["local_recorded_at"].replace(tzinfo=utc_offset).astimezone(UTC)
+            parsed_data["recorded_at"] = parsed_data["local_recorded_at"].replace(tzinfo=utc_offset).astimezone(timezone.utc)
             del parsed_data["local_recorded_at"]
 
         return parsed_data

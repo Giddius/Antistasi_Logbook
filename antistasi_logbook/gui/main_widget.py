@@ -51,12 +51,15 @@ from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
 import PySide6
+from PySide6 import QtWidgets, QtGui
+from antistasi_logbook.gui.models.server_model import ServerModel
+from antistasi_logbook.gui.models.log_file_model import LogFileModel, LinkDelegate
 from PySide6.QtCore import (QCoreApplication, QDate, QDateTime, QLocale, QMetaObject, QObject, QPoint, QRect, QSize, QTime, QUrl, Qt,
                             QAbstractTableModel, QAbstractItemModel, QAbstractListModel)
 from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QGradient, QIcon, QImage, QKeySequence,
                            QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QApplication, QGridLayout, QMainWindow, QMenu, QMenuBar, QSizePolicy, QStatusBar, QWidget, QPushButton,
-                               QBoxLayout, QHBoxLayout, QVBoxLayout, QSizePolicy, QLayout, QGroupBox, QDockWidget, QTabWidget, QTableView, QListView, QTreeView, QColumnView)
+                               QBoxLayout, QHBoxLayout, QVBoxLayout, QSizePolicy, QLayout, QGroupBox, QDockWidget, QTabWidget, QTableView, QListView, QTreeView, QColumnView, QHeaderView)
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 if TYPE_CHECKING:
     from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow
@@ -87,8 +90,8 @@ class MainWidget(QWidget):
         self.query_widget: QDockWidget = None
         self.detail_widget: QDockWidget = None
         self.main_tabs_widget: QTabWidget = None
-        self.server_tab: QWidget = None
-        self.log_files_tab: QWidget = None
+        self.server_tab: QTreeView = None
+        self.log_files_tab: QTreeView = None
         self.query_result_tab: QWidget = None
         self.setup()
 
@@ -137,13 +140,31 @@ class MainWidget(QWidget):
         self.main_tabs_widget.setMinimumSize(QSize(250, 100))
 
         self.server_tab = QTreeView(self)
+
+        self.server_tab.header().setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.SizeAdjustPolicy.AdjustToContents)
+        self.server_tab.header().setStretchLastSection(False)
         self.main_tabs_widget.addTab(self.server_tab, AllResourceItems.placeholder.get_as_icon(), "Server")
+
         self.log_files_tab = QTreeView(self)
+        self.log_files_tab.setItemDelegate(LinkDelegate())
+        self.log_files_tab.header().setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.SizeAdjustPolicy.AdjustToContents)
+        self.log_files_tab.header().setStretchLastSection(False)
         self.main_tabs_widget.addTab(self.log_files_tab, AllResourceItems.placeholder.get_as_icon(), "Log-Files")
+
         self.query_result_tab = QTableView(self)
+        self.query_result_tab.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.SizeAdjustPolicy.AdjustToContents)
         self.main_tabs_widget.addTab(self.query_result_tab, AllResourceItems.placeholder.get_as_icon(), "Query Result")
 
         self.main_layout.addWidget(self.main_tabs_widget, 1, 1, 1, 1)
+
+    def setup_views(self) -> None:
+        server_model = ServerModel(self.main_window.backend)
+        self.server_tab.setModel(server_model)
+        self.server_tab.header().resizeSections(QHeaderView.ResizeToContents)
+
+        log_file_model = LogFileModel(self.main_window.backend)
+        self.log_files_tab.setModel(log_file_model)
+        self.log_files_tab.header().resizeSections(QHeaderView.ResizeToContents)
 
 
 # region[Main_Exec]

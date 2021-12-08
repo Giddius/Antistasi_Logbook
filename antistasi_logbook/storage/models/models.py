@@ -111,6 +111,9 @@ class GameMap(BaseModel):
     class Meta:
         table_name = 'GameMap'
 
+    def __str__(self):
+        return self.full_name
+
 
 class RemoteStorage(BaseModel):
     name = TextField(unique=True, index=True)

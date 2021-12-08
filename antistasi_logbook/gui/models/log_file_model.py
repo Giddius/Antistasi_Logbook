@@ -50,15 +50,17 @@ from urllib.parse import urlparse
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
-from gidapptools.general_helper.string_helper import StringCaseConverter
+from gidapptools import get_logger
+from gidapptools.general_helper.conversion import bytes2human
 from antistasi_logbook.storage.models.models import Server, RemoteStorage, LogFile, RecordClass, LogRecord, AntstasiFunction, setup_db, DatabaseMetaData, GameMap, LogLevel
 import PySide6
+from gidapptools.general_helper.string_helper import StringCaseConverter
 from PySide6.QtCore import (QCoreApplication, QDate, QDateTime, QLocale, QMetaObject, QObject, QPoint, QRect, QSize, QTime, QUrl, Qt,
                             QAbstractTableModel, QAbstractItemModel, QAbstractListModel, QEvent, QModelIndex)
 from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QGradient, QIcon, QImage, QKeySequence,
                            QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform, QCloseEvent)
 from PySide6.QtWidgets import (QApplication, QGridLayout, QMainWindow, QMenu, QMenuBar, QSizePolicy, QStatusBar, QWidget, QPushButton, QLabel, QProgressBar, QProgressDialog,
-                               QBoxLayout, QHBoxLayout, QVBoxLayout, QSizePolicy, QMessageBox, QLayout, QGroupBox, QDockWidget, QTabWidget, QSystemTrayIcon, QTableView, QListView, QTreeView, QColumnView)
+                               QBoxLayout, QHBoxLayout, QVBoxLayout, QSizePolicy, QMessageBox, QLayout, QGroupBox, QStyledItemDelegate, QAbstractItemDelegate, QDockWidget, QTabWidget, QSystemTrayIcon, QTableView, QListView, QTreeView, QColumnView)
 if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend
 # endregion[Imports]
@@ -76,20 +78,34 @@ if TYPE_CHECKING:
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
-
+log = get_logger(__name__)
 # endregion[Constants]
 
 
-class ServerModel(QAbstractTableModel):
-    strict_exclude_columns: set[str] = {'id', 'remote_storage', "comments"}
+class LinkDelegate(QStyledItemDelegate):
+    def paint(self, painter: PySide6.QtGui.QPainter, option: PySide6.QtWidgets.QStyleOptionViewItem, index: Union[PySide6.QtCore.QModelIndex, PySide6.QtCore.QPersistentModelIndex]) -> None:
+
+        return super().paint(painter, option, index)
+
+    def setEditorData(self, editor: PySide6.QtWidgets.QWidget, index: Union[PySide6.QtCore.QModelIndex, PySide6.QtCore.QPersistentModelIndex]) -> None:
+
+        log.critical(f"{type(editor)=}")
+
+        log.critical(f"{editor=}")
+
+        return super().setEditorData(editor, index)
+
+
+class LogFileModel(QAbstractTableModel):
+    strict_exclude_columns: set[str] = {'id', 'header_text', 'startup_text', 'utc_offset', 'last_parsed_datetime', 'last_parsed_line_number', "comments"}
     default_column_ordering: dict[str, int] = {"marked": 0, "name": 1}
 
     def __init__(self, backend: "Backend", parent: Optional[PySide6.QtCore.QObject] = None) -> None:
         super().__init__(parent=parent)
         self.backend = backend
         self.columns_to_exclude = self.strict_exclude_columns.copy().union({"remote_path"})
-        self.server_items = self.backend.database.get_all_server()
-        self.raw_column_names = tuple(sorted(Server._meta.columns, key=lambda x: self.default_column_ordering.get(x, 999)))
+        self.log_file_items = self.backend.database.get_log_files(ordered_by=LogFile.modified_at)
+        self.raw_column_names = tuple(sorted(LogFile._meta.columns, key=lambda x: self.default_column_ordering.get(x, 999)))
         self._column_names: tuple[str] = None
 
     @ property
@@ -98,30 +114,43 @@ class ServerModel(QAbstractTableModel):
             self._column_names = [col for col in self.raw_column_names if col not in self.columns_to_exclude]
         return self._column_names
 
-    def get_server_items(self) -> None:
-        self.server_items = self.backend.database.get_all_server()
+    def get_log_file_items(self) -> None:
+        self.log_file_items = self.backend.database.get_log_files(ordered_by=LogFile.modified_at)
 
     def data(self, index: QModelIndex, role) -> Any:
         if not index.isValid():
             return
-        item = self.server_items[index.row()]
+        item = self.log_file_items[index.row()]
         column_name = self.column_names[index.column()]
         if role == Qt.DisplayRole:
+
             _out = getattr(item, column_name)
             if _out is None:
                 _out = '-'
-            elif column_name == "update_enabled":
-                _out = "✅" if _out is True else "❌"
-
+            elif column_name == "unparsable":
+                _out = "❌" if _out is True else ""
             elif column_name == "marked":
                 _out = "⭐" if _out is True else ""
+
+            elif column_name == "size":
+                _out = bytes2human(_out)
+
+            elif column_name == "is_new_campaign":
+                _out = "✅" if _out is True else ""
             return str(_out)
+
+        elif role == Qt.DecorationRole:
+            pass
 
         elif role == Qt.TextAlignmentRole:
             return Qt.AlignCenter
 
+        elif role == Qt.BackgroundRole:
+            if item.unparsable is True:
+                return QColor(75, 75, 75, 125)
+
     def rowCount(self, index) -> int:
-        return len(self.server_items)
+        return len(self.log_file_items)
 
     def columnCount(self, index) -> int:
         return len(self.column_names)
@@ -138,11 +167,9 @@ class ServerModel(QAbstractTableModel):
                 font.setBold(True)
                 font.setPointSize(10)
                 return font
-            elif role == Qt.TextAlignmentRole:
-                return Qt.AlignCenter
 
     def update(self, update_started: bool = False):
-        self.get_server_items()
+        self.get_log_file_items()
         self.modelReset.emit()
 # region[Main_Exec]
 

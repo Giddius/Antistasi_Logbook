@@ -106,7 +106,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.app = app
         self.config = config
         self.backend: "Backend" = None
-        self.main_widget: QWidget = None
+        self.main_widget: MainWidget = None
         self.menubar: QMenuBar = None
         self.statusbar: LogbookStatusBar = None
 
@@ -137,8 +137,12 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.setup_statusbar()
         self.backend.updater.signaler.update_started.connect(self.statusbar.switch_labels)
         self.backend.updater.signaler.update_finished.connect(self.statusbar.switch_labels)
+
         self.backend.updater.signaler.update_info.connect(self.statusbar.start_progress_bar)
         self.backend.updater.signaler.update_increment.connect(self.statusbar.increment_progress_bar)
+        self.main_widget.setup_views()
+        self.backend.updater.signaler.update_finished.connect(self.main_widget.server_tab.model().update)
+        self.backend.updater.signaler.update_finished.connect(self.main_widget.log_files_tab.model().update)
 
     def setup_backend(self) -> None:
         db_path = self.config.get('database', "database_path", default=None)
@@ -198,7 +202,6 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}"
-
 
         # region[Main_Exec]
 if __name__ == '__main__':
