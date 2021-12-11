@@ -191,6 +191,7 @@ class MainWidget(QWidget):
                     log.error(f.exception(), exc_info=True)
                 self.temp_runnable = None
                 self.query_result_tab.resizeColumnsToContents()
+                self.query_result_tab.resizeRowToContents()
             finally:
                 self.query_result_lock.release()
 
