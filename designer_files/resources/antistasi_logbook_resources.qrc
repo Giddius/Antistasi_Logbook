@@ -6,6 +6,8 @@
     <file>closed_eye.svg</file>
     <file>open_eye.svg</file>
     <file>close-cancel.svg</file>
+    <file>check_mark_green.svg</file>
+    <file>close_black.svg</file>
   </qresource>
 
 </RCC>

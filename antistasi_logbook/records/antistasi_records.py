@@ -50,8 +50,9 @@ from urllib.parse import urlparse
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
-
+from antistasi_logbook.records.abstract_record import AbstractRecord, RecordFamily, MessageFormat
 from antistasi_logbook.records.base_record import BaseRecord, RecordFamily
+import pp
 if TYPE_CHECKING:
     from antistasi_logbook.parsing.parser import RawRecord
     from antistasi_logbook.storage.models.models import LogRecord
@@ -95,6 +96,10 @@ class PerformanceRecord(BaseRecord):
     def _get_stats(self) -> dict[str, Union[int, float]]:
         data = {item.group('name'): item.group('value') for item in self.performance_regex.finditer(self.message)}
         return {k: float(v) if '.' in v else int(v) for k, v in data.items()}
+
+    def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
+        if msg_format is MessageFormat.PRETTY:
+            return pp.fmt(self.stats)
 
     @classmethod
     def check(cls, raw_record: "RawRecord") -> bool:

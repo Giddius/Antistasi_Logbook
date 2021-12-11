@@ -58,6 +58,7 @@ import yarl
 from antistasi_logbook.utilities.misc import Version
 from dateutil.tz import tzoffset
 from hashlib import blake2b
+from dateutil.tz import UTC
 from PIL import Image
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
@@ -145,6 +146,8 @@ class BetterDateTimeField(Field):
 
     def db_value(self, value: Optional[datetime]):
         if value is not None:
+            if value.tzinfo not in [UTC, timezone.utc]:
+                raise RuntimeError(f"{value!r} is a different timezone than {UTC!r} or {timezone.utc!r} -> {value.tzinfo!r}")
             return value.isoformat()
 
     def python_value(self, value):

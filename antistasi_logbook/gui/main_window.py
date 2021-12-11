@@ -71,8 +71,10 @@ from antistasi_logbook.gui.sys_tray import LogbookSystemTray
 from gidapptools.utility._debug_tools import obj_inspection
 from gidapptools.general_helper.string_helper import StringCaseConverter
 from antistasi_logbook.backend import Backend, GidSqliteApswDatabase
-from antistasi_logbook.storage.models.models import RemoteStorage
+from antistasi_logbook.storage.models.models import RemoteStorage, Server
 from antistasi_logbook.gui.status_bar import LogbookStatusBar
+import pp
+import atexit
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
 
@@ -109,7 +111,8 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.main_widget: MainWidget = None
         self.menubar: QMenuBar = None
         self.statusbar: LogbookStatusBar = None
-
+        self.thread_pool = ThreadPoolExecutor(3, thread_name_prefix='gui_update')
+        atexit.register(self.thread_pool.shutdown, wait=True, cancel_futures=True)
         self.sys_tray: "LogbookSystemTray" = None
         self.name: str = None
         self.title: str = None
@@ -119,7 +122,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
     @property
     def initial_size(self) -> list[int, int]:
-        return self.config.get("main_window", "initial_size", default=[1000, 800])
+        return self.config.get("main_window", "initial_size", default=[1600, 1000])
 
     def setup(self) -> None:
         self.name = StringCaseConverter.convert_to(META_INFO.app_name, StringCaseConverter.TITLE)
@@ -141,8 +144,8 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.backend.updater.signaler.update_info.connect(self.statusbar.start_progress_bar)
         self.backend.updater.signaler.update_increment.connect(self.statusbar.increment_progress_bar)
         self.main_widget.setup_views()
-        self.backend.updater.signaler.update_finished.connect(self.main_widget.server_tab.model().update)
-        self.backend.updater.signaler.update_finished.connect(self.main_widget.log_files_tab.model().update)
+        self.backend.updater.signaler.update_finished.connect(self.main_widget.server_tab.model().refresh)
+        self.backend.updater.signaler.update_finished.connect(self.main_widget.log_files_tab.model().refresh)
 
     def setup_backend(self) -> None:
         db_path = self.config.get('database', "database_path", default=None)
@@ -202,6 +205,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}"
+
 
         # region[Main_Exec]
 if __name__ == '__main__':

@@ -4,14 +4,18 @@ from datetime import datetime, timezone, timedelta
 import attr
 from typing import Union, Optional, ClassVar, Iterable, Literal
 import re
+from functools import total_ordering
 from gidapptools.general_helper.conversion import str_to_bool
 from pathlib import Path
+from yarl import URL
 from dateutil.parser import parse as dateutil_parse
 from dateutil.tz import UTC
 from gidapptools import get_logger
+from peewee import Field
 from rich import inspect as rinspect
 from rich.console import Console as RichConsole
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+from antistasi_logbook.utilities.path_utilities import RemotePath
 get_dummy_profile_decorator_in_globals()
 log = get_logger(__name__)
 
@@ -84,6 +88,7 @@ def try_convert_int(data: Union[str, int, None]) -> Union[str, int, None]:
 
 
 @attr.s(slots=True, auto_attribs=True, auto_detect=True, frozen=True)
+@total_ordering
 class Version:
     major: int = attr.ib(converter=int)
     minor: int = attr.ib(converter=int)
@@ -105,6 +110,27 @@ class Version:
         if match is not None:
             return cls(**match.groupdict())
 
+    def as_tuple(self, include_extra: bool = True) -> tuple[Union[str, int]]:
+        if include_extra is False:
+            return (self.major, self.minor, self.patch)
+        return (self.major, self.minor, self.patch, self.extra)
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, self.__class__):
+            return self.as_tuple() == other.as_tuple()
+        return NotImplemented
+
+    def __lt__(self, other: object) -> bool:
+        if isinstance(other, self.__class__):
+            if (self.major, self.minor, self.patch) == (other.major, other.minor, other.patch):
+                if self.extra is None and other.extra is not None:
+                    return True
+                return False
+            if sorted([self, other], key=lambda x: x.as_tuple(False))[0] is self:
+                return True
+            return False
+        return NotImplemented
+
 
 def strip_converter(data: Optional[str] = None, extra_strip_chars: str = None) -> Optional[str]:
     if data is None:
@@ -122,7 +148,7 @@ def strip_to_path(data):
     return Path(data)
 
 
-@attr.s(slots=True, auto_attribs=True, auto_detect=True, frozen=True)
+@ attr.s(slots=True, auto_attribs=True, auto_detect=True, frozen=True)
 class ModItem:
     name: str = attr.ib(converter=strip_converter)
     default: bool = attr.ib(converter=str_to_bool)
@@ -133,7 +159,7 @@ class ModItem:
     mod_hash_short: str = attr.ib(default=None, converter=strip_converter)
     link: str = attr.ib(default=None, converter=strip_converter)
 
-    @classmethod
+    @ classmethod
     def from_text_line(cls, line: str) -> "ModItem":
         parts = line.split('|')
         name, mod_dir, default, official, origin = parts[:5]
@@ -177,5 +203,32 @@ def obj_inspection(obj: object, out_dir: Path = None, out_type: Literal["txt", "
         console.save_text(out_file)
 
 
+def column_sort_default_factory(in_colum: "Field"):
+    typus = in_colum.field_type
+    if typus == "BOOL":
+        return False
+
+    if typus in {"CHAR", "VARCHAR", "TEXT"}:
+        return ""
+
+    if typus == "DATETIME":
+        return datetime.now(tz=UTC) - timedelta(weeks=99999999999)
+
+    if typus == "PATH":
+        return Path('')
+
+    if typus == "REMOTEPATH":
+        return RemotePath("")
+
+    if typus in {"SMALLINT", "INT", "BIGINT"}:
+        return 0
+
+    if typus == "URL":
+        return URL("")
+
+
 if __name__ == '__main__':
-    pass
+    def get_all_sub_classes(sub_cl):
+        for sub_sub_cl in sub_cl.__subclasses__():
+            yield sub_sub_cl
+            yield from get_all_sub_classes(sub_sub_cl)

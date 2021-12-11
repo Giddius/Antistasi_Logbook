@@ -293,8 +293,8 @@ class RecordProcessor:
             parsed_data["called_by"] = _get_or_create_antistasi_file(parsed_data["called_by"])
 
         if parsed_data.get("local_recorded_at"):
-            parsed_data["recorded_at"] = parsed_data["local_recorded_at"].replace(tzinfo=utc_offset).astimezone(timezone.utc)
-            del parsed_data["local_recorded_at"]
+            local_recorded_at = parsed_data.pop("local_recorded_at")
+            parsed_data["recorded_at"] = local_recorded_at.replace(tzinfo=utc_offset).astimezone(UTC)
 
         return parsed_data
 
@@ -312,7 +312,6 @@ class RecordProcessor:
         raw_record.parsed_data = self._convert_raw_record_foreign_keys(parsed_data=raw_record.parsed_data, utc_offset=utc_offset)
 
         return raw_record
-
 
         # region[Main_Exec]
 if __name__ == '__main__':

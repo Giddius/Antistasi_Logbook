@@ -26,7 +26,8 @@ dependencies = [
     "marshmallow>=3.14.0",
     "gidapptools>=0.1.9",
     "PySide6>=6.2.2",
-    "pyqtgraph>=0.12.3"
+    "pyqtgraph>=0.12.3",
+    "colorhash==1.0.4"
 ]
 
 [project.urls]

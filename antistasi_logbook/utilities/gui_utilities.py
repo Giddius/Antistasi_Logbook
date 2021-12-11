@@ -51,11 +51,14 @@ from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
 
-from antistasi_logbook.records.abstract_record import AbstractRecord, RecordFamily, MessageFormat
-from antistasi_logbook.records.enums import LogLevelEnum, PunishmentActionEnum
-if TYPE_CHECKING:
-    from antistasi_logbook.storage.models.models import LogFile, LogRecord, PunishmentAction, LogLevel, AntstasiFunction
-    from antistasi_logbook.parsing.parser import RawRecord
+import PySide6
+from PySide6 import QtCore, QtGui, QtWidgets
+from PySide6.QtCore import (QCoreApplication, QDate, QDateTime, QLocale, QMetaObject, QObject, QPoint, QRect, QSize, QTime, QUrl, Qt, QModelRoleData,
+                            QAbstractTableModel, QAbstractItemModel, QAbstractListModel, QEvent, QModelIndex, Signal, Slot)
+from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QGradient, QIcon, QImage, QKeySequence,
+                           QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform, QCloseEvent)
+from PySide6.QtWidgets import (QApplication, QGridLayout, QMainWindow, QMenu, QMenuBar, QSizePolicy, QStatusBar, QWidget, QPushButton, QFrame, QFormLayout, QLabel, QProgressBar, QProgressDialog,
+                               QBoxLayout, QHBoxLayout, QVBoxLayout, QSizePolicy, QMessageBox, QLayout, QGroupBox, QDockWidget, QTabWidget, QSystemTrayIcon, QTableView, QListView, QTreeView, QColumnView)
 # endregion[Imports]
 
 # region [TODO]
@@ -75,48 +78,15 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 # endregion[Constants]
 
 
-class BaseRecord(AbstractRecord):
-    ___record_family___ = RecordFamily.GENERIC | RecordFamily.ANTISTASI
-    ___specificity___ = 0
-    __slots__ = ("log_record",)
-
-    def __init__(self,
-                 log_record: "LogRecord"
-                 ) -> None:
-        self.log_record = log_record
-
-    def mark(self) -> None:
-        self.log_record.marked = True
-        self.log_record.save()
-
-    @property
-    def comments(self) -> Optional[str]:
-        return self.log_record.comments
-
-    def add_comment(self, comment: str) -> None:
-        if self.log_record.comments is None:
-            self.log_record.comments = comment
-        else:
-            self.log_record.comments = self.log_record.comments + '\n' + comment
-        self.log_record.save()
-
-    def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
-        return self.log_record.message
-
-    def __getattr__(self, name: str) -> Any:
-        try:
-            return self.log_record.get_data(name)
-        except (KeyError, AttributeError):
-            return getattr(self.log_record, name)
-
-    @classmethod
-    def check(cls, raw_record: "RawRecord") -> bool:
-        return True
+def make_line(direction: Literal["horizontal", "vertical"]):
+    line = QFrame()
+    direction = QFrame.HLine if direction == "horizontal" else QFrame.VLine
+    line.setFrameShape(direction)
+    line.setFrameShadow(QFrame.Sunken)
+    return line
 
 
 # region[Main_Exec]
-
-
 if __name__ == '__main__':
     pass
 

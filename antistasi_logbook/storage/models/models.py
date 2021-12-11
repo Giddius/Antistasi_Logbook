@@ -5,9 +5,9 @@ from peewee import TextField, IntegerField, BooleanField, AutoField, DateTimeFie
 from playhouse.signals import Model
 from playhouse.sqlite_ext import JSONField, JSONPath
 from playhouse.shortcuts import model_to_dict
-
+from antistasi_logbook.records.abstract_record import AbstractRecord, RecordFamily, MessageFormat
 from antistasi_logbook.storage.models.custom_fields import RemotePathField, PathField, VersionField, URLField, BetterDateTimeField, TzOffsetField, CompressedTextField, CompressedImageField, LoginField, PasswordField
-from typing import TYPE_CHECKING, Generator, Hashable, Iterable, Optional, TextIO, Union
+from typing import TYPE_CHECKING, Generator, Hashable, Iterable, Optional, TextIO, Union, Any, Literal
 from pathlib import Path
 from io import TextIOWrapper
 
@@ -30,10 +30,10 @@ from antistasi_logbook.data.misc import LOG_FILE_DATE_REGEX
 from dateutil.tz import tzoffset, UTC
 from playhouse.sqlite_changelog import ChangeLog
 from playhouse.apsw_ext import BooleanField, DateTimeField, CharField, IntegerField
-
+from gidapptools.general_helper.string_helper import StringCaseConverter
 from time import sleep
 from antistasi_logbook.updating.remote_managers import remote_manager_registry
-
+from gidapptools.general_helper.conversion import bytes2human
 if TYPE_CHECKING:
     from antistasi_logbook.updating.remote_managers import AbstractRemoteStorageManager, InfoItem
     from gidapptools.gid_config.meta_factory import GidIniConfig
@@ -41,7 +41,7 @@ if TYPE_CHECKING:
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
 
 from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
-
+from tzlocal import get_localzone
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 get_dummy_profile_decorator_in_globals()
 
@@ -57,9 +57,14 @@ log = get_logger(__name__)
 database_proxy = DatabaseProxy()
 
 
+MARKED_HELP_TEXT = "Mark items to find them easier"
+
+LOCAL_TIMEZONE = get_localzone()
+
+
 class BaseModel(Model):
     class Meta:
-        database = database_proxy
+        database: "GidSqliteApswDatabase" = database_proxy
 
     @classmethod
     def create_or_get(cls, **kwargs) -> "BaseModel":
@@ -76,9 +81,21 @@ class BaseModel(Model):
     def config(self) -> "GidIniConfig":
         return self._meta.database.config
 
+    def get_data(self, attr_name: str) -> Any:
+        return getattr(self, f"pretty_{attr_name}", getattr(self, attr_name))
+
+    def format_datetime(self, date_time: datetime) -> str:
+        if self.config.get("time", "use_local_timezone", default=False) is True:
+            date_time = date_time.astimezone(tz=LOCAL_TIMEZONE)
+        time_format = self.config.get("time", "time_format", default='%Y-%m-%d %H:%M:%S')
+        if time_format == "local":
+            time_format = "%x %X"
+        return date_time.strftime(time_format)
+
 
 class AntstasiFunction(BaseModel):
     name = TextField(unique=True)
+    show_as: Literal["file_name", "function_name"] = "function_name"
 
     class Meta:
         table_name = 'AntstasiFunction'
@@ -95,6 +112,14 @@ class AntstasiFunction(BaseModel):
     def clean_antistasi_function_name(in_name: str) -> str:
         return in_name.strip().removeprefix("A3A_fnc_").removeprefix("fn_").removesuffix('.sqf')
 
+    def __str__(self) -> str:
+        if self.show_as == "file_name":
+            return self.file_name
+        elif self.show_as == "function_name":
+            return self.function_name
+        else:
+            return self.name
+
 
 class GameMap(BaseModel):
     full_name = TextField(null=True, unique=True, index=True)
@@ -106,7 +131,7 @@ class GameMap(BaseModel):
     coordinates = JSONField(null=True)
     workshop_link = URLField(null=True)
     comments = TextField(null=True)
-    marked = BooleanField(default=False, index=True)
+    marked = BooleanField(default=False, index=True, help_text=MARKED_HELP_TEXT)
 
     class Meta:
         table_name = 'GameMap'
@@ -162,18 +187,29 @@ class RemoteStorage(BaseModel):
         manager = remote_manager_registry.get_remote_manager(self)
         return manager
 
+    def __str__(self):
+        return ' '.join(self.name.split('_')).title()
+
 
 class Server(BaseModel):
-    local_path = PathField(null=True, unique=True)
-    name = TextField(unique=True, index=True)
-    remote_path = RemotePathField(null=True, unique=True)
-    remote_storage = ForeignKeyField(column_name='remote_storage', default=0, field='id', model=RemoteStorage, lazy_load=True, index=True)
-    update_enabled = BooleanField(default=False)
-    comments = TextField(null=True)
-    marked = BooleanField(default=False, index=True)
+    local_path = PathField(null=True, unique=True, verbose_name="Local Path", help_text="Location where Log-Files of this server are downloaded to")
+    name = TextField(unique=True, index=True, verbose_name="Name")
+    remote_path = RemotePathField(null=True, unique=True, verbose_name="Remote Path")
+    remote_storage = ForeignKeyField(column_name='remote_storage', default=0, field='id', model=RemoteStorage, lazy_load=True, index=True, verbose_name="Remote Storage")
+    update_enabled = BooleanField(default=False, verbose_name="Update")
+    comments = TextField(null=True, verbose_name="Comments")
+    marked = BooleanField(default=False, index=True, verbose_name="Marked", help_text=MARKED_HELP_TEXT)
 
     class Meta:
         table_name = 'Server'
+
+    @cached_property
+    def pretty_name(self) -> str:
+        return self.name.replace('_', ' ').title()
+
+    @cached_property
+    def pretty_remote_path(self) -> str:
+        return self.remote_path.as_posix()
 
     @property
     def remote_manager(self) -> "AbstractRemoteStorageManager":
@@ -212,24 +248,24 @@ class Server(BaseModel):
 
 
 class LogFile(BaseModel):
-    name = TextField(index=True)
-    remote_path = RemotePathField(unique=True)
-    modified_at = BetterDateTimeField(index=True)
-    size = IntegerField()
-    created_at = BetterDateTimeField(null=True, index=True)
-    header_text = CompressedTextField(null=True)
-    startup_text = CompressedTextField(null=True)
-    last_parsed_line_number = IntegerField(default=0, null=True)
-    utc_offset = TzOffsetField(null=True)
-    version = VersionField(null=True, index=True)
-    game_map = ForeignKeyField(column_name='game_map', field='id', model=GameMap, null=True, lazy_load=True, index=True)
-    is_new_campaign = BooleanField(null=True, index=True)
-    campaign_id = IntegerField(null=True, index=True)
-    server = ForeignKeyField(column_name='server', field='id', model=Server, lazy_load=True, backref="log_files", index=True)
-    unparsable = BooleanField(default=False, index=True)
-    last_parsed_datetime = BetterDateTimeField(null=True)
-    comments = TextField(null=True)
-    marked = BooleanField(default=False)
+    name = TextField(index=True, verbose_name="Name")
+    remote_path = RemotePathField(unique=True, verbose_name="Remote Path")
+    modified_at = BetterDateTimeField(index=True, verbose_name="Modified at")
+    size = IntegerField(verbose_name="Size")
+    created_at = BetterDateTimeField(null=True, index=True, verbose_name="Created at")
+    header_text = CompressedTextField(null=True, verbose_name="Header Text")
+    startup_text = CompressedTextField(null=True, verbose_name="Startup Text")
+    last_parsed_line_number = IntegerField(default=0, null=True, verbose_name="Last Parsed Line Number")
+    utc_offset = TzOffsetField(null=True, verbose_name="UTC Offset")
+    version = VersionField(null=True, index=True, verbose_name="Version")
+    game_map = ForeignKeyField(column_name='game_map', field='id', model=GameMap, null=True, lazy_load=True, index=True, verbose_name="Game-Map")
+    is_new_campaign = BooleanField(null=True, index=True, verbose_name="Is New Campaign")
+    campaign_id = IntegerField(null=True, index=True, verbose_name="Campaign Id")
+    server = ForeignKeyField(column_name='server', field='id', model=Server, lazy_load=True, backref="log_files", index=True, verbose_name="Server")
+    unparsable = BooleanField(default=False, index=True, verbose_name="Unparsable")
+    last_parsed_datetime = BetterDateTimeField(null=True, verbose_name="Last Parsed Datetime")
+    comments = TextField(null=True, verbose_name="Comments")
+    marked = BooleanField(default=False, verbose_name="Marked", help_text=MARKED_HELP_TEXT)
 
     class Meta:
         table_name = 'LogFile'
@@ -240,6 +276,25 @@ class LogFile(BaseModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.is_downloaded = False
+
+    @cached_property
+    def amount_log_records(self) -> int:
+        return LogRecord.select().where(LogRecord.log_file == self).count()
+
+    @cached_property
+    def pretty_size(self) -> str:
+        if self.size is not None:
+            return bytes2human(self.size)
+
+    @cached_property
+    def pretty_modified_at(self) -> str:
+        if self.modified_at is not None:
+            return self.format_datetime(self.modified_at)
+
+    @cached_property
+    def pretty_created_at(self) -> str:
+        if self.created_at is not None:
+            return self.format_datetime(self.created_at)
 
     @cached_property
     def file_lock(self) -> Lock:
@@ -350,7 +405,7 @@ class Mod(BaseModel):
     default = BooleanField(default=False, index=True)
     official = BooleanField(default=False, index=True)
     comments = TextField(null=True)
-    marked = BooleanField(default=False, index=True)
+    marked = BooleanField(default=False, index=True, help_text=MARKED_HELP_TEXT)
 
     class Meta:
         table_name = 'Mod'
@@ -396,19 +451,22 @@ class RecordClass(BaseModel):
     def record_class(self) -> "RECORD_CLASS_TYPE":
         return self.record_class_manager.get_by_name(self.name)
 
+    def __str__(self) -> str:
+        return self.name
+
 
 class LogRecord(BaseModel):
-    start = IntegerField()
-    end = IntegerField()
-    message = TextField()
-    recorded_at = BetterDateTimeField(index=True)
-    called_by = ForeignKeyField(column_name='called_by', field='id', model=AntstasiFunction, backref="log_records_called_by", lazy_load=True, null=True, index=True)
-    is_antistasi_record = BooleanField(default=False, index=True)
-    logged_from = ForeignKeyField(column_name='logged_from', field='id', model=AntstasiFunction, backref="log_records_logged_from", lazy_load=True, null=True, index=True)
-    log_file = ForeignKeyField(column_name='log_file', field='id', model=LogFile, lazy_load=True, backref="log_records", null=False)
-    log_level = ForeignKeyField(column_name='log_level', default=0, field='id', model=LogLevel, null=True, lazy_load=True, index=True)
-    record_class = ForeignKeyField(column_name='record_class', field='id', model=RecordClass, lazy_load=True, index=True)
-    marked = BooleanField(default=False, index=True)
+    start = IntegerField(help_text="Start Line number of the Record", verbose_name="Start Line Number")
+    end = IntegerField(help_text="End Line number of the Record", verbose_name="End Line Number")
+    message = TextField(help_text="Message part of the Record", verbose_name="Message")
+    recorded_at = BetterDateTimeField(index=True, verbose_name="Recorded at")
+    called_by = ForeignKeyField(column_name='called_by', field='id', model=AntstasiFunction, backref="log_records_called_by", lazy_load=True, null=True, index=True, verbose_name="Called by")
+    is_antistasi_record = BooleanField(default=False, index=True, verbose_name="Is Antistasi Record")
+    logged_from = ForeignKeyField(column_name='logged_from', field='id', model=AntstasiFunction, backref="log_records_logged_from", lazy_load=True, null=True, index=True, verbose_name="Logged from")
+    log_file = ForeignKeyField(column_name='log_file', field='id', model=LogFile, lazy_load=True, backref="log_records", null=False, verbose_name="Log-File")
+    log_level = ForeignKeyField(column_name='log_level', default=0, field='id', model=LogLevel, null=True, lazy_load=True, index=True, verbose_name="Log-Level")
+    record_class = ForeignKeyField(column_name='record_class', field='id', model=RecordClass, lazy_load=True, index=True, verbose_name="Record Class")
+    marked = BooleanField(default=False, index=True, help_text=MARKED_HELP_TEXT, verbose_name="Marked")
 
     class Meta:
         table_name = 'LogRecord'
@@ -416,8 +474,23 @@ class LogRecord(BaseModel):
             (('start', 'end', 'log_file'), True),
         )
 
+    @cached_property
+    def pretty_recorded_at(self) -> str:
+        return self.format_datetime(self.recorded_at)
+
     def to_record_class(self) -> "RECORD_CLASS_TYPE":
+
+        if self.record_class.name.casefold() == "baserecord":
+            return self
         return self.record_class.record_class(self)
+
+
+    def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
+        return self.message
+
+    @cached_property
+    def pretty_message(self) -> str:
+        return self.get_formated_message(MessageFormat.PRETTY)
 
     def __str__(self) -> str:
         if self.is_antistasi_record is True:
@@ -511,7 +584,7 @@ def setup_db(database: "GidSqliteApswDatabase"):
 
                   Server: [{'local_path': None,
                             'name': 'NO_SERVER',
-                           'remote_path': 'NO_PATH',
+                           'remote_path': None,
                             'remote_storage': 0,
                             'update_enabled': 0},
                            {'local_path': None,

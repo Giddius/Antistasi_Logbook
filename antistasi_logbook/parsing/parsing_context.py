@@ -228,7 +228,7 @@ class LogParsingContext:
 
         # TODO: Refractor this Monster!
         LogFile.get_meta().database.connect(True)
-        if finder is None or finder.full_datetime is None:
+        if finder is None or finder.full_datetime is None or finder.campaign_id is None:
             self.set_unparsable()
             return
 
@@ -256,7 +256,7 @@ class LogParsingContext:
             offset_timedelta = timedelta(hours=difference_seconds // (60 * 60))
             offset = tzoffset(self.log_file_data["name"], offset_timedelta)
             self.log_file_data["utc_offset"] = offset
-            self.log_file_data["created_at"] = self._log_file.name_datetime.astimezone(offset)
+            self.log_file_data["created_at"] = self._log_file.name_datetime.replace(tzinfo=offset).astimezone(UTC)
 
         if finder.mods is not None and finder.mods is not MiscEnum.DEFAULT:
 

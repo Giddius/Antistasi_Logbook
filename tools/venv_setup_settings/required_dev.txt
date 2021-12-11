@@ -20,4 +20,4 @@ pylint
 pympler
 tomlkit
 autoflake==1.4
-pp-ez
+pp-ez==0.2.0

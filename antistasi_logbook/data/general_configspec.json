@@ -22,5 +22,9 @@
         "delay_between_downloads": { "converter": "timedelta" },
         "minimum_download_duration": { "converter": "timedelta" }
     },
-    "parsing": { "record_insert_batch_size": { "converter": "integer" } }
+    "parsing": { "record_insert_batch_size": { "converter": "integer" } },
+    "time": {
+        "use_local_timezone": { "converter": "boolean" },
+        "time_format": { "converter": "string" }
+    }
 }

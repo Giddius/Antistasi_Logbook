@@ -83,11 +83,15 @@ class AbstractRecord(ABC):
         ...
 
     @abstractmethod
-    def get_formated_message(self, format: "MessageFormat") -> str:
+    def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
         ...
 
+    @cached_property
+    def pretty_message(self) -> str:
+        return self.get_formated_message(MessageFormat.PRETTY)
 
 # region[Main_Exec]
+
 
 if __name__ == '__main__':
     pass
