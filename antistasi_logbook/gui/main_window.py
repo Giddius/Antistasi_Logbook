@@ -246,8 +246,7 @@ if __name__ == '__main__':
     m = AntistasiLogbookMainWindow(_app, META_CONFIG.get_config('general'))
 
     RemoteStorage.get(name="community_webdav").set_login_and_password(login=os.getenv("NEXTCLOUD_USERNAME"), password=os.getenv("NEXTCLOUD_PASSWORD"), store_in_db=False)
-    x = LogRecord.select().where(LogRecord.record_class_id == 5).count()
-    print(x)
+
     m.show()
     _app.exec()
 

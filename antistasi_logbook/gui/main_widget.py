@@ -188,7 +188,7 @@ class MainWidget(QWidget):
             self.detail_widget.adjustSize()
 
     def query_log_file(self, index: QModelIndex):
-        self.main_tabs_widget.setCurrentWidget(self.query_result_tab)
+
         self.query_result_tab.header().setSectionResizeMode(QHeaderView.ResizeToContents)
 
         def dd(f: Future):
@@ -220,13 +220,13 @@ class MainWidget(QWidget):
         log_record_model = self.query_result_tab.model()
         log_record_model.filter.append(LogRecord.log_file == log_file)
 
-        self.query_result_tab.setModel(log_record_model)
-        log.debug("added model %r to %r", log_record_model, self.query_result_tab)
         abort_signal = Event()
-        # self.main_window.thread_pool.add_abort_signal(abort_signal)
-        # t = self.main_window.thread_pool.submit(log_record_model.generator_refresh, abort_signal=abort_signal)
-        log_record_model.generator_refresh(abort_signal=abort_signal)
+        self.main_window.thread_pool.add_abort_signal(abort_signal)
+        t = self.main_window.thread_pool.submit(log_record_model.generator_refresh, abort_signal=abort_signal)
+
         t.add_done_callback(dd)
+        sleep(0.25)
+        self.main_tabs_widget.setCurrentWidget(self.query_result_tab)
         log.debug("started thread")
 
 

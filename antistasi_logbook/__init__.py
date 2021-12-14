@@ -10,7 +10,12 @@ from rich.console import Console as RichConsole
 import atexit
 import os
 
-log = get_main_logger("__main__", Path(__file__).resolve(), extra_logger=["peewee"])
+
+_extra_logger = ["peewee"]
+
+# _extra_logger = []
+
+log = get_main_logger("__main__", Path(__file__).resolve(), extra_logger=_extra_logger)
 
 ERROR_CONSOLE = RichConsole(soft_wrap=True, record=True, width=150)
 
@@ -29,7 +34,7 @@ def setup():
 # os.environ["ERRORS_TO_FILE"] = "1"
 
 
-@atexit.register
+@ atexit.register
 def errors_to_file():
     if os.getenv("ERRORS_TO_FILE", "0") != "1":
         return

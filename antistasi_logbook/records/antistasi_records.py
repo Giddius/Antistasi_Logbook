@@ -51,13 +51,13 @@ from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
 from antistasi_logbook.records.abstract_record import AbstractRecord, RecordFamily, MessageFormat
-from antistasi_logbook.records.base_record import BaseRecord, RecordFamily
+from antistasi_logbook.records.base_record import BaseRecord, RecordFamily, BASE_SLOTS, LineNumberLocation, QtAttributes
 import pp
 from antistasi_logbook.utilities.parsing_misc import parse_text_array
 from gidapptools.general_helper.color.color_item import RGBColor, Color
 if TYPE_CHECKING:
     from antistasi_logbook.parsing.parser import RawRecord
-    from antistasi_logbook.storage.models.models import LogRecord
+    from antistasi_logbook.storage.models.models import LogFile, LogRecord, PunishmentAction, LogLevel, AntstasiFunction
 # endregion[Imports]
 
 # region [TODO]
@@ -83,13 +83,13 @@ class BaseAntistasiRecord(BaseRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 1
     ___has_multiline_message___ = False
-    __slots__ = ("log_record", "message_size_hint", "_color")
+    __slots__ = tuple(BASE_SLOTS)
 
     @property
     def color(self) -> Optional[RGBColor]:
-        if self._color is None:
-            self._color = Color.get_color_by_name("White").with_alpha(0.5).qcolor
-        return self._color
+        if self.qt_attributes.color is None:
+            self.qt_attributes.color = Color.get_color_by_name("White").with_alpha(0.5).qcolor
+        return self.qt_attributes.color
 
     @classmethod
     def check(cls, raw_record: "RawRecord") -> bool:
@@ -99,22 +99,22 @@ class BaseAntistasiRecord(BaseRecord):
 ALL_ANTISTASI_RECORD_CLASSES.add(BaseAntistasiRecord)
 
 
-class PerformanceRecord(BaseRecord):
+class PerformanceRecord(BaseAntistasiRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 10
     ___has_multiline_message___ = True
     performance_regex = re.compile(r"(?P<name>\w+\s?\w*)(?:\:\s?)(?P<value>\d[\d\.]*)")
-    __slots__ = ("log_record", "_stats", "message_size_hint", "_color")
+    __slots__ = tuple(BASE_SLOTS + ["_stats"])
 
-    def __init__(self, log_record: "LogRecord") -> None:
-        super().__init__(log_record)
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self._stats: dict[str, Union[float, int]] = None
 
     @property
     def color(self) -> Optional[RGBColor]:
-        if self._color is None:
-            self._color = Color(135, 206, 235, alpha=0.5)
-        return self._color.qcolor
+        if self.qt_attributes.color is None:
+            self.qt_attributes.color = Color.get_color_by_name("LightSteelBlue").with_alpha(0.5).qcolor
+        return self.qt_attributes.color
 
     @property
     def stats(self) -> dict[str, Union[int, float]]:
@@ -126,8 +126,8 @@ class PerformanceRecord(BaseRecord):
         data = {item.group('name'): item.group('value') for item in self.performance_regex.finditer(self.message)}
         return {k: float(v) if '.' in v else int(v) for k, v in data.items()}
 
-    def get_formated_message(self, format: "MessageFormat" = MessageFormat.PRETTY) -> str:
-        if format is MessageFormat.PRETTY:
+    def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
+        if msg_format is MessageFormat.PRETTY:
             _out = []
             for k, v in self.stats.items():
                 try:
@@ -139,7 +139,7 @@ class PerformanceRecord(BaseRecord):
                     _after_comma = ""
                 _out.append(f"{k:<25}{_full_num:>25}{_comma}{_after_comma}")
             return '\n'.join(_out).strip()
-        return super().get_formated_message(format=format)
+        return super().get_formated_message(msg_format=format)
 
     @classmethod
     def check(cls, raw_record: "RawRecord") -> bool:
@@ -158,10 +158,10 @@ class PerformanceRecord(BaseRecord):
 ALL_ANTISTASI_RECORD_CLASSES.add(PerformanceRecord)
 
 
-class IsNewCampaignRecord(BaseRecord):
+class IsNewCampaignRecord(BaseAntistasiRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 20
-    __slots__ = ("log_record", "message_size_hint", "_color")
+    __slots__ = tuple(BASE_SLOTS)
 
     @classmethod
     def check(cls, raw_record: "RawRecord") -> bool:
@@ -178,14 +178,14 @@ class IsNewCampaignRecord(BaseRecord):
 ALL_ANTISTASI_RECORD_CLASSES.add(IsNewCampaignRecord)
 
 
-class FFPunishmentRecord(BaseRecord):
+class FFPunishmentRecord(BaseAntistasiRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 10
     punishment_type_regex = re.compile(r"(?P<punishment_type>[A-Z]+)")
-    __slots__ = ("log_record", "_punishment_type", "message_size_hint", "_color")
+    __slots__ = tuple(BASE_SLOTS + ["_punishment_type"])
 
-    def __init__(self, log_record: "LogRecord") -> None:
-        super().__init__(log_record)
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self._punishment_type: str = None
 
     @property
@@ -209,30 +209,24 @@ class FFPunishmentRecord(BaseRecord):
 ALL_ANTISTASI_RECORD_CLASSES.add(FFPunishmentRecord)
 
 
-class UpdatePreferenceRecord(BaseRecord):
+class UpdatePreferenceRecord(BaseAntistasiRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 20
     ___has_multiline_message___ = True
 
     msg_start_regex = re.compile(r"(?P<category>[a-zA-Z]+)\_preference")
 
-    __slots__ = ("log_record", "category", "_array_data", "message_size_hint", "_color")
+    __slots__ = tuple(BASE_SLOTS + ["category", "_array_data"])
 
-    def __init__(self, log_record: "LogRecord") -> None:
-        super().__init__(log_record)
-        self.category = self.msg_start_regex.match(log_record.message.lstrip()).group("category")
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.category = self.msg_start_regex.match(self.message.lstrip()).group("category")
         self._array_data: list[list[Any]] = None
-
-    @property
-    def color(self) -> Optional[RGBColor]:
-        if self._color is None:
-            self._color = Color(25, 25, 200, 0.5)
-        return self._color.qcolor
 
     @property
     def array_data(self) -> list[list[Any]]:
         if self._array_data is None:
-            self._array_data = parse_text_array(self.msg_start_regex.sub('', self.log_record.message).strip())
+            self._array_data = parse_text_array(self.msg_start_regex.sub('', self.message).strip())
         return self._array_data
 
     @classmethod
@@ -245,23 +239,23 @@ class UpdatePreferenceRecord(BaseRecord):
             return True
         return False
 
-    def get_formated_message(self, format: "MessageFormat" = MessageFormat.PRETTY) -> str:
-        if format is MessageFormat.PRETTY:
+    def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
+        if msg_format is MessageFormat.PRETTY:
             return f"{self.category}_preference\n" + pp.fmt(self.array_data, indent=4)
-        return super().get_formated_message(format=format)
+        return super().get_formated_message(msg_format=format)
 
 
 ALL_ANTISTASI_RECORD_CLASSES.add(UpdatePreferenceRecord)
 
 
-class CreateConvoyInputRecord(BaseRecord):
+class CreateConvoyInputRecord(BaseAntistasiRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 20
     ___has_multiline_message___ = True
-    __slots__ = ("log_record", "_array_data", "message_size_hint", "_color")
+    __slots__ = tuple(BASE_SLOTS + ["_array_data"])
 
-    def __init__(self, log_record: "LogRecord") -> None:
-        super().__init__(log_record)
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self._array_data: list[list[Any]] = None
 
     @property
@@ -298,7 +292,6 @@ ALL_ANTISTASI_RECORD_CLASSES.add(CreateConvoyInputRecord)
 
 
 if __name__ == '__main__':
-    x = """Input is [146,[["rhsusf_m1151_m2crows_usarmy_wd",["loadouts_occ_other_Crew","loadouts_occ_other_Crew"],["loadouts_occ_military_SquadLeader","loadouts_occ_military_LAT"]],["rhsusf_m998_w_2dr_fulltop",["loadouts_occ_other_Crew"],["loadouts_occ_military_Grenadier","loadouts_occ_military_MachineGunner","loadouts_occ_military_Rifleman","loadouts_occ_military_Engineer","loadouts_occ_military_Rifleman"]]],[4016.59,10185,0],[5939.3,10572.9,0],["airport_6","outpost_26"],"reinforce",WEST]"""
-    print(x.casefold().startswith("input is"))
+    pass
 
 # endregion[Main_Exec]

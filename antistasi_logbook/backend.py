@@ -171,7 +171,8 @@ class Backend:
         self.database = database
         self.update_signaler = update_signaler
         self.foreign_key_cache = self.database.foreign_key_cache
-        self.record_class_manager = RecordClassManager()
+        self.record_class_manager = RecordClassManager(foreign_key_cache=self.foreign_key_cache)
+
         self.time_clock = TimeClock(config=self.config, stop_event=self.events.stop)
         self.remote_manager_registry = remote_manager_registry
         self.record_processor = RecordProcessor(regex_keeper=SimpleRegexKeeper(), record_class_manager=self.record_class_manager, foreign_key_cache=self.foreign_key_cache)

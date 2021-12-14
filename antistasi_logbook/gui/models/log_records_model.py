@@ -92,7 +92,8 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
@@ -122,7 +123,7 @@ class LogRecordsModel(BaseQueryDataModel):
         super().__init__(backend, LogRecord, parent=parent)
         self.filter = []
         self.ordered_by = (LogRecord.start, LogRecord.recorded_at)
-        self.generator_refresh_chunk_size = 25
+        self.generator_refresh_chunk_size = 100
         self.message_column_font = self._make_message_column_font()
 
     @property
@@ -139,10 +140,11 @@ class LogRecordsModel(BaseQueryDataModel):
         return self._column_names_to_exclude.union({"log_file", "record_class", "logged_from", "called_by"})
 
     def get_query(self) -> "Query":
-        logged_from_alias = AntstasiFunction.alias()
-        query = LogRecord.select().join(LogFile, on=LogRecord.log_file).switch(LogRecord).join(LogLevel, on=LogRecord.log_level).switch(
-            LogRecord).join(RecordClass, on=LogRecord.record_class).switch(LogRecord).join(AntstasiFunction, on=LogRecord.called_by, join_type=JOIN.LEFT_OUTER).switch(
-            LogRecord).join(logged_from_alias, on=LogRecord.logged_from, join_type=JOIN.LEFT_OUTER).switch(LogRecord).where(reduce(or_, self.filter)).order_by(*self.ordered_by)
+        # logged_from_alias = AntstasiFunction.alias()
+        # query = LogRecord.select().join(LogFile, on=LogRecord.log_file).switch(LogRecord).join(LogLevel, on=LogRecord.log_level).switch(
+        #     LogRecord).join(RecordClass, on=LogRecord.record_class).switch(LogRecord).join(AntstasiFunction, on=LogRecord.called_by, join_type=JOIN.LEFT_OUTER).switch(
+        #     LogRecord).join(logged_from_alias, on=LogRecord.logged_from, join_type=JOIN.LEFT_OUTER).switch(LogRecord).where(reduce(or_, self.filter)).order_by(*self.ordered_by)
+        query = LogRecord.select().where(reduce(or_, self.filter)).order_by(*self.ordered_by)
         return query
 
     def _get_display_data(self, index: "INDEX_TYPE") -> Any:
@@ -250,7 +252,7 @@ class LogRecordsModel(BaseQueryDataModel):
     #         self.endInsertRows()
     #         self.request_resize_to_contents.emit(request_idxs)
     #     return self, abort_signal
-
+    @profile
     def _generator_refresh(self, abort_signal: Event = None) -> "LogRecordsModel":
         def to_pri(**kwargs):
             pp(dict(kwargs))
@@ -266,25 +268,22 @@ class LogRecordsModel(BaseQueryDataModel):
         self.layoutChanged.emit()
         idx = 0
         with self.backend.database:
-            for item in self.get_query().iterator():
-                _ = model_to_dict(item, exclude=[LogRecord.log_file])
+            for item_data in self.get_query().dicts():
+
                 idx += 1
-                record_item = item.to_record_class()
+                record_class = self.backend.record_class_manager.get_by_id(item_data.get('record_class'))
+                record_item = record_class.from_model_dict(item_data)
                 items.append(RefreshItem(idx, record_item))
                 if len(items) == self.generator_refresh_chunk_size:
                     self.beginInsertRows(QtCore.QModelIndex(), min(i.idx for i in items), max(i.idx for i in items))
 
-                    self.content_items += [self._make_size(i.item) for i in items]
+                    self.content_items += [i.item for i in items]
 
                     self.endInsertRows()
-                    while len(items) > 0:
-                        item = items.pop().item
-                        _ = item.log_level
-                        _ = item.record_class
-                        _ = item.called_by
-                        _ = item.logged_from
+
                     items.clear()
-                    sleep(1)
+
+                sleep(0.0)
 
         if len(items) != 0:
             self.beginInsertRows(QtCore.QModelIndex(), min(i.idx for i in items), max(i.idx for i in items))
@@ -293,12 +292,11 @@ class LogRecordsModel(BaseQueryDataModel):
             self.endInsertRows()
             items.clear()
         self.parent().resizeColumnToContents([i for i, col in enumerate(self.columns) if col.name == "message"][0])
-        self.layoutChanged.emit()
+
         return self, abort_signal
 
     def generator_refresh(self, abort_signal: Event = None) -> tuple["BaseQueryDataModel", Event]:
-        instance = WorkerThread(self._generator_refresh, abort_signal=abort_signal, parent=self)
-        instance.start()
+        return self._generator_refresh(abort_signal=abort_signal)
 
 
 # region[Main_Exec]

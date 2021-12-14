@@ -126,7 +126,6 @@ class RecordInserter:
     def max_threads(self) -> int:
         return self.config.get("updating", "max_inserting_threads", default=5)
 
-    @profile
     def _insert_func(self, records: Iterable["RawRecord"], context: "LogParsingContext") -> ManyRecordsInsertResult:
 
         # LogRecord.insert_many(i.to_log_record_dict(log_file=context._log_file) for i in records).execute()
@@ -212,13 +211,14 @@ class RecordProcessor:
     def clean_antistasi_function_name(in_name: str) -> str:
         return in_name.strip().removeprefix("A3A_fnc_").removeprefix("fn_").removesuffix('.sqf')
 
-    @profile
     def _process_generic_record(self, raw_record: "RawRecord") -> "RawRecord":
         match = self.regex_keeper.generic_record.match(raw_record.content.strip())
         if not match:
             return None
-
-        _out = {"message": match.group("message").lstrip()}
+        msg = match.group("message").lstrip()
+        if msg.startswith('"') and msg.endswith('"'):
+            msg = msg.strip('"').strip()
+        _out = {"message": msg}
 
         _out["local_recorded_at"] = datetime(year=int(match.group("year")),
                                              month=int(match.group("month")),
@@ -232,7 +232,6 @@ class RecordProcessor:
 
         return raw_record
 
-    @profile
     def _process_antistasi_record(self, raw_record: "RawRecord") -> "RawRecord":
         datetime_part, antistasi_indicator_part, log_level_part, file_part, rest = raw_record.content.split('|', maxsplit=4)
 
@@ -257,18 +256,18 @@ class RecordProcessor:
             _out["called_by"] = self.clean_antistasi_function_name(called_by)
             _out["message"] = (_rest + _other_rest).lstrip()
         else:
-            _out["message"] = rest.lstrip()
+            _out["message"] = rest.strip()
+        if _out["message"].startswith('"') and _out["message"].endswith('"'):
+            _out["message"] = _out["message"].strip('"').strip()
         raw_record.parsed_data = _out
         if raw_record.parsed_data.get('logged_from') is None:
             log.info(_out)
         return raw_record
 
-    @profile
     def _determine_record_class(self, raw_record: "RawRecord") -> "RecordClass":
         record_class = self.record_class_manager.determine_record_class(raw_record)
         return record_class
 
-    @profile
     def _convert_raw_record_foreign_keys(self, parsed_data: Optional[dict[str, Any]], utc_offset: tzoffset) -> Optional[dict[str, Any]]:
 
         def _get_or_create_antistasi_file(raw_name: str) -> AntstasiFunction:
@@ -298,7 +297,6 @@ class RecordProcessor:
 
         return parsed_data
 
-    @profile
     def __call__(self, raw_record: "RawRecord", utc_offset: timezone) -> "RawRecord":
 
         if raw_record.is_antistasi_record is True:
@@ -312,6 +310,7 @@ class RecordProcessor:
         raw_record.parsed_data = self._convert_raw_record_foreign_keys(parsed_data=raw_record.parsed_data, utc_offset=utc_offset)
 
         return raw_record
+
 
         # region[Main_Exec]
 if __name__ == '__main__':

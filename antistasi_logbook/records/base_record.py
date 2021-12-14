@@ -54,9 +54,11 @@ from importlib.machinery import SourceFileLoader
 from antistasi_logbook.records.abstract_record import AbstractRecord, RecordFamily, MessageFormat
 from antistasi_logbook.records.enums import LogLevelEnum, PunishmentActionEnum
 from gidapptools.general_helper.color.color_item import RGBColor, Color
-
+import attr
 try:
     from PySide6.QtGui import QColor, QFont, QFontMetrics
+    from PySide6.QtCore import QSize
+
     PYSIDE6_AVAILABLE = True
 except ImportError:
     PYSIDE6_AVAILABLE = False
@@ -64,6 +66,7 @@ except ImportError:
 if TYPE_CHECKING:
     from antistasi_logbook.storage.models.models import LogFile, LogRecord, PunishmentAction, LogLevel, AntstasiFunction
     from antistasi_logbook.parsing.parser import RawRecord
+    from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 # endregion[Imports]
 
 # region [TODO]
@@ -77,89 +80,122 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 # endregion[Constants]
 
 
+@attr.s(slots=True, auto_attribs=True, auto_detect=True, frozen=True, weakref_slot=True)
+class LineNumberLocation:
+    start: int = attr.ib()
+    end: int = attr.ib()
+
+
+@attr.s(slots=True, auto_attribs=True, auto_detect=True, weakref_slot=True)
+class QtAttributes:
+    color: "QColor" = attr.ib(default=None)
+    message_size_hint: "QSize" = attr.ib(default=None)
+
+
+BASE_SLOTS = ["record_id",
+              "log_file",
+              "is_antistasi_record",
+              "line_number_location",
+              "message",
+              "recorded_at",
+              "log_level",
+              "marked",
+              "called_by",
+              "logged_from",
+              "qt_attributes"]
+
+
 class BaseRecord(AbstractRecord):
     ___record_family___ = RecordFamily.GENERIC | RecordFamily.ANTISTASI
     ___specificity___ = 0
-
-    __slots__ = ("log_record", "message_size_hint", "_color")
+    foreign_key_cache: "ForeignKeyCache" = None
+    __slots__ = tuple(BASE_SLOTS)
 
     def __init__(self,
-                 log_record: "LogRecord") -> None:
-        self.log_record = log_record
-        self.message_size_hint = None
-        self._color: RGBColor = None
+                 record_id: int,
+                 log_file: "LogFile",
+                 is_antistasi_record: bool,
+                 line_number_location: LineNumberLocation,
+                 message: str,
+                 recorded_at: datetime,
+                 log_level: "LogLevel",
+                 marked: bool,
+                 called_by: "AntstasiFunction" = None,
+                 logged_from: "AntstasiFunction" = None) -> None:
+        self.record_id = record_id
+        self.log_file = log_file
+        self.is_antistasi_record = is_antistasi_record
+        self.line_number_location = line_number_location
+        self.message = message
+        self.recorded_at = recorded_at
+        self.log_level = log_level
+        self.marked = marked
+        self.called_by = called_by
+        self.logged_from = logged_from
+        self.qt_attributes: QtAttributes = QtAttributes()
+
+    @cached_property
+    def pretty_recorded_at(self) -> str:
+        return self.log_file.format_datetime(self.recorded_at)
+
+    @cached_property
+    def pretty_log_level(self) -> str:
+        if self.log_level.name == "NO_LEVEL":
+            return None
+        return self.log_level
 
     @property
     def color(self) -> Optional[RGBColor]:
-        if self._color is None:
-            self._color = Color.get_color_by_name("LightGray").with_alpha(0.5).qcolor
-        return self._color
-
-    @cached_property
-    def start(self) -> int:
-        return self.log_record.start
-
-    @cached_property
-    def end(self) -> int:
-        return self.log_record.end
-
-    @cached_property
-    def log_level(self):
-        return self.log_record.log_level
-
-    @cached_property
-    def called_by(self):
-        return self.log_record.called_by
-
-    @cached_property
-    def logged_from(self):
-        return self.log_record.logged_from
-
-    @cached_property
-    def log_file(self):
-        return self.log_record.log_file
-
-    def mark(self) -> None:
-        self.log_record.marked = True
-        self.log_record.save()
+        if self.qt_attributes.color is None:
+            self.qt_attributes.color = Color.get_color_by_name("Gray").with_alpha(0.5).qcolor
+        return self.qt_attributes.color
 
     @property
-    def comments(self) -> Optional[str]:
-        return self.log_record.comments
+    def message_size_hint(self) -> "QSize":
+        return self.qt_attributes.message_size_hint
 
-    def add_comment(self, comment: str) -> None:
-        if self.log_record.comments is None:
-            self.log_record.comments = comment
-        else:
-            self.log_record.comments = self.log_record.comments + '\n' + comment
-        self.log_record.save()
+    @property
+    def start(self) -> int:
+        return self.line_number_location.start
+
+    @property
+    def end(self) -> int:
+        return self.line_number_location.end
+
+    @message_size_hint.setter
+    def message_size_hint(self, value: "QSize") -> None:
+        self.qt_attributes.message_size_hint = value
 
     def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
-        return self.log_record.message
-
-    def __getattr__(self, name: str) -> Any:
-        try:
-            _out = self.log_record.get_data(name)
-
-        except (KeyError, AttributeError):
-            _out = None
-        if _out is None:
-            _out = getattr(self.log_record, name)
-        return _out
+        return self.message
 
     @classmethod
     def check(cls, raw_record: "RawRecord") -> bool:
         return True
 
+    @classmethod
+    @profile
+    def from_model_dict(cls, model_dict: dict[str, Any], log_file: "LogFile" = None) -> "BaseRecord":
+
+        if log_file is not None:
+            model_dict['log_file'] = log_file
+        model_dict['record_id'] = model_dict.pop('id')
+        model_dict["line_number_location"] = LineNumberLocation(model_dict.pop('start'), model_dict.pop("end"))
+        model_dict['log_level'] = cls.foreign_key_cache.get_log_level_by_id(model_dict.pop('log_level'))
+        model_dict["called_by"] = cls.foreign_key_cache.get_antistasi_file_by_id(model_dict["called_by"])
+        model_dict["logged_from"] = cls.foreign_key_cache.get_antistasi_file_by_id(model_dict["logged_from"])
+        model_dict.pop("record_class")
+        return cls(**model_dict)
+
 
 # region[Main_Exec]
-
 
 if __name__ == '__main__':
     pass

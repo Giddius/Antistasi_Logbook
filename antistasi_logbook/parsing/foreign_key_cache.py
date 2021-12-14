@@ -81,16 +81,21 @@ class ForeignKeyCache:
     game_map_model_blocker = BlockingEvent()
     antistasi_file_model_blocker = BlockingEvent()
     _all_log_levels: dict[str, LogLevel] = None
+    _all_log_levels_by_id: dict[int, LogLevel] = None
+
     _all_antistasi_file_objects: dict[str, AntstasiFunction] = None
+    _all_antistasi_file_objects_by_id: dict[str, AntstasiFunction] = None
+
     _all_game_map_objects: dict[str, GameMap] = None
+    _all_game_map_objects_by_id: dict[str, GameMap] = None
 
     __slots__ = ("update_map", "database")
 
     def __init__(self, database: "GidSqliteApswDatabase") -> None:
         self.database = database
-        self.update_map = {AntstasiFunction: (self.antistasi_file_model_blocker, "_all_antistasi_file_objects"),
-                           GameMap: (self.game_map_model_blocker, "_all_game_map_objects"),
-                           LogLevel: (self.log_levels_blocker, "_all_log_levels")}
+        self.update_map = {AntstasiFunction: (self.antistasi_file_model_blocker, ("_all_antistasi_file_objects", "_all_antistasi_file_objects_by_id")),
+                           GameMap: (self.game_map_model_blocker, ("_all_game_map_objects", "_all_game_map_objects_by_id")),
+                           LogLevel: (self.log_levels_blocker, ("_all_log_levels", "_all_log_levels_by_id"))}
         self._register_signals()
 
     def _register_signals(self) -> None:
@@ -127,10 +132,55 @@ class ForeignKeyCache:
 
         return self.__class__._all_game_map_objects
 
+    @property
+    def all_log_levels_by_id(self) -> dict[str, LogLevel]:
+
+        if self.__class__._all_log_levels_by_id is None:
+            self.log_levels_blocker.wait()
+            self.__class__._all_log_levels_by_id = {log_level.id: log_level for log_level in self.database.get_all_log_levels()}
+
+        return self.__class__._all_log_levels_by_id
+
+    @property
+    def all_antistasi_file_objects_by_id(self) -> dict[str, AntstasiFunction]:
+
+        if self.__class__._all_antistasi_file_objects_by_id is None:
+            self.antistasi_file_model_blocker.wait()
+            self.__class__._all_antistasi_file_objects_by_id = {str(antistasi_file.id): antistasi_file for antistasi_file in self.database.get_all_antistasi_functions()}
+
+        return self.__class__._all_antistasi_file_objects_by_id
+
+    @property
+    def all_game_map_objects_by_id(self) -> dict[str, GameMap]:
+
+        if self.__class__._all_game_map_objects_by_id is None:
+            self.game_map_model_blocker.wait()
+            self.__class__._all_game_map_objects_by_id = {str(game_map.id): game_map for game_map in self.database.get_all_game_maps()}
+
+        return self.__class__._all_game_map_objects_by_id
+
+    def get_log_level_by_id(self, model_id: int) -> Optional[LogLevel]:
+        if model_id is None:
+            return None
+        return self.all_log_levels_by_id.get(model_id)
+
+    def get_antistasi_file_by_id(self, model_id: int) -> Optional[AntstasiFunction]:
+        if model_id is None:
+            return None
+        return self.all_antistasi_file_objects_by_id.get(str(model_id))
+
+    def get_game_map_by_id(self, model_id: int) -> Optional[GameMap]:
+        if model_id is None:
+            return None
+        return self.all_game_map_objects_by_id.get(str(model_id))
+
     def reset_all(self) -> None:
         self.__class__._all_log_levels = None
         self.__class__._all_antistasi_file_objects = None
         self.__class__._all_game_map_objects = None
+        self.__class__._all_log_levels_by_id = None
+        self.__class__._all_antistasi_file_objects_by_id = None
+        self.__class__._all_game_map_objects_by_id = None
         log.info("all cached foreign keys were reseted.")
 
     def on_save_handler(self, sender, instance, created):

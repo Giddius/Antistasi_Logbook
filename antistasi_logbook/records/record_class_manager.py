@@ -57,7 +57,7 @@ import attr
 if TYPE_CHECKING:
     from antistasi_logbook.records.abstract_record import AbstractRecord
     from antistasi_logbook.parsing.parser import RawRecord
-
+    from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 # endregion[Imports]
 
 # region [TODO]
@@ -91,10 +91,13 @@ class StoredRecordClass:
 
 class RecordClassManager:
     record_class_registry: dict[str, StoredRecordClass] = {}
+    record_class_registry_by_id: dict[str, StoredRecordClass] = {}
     generic_record_classes: SortedSet[StoredRecordClass] = SortedSet(key=lambda x: -x.concrete_class.___specificity___)
     antistasi_record_classes: SortedSet[StoredRecordClass] = SortedSet(key=lambda x: -x.concrete_class.___specificity___)
 
-    def __init__(self, default_record_class: RECORD_CLASS_TYPE = None) -> None:
+    def __init__(self, foreign_key_cache: "ForeignKeyCache", default_record_class: RECORD_CLASS_TYPE = None) -> None:
+        self.foreign_key_cache = foreign_key_cache
+        BaseRecord.foreign_key_cache = self.foreign_key_cache
         self._default_record_concrete_class = BaseRecord if default_record_class is None else default_record_class
         self._default_record_class: "StoredRecordClass" = None
 
@@ -121,6 +124,7 @@ class RecordClassManager:
             model.save()
         stored_item = StoredRecordClass(record_class, model)
         cls.record_class_registry[name] = stored_item
+        cls.record_class_registry_by_id[str(model.id)] = stored_item
         if RecordFamily.GENERIC in record_class.___record_family___:
             cls.generic_record_classes.add(stored_item)
         if RecordFamily.ANTISTASI in record_class.___record_family___:
@@ -129,7 +133,9 @@ class RecordClassManager:
     def get_by_name(self, name: str) -> RECORD_CLASS_TYPE:
         return self.record_class_registry.get(name, self.default_record_class).concrete_class
 
-    @profile
+    def get_by_id(self, model_id: int) -> RECORD_CLASS_TYPE:
+        return self.record_class_registry_by_id.get(str(model_id), self.default_record_class).concrete_class
+
     def determine_record_class(self, raw_record: "RawRecord") -> "RecordClass":
         record_classes = self.antistasi_record_classes if raw_record.is_antistasi_record is True else self.generic_record_classes
         for stored_class in record_classes:
@@ -140,6 +146,7 @@ class RecordClassManager:
     def reset(self) -> None:
         all_registered_classes = list(self.record_class_registry.values())
         self.record_class_registry.clear()
+        self.record_class_registry_by_id.clear()
         self.antistasi_record_classes.clear()
         self.generic_record_classes.clear()
         self._default_record_class = None

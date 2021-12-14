@@ -96,8 +96,9 @@ class LastUpdatedLabel(QLabel):
         super().__init__(parent=parent)
         self.status_bar = status_bar
         self.timer_id: int = None
-        self.refresh_interval: int = 1000 * 5
+        self.refresh_interval: int = 1000 * 10
         self.min_unit = "second"
+        self.last_triggered: datetime = None
         self.setup()
 
     def set_refresh_interval(self, new_interval: int) -> None:
@@ -115,6 +116,7 @@ class LastUpdatedLabel(QLabel):
         self.start_timer()
 
     def refresh_text(self) -> None:
+        log.debug("refreshing %s text", self)
         if self.last_update_finished_at is None:
             text = "Never Updated"
         else:
@@ -135,11 +137,19 @@ class LastUpdatedLabel(QLabel):
 
     def timerEvent(self, event: PySide6.QtCore.QTimerEvent) -> None:
         if event.timerId() == self.timer_id:
+            self.last_triggered = datetime.now(tz=UTC)
             self.refresh_text()
 
     def shutdown(self):
         if self.timer_id is not None:
             self.killTimer(self.timer_id)
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(status_bar={self.status_bar!r})"
+
+    def __str__(self) -> str:
+        last_triggered = f"last_triggered={self.last_triggered.strftime('%Y-%m-%d %H:%M:%S UTC')!r}" if self.last_triggered is not None else f"last_triggered={self.last_triggered!r}"
+        return f"{self.__class__.__name__}(interval={seconds2human(self.refresh_interval/1000)!r}, {last_triggered})"
 
 
 class LogbookStatusBar(QStatusBar):
