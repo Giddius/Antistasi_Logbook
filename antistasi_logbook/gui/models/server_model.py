@@ -102,6 +102,7 @@ class ServerModel(BaseQueryDataModel):
     def __init__(self, backend: "Backend", parent: Optional[QtCore.QObject] = None, show_local_files_server: bool = False) -> None:
         self.show_local_files_server = show_local_files_server
         super().__init__(backend, db_model=Server, parent=parent)
+        self.ordered_by = (-Server.update_enabled, Server.name, Server.id)
 
     @property
     def column_names_to_exclude(self) -> set[str]:
@@ -112,10 +113,10 @@ class ServerModel(BaseQueryDataModel):
         return self._column_ordering
 
     def get_query(self) -> "Query":
-        query = Server.select()
+        query = Server.select().join(RemoteStorage).switch(Server)
         if self.show_local_files_server is False:
             query = query.where(Server.remote_path != None)
-        return query.order_by(self.ordered_by)
+        return query.order_by(*self.ordered_by)
 
     def get_content(self) -> "BaseQueryDataModel":
         self.content_items = list(self.get_query().execute())

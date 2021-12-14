@@ -78,6 +78,10 @@ class BaseModel(Model):
         return cls._meta
 
     @property
+    def database(self) -> "GidSqliteApswDatabase":
+        return self._meta.database
+
+    @property
     def config(self) -> "GidIniConfig":
         return self._meta.database.config
 
@@ -456,17 +460,19 @@ class RecordClass(BaseModel):
 
 
 class LogRecord(BaseModel):
-    start = IntegerField(help_text="Start Line number of the Record", verbose_name="Start Line Number")
+    start = IntegerField(help_text="Start Line number of the Record", verbose_name="Start Line Number", index=True)
     end = IntegerField(help_text="End Line number of the Record", verbose_name="End Line Number")
     message = TextField(help_text="Message part of the Record", verbose_name="Message")
     recorded_at = BetterDateTimeField(index=True, verbose_name="Recorded at")
     called_by = ForeignKeyField(column_name='called_by', field='id', model=AntstasiFunction, backref="log_records_called_by", lazy_load=True, null=True, index=True, verbose_name="Called by")
     is_antistasi_record = BooleanField(default=False, index=True, verbose_name="Is Antistasi Record")
     logged_from = ForeignKeyField(column_name='logged_from', field='id', model=AntstasiFunction, backref="log_records_logged_from", lazy_load=True, null=True, index=True, verbose_name="Logged from")
-    log_file = ForeignKeyField(column_name='log_file', field='id', model=LogFile, lazy_load=True, backref="log_records", null=False, verbose_name="Log-File")
+    log_file = ForeignKeyField(column_name='log_file', field='id', model=LogFile, lazy_load=True, backref="log_records", null=False, verbose_name="Log-File", index=True)
     log_level = ForeignKeyField(column_name='log_level', default=0, field='id', model=LogLevel, null=True, lazy_load=True, index=True, verbose_name="Log-Level")
     record_class = ForeignKeyField(column_name='record_class', field='id', model=RecordClass, lazy_load=True, index=True, verbose_name="Record Class")
     marked = BooleanField(default=False, index=True, help_text=MARKED_HELP_TEXT, verbose_name="Marked")
+    ___has_multiline_message___: bool = False
+    message_size_hint = None
 
     class Meta:
         table_name = 'LogRecord'
@@ -475,15 +481,20 @@ class LogRecord(BaseModel):
         )
 
     @cached_property
+    def pretty_log_level(self) -> str:
+        if self.log_level.name == "NO_LEVEL":
+            return None
+        return self.log_level
+
+    @cached_property
     def pretty_recorded_at(self) -> str:
         return self.format_datetime(self.recorded_at)
 
     def to_record_class(self) -> "RECORD_CLASS_TYPE":
 
-        if self.record_class.name.casefold() == "baserecord":
-            return self
+        # if self.record_class_id == self.database.base_record_id:
+        #     return self
         return self.record_class.record_class(self)
-
 
     def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
         return self.message

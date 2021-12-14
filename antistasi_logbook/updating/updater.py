@@ -57,8 +57,9 @@ from threading import Event, Lock, RLock, Condition
 from antistasi_logbook.utilities.locks import WRITE_LOCK
 from gidapptools.gid_signal.interface import get_signal
 from antistasi_logbook.updating.remote_managers import remote_manager_registry
-from PySide6.QtCore import Signal, SignalInstance, QObject
+
 if TYPE_CHECKING:
+    from antistasi_logbook.gui.misc import UpdaterSignaler
     from gidapptools.gid_config.interface import GidIniConfig
     from antistasi_logbook.updating.info_item import InfoItem
     from antistasi_logbook.parsing.parsing_context import LogParsingContext
@@ -84,16 +85,6 @@ log = get_logger(__name__)
 # endregion[Constants]
 
 
-class UpdaterSignaler(QObject):
-    update_started = Signal(bool)
-    update_finished = Signal(bool)
-    update_info = Signal(int, str)
-    update_increment = Signal()
-
-    def increment_update(self):
-        self.update_increment.emit()
-
-
 class Updater:
     """
     Class to run updates of log_files from the remote drive.
@@ -103,8 +94,7 @@ class Updater:
     thread_prefix: str = "updating_threads"
     new_log_file_signal = get_signal("new_log_file")
     updated_log_file_signal = get_signal("updated_log_file")
-    update_started_signal = Signal(bool)
-    update_finished_signal = Signal(bool)
+
     is_updating_event: Event = Event()
 
     __slots__ = ("config", "parsing_context_factory", "database", "parser", "stop_event", "pause_event", "thread_pool", "_to_close_contexts", "signaler")
@@ -117,7 +107,7 @@ class Updater:
                  stop_event: Event,
                  pause_event: Event,
                  thread_pool_class: type["ThreadPoolExecutor"] = None,
-                 signaler: "QObject" = None) -> None:
+                 signaler: "UpdaterSignaler" = None) -> None:
         self.config = config
         self.parsing_context_factory = parsing_context_factory
         self.database = database
@@ -126,7 +116,7 @@ class Updater:
         self.pause_event = pause_event
         self.thread_pool = ThreadPoolExecutor(self.max_threads, thread_name_prefix=self.thread_prefix) if thread_pool_class is None else thread_pool_class(self.max_threads, thread_name_prefix=self.thread_prefix)
         self._to_close_contexts = queue.Queue()
-        self.signaler = UpdaterSignaler() if signaler is None else signaler
+        self.signaler = signaler
 
     @property
     def max_threads(self) -> int:
@@ -261,11 +251,12 @@ class Updater:
                         break
                     context.insert_record(processed_record)
                 context._dump_rest()
-                self.signaler.increment_update()
+
+                self.signaler.send_update_increment()
                 return context
         tasks = []
         to_update_log_files = self._get_updated_log_files(server=server)
-        self.signaler.update_info.emit(len(to_update_log_files) * 2, server.name)
+        self.signaler.send_update_info(len(to_update_log_files) * 2, server.name)
         for log_file in to_update_log_files:
             if self.stop_event.is_set() is False:
                 sub_task = self.thread_pool.submit(_do, _log_file=log_file)
@@ -280,15 +271,15 @@ class Updater:
             log.debug("waiting on %r to close", ctx)
             ctx.__exit__()
             self._to_close_contexts.task_done()
-            self.signaler.increment_update()
+            self.signaler.send_update_increment()
 
     def before_updates(self):
         log.debug("emiting before_updates_signal")
-        self.signaler.update_started.emit(True)
+        self.signaler.send_update_started()
 
     def after_updates(self):
         log.debug("emiting after_updates_signal")
-        self.signaler.update_finished.emit(False)
+        self.signaler.send_update_finished()
         remote_manager_registry.close()
 
     def update(self) -> None:

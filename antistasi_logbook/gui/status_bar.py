@@ -137,6 +137,10 @@ class LastUpdatedLabel(QLabel):
         if event.timerId() == self.timer_id:
             self.refresh_text()
 
+    def shutdown(self):
+        if self.timer_id is not None:
+            self.killTimer(self.timer_id)
+
 
 class LogbookStatusBar(QStatusBar):
 

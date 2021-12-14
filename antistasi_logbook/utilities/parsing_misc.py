@@ -50,10 +50,8 @@ from urllib.parse import urlparse
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
-from antistasi_logbook.records.enums import RecordFamily, MessageFormat
-if TYPE_CHECKING:
-    from antistasi_logbook.parsing.parser import RawRecord
-    from antistasi_logbook.storage.models.models import LogRecord
+import pyparsing as pp
+from pyparsing import pyparsing_common as ppc
 # endregion[Imports]
 
 # region [TODO]
@@ -72,29 +70,35 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 # endregion[Constants]
 
+# Array parsing Grammar
 
-class AbstractRecord(ABC):
-    ___record_family___: RecordFamily = ...
-    ___specificity___: int = ...
-    ___has_multiline_message___: bool = False
+colon = pp.Suppress(',')
+sqb_open = pp.Suppress('[')
+sqb_close = pp.Suppress(']')
+quote = pp.Suppress('"')
+keywords = pp.Keyword("EAST") | pp.Keyword("WEST")
+items = pp.Forward()
+content = pp.Group(pp.ZeroOrMore(items + pp.Optional(colon)))
+array = sqb_open + content + sqb_close
+string = quote + pp.OneOrMore(pp.Word(pp.printables.replace('"', ''))) + quote
+number = ppc.number
+items <<= string | keywords | array | number
 
-    @classmethod
-    @abstractmethod
-    def check(cls, raw_record: "RawRecord") -> bool:
-        ...
 
-    @abstractmethod
-    def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
-        return self.message
-
-    @cached_property
-    def pretty_message(self) -> str:
-        return self.get_formated_message(MessageFormat.PRETTY)
+def parse_text_array(in_text: str) -> list[list[Any]]:
+    return array.parse_string(in_text, parse_all=True).as_list()[0]
 
 # region[Main_Exec]
 
 
 if __name__ == '__main__':
-    pass
-
+    x = """[
+        ["LAND_LIGHT",-1,"GROUP"]
+["LAND_LIGHT",-1,"GROUP"]
+["LAND_DEFAULT",0,"EMPTY"]
+["HELI_TRANSPORT",-1,"SQUAD"]
+["HELI_TRANSPORT",0,"EMPTY"]
+["LAND_LIGHT",-1,"SQUAD"]
+]"""
+    pprint(parse_text_array(x))
 # endregion[Main_Exec]

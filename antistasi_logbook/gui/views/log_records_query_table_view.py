@@ -50,10 +50,21 @@ from urllib.parse import urlparse
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
-from antistasi_logbook.records.enums import RecordFamily, MessageFormat
+
+
+import PySide6
+from PySide6 import QtCore, QtGui, QtWidgets
+from PySide6.QtCore import (QCoreApplication, QDate, QDateTime, QLocale, QMetaObject, QObject, QPoint, QRect, QSize, QTime, QUrl, Qt, QModelRoleData,
+                            QAbstractTableModel, QAbstractItemModel, QAbstractListModel, QEvent, QModelIndex, Signal, Slot)
+from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QGradient, QIcon, QImage, QKeySequence,
+                           QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform, QCloseEvent)
+from PySide6.QtWidgets import (QApplication, QGridLayout, QMainWindow, QMenu, QMenuBar, QSizePolicy, QStatusBar, QWidget, QPushButton, QFrame, QFormLayout, QLabel, QProgressBar, QProgressDialog,
+                               QBoxLayout, QHBoxLayout, QVBoxLayout, QSizePolicy, QMessageBox, QHeaderView, QLayout, QGroupBox, QDockWidget, QTabWidget, QSystemTrayIcon, QTableView, QListView, QTreeView, QColumnView)
+from threading import Lock
+from gidapptools import get_logger
 if TYPE_CHECKING:
-    from antistasi_logbook.parsing.parser import RawRecord
-    from antistasi_logbook.storage.models.models import LogRecord
+    from antistasi_logbook.gui.models.log_records_model import LogRecordsModel
+    from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow
 # endregion[Imports]
 
 # region [TODO]
@@ -69,30 +80,27 @@ if TYPE_CHECKING:
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
-
+log = get_logger(__name__)
 # endregion[Constants]
 
 
-class AbstractRecord(ABC):
-    ___record_family___: RecordFamily = ...
-    ___specificity___: int = ...
-    ___has_multiline_message___: bool = False
+class LogRecordsQueryTreeView(QTreeView):
 
-    @classmethod
-    @abstractmethod
-    def check(cls, raw_record: "RawRecord") -> bool:
-        ...
+    def __init__(self, main_window: "AntistasiLogbookMainWindow", parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
+        super().__init__(parent=parent)
+        self.resize_lock = Lock()
+        self.main_window = main_window
+        self.setUniformRowHeights(False)
 
-    @abstractmethod
-    def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
-        return self.message
+    def setModel(self, model: "LogRecordsModel") -> None:
 
-    @cached_property
-    def pretty_message(self) -> str:
-        return self.get_formated_message(MessageFormat.PRETTY)
+        super().setModel(model)
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}"
+
 
 # region[Main_Exec]
-
 
 if __name__ == '__main__':
     pass

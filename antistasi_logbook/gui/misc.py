@@ -50,10 +50,15 @@ from urllib.parse import urlparse
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
-from antistasi_logbook.records.enums import RecordFamily, MessageFormat
-if TYPE_CHECKING:
-    from antistasi_logbook.parsing.parser import RawRecord
-    from antistasi_logbook.storage.models.models import LogRecord
+
+import PySide6
+from PySide6 import QtCore, QtGui, QtWidgets
+from PySide6.QtCore import (QCoreApplication, QDate, QDateTime, QLocale, QMetaObject, QObject, QPoint, QRect, QSize, QTime, QUrl, Qt, QModelRoleData,
+                            QAbstractTableModel, QAbstractItemModel, QAbstractListModel, QEvent, QModelIndex, Signal, Slot)
+from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QGradient, QIcon, QImage, QKeySequence,
+                           QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform, QCloseEvent)
+from PySide6.QtWidgets import (QApplication, QGridLayout, QMainWindow, QMenu, QMenuBar, QSizePolicy, QStatusBar, QWidget, QPushButton, QFrame, QFormLayout, QLabel, QProgressBar, QProgressDialog,
+                               QBoxLayout, QHBoxLayout, QVBoxLayout, QSizePolicy, QMessageBox, QLayout, QGroupBox, QDockWidget, QTabWidget, QSystemTrayIcon, QTableView, QListView, QTreeView, QColumnView)
 # endregion[Imports]
 
 # region [TODO]
@@ -73,26 +78,26 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 # endregion[Constants]
 
 
-class AbstractRecord(ABC):
-    ___record_family___: RecordFamily = ...
-    ___specificity___: int = ...
-    ___has_multiline_message___: bool = False
+class UpdaterSignaler(QObject):
+    update_started = Signal(bool)
+    update_finished = Signal(bool)
+    update_info = Signal(int, str)
+    update_increment = Signal()
 
-    @classmethod
-    @abstractmethod
-    def check(cls, raw_record: "RawRecord") -> bool:
-        ...
+    def send_update_increment(self):
+        self.update_increment.emit()
 
-    @abstractmethod
-    def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
-        return self.message
+    def send_update_started(self):
+        self.update_started.emit(True)
 
-    @cached_property
-    def pretty_message(self) -> str:
-        return self.get_formated_message(MessageFormat.PRETTY)
+    def send_update_finished(self):
+        self.update_finished.emit(False)
+
+    def send_update_info(self, amount, name):
+        self.update_info.emit(amount, name)
+
 
 # region[Main_Exec]
-
 
 if __name__ == '__main__':
     pass

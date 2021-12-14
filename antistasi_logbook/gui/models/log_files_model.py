@@ -103,8 +103,7 @@ class LogFilesModel(BaseQueryDataModel):
     def __init__(self, backend: "Backend", parent: Optional[QtCore.QObject] = None, show_unparsable: bool = False) -> None:
         self.show_unparsable = show_unparsable
         super().__init__(backend, LogFile, parent=parent)
-        self.ordered_by = LogFile.server
-        self.extra_ordered_by = -LogFile.modified_at
+        self.ordered_by = (-LogFile.modified_at, LogFile.server)
 
     @property
     def column_names_to_exclude(self) -> set[str]:
@@ -130,10 +129,10 @@ class LogFilesModel(BaseQueryDataModel):
             return super().on_display_data_bool(role=role, item=item, column=column, value=value)
 
     def get_query(self) -> "Query":
-        query = LogFile.select()
+        query = LogFile.select().join(GameMap).switch(LogFile).join(Server).switch(LogFile)
         if self.show_unparsable is False:
             query = query.where(LogFile.unparsable != True)
-        return query.order_by(self.ordered_by).order_by_extend(self.extra_ordered_by)
+        return query.order_by(*self.ordered_by)
 
     def get_content(self) -> "BaseQueryDataModel":
 

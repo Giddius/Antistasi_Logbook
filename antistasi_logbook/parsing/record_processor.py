@@ -218,7 +218,7 @@ class RecordProcessor:
         if not match:
             return None
 
-        _out = {"message": match.group("message")}
+        _out = {"message": match.group("message").lstrip()}
 
         _out["local_recorded_at"] = datetime(year=int(match.group("year")),
                                              month=int(match.group("month")),

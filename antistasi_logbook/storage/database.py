@@ -19,6 +19,7 @@ import shelve
 import dataclasses
 import shutil
 import asyncio
+from weakref import WeakSet
 import logging
 import sqlite3
 import platform
@@ -66,6 +67,7 @@ from antistasi_logbook.updating.remote_managers import AbstractRemoteStorageMana
 from antistasi_logbook.utilities.misc import NoThreadPoolExecutor, Version
 from rich.console import Console as RichConsole
 import threading
+from apsw import Connection
 from playhouse.apsw_ext import APSWDatabase
 from rich import inspect as rinspect
 from dateutil.tz import UTC
@@ -140,6 +142,7 @@ class GidSqliteDatabase(Protocol):
 
 
 class GidSqliteApswDatabase(APSWDatabase):
+    all_connections: WeakSet[Connection] = WeakSet()
     default_extensions = {"json_contains": True,
                           "regexp_function": False}
 
@@ -167,6 +170,14 @@ class GidSqliteApswDatabase(APSWDatabase):
     @property
     def default_backup_folder(self) -> Path:
         return self.database_path.parent.joinpath("backups")
+
+    @cached_property
+    def base_record_id(self) -> int:
+        return RecordClass.select().where(RecordClass.name == "BaseRecord").scalar()
+
+    def _add_conn_hooks(self, conn):
+        super()._add_conn_hooks(conn)
+        self.all_connections.add(conn)
 
     def _pre_start_up(self, overwrite: bool = False) -> None:
         self.database_path.parent.mkdir(exist_ok=True, parents=True)
@@ -212,8 +223,9 @@ class GidSqliteApswDatabase(APSWDatabase):
         log.debug("shutting down %r", self)
         self.session_meta_data.save()
 
-        self.close()
-
+        is_closed = self.close()
+        for conn in self.all_connections:
+            conn.close(True)
         if self.auto_backup is True and error is None:
             # self.backup(backup_folder=backup_folder)
             log.warning("'backup-method' is not written!")

@@ -58,7 +58,7 @@ from PySide6.QtCore import (QCoreApplication, QDate, QDateTime, QLocale, QMetaOb
 from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QGradient, QIcon, QImage, QKeySequence,
                            QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform, QCloseEvent)
 from PySide6.QtWidgets import (QApplication, QGridLayout, QMainWindow, QMenu, QMenuBar, QSizePolicy, QStatusBar, QWidget, QPushButton, QFrame, QFormLayout, QHeaderView, QLabel, QProgressBar, QProgressDialog,
-                               QBoxLayout, QHBoxLayout, QVBoxLayout, QSizePolicy, QMessageBox, QLayout, QGroupBox, QDockWidget, QTabWidget, QSystemTrayIcon, QTableView, QListView, QTreeView, QColumnView)
+                               QBoxLayout, QHBoxLayout, QVBoxLayout, QSizePolicy, QMessageBox, QLayout, QAbstractScrollArea, QGroupBox, QDockWidget, QTabWidget, QSystemTrayIcon, QTableView, QListView, QTreeView, QColumnView)
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 # endregion[Imports]
 
@@ -91,24 +91,44 @@ class BaseQueryTreeView(QTreeView):
         return self.header()
 
     def setup(self) -> "BaseQueryTreeView":
-
+        self.header_view.setStretchLastSection(False)
+        self.header_view.setSizeAdjustPolicy(QAbstractScrollArea.SizeAdjustPolicy.AdjustToContents)
+        self.header_view.setSectionResizeMode(QHeaderView.ResizeToContents)
         # self.header_view.setCascadingSectionResizes(F)
         self.setSortingEnabled(True)
         self.setTextElideMode(Qt.ElideNone)
         self.setWordWrap(False)
+        self.setAlternatingRowColors(True)
+        self.setSizeAdjustPolicy(QAbstractScrollArea.SizeAdjustPolicy.AdjustToContents)
 
         return self
 
     def adjustSize(self) -> None:
-
-        self.setAlternatingRowColors(True)
-        self.header_view.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.SizeAdjustPolicy.AdjustToContents)
-        self.header_view.setSectionResizeMode(QtWidgets.QHeaderView.ResizeToContents)
         self.header_view.setStretchLastSection(False)
-        self.header_view.resizeSections()
+        self.header_view.setSizeAdjustPolicy(QAbstractScrollArea.SizeAdjustPolicy.AdjustToContents)
+        self.header_view.setSectionResizeMode(QHeaderView.ResizeToContents)
+
         self.header_view.adjustSize()
+        self.header_view.resizeSections()
+        self.header_view.setSectionResizeMode(QHeaderView.Interactive)
         super().adjustSize()
-        self.header_view.setSectionResizeMode(QtWidgets.QHeaderView.Interactive)
+
+    def setModel(self, model: PySide6.QtCore.QAbstractItemModel) -> None:
+        super().setModel(model)
+
+    def reset(self) -> None:
+        log.debug("reseting %s", self)
+        return super().reset()
+
+    def event(self, event: QtCore.QEvent) -> bool:
+        # log.debug("%s received event %r", self, event.type().name)
+        return super().event(event)
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(name={self.name!r}, icon={self.icon}, model={self.model()!r})"
+
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__}(name={self.name!r})"
 
 
 class ServerQueryTreeView(BaseQueryTreeView):

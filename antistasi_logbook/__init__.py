@@ -10,7 +10,7 @@ from rich.console import Console as RichConsole
 import atexit
 import os
 
-log = get_main_logger("__main__", Path(__file__).resolve())
+log = get_main_logger("__main__", Path(__file__).resolve(), extra_logger=["peewee"])
 
 ERROR_CONSOLE = RichConsole(soft_wrap=True, record=True, width=150)
 

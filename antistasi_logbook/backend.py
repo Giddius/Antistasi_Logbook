@@ -77,7 +77,7 @@ from antistasi_logbook.utilities.locks import FILE_LOCKS
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
     from gidapptools.gid_signal.signals import abstract_signal
-
+    from antistasi_logbook.gui.misc import UpdaterSignaler
 
 # endregion[Imports]
 
@@ -133,6 +133,21 @@ class Signals:
     update_started: "abstract_signal" = get_signal("update_started")
 
 
+class NoneSignaler:
+
+    def send_update_started(self):
+        pass
+
+    def send_update_finished(self):
+        pass
+
+    def send_update_increment(self):
+        pass
+
+    def send_update_info(self, amount, name):
+        pass
+
+
 class Backend:
 
     """
@@ -148,19 +163,20 @@ class Backend:
     """
     all_parsing_context: WeakSet["LogParsingContext"] = WeakSet()
 
-    def __init__(self, database: "GidSqliteApswDatabase", config: "GidIniConfig") -> None:
+    def __init__(self, database: "GidSqliteApswDatabase", config: "GidIniConfig", update_signaler: "UpdaterSignaler" = NoneSignaler()) -> None:
         self.events = Events()
         self.locks = Locks()
         self.signals = Signals()
         self.config = config
         self.database = database
+        self.update_signaler = update_signaler
         self.foreign_key_cache = self.database.foreign_key_cache
         self.record_class_manager = RecordClassManager()
         self.time_clock = TimeClock(config=self.config, stop_event=self.events.stop)
         self.remote_manager_registry = remote_manager_registry
         self.record_processor = RecordProcessor(regex_keeper=SimpleRegexKeeper(), record_class_manager=self.record_class_manager, foreign_key_cache=self.foreign_key_cache)
         self.parser = Parser(record_processor=self.record_processor, regex_keeper=SimpleRegexKeeper(), stop_event=self.events.stop)
-        self.updater = Updater(config=self.config, parsing_context_factory=self.get_parsing_context, parser=self.parser, stop_event=self.events.stop, pause_event=self.events.pause, database=self.database)
+        self.updater = Updater(config=self.config, parsing_context_factory=self.get_parsing_context, parser=self.parser, stop_event=self.events.stop, pause_event=self.events.pause, database=self.database, signaler=self.update_signaler)
         self.records_inserter = RecordInserter(config=self.config, database=self.database)
         # thread
         self.update_manager: UpdateManager = None
@@ -245,15 +261,15 @@ class Backend:
 
     def remove_and_reset_database(self) -> None:
         self.shutdown()
-
         self.events.stop.clear()
         FILE_LOCKS.reset()
 
         self.parser = Parser(record_processor=self.record_processor, regex_keeper=SimpleRegexKeeper(), stop_event=self.events.stop)
-        self.updater = Updater(config=self.config, parsing_context_factory=self.get_parsing_context, parser=self.parser, stop_event=self.events.stop, pause_event=self.events.pause, database=self.database)
+        self.updater = Updater(config=self.config, parsing_context_factory=self.get_parsing_context, parser=self.parser, stop_event=self.events.stop, pause_event=self.events.pause, database=self.database, signaler=self.update_signaler)
         self.records_inserter = RecordInserter(config=self.config, database=self.database)
         self.update_manager: UpdateManager = None
         self.foreign_key_cache.reset_all()
+
         self.start_up(True)
         self.record_class_manager.reset()
 

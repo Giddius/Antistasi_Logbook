@@ -62,6 +62,7 @@ from PySide6.QtWidgets import (QApplication, QGridLayout, QMainWindow, QMenu, QM
                                QBoxLayout, QHBoxLayout, QVBoxLayout, QSizePolicy, QMessageBox, QLayout, QGroupBox, QDockWidget, QTabWidget, QSystemTrayIcon, QTableView, QListView, QTreeView, QColumnView)
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 from antistasi_logbook.storage.models.models import BaseModel
+from threading import Event
 if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend
 
@@ -145,7 +146,7 @@ class BaseQueryDataModel(QAbstractTableModel):
         self._column_ordering: dict[str, int] = self.default_column_ordering.copy()
 
         self.db_model = db_model
-        self.ordered_by = self.db_model.id
+        self.ordered_by = (self.db_model.id,)
         self.content_items: list[Union["BaseModel", "AbstractRecord"]] = None
         self.columns: tuple[Field] = None
         self.generator_refresh_chunk_size: int = 250
@@ -256,13 +257,14 @@ class BaseQueryDataModel(QAbstractTableModel):
         pass
 
     def _get_decoration_data(self, index: INDEX_TYPE) -> Any:
-        item = self.content_items[index.row()]
-        column = self.columns[index.column()]
-        data = getattr(item, column.name)
-        if data is None:
-            return self.on_display_data_none(role=Qt.DecorationRole, item=item, column=column)
-        if isinstance(data, bool):
-            return self.on_display_data_bool(role=Qt.DecorationRole, item=item, column=column, value=data)
+        pass
+        # item = self.content_items[index.row()]
+        # column = self.columns[index.column()]
+        # data = getattr(item, column.name)
+        # if data is None:
+        #     return self.on_display_data_none(role=Qt.DecorationRole, item=item, column=column)
+        # if isinstance(data, bool):
+        #     return self.on_display_data_bool(role=Qt.DecorationRole, item=item, column=column, value=data)
 
     def _get_status_tip_data(self, index: INDEX_TYPE) -> Any:
         pass
@@ -374,8 +376,10 @@ class BaseQueryDataModel(QAbstractTableModel):
         return value
 
     def sort(self, column: int, order: PySide6.QtCore.Qt.SortOrder = ...) -> None:
+        self.layoutAboutToBeChanged.emit()
         if self.columns is None or self.content_items is None:
             return
+
         try:
             _column = self.columns[column]
         except IndexError:
@@ -390,34 +394,50 @@ class BaseQueryDataModel(QAbstractTableModel):
         if as_reversed is True:
             new_content = list(reversed(new_content))
         self.content_items = new_content
-        self.modelReset.emit()
+        self.layoutChanged.emit()
+
+    def event(self, event: PySide6.QtCore.QEvent) -> bool:
+        # log.debug("%s received event %r", self, event.type().name)
+        return super().event(event)
 
     def refresh(self) -> "BaseQueryDataModel":
+        self.beginResetModel()
         self.get_content().get_columns()
 
-        self.modelReset.emit()
+        self.endResetModel()
+        self.parent().resizeColumnToContents([i for i, col in enumerate(self.columns) if col.name == "message"][0])
+
         return self
 
-    def generator_refresh(self):
+    def generator_refresh(self, abort_signal: Event = None) -> tuple["BaseQueryDataModel", Event]:
+        self.layoutAboutToBeChanged.emit()
         self.get_columns()
         idx_queue = queue.Queue(self.generator_refresh_chunk_size)
-        self.layoutAboutToBeChanged.emit()
+        if abort_signal is not None and abort_signal.is_set() is True:
+            return self, abort_signal
 
         if self.content_items is None:
             self.content_items = []
         else:
             self.content_items.clear()
 
-        for idx, item in enumerate(self.get_query().execute()):
-            self.content_items.append(item)
-            try:
-                idx_queue.put_nowait(idx)
-            except queue.Full:
-                self.layoutChanged.emit()
-                with idx_queue.mutex:
-                    idx_queue.queue.clear()
-        self.modelReset.emit()
+        for idx, item in enumerate(self.get_query().iterator()):
+            if abort_signal is None or abort_signal.is_set() is False:
+                self.content_items.append(item)
+                try:
+                    idx_queue.put_nowait(idx)
+                except queue.Full:
+                    self.layoutChanged.emit()
 
+                    with idx_queue.mutex:
+                        idx_queue.queue.clear()
+        if abort_signal is None or abort_signal.is_set() is False:
+            self.modelReset.emit()
+
+        return self, abort_signal
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(backend={self.backend!r}, db_model={self.db_model!r}, parent={self.parent!r})"
 # region[Main_Exec]
 
 
