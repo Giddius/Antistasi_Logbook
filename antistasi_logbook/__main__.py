@@ -134,7 +134,9 @@ def install_apsw():
     apsw_path = THIS_FILE_DIR.joinpath("utilities").joinpath("apsw-3.36.0-cp39-cp39-win_amd64.whl")
     cmd = f"pip install {str(apsw_path)}"
     import subprocess
-    subprocess.run(cmd, check=True)
+    _cmd = subprocess.run(cmd, check=True, text=True)
+    if _cmd.stderr:
+        click.echo(_cmd.stderr)
 
 
 # region[Main_Exec]
