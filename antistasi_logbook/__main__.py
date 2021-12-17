@@ -131,8 +131,5 @@ def gui(login, password):
 
 # region[Main_Exec]
 if __name__ == '__main__':
-    # if getattr(sys, 'frozen', False):
-    #     cli(sys.argv[1:])
-    load_dotenv(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\tests\data\nextcloud.env")
-    debug_update(login=os.getenv("NEXTCLOUD_USERNAME"), password=os.getenv("NEXTCLOUD_PASSWORD"))
+    pass
 # endregion[Main_Exec]
