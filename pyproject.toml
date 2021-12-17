@@ -30,7 +30,7 @@ dependencies = [
     "colorhash==1.0.4",
     "qdarkstyle",
     "pyparsing>=3.0.6",
-    "apsw"
+    "apsw-wheels"
 ]
 
 [project.urls]
