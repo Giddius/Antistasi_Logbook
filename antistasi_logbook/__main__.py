@@ -122,11 +122,19 @@ def debug_update(login, password):
         backend.shutdown()
 
 
-@cli.command(help="Runs a single update of all enabled Server without starting the GUI.")
+@cli.command(help="starts the GUI")
 @click.option('--login', '-l', default=None)
 @click.option('--password', '-p', default=None)
 def gui(login, password):
     start_gui(login, password)
+
+
+@cli.command(help="Installs APSW")
+def install_apsw():
+    apsw_path = THIS_FILE_DIR.joinpath("utilities").joinpath("apsw-3.36.0-cp39-cp39-win_amd64.whl")
+    cmd = f"pip install {str(apsw_path)}"
+    import subprocess
+    subprocess.run(cmd, check=True)
 
 
 # region[Main_Exec]
