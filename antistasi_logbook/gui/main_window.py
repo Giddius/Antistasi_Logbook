@@ -55,12 +55,12 @@ from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
 from gidapptools import get_logger, get_meta_config, get_meta_info, get_meta_paths
 import PySide6
-# from __feature__ import true_property
+
 from PySide6.QtCore import QCoreApplication, QDate, QDateTime, QLocale, QMetaObject, QObject, QPoint, QRect, QSize, QTime, QByteArray, QUrl, Qt, QEvent, QSettings, QThread, QThreadPool, QRunnable, Signal, Slot
 from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QGradient, QIcon, QImage, QKeySequence,
                            QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform, QCloseEvent)
 from PySide6.QtWidgets import QSystemTrayIcon, QApplication, QGridLayout, QMainWindow, QMenu, QMessageBox, QMenuBar, QSizePolicy, QStatusBar, QWidget, QPushButton, QBoxLayout, QHBoxLayout, QVBoxLayout, QSizePolicy, QLayout
-
+from antistasi_logbook.gui.resources.style_sheets import STYLE_SHEET_DIR, ALL_STYLE_SHEETS, get_style_sheet_data
 from threading import Thread, Event
 from PySide6 import QtCore, QtGui
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
@@ -74,9 +74,12 @@ from antistasi_logbook.backend import Backend, GidSqliteApswDatabase
 from antistasi_logbook.storage.models.models import RemoteStorage, Server, LogRecord
 from antistasi_logbook.gui.status_bar import LogbookStatusBar
 from antistasi_logbook.gui.misc import UpdaterSignaler
+from antistasi_logbook.gui.settings_window import SettingsWindow
+
 import pp
 import atexit
 from weakref import WeakSet
+
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
 
@@ -99,6 +102,7 @@ log = get_logger(__name__)
 META_CONFIG = get_meta_config()
 META_PATHS = get_meta_paths()
 META_INFO = get_meta_info()
+
 # endregion[Constants]
 
 
@@ -128,7 +132,8 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.main_widget: MainWidget = None
         self.menubar: QMenuBar = None
         self.statusbar: LogbookStatusBar = None
-        self.thread_pool = SignalCollectingThreadPool(5, thread_name_prefix='gui_update')
+
+        self._temp_settings_window: "SettingsWindow" = None
 
         self.sys_tray: "LogbookSystemTray" = None
         self.name: str = None
@@ -141,7 +146,18 @@ class AntistasiLogbookMainWindow(QMainWindow):
     def initial_size(self) -> list[int, int]:
         return self.config.get("main_window", "initial_size", default=[1600, 1000])
 
+    @property
+    def current_app_style(self) -> str:
+        return self.config.get("gui", "style")
+
+    def set_app_style_sheet(self, styleSheet: str) -> None:
+        data = get_style_sheet_data(styleSheet)
+        if data is None:
+            data = styleSheet
+        self.app.setStyleSheet(data)
+
     def setup(self) -> None:
+        self.set_app_style_sheet(self.current_app_style)
         settings = QSettings(f"{META_INFO.app_name}_settings", "main_window")
         self.name = StringCaseConverter.convert_to(META_INFO.app_name, StringCaseConverter.TITLE)
         self.title = f"{self.name} {META_INFO.version}"
@@ -168,6 +184,8 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.main_widget.setup_views()
         self.backend.updater.signaler.update_finished.connect(self.main_widget.server_tab.model().refresh)
         self.backend.updater.signaler.update_finished.connect(self.main_widget.log_files_tab.model().refresh)
+        self.backend.updater.signaler.update_finished.connect(self.statusbar.last_updated_label.refresh_text)
+        self.menubar.open_settings_window_action.triggered.connect(self.open_settings_window)
 
     def setup_backend(self) -> None:
         db_path = self.config.get('database', "database_path", default=None)
@@ -223,8 +241,9 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
         if reply == QMessageBox.Yes:
             log.info("closing %r", self)
-            self.thread_pool.shutdown(wait=True, cancel_futures=True)
+            log.debug("Starting shutting down %r", self.backend)
             self.backend.shutdown()
+            log.debug("Finished shutting down %r", self.backend)
             log.debug('%r accepting event %r', self, event.type().name)
             settings = QSettings(f"{META_INFO.app_name}_settings", "main_window")
             settings.setValue('geometry', self.saveGeometry())
@@ -232,23 +251,32 @@ class AntistasiLogbookMainWindow(QMainWindow):
         else:
             event.ignore()
 
+    @Slot()
+    def open_settings_window(self):
+        self._temp_settings_window = SettingsWindow(general_config=self.config, main_window=self).setup()
+        self._temp_settings_window.show()
+
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}"
 
-        # region[Main_Exec]
+
+def start_gui(nextcloud_username: str = None, nextcloud_password: str = None):
+    _app = QApplication(sys.argv)
+    _app.icon = AllResourceItems.placeholder.get_as_icon()
+    m = AntistasiLogbookMainWindow(_app, META_CONFIG.get_config('general'))
+    if nextcloud_username is not None and nextcloud_password is not None:
+        RemoteStorage.get(name="community_webdav").set_login_and_password(login=nextcloud_username, password=nextcloud_password, store_in_db=False)
+
+    m.show()
+    _app.exec()
+
+
+# region[Main_Exec]
 if __name__ == '__main__':
 
     import dotenv
     dotenv.load_dotenv(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\antistasi_logbook\nextcloud.env")
-    _app = QApplication(sys.argv)
-
-    _app.icon = AllResourceItems.placeholder.get_as_icon()
-    m = AntistasiLogbookMainWindow(_app, META_CONFIG.get_config('general'))
-
-    RemoteStorage.get(name="community_webdav").set_login_and_password(login=os.getenv("NEXTCLOUD_USERNAME"), password=os.getenv("NEXTCLOUD_PASSWORD"), store_in_db=False)
-
-    m.show()
-    _app.exec()
+    start_gui(os.getenv("NEXTCLOUD_USERNAME"), os.getenv("NEXTCLOUD_PASSWORD"))
 
 
 # endregion[Main_Exec]

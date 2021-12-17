@@ -64,6 +64,7 @@ from gidapptools.gid_signal.interface import get_signal
 import atexit
 from antistasi_logbook.storage.models.models import Server, RemoteStorage, database as database_proxy
 from antistasi_logbook.backend import Backend, GidSqliteApswDatabase
+from antistasi_logbook.gui.main_window import start_gui
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
 # endregion[Imports]
@@ -153,6 +154,13 @@ def debug_update(login, password):
         amount_updated = database.session_meta_data.new_log_files + database.session_meta_data.updated_log_files
         log.info(f"{amount_updated} log files were updated.")
         backend.shutdown()
+
+
+@cli.command(help="Runs a single update of all enabled Server without starting the GUI.")
+@click.option('--login', '-l', default=None)
+@click.option('--password', '-p', default=None)
+def gui(login, password):
+    start_gui(login, password)
 
 
 # region[Main_Exec]

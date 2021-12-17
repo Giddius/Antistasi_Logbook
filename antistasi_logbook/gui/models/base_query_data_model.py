@@ -219,6 +219,8 @@ class BaseQueryDataModel(QAbstractTableModel):
     def data(self, index: INDEX_TYPE, role: int = None) -> Any:
         if not index.isValid():
             return
+        if not 0 <= index.row() < len(self.content_items):
+            return None
         if role is not None:
             return self.data_role_table[role](index=index)
 
@@ -257,14 +259,14 @@ class BaseQueryDataModel(QAbstractTableModel):
         pass
 
     def _get_decoration_data(self, index: INDEX_TYPE) -> Any:
-        pass
-        # item = self.content_items[index.row()]
-        # column = self.columns[index.column()]
-        # data = getattr(item, column.name)
-        # if data is None:
-        #     return self.on_display_data_none(role=Qt.DecorationRole, item=item, column=column)
-        # if isinstance(data, bool):
-        #     return self.on_display_data_bool(role=Qt.DecorationRole, item=item, column=column, value=data)
+
+        item = self.content_items[index.row()]
+        column = self.columns[index.column()]
+        data = getattr(item, column.name)
+        if data is None:
+            return self.on_display_data_none(role=Qt.DecorationRole, item=item, column=column)
+        if isinstance(data, bool):
+            return self.on_display_data_bool(role=Qt.DecorationRole, item=item, column=column, value=data)
 
     def _get_status_tip_data(self, index: INDEX_TYPE) -> Any:
         pass
@@ -402,10 +404,12 @@ class BaseQueryDataModel(QAbstractTableModel):
 
     def refresh(self) -> "BaseQueryDataModel":
         self.beginResetModel()
-        self.get_content().get_columns()
+        if self.columns is None:
+            self.get_columns()
+
+        self.get_content()
 
         self.endResetModel()
-        self.parent().resizeColumnToContents([i for i, col in enumerate(self.columns) if col.name == "message"][0])
 
         return self
 

@@ -90,6 +90,7 @@ class LogbookMenuBar(BaseMenuBar):
         self.database_menu.addSeparator()
         self.reset_database_action = self.add_new_action(self.database_menu, "Reset Database")
         self.reset_database_action.setIcon(AllResourceItems.warning_sign_round_yellow.get_as_icon())
+        self.open_settings_window_action = self.add_new_action(self.settings_menu, "Open Settings")
 
         self.exit_action.setIcon(AllResourceItems.close_cancel.get_as_icon())
 # region[Main_Exec]

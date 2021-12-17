@@ -66,7 +66,7 @@ from antistasi_logbook.storage.models.models import Server, RemoteStorage, LogFi
 from antistasi_logbook.updating.remote_managers import AbstractRemoteStorageManager, LocalManager, WebdavManager, FakeWebdavManager
 from antistasi_logbook.utilities.misc import NoThreadPoolExecutor, Version
 from rich.console import Console as RichConsole
-import threading
+from threading import Lock
 from apsw import Connection
 from playhouse.apsw_ext import APSWDatabase
 from rich import inspect as rinspect
@@ -166,6 +166,7 @@ class GidSqliteApswDatabase(APSWDatabase):
         pragmas = DEFAULT_PRAGMAS.copy() | (pragmas or {})
         super().__init__(make_db_path(self.database_path), thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, timeout=30, **extensions)
         self.foreign_key_cache = ForeignKeyCache(self)
+        self.write_lock = Lock()
 
     @property
     def default_backup_folder(self) -> Path:
@@ -175,9 +176,9 @@ class GidSqliteApswDatabase(APSWDatabase):
     def base_record_id(self) -> int:
         return RecordClass.select().where(RecordClass.name == "BaseRecord").scalar()
 
-    def _add_conn_hooks(self, conn):
-        super()._add_conn_hooks(conn)
-        self.all_connections.add(conn)
+    # def _add_conn_hooks(self, conn):
+    #     super()._add_conn_hooks(conn)
+    #     self.all_connections.add(conn)
 
     def _pre_start_up(self, overwrite: bool = False) -> None:
         self.database_path.parent.mkdir(exist_ok=True, parents=True)
@@ -196,7 +197,8 @@ class GidSqliteApswDatabase(APSWDatabase):
         log.info("starting up %r", self)
         self._pre_start_up(overwrite=overwrite)
         self.connect(reuse_if_open=True)
-        setup_db(self)
+        with self.write_lock:
+            setup_db(self)
 
         self._post_start_up()
         self.started_up = True
@@ -206,12 +208,14 @@ class GidSqliteApswDatabase(APSWDatabase):
 
     def optimize(self) -> "GidSqliteApswDatabase":
         log.info("optimizing %r", self)
-        self.pragma("OPTIMIZE")
+        with self.write_lock:
+            self.pragma("OPTIMIZE")
         return self
 
     def vacuum(self) -> "GidSqliteApswDatabase":
         log.info("vacuuming %r", self)
-        self.execute_sql("VACUUM;")
+        with self.write_lock:
+            self.execute_sql("VACUUM;")
         return self
 
     def close(self):
@@ -221,7 +225,8 @@ class GidSqliteApswDatabase(APSWDatabase):
                  error: BaseException = None,
                  backup_folder: Union[str, os.PathLike, Path] = None) -> None:
         log.debug("shutting down %r", self)
-        self.session_meta_data.save()
+        with self.write_lock:
+            self.session_meta_data.save()
 
         is_closed = self.close()
         for conn in self.all_connections:
@@ -239,8 +244,8 @@ class GidSqliteApswDatabase(APSWDatabase):
     def get_log_files(self, server: Server = None, ordered_by=LogFile.id) -> tuple[LogFile]:
         with self:
             if server is None:
-                return tuple(LogFile.select().order_by(ordered_by))
-            return tuple(LogFile.select().where(LogFile.server_id == server.id).order_by(ordered_by))
+                return tuple(LogFile.select().join(Server).order_by(ordered_by))
+            return tuple(LogFile.select().join(Server).where(LogFile.server_id == server.id).order_by(ordered_by))
 
     def get_all_log_levels(self, ordered_by=LogLevel.id) -> tuple[LogLevel]:
         with self:

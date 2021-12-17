@@ -115,6 +115,7 @@ class MetaFinder:
     def _resolve_game_map(self, text: str) -> None:
         # takes about 0.170319 s
         if match := self.regex_keeper.game_map.search(text):
+            log.debug("found game-map as %r", match)
             self.game_map = match.group('game_map')
 
     def _resolve_mods(self, text: str) -> None:

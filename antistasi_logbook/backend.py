@@ -175,7 +175,7 @@ class Backend:
 
         self.time_clock = TimeClock(config=self.config, stop_event=self.events.stop)
         self.remote_manager_registry = remote_manager_registry
-        self.record_processor = RecordProcessor(regex_keeper=SimpleRegexKeeper(), record_class_manager=self.record_class_manager, foreign_key_cache=self.foreign_key_cache)
+        self.record_processor = RecordProcessor(database=self.database, regex_keeper=SimpleRegexKeeper(), record_class_manager=self.record_class_manager, foreign_key_cache=self.foreign_key_cache)
         self.parser = Parser(record_processor=self.record_processor, regex_keeper=SimpleRegexKeeper(), stop_event=self.events.stop)
         self.updater = Updater(config=self.config, parsing_context_factory=self.get_parsing_context, parser=self.parser, stop_event=self.events.stop, pause_event=self.events.pause, database=self.database, signaler=self.update_signaler)
         self.records_inserter = RecordInserter(config=self.config, database=self.database)
@@ -245,12 +245,13 @@ class Backend:
         """
         self.events.stop.set()
         all_futures = []
+        log.debug("checking if all ctx are closed")
         for ctx in self.all_parsing_context:
-
+            log.debug("checking ctx %r", ctx)
             while ctx.is_open is True:
                 sleep(0.1)
             all_futures += ctx.futures
-
+        log.debug("waiting for all futures to finish")
         wait(all_futures, return_when=ALL_COMPLETED, timeout=3.0)
 
         if self.update_manager is not None and self.update_manager.is_alive() is True:

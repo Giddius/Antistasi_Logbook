@@ -9,4 +9,5 @@ yarl==1.7.0
 marshmallow==3.14.0
 pyparsing==3.0.6
 colorhash==1.0.4
-distinctipy==1.1.5
+qdarkstyle
+pyparsing==3.0.6

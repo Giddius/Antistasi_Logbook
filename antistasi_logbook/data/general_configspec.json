@@ -1,30 +1,46 @@
 {
-    "database": { "database_path": { "converter": "path" } },
+    "database": { "database_path": { "converter": "path", "default": null } },
     "updating": {
-        "updates_enabled": { "converter": "boolean" },
-        "update_interval": { "converter": "timedelta" },
-        "max_updating_threads": { "converter": "integer" },
-        "max_inserting_threads": { "converter": "integer" },
+        "updates_enabled": { "converter": "boolean", "default": "True" },
+        "update_interval": { "converter": "timedelta", "default": "5 min" },
+        "max_updating_threads": { "converter": "integer", "default": "5" },
+        "max_inserting_threads": { "converter": "integer", "default": "5" },
         "max_update_time_frame": {
-            "converter": "timedelta"
+            "converter": "timedelta",
+            "default": "10 days"
         },
         "remove_items_older_than_max_update_time_frame": {
-            "converter": "boolean"
+            "converter": "boolean",
+            "default": "True"
         }
     },
-    "folder": { "local_storage_folder": { "converter": "path" } },
+    "folder": {
+        "local_storage_folder": { "converter": "path", "default": null }
+    },
     "downloading": {
-        "keep_downloaded_files": { "converter": "boolean" },
-        "chunk_size": { "converter": "file_size" }
+        "keep_downloaded_files": { "converter": "boolean", "default": "False" },
+        "chunk_size": { "converter": "file_size", "default": null }
     },
     "webdav": {
         "max_concurrent_connections": { "converter": "integer" },
-        "delay_between_downloads": { "converter": "timedelta" },
-        "minimum_download_duration": { "converter": "timedelta" }
+        "delay_between_downloads": {
+            "converter": "timedelta",
+            "default": null
+        },
+        "minimum_download_duration": {
+            "converter": "timedelta",
+            "default": null
+        }
     },
-    "parsing": { "record_insert_batch_size": { "converter": "integer" } },
+    "parsing": {
+        "record_insert_batch_size": {
+            "converter": "integer",
+            "default": "32767"
+        }
+    },
     "time": {
-        "use_local_timezone": { "converter": "boolean" },
-        "time_format": { "converter": "string" }
-    }
+        "use_local_timezone": { "converter": "boolean", "default": "False" },
+        "time_format": { "converter": "string", "default": "%Y-%m-%d %H:%M:%S" }
+    },
+    "gui": { "style": { "converter": "string", "default": "base" } }
 }

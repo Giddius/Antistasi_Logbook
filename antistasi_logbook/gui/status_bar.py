@@ -55,13 +55,13 @@ import PySide6
 from gidapptools import get_logger
 from gidapptools.gid_signal.interface import get_signal
 from gidapptools.general_helper.conversion import seconds2human
-from PySide6.QtCore import (QCoreApplication, QDate, QDateTime, QLocale, QMetaObject, QObject, QPoint, QRect, QSize, QTime, QUrl, Qt, Slot, Signal,
+from PySide6.QtCore import (QCoreApplication, QThread, QDate, QDateTime, QLocale, QMetaObject, QObject, QPoint, QRect, QSize, QTime, QUrl, Qt, Slot, Signal,
                             QAbstractTableModel, QAbstractItemModel, QAbstractListModel, QEvent)
 from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QGradient, QIcon, QImage, QKeySequence,
                            QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform, QCloseEvent)
 from PySide6.QtWidgets import (QApplication, QGridLayout, QMainWindow, QMenu, QMenuBar, QSizePolicy, QStatusBar, QWidget, QPushButton,
                                QBoxLayout, QHBoxLayout, QVBoxLayout, QSizePolicy, QMessageBox, QLayout, QGroupBox, QDockWidget, QTabWidget, QSystemTrayIcon, QLabel, QProgressBar, QProgressDialog)
-
+from threading import Thread
 if TYPE_CHECKING:
     from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow, Backend
     from antistasi_logbook.storage.models.models import DatabaseMetaData
@@ -85,6 +85,25 @@ log = get_logger(__name__)
 # endregion[Constants]
 
 
+class StupidSignaler(QObject):
+    finished = Signal()
+
+    def emit_finished(self):
+        self.finished.emit()
+
+
+class FuncRunner(Thread):
+
+    def __init__(self, label: "LastUpdatedLabel",) -> None:
+        super().__init__()
+        self.signaler = StupidSignaler()
+        self.label = label
+
+    def run(self) -> None:
+        self.label._refresh_text_helper()
+        self.signaler.emit_finished()
+
+
 class LastUpdatedLabel(QLabel):
     min_unit_progression_table = {timedelta(seconds=0): "second",
                                   timedelta(minutes=5): "minute",
@@ -99,6 +118,8 @@ class LastUpdatedLabel(QLabel):
         self.refresh_interval: int = 1000 * 10
         self.min_unit = "second"
         self.last_triggered: datetime = None
+        self.label_text: str = None
+        self.running_thread: QThread = None
         self.setup()
 
     def set_refresh_interval(self, new_interval: int) -> None:
@@ -115,16 +136,27 @@ class LastUpdatedLabel(QLabel):
         self.refresh_text()
         self.start_timer()
 
-    def refresh_text(self) -> None:
+    def _thread_finished(self):
+        self.running_thread = None
+        self.setText(self.label_text)
+        self.update()
+
+    def _refresh_text_helper(self):
         log.debug("refreshing %s text", self)
         if self.last_update_finished_at is None:
-            text = "Never Updated"
+            self.label_text = "Never Updated"
         else:
             delta = self._time_since_last_update_finished()
             delta_text = seconds2human(round(delta.total_seconds(), -1), min_unit=[v for k, v in self.min_unit_progression_table.items() if k <= delta][-1])
-            text = f"Last update finished {delta_text} ago"
-        self.setText(text)
-        self.update()
+            self.label_text = f"Last update finished {delta_text} ago"
+
+    def refresh_text(self) -> None:
+
+        if self.running_thread is not None:
+            return
+        self.running_thread = FuncRunner(self, )
+        self.running_thread.signaler.finished.connect(self._thread_finished)
+        self.running_thread.start()
 
     def start_timer(self) -> None:
         if self.timer_id is not None:

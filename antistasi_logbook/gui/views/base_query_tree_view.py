@@ -142,12 +142,7 @@ class LogFilesQueryTreeView(BaseQueryTreeView):
         super().__init__(icon=AllResourceItems.log_files_query_icon.get_as_icon(), name="Log-Files")
 
 
-class LogRecordsQueryTreeView(BaseQueryTreeView):
-    def __init__(self) -> None:
-        super().__init__(icon=AllResourceItems.log_records_query_icon.get_as_icon(), name="Log-Records")
-
 # region[Main_Exec]
-
 
 if __name__ == '__main__':
     pass

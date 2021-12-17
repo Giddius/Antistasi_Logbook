@@ -393,10 +393,10 @@ class LogFile(BaseModel):
         return f"[u b blue]{self.server.name}/{self.name}[/u b blue]"
 
     def __repr__(self) -> str:
-        return str(self)
+        return f"{self.__class__.__name__}(server={self.server.name!r}, modified_at={self.modified_at.strftime('%Y-%m-%d %H:%M:%S')!r})"
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}(server={self.server.name!r}, modified_at={self.modified_at.strftime('%Y-%m-%d %H:%M:%S')!r})"
+        return f"{self.name}"
 
 
 class Mod(BaseModel):
@@ -533,8 +533,9 @@ class DatabaseMetaData(BaseModel):
         started_at = datetime.now(tz=UTC) if started_at is None else started_at
         app_version = Version.from_string(META_INFO.version) if app_version is None else app_version
         item = cls(started_at=started_at, app_version=app_version)
-        with cls._meta.database:
-            item.save()
+        with cls._meta.database.write_lock:
+            with cls._meta.database:
+                item.save()
         return item
 
     def get_absolute_last_update_finished_at(self) -> datetime:

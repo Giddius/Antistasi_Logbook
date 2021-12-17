@@ -3,25 +3,26 @@
 __version__ = '0.1.2'
 
 from gidapptools.meta_data import setup_meta_data
-from gidapptools import get_main_logger
+from gidapptools import get_main_logger, get_main_logger_with_file_logging
 from pathlib import Path
 import rich.traceback
 from rich.console import Console as RichConsole
 import atexit
 import os
 
+THIS_FILE_DIR = Path(__file__).parent.absolute()
 
-_extra_logger = ["peewee"]
 
-# _extra_logger = []
+# _extra_logger = ["peewee"]
 
-log = get_main_logger("__main__", Path(__file__).resolve(), extra_logger=_extra_logger)
+_extra_logger = []
+
+# log = get_main_logger("__main__", Path(__file__).resolve(), extra_logger=_extra_logger)
+log = get_main_logger_with_file_logging("__main__", log_file_base_name=Path(__file__).resolve().parent.stem, path=Path(__file__).resolve(), extra_logger=_extra_logger)
 
 ERROR_CONSOLE = RichConsole(soft_wrap=True, record=True, width=150)
 
 rich.traceback.install(console=ERROR_CONSOLE, width=150)
-
-THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 
 def setup():

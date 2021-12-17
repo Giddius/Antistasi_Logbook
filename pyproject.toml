@@ -24,10 +24,13 @@ dependencies = [
     "rich>=10.12.0",
     "sortedcontainers>=2.4.0",
     "marshmallow>=3.14.0",
-    "gidapptools>=0.1.9",
+    "gidapptools>=0.1.10",
     "PySide6>=6.2.2",
     "pyqtgraph>=0.12.3",
-    "colorhash==1.0.4"
+    "colorhash==1.0.4",
+    "qdarkstyle",
+    "pyparsing>=3.0.6",
+    "apsw"
 ]
 
 [project.urls]

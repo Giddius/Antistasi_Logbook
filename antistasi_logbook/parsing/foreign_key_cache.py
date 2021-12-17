@@ -185,12 +185,13 @@ class ForeignKeyCache:
 
     def on_save_handler(self, sender, instance, created):
         if created:
-            event, class_attr_name = self.update_map.get(sender, (None, None))
+            event, class_attr_names = self.update_map.get(sender, (None, None))
             if event is None:
                 return
             with event:
-                setattr(self.__class__, class_attr_name, None)
-            log.warning(" reseted %r, because %r of %r was created: %r", class_attr_name, model_to_dict(instance, recurse=False), sender.__name__, created)
+                for attr_name in class_attr_names:
+                    setattr(self.__class__, attr_name, None)
+            log.warning(" reseted %r, because %r of %r was created: %r", class_attr_names, model_to_dict(instance, recurse=False), sender.__name__, created)
         else:
             log.debug(" reseted, because %r of %r was created: %r", model_to_dict(instance, recurse=False), sender.__name__, created)
 

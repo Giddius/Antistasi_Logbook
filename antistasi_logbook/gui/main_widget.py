@@ -52,7 +52,7 @@ from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, Future, 
 from importlib.machinery import SourceFileLoader
 import PySide6
 import pp
-from threading import Lock, Event
+from threading import Lock, Event, Condition
 from gidapptools import get_logger
 from PySide6 import QtWidgets, QtGui
 from antistasi_logbook.gui.models.server_model import ServerModel
@@ -66,8 +66,8 @@ from PySide6.QtWidgets import (QApplication, QGridLayout, QMainWindow, QMenu, QM
                                QBoxLayout, QHBoxLayout, QVBoxLayout, QSizePolicy, QLayout, QGroupBox, QDockWidget, QTabWidget, QTableView, QListView, QTreeView, QColumnView, QHeaderView)
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord
-from antistasi_logbook.gui.views.base_query_tree_view import ServerQueryTreeView, LogFilesQueryTreeView, BaseQueryTreeView, LogRecordsQueryTreeView
-from antistasi_logbook.gui.views.log_records_query_table_view import LogRecordsQueryTreeView
+from antistasi_logbook.gui.views.base_query_tree_view import ServerQueryTreeView, LogFilesQueryTreeView, BaseQueryTreeView
+from antistasi_logbook.gui.views.log_records_query_view import LogRecordsQueryView
 if TYPE_CHECKING:
     from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow
 # endregion[Imports]
@@ -90,7 +90,7 @@ log = get_logger(__name__)
 
 
 class MainWidget(QWidget):
-    query_result_lock = Lock()
+    query_result_finished = Event()
 
     def __init__(self, main_window: "AntistasiLogbookMainWindow") -> None:
         super().__init__(parent=main_window)
@@ -101,7 +101,7 @@ class MainWidget(QWidget):
         self.main_tabs_widget: QTabWidget = None
         self.server_tab: ServerQueryTreeView = None
         self.log_files_tab: LogFilesQueryTreeView = None
-        self.query_result_tab: LogRecordsQueryTreeView = None
+        self.query_result_tab: LogRecordsQueryView = None
         self.temp_runnable = None
         self.setup()
 
@@ -161,13 +161,7 @@ class MainWidget(QWidget):
         self.log_files_tab.doubleClicked.connect(self.query_log_file)
         self.main_tabs_widget.addTab(self.log_files_tab, self.log_files_tab.icon, self.log_files_tab.name)
 
-        self.query_result_tab = LogRecordsQueryTreeView(main_window=self.main_window)
-        self.query_result_tab.header().setStretchLastSection(False)
-        self.query_result_tab.setWordWrap(False)
-        self.query_result_tab.setAlternatingRowColors(True)
-        self.query_result_tab.setSortingEnabled(False)
-
-        self.query_result_tab.header().setSectionResizeMode(QHeaderView.Interactive)
+        self.query_result_tab = LogRecordsQueryView(main_window=self.main_window).setup()
 
         # self.query_result_tab.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.main_tabs_widget.addTab(self.query_result_tab, AllResourceItems.placeholder.get_as_icon(), "Log-Records")
@@ -176,11 +170,11 @@ class MainWidget(QWidget):
 
     def setup_views(self) -> None:
         server_model = ServerModel(self.main_window.backend)
-        self.main_window.thread_pool.submit(server_model.generator_refresh)
+        server_model.generator_refresh()
         self.server_tab.setModel(server_model)
 
         log_file_model = LogFilesModel(self.main_window.backend)
-        self.main_window.thread_pool.submit(log_file_model.generator_refresh)
+        log_file_model.generator_refresh()
         self.log_files_tab.setModel(log_file_model)
 
     def detail_widget_resize_on_undock(self, area: Qt.DockWidgetArea) -> None:
@@ -189,43 +183,23 @@ class MainWidget(QWidget):
 
     def query_log_file(self, index: QModelIndex):
 
-        self.query_result_tab.header().setSectionResizeMode(QHeaderView.ResizeToContents)
-
-        def dd(f: Future):
-            try:
-                if f.exception() is not None:
-                    log.error(f.exception(), exc_info=True)
-                self.temp_runnable = None
-
-                self.query_result_tab.header().setSectionResizeMode(QHeaderView.Interactive)
-
-                # self.query_result_tab.adjustSize()
-            finally:
-                try:
-                    self.query_result_lock.release()
-                except Exception:
-                    pass
-            log.info("finished future %r", f)
-
-        aquired = self.query_result_lock.acquire(timeout=0.25)
-        if aquired is False:
+        if self.query_result_finished.is_set() is True:
             log.debug("Unable to aquire the lock %r, returning", self.query_result_lock)
             return
-
+        self.query_result_finished.set()
         log_file = self.log_files_tab.model().content_items[index.row()]
-        if self.query_result_tab.model() is None:
 
-            log_record_model = LogRecordsModel(self.main_window.backend, parent=self.query_result_tab)
-            self.query_result_tab.setModel(log_record_model)
-        log_record_model = self.query_result_tab.model()
-        log_record_model.filter.append(LogRecord.log_file == log_file)
+        log_record_model = LogRecordsModel(self.main_window.backend, parent=self.query_result_tab, filter_data=(LogRecord.log_file_id == log_file.id,))
 
         abort_signal = Event()
-        self.main_window.thread_pool.add_abort_signal(abort_signal)
-        t = self.main_window.thread_pool.submit(log_record_model.generator_refresh, abort_signal=abort_signal)
 
-        t.add_done_callback(dd)
-        sleep(0.25)
+        def _set_model():
+            self.query_result_tab.setModel(log_record_model)
+        log_record_model.first_data_available.connect(_set_model)
+        thread = log_record_model.generator_refresh(abort_signal=abort_signal)
+        thread.finished.connect(self.query_result_finished.clear)
+
+        thread.finished.connect(self.query_result_tab.resize_columns)
         self.main_tabs_widget.setCurrentWidget(self.query_result_tab)
         log.debug("started thread")
 

@@ -111,7 +111,7 @@ class ManyRecordsInsertResult:
 
 
 class RecordInserter:
-    insert_phrase = """INSERT INTO "LogRecord" ("start", "end", "message", "recorded_at", "called_by", "is_antistasi_record", "logged_from", "log_file", "log_level", "record_class", "marked") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
+    insert_phrase = """INSERT OR IGNORE INTO "LogRecord" ("start", "end", "message", "recorded_at", "called_by", "is_antistasi_record", "logged_from", "log_file", "log_level", "record_class", "marked") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
 
     thread_prefix: str = "inserting_thread"
 
@@ -120,7 +120,10 @@ class RecordInserter:
         self.database = database
 
         self.thread_pool = ThreadPoolExecutor(self.max_threads, thread_name_prefix=self.thread_prefix) if thread_pool_class is None else thread_pool_class(self.max_threads, thread_name_prefix=self.thread_prefix)
-        self.write_lock = Lock()
+
+    @property
+    def write_lock(self) -> Lock:
+        return self.database.write_lock
 
     @property
     def max_threads(self) -> int:
@@ -200,9 +203,10 @@ class RecordInserter:
 
 
 class RecordProcessor:
-    __slots__ = ("regex_keeper", "record_class_manager", "foreign_key_cache")
+    __slots__ = ("regex_keeper", "record_class_manager", "database", "foreign_key_cache")
 
-    def __init__(self, regex_keeper: "SimpleRegexKeeper", foreign_key_cache: "ForeignKeyCache", record_class_manager: "RecordClassManager") -> None:
+    def __init__(self, database: "GidSqliteApswDatabase", regex_keeper: "SimpleRegexKeeper", foreign_key_cache: "ForeignKeyCache", record_class_manager: "RecordClassManager") -> None:
+        self.database = database
         self.regex_keeper = regex_keeper
         self.record_class_manager = record_class_manager
         self.foreign_key_cache = foreign_key_cache
@@ -274,8 +278,9 @@ class RecordProcessor:
             try:
                 return self.foreign_key_cache.all_antistasi_file_objects[raw_name]
             except KeyError:
-                AntstasiFunction.insert(name=raw_name).on_conflict_ignore().execute()
-                return AntstasiFunction.get(name=raw_name)
+                with self.database.write_lock:
+                    AntstasiFunction.insert(name=raw_name).on_conflict_ignore().execute()
+                    return AntstasiFunction.get(name=raw_name)
 
         if parsed_data is None:
             return parsed_data

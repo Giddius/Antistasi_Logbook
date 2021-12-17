@@ -242,36 +242,28 @@ class Updater:
 
         def _do(_log_file: "LogFile"):
             sleep(random.uniform(0.1, 2.0))
+            self.signaler.send_update_increment()
             if self.stop_event.is_set() is False:
                 context = self.parsing_context_factory(log_file=_log_file)
-                context.__enter__()
-                log.debug("starting to parse %s", _log_file)
-                for processed_record in self.parser(context=context):
-                    if self.stop_event.is_set() is True:
-                        break
-                    context.insert_record(processed_record)
-                context._dump_rest()
+                context.done_signal = self.signaler.send_update_increment
+                with context:
 
-                self.signaler.send_update_increment()
-                return context
+                    log.debug("starting to parse %s", _log_file)
+                    for processed_record in self.parser(context=context):
+                        if self.stop_event.is_set() is True:
+                            break
+                        context.insert_record(processed_record)
+                    context._dump_rest()
+
         tasks = []
         to_update_log_files = self._get_updated_log_files(server=server)
-        self.signaler.send_update_info(len(to_update_log_files) * 2, server.name)
+        self.signaler.send_update_info(len(to_update_log_files) * 3, server.name)
         for log_file in to_update_log_files:
             if self.stop_event.is_set() is False:
                 sub_task = self.thread_pool.submit(_do, _log_file=log_file)
-                sub_task.add_done_callback(lambda x: self._to_close_contexts.put(x.result()))
                 tasks.append(sub_task)
 
         wait(tasks, return_when=ALL_COMPLETED, timeout=None)
-        while self._to_close_contexts.empty() is False:
-            ctx = self._to_close_contexts.get()
-            if ctx is None:
-                continue
-            log.debug("waiting on %r to close", ctx)
-            ctx.__exit__()
-            self._to_close_contexts.task_done()
-            self.signaler.send_update_increment()
 
     def before_updates(self):
         log.debug("emiting before_updates_signal")

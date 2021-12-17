@@ -54,6 +54,7 @@ from importlib.machinery import SourceFileLoader
 from antistasi_logbook.records.abstract_record import AbstractRecord, RecordFamily, MessageFormat
 from antistasi_logbook.records.enums import LogLevelEnum, PunishmentActionEnum
 from gidapptools.general_helper.color.color_item import RGBColor, Color
+from gidapptools import get_logger
 import attr
 try:
     from PySide6.QtGui import QColor, QFont, QFontMetrics
@@ -62,7 +63,7 @@ try:
     PYSIDE6_AVAILABLE = True
 except ImportError:
     PYSIDE6_AVAILABLE = False
-
+from gidapptools.general_helper.enums import MiscEnum
 if TYPE_CHECKING:
     from antistasi_logbook.storage.models.models import LogFile, LogRecord, PunishmentAction, LogLevel, AntstasiFunction
     from antistasi_logbook.parsing.parser import RawRecord
@@ -83,7 +84,7 @@ if TYPE_CHECKING:
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
-
+log = get_logger(__name__)
 # endregion[Constants]
 
 
@@ -95,21 +96,28 @@ class LineNumberLocation:
 
 @attr.s(slots=True, auto_attribs=True, auto_detect=True, weakref_slot=True)
 class QtAttributes:
-    color: "QColor" = attr.ib(default=None)
+    background_color: "QColor" = attr.ib(default=MiscEnum.NOTHING)
     message_size_hint: "QSize" = attr.ib(default=None)
 
 
-BASE_SLOTS = ["record_id",
-              "log_file",
-              "is_antistasi_record",
-              "line_number_location",
-              "message",
-              "recorded_at",
-              "log_level",
-              "marked",
-              "called_by",
-              "logged_from",
-              "qt_attributes"]
+@attr.s(slots=True, auto_attribs=True, auto_detect=True, weakref_slot=True)
+class PrettyAttributeCache:
+    pretty_recorded_at: str = attr.ib(default=MiscEnum.NOTHING)
+    pretty_log_level: str = attr.ib(default=MiscEnum.NOTHING)
+
+
+BASE_SLOTS: list[str] = ["record_id",
+                         "log_file",
+                         "is_antistasi_record",
+                         "line_number_location",
+                         "message",
+                         "recorded_at",
+                         "log_level",
+                         "marked",
+                         "called_by",
+                         "logged_from",
+                         "qt_attributes",
+                         "pretty_attribute_cache"]
 
 
 class BaseRecord(AbstractRecord):
@@ -140,10 +148,28 @@ class BaseRecord(AbstractRecord):
         self.called_by = called_by
         self.logged_from = logged_from
         self.qt_attributes: QtAttributes = QtAttributes()
+        self.pretty_attribute_cache: PrettyAttributeCache = PrettyAttributeCache()
 
-    @cached_property
+    def get_data(self, name: str):
+        _out = getattr(self, f"pretty_{name}", MiscEnum.NOTHING)
+        if _out is MiscEnum.NOTHING:
+
+            # log.warning("no pretty data for %r, pretty_attribute_cache=%r", name, self.pretty_attribute_cache)
+
+            return getattr(self, name)
+        return _out
+
+    @property
+    def pretty_log_level(self) -> Optional[str]:
+        if self.pretty_attribute_cache.pretty_log_level is MiscEnum.NOTHING:
+            self.pretty_attribute_cache.pretty_log_level = str(self.log_level) if self.log_level.id != 0 else None
+        return self.pretty_attribute_cache.pretty_log_level
+
+    @property
     def pretty_recorded_at(self) -> str:
-        return self.log_file.format_datetime(self.recorded_at)
+        if self.pretty_attribute_cache.pretty_recorded_at is MiscEnum.NOTHING:
+            self.pretty_attribute_cache.pretty_recorded_at = self.log_file.format_datetime(self.recorded_at)
+        return self.pretty_attribute_cache.pretty_recorded_at
 
     @cached_property
     def pretty_log_level(self) -> str:
@@ -152,10 +178,10 @@ class BaseRecord(AbstractRecord):
         return self.log_level
 
     @property
-    def color(self) -> Optional[RGBColor]:
-        if self.qt_attributes.color is None:
-            self.qt_attributes.color = Color.get_color_by_name("Gray").with_alpha(0.5).qcolor
-        return self.qt_attributes.color
+    def background_color(self) -> Optional[RGBColor]:
+        if self.qt_attributes.background_color is MiscEnum.NOTHING:
+            self.qt_attributes.background_color = Color.get_color_by_name("Gray").with_alpha(0.25).qcolor
+        return self.qt_attributes.background_color
 
     @property
     def message_size_hint(self) -> "QSize":
@@ -186,6 +212,7 @@ class BaseRecord(AbstractRecord):
 
         if log_file is not None:
             model_dict['log_file'] = log_file
+
         model_dict['record_id'] = model_dict.pop('id')
         model_dict["line_number_location"] = LineNumberLocation(model_dict.pop('start'), model_dict.pop("end"))
         model_dict['log_level'] = cls.foreign_key_cache.get_log_level_by_id(model_dict.pop('log_level'))
@@ -196,7 +223,6 @@ class BaseRecord(AbstractRecord):
 
 
 # region[Main_Exec]
-
 if __name__ == '__main__':
     pass
 

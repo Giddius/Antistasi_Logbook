@@ -52,6 +52,7 @@ from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
 import pyparsing as pp
 from pyparsing import pyparsing_common as ppc
+from gidapptools import get_logger
 # endregion[Imports]
 
 # region [TODO]
@@ -67,7 +68,7 @@ from pyparsing import pyparsing_common as ppc
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
-
+log = get_logger(__name__)
 # endregion[Constants]
 
 # Array parsing Grammar
@@ -76,7 +77,7 @@ colon = pp.Suppress(',')
 sqb_open = pp.Suppress('[')
 sqb_close = pp.Suppress(']')
 quote = pp.Suppress('"')
-keywords = pp.Keyword("EAST") | pp.Keyword("WEST")
+keywords = pp.Keyword("EAST") | pp.Keyword("WEST") | pp.Keyword("true", caseless=True) | pp.Keyword("false", caseless=True)
 items = pp.Forward()
 content = pp.Group(pp.ZeroOrMore(items + pp.Optional(colon)))
 array = sqb_open + content + sqb_close
@@ -86,8 +87,12 @@ items <<= string | keywords | array | number
 
 
 def parse_text_array(in_text: str) -> list[list[Any]]:
-    return array.parse_string(in_text, parse_all=True).as_list()[0]
-
+    try:
+        return array.parse_string(in_text, parse_all=True).as_list()[0]
+    except pp.ParseException as e:
+        log.error(e, exc_info=True, extra={"in_text": in_text})
+        log.critical("%r was caused by %r", e, in_text)
+        return "ERROR"
 # region[Main_Exec]
 
 
