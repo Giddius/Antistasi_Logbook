@@ -6,78 +6,40 @@ Soon.
 
 # region [Imports]
 
-import os
-import re
-import sys
-import json
-import queue
-import math
-import base64
-import pickle
-import random
-import shelve
-import dataclasses
-import shutil
-import asyncio
-import logging
-import sqlite3
-import platform
-import importlib
-import subprocess
-import inspect
-from gidapptools.general_helper.timing import time_execution
-from time import sleep, process_time, process_time_ns, perf_counter, perf_counter_ns
-from io import BytesIO, StringIO
-from abc import ABC, ABCMeta, abstractmethod
-from copy import copy, deepcopy
-from enum import Enum, Flag, auto, unique
-from time import time, sleep
-from pprint import pprint, pformat
+# * Standard Library Imports ---------------------------------------------------------------------------->
+from time import sleep
+from typing import TYPE_CHECKING, Iterable
 from pathlib import Path
-from string import Formatter, digits, printable, whitespace, punctuation, ascii_letters, ascii_lowercase, ascii_uppercase
-from timeit import Timer
-from typing import TYPE_CHECKING, Union, Callable, Iterable, Optional, Mapping, Any, IO, TextIO, BinaryIO, Hashable, Generator, Literal, TypeVar, TypedDict, AnyStr
-from zipfile import ZipFile, ZIP_LZMA
-from datetime import datetime, timezone, timedelta
-from tempfile import TemporaryDirectory
-from textwrap import TextWrapper, fill, wrap, dedent, indent, shorten
-from functools import wraps, partial, lru_cache, singledispatch, total_ordering, cached_property
-from importlib import import_module, invalidate_caches
-from contextlib import contextmanager, asynccontextmanager, nullcontext, closing, ExitStack, suppress
-from statistics import mean, mode, stdev, median, variance, pvariance, harmonic_mean, median_grouped
-from collections import Counter, ChainMap, deque, namedtuple, defaultdict
-from urllib.parse import urlparse
-from importlib.util import find_spec, module_from_spec, spec_from_file_location
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
-from importlib.machinery import SourceFileLoader
-from antistasi_logbook.storage.models.models import LogFile, Server, LogRecord, LogLevel, AntstasiFunction, DatabaseMetaData, GameMap, Mod, LogFileAndModJoin, RecordClass, RemoteStorage
-from antistasi_logbook.parsing.parsing_context import LogParsingContext
-from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
-from antistasi_logbook.regex.regex_keeper import SimpleRegexKeeper
-from antistasi_logbook.records.record_class_manager import RecordClassManager, RECORD_CLASS_TYPE
-from antistasi_logbook.storage.database import GidSqliteApswDatabase
-from dateutil.tz import UTC
-from peewee import DatabaseProxy
-from antistasi_logbook.updating.time_handling import TimeClock
-from antistasi_logbook.utilities.misc import Version
-from threading import Event, Condition, RLock, Thread, Barrier, Semaphore, Timer, Lock
-from gidapptools import get_meta_info, get_meta_paths, get_logger, get_meta_config, get_main_logger
-from antistasi_logbook.updating.update_manager import UpdateManager
-from antistasi_logbook.updating.remote_managers import remote_manager_registry
-from antistasi_logbook.updating.updater import Updater
-from antistasi_logbook.parsing.parsing_context import LogParsingContext
-from antistasi_logbook.parsing.parser import Parser
-from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
-from antistasi_logbook.parsing.record_processor import RecordProcessor, RecordInserter
 from weakref import WeakSet
+from threading import Lock, Event
+from concurrent.futures import ALL_COMPLETED, wait
+
+# * Third Party Imports --------------------------------------------------------------------------------->
 import attr
-from gidapptools.gid_signal.interface import get_signal
-from concurrent.futures import wait, ALL_COMPLETED
+from antistasi_logbook.parsing.parser import Parser
 from antistasi_logbook.utilities.locks import FILE_LOCKS
+from antistasi_logbook.storage.database import GidSqliteApswDatabase
+from antistasi_logbook.updating.updater import Updater
+from antistasi_logbook.regex.regex_keeper import SimpleRegexKeeper
+from antistasi_logbook.storage.models.models import LogFile, RecordClass, DatabaseMetaData
+from antistasi_logbook.updating.time_handling import TimeClock
+from antistasi_logbook.parsing.parsing_context import LogParsingContext
+from antistasi_logbook.updating.update_manager import UpdateManager
+from antistasi_logbook.parsing.record_processor import RecordInserter, RecordProcessor
+from antistasi_logbook.updating.remote_managers import remote_manager_registry
+from antistasi_logbook.records.record_class_manager import RECORD_CLASS_TYPE, RecordClassManager
+
+# * Gid Imports ----------------------------------------------------------------------------------------->
+from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
+from gidapptools.gid_signal.interface import get_signal
+
 if TYPE_CHECKING:
-    from gidapptools.gid_config.interface import GidIniConfig
-    from gidapptools.gid_signal.signals import abstract_signal
+    # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.gui.misc import UpdaterSignaler
+
+    # * Gid Imports ----------------------------------------------------------------------------------------->
+    from gidapptools.gid_signal.signals import abstract_signal
+    from gidapptools.gid_config.interface import GidIniConfig
 
 # endregion[Imports]
 

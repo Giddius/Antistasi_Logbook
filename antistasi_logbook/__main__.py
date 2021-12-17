@@ -5,68 +5,34 @@ Soon.
 """
 
 # region [Imports]
+
+# * Third Party Imports --------------------------------------------------------------------------------->
 from antistasi_logbook import setup
+
 setup()
 
-import gc
+# * Standard Library Imports ---------------------------------------------------------------------------->
 import os
-import re
-import sys
-import json
-import queue
-import math
-import base64
-import pickle
-import random
-import shelve
-import dataclasses
-import shutil
-import asyncio
-import logging
-import sqlite3
-import platform
-import importlib
-import subprocess
-import unicodedata
-import inspect
-
-from time import sleep, process_time, process_time_ns, perf_counter, perf_counter_ns
-from io import BytesIO, StringIO
-from abc import ABC, ABCMeta, abstractmethod
-from copy import copy, deepcopy
-from enum import Enum, Flag, auto
-from time import time, sleep
-from pprint import pprint, pformat
+from typing import TYPE_CHECKING
 from pathlib import Path
-from string import Formatter, digits, printable, whitespace, punctuation, ascii_letters, ascii_lowercase, ascii_uppercase
-from timeit import Timer
-from typing import TYPE_CHECKING, Union, Callable, Iterable, Optional, Mapping, Any, IO, TextIO, BinaryIO
-from zipfile import ZipFile, ZIP_LZMA
-from datetime import datetime, timezone, timedelta
-from tempfile import TemporaryDirectory
-from textwrap import TextWrapper, fill, wrap, dedent, indent, shorten
-from functools import wraps, partial, lru_cache, singledispatch, total_ordering, cached_property
-from importlib import import_module, invalidate_caches
-from contextlib import contextmanager, asynccontextmanager
-from statistics import mean, mode, stdev, median, variance, pvariance, harmonic_mean, median_grouped
-from collections import Counter, ChainMap, deque, namedtuple, defaultdict
-from urllib.parse import urlparse
-from importlib.util import find_spec, module_from_spec, spec_from_file_location
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
-from importlib.machinery import SourceFileLoader
-from gidapptools.meta_data import get_meta_info, get_meta_paths
-from gidapptools.meta_data.interface import app_meta, get_meta_config
-from dotenv import load_dotenv
-from gidapptools.general_helper.timing import time_execution
+
+# * Third Party Imports --------------------------------------------------------------------------------->
 import click
-from gidapptools import get_logger
-from gidapptools.gid_signal.interface import get_signal
-import atexit
-from antistasi_logbook.storage.models.models import Server, RemoteStorage, database as database_proxy
+from dotenv import load_dotenv
 from antistasi_logbook.backend import Backend, GidSqliteApswDatabase
 from antistasi_logbook.gui.main_window import start_gui
+from antistasi_logbook.storage.models.models import RemoteStorage
+from antistasi_logbook.storage.models.models import database as database_proxy
+
+# * Gid Imports ----------------------------------------------------------------------------------------->
+from gidapptools import get_logger
+from gidapptools.meta_data import get_meta_info, get_meta_paths
+from gidapptools.meta_data.interface import get_meta_config
+
 if TYPE_CHECKING:
+    # * Gid Imports ----------------------------------------------------------------------------------------->
     from gidapptools.gid_config.interface import GidIniConfig
+
 # endregion[Imports]
 
 

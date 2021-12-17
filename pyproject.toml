@@ -58,7 +58,7 @@ exclude = [
 
 [tool.autopep8]
 ignore = ["E402", "E501"]
-max-line-length = 250
+max_line_length = 250
 
 [tool.isort]
 balanced_wrapping = true
@@ -92,3 +92,11 @@ sections = [
 
 [tool.pytest.ini_options]
 addopts = "-rA -vv --durations=0 --capture=tee-sys --show-capture=all --color=auto --code-highlight=yes"
+
+[tool.autoflake]
+# additional_imports=None
+expand_star_imports = true
+remove_all_unused_imports = true
+remove_duplicate_keys = false
+remove_unused_variables = false
+ignore_init_module_imports = false

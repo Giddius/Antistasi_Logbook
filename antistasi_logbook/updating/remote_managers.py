@@ -6,85 +6,48 @@ Soon.
 
 # region [Imports]
 
+# * Standard Library Imports ---------------------------------------------------------------------------->
 import os
-import re
-import sys
 import json
-import queue
-import math
-import base64
-import pickle
-import random
-import shelve
-import dataclasses
 import shutil
-import asyncio
-import logging
-import sqlite3
-import platform
-import importlib
-import subprocess
-import inspect
-from antistasi_logbook import setup
-setup()
-from time import sleep, process_time, process_time_ns, perf_counter, perf_counter_ns
-from io import BytesIO, StringIO
-from abc import ABC, ABCMeta, abstractmethod
-from copy import copy, deepcopy
-from enum import Enum, Flag, auto, unique
-from time import time, sleep
-from pprint import pprint, pformat
-from pathlib import Path
-from string import Formatter, digits, printable, whitespace, punctuation, ascii_letters, ascii_lowercase, ascii_uppercase
-from timeit import Timer
-from typing import TYPE_CHECKING, Union, Callable, Iterable, Optional, Mapping, Any, IO, TextIO, BinaryIO, Hashable, Generator, Literal, TypeVar, TypedDict, AnyStr
-from zipfile import ZipFile, ZIP_LZMA
-from datetime import datetime, timezone, timedelta
-from tempfile import TemporaryDirectory
-from textwrap import TextWrapper, fill, wrap, dedent, indent, shorten
-from functools import wraps, partial, lru_cache, singledispatch, total_ordering, cached_property
-from importlib import import_module, invalidate_caches
-from contextlib import contextmanager, asynccontextmanager, nullcontext, closing, ExitStack, suppress
-from statistics import mean, mode, stdev, median, variance, pvariance, harmonic_mean, median_grouped
-from collections import Counter, ChainMap, deque, namedtuple, defaultdict, UserString
-from urllib.parse import urlparse
-from importlib.util import find_spec, module_from_spec, spec_from_file_location
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
-from importlib.machinery import SourceFileLoader
-from webdav4.client import Client as WebdavClient
-from antistasi_logbook.utilities.nextcloud import get_nextcloud_options, DEFAULT_BASE_FOLDER, DEFAULT_SUB_FOLDER_NAME, get_webdav_client, DEFAULT_LOG_FOLDER_TEMPLATE, get_username
-from dotenv import load_dotenv, find_dotenv
 
-from gidapptools.general_helper.timing import time_func
-from antistasi_logbook.utilities.path_utilities import clean_path, RemotePath
-from mimetypes import common_types, types_map
-import atexit
-from gidapptools.general_helper.timing import time_execution, time_func
-from threading import Semaphore, Thread
-from antistasi_logbook.utilities.enums import RemoteItemType
-from gidapptools.general_helper.conversion import human2bytes
-from queue import Queue
-from httpx import Limits, Timeout
-from collections import deque
-from antistasi_logbook.updating.info_item import InfoItem
-import antistasi_logbook
-from gidapptools.general_helper.conversion import human2bytes
-from gidapptools import get_meta_item, get_meta_paths, get_meta_config
-from threading import RLock, Lock
-from rich import print as rprint
+# * Third Party Imports --------------------------------------------------------------------------------->
+from antistasi_logbook import setup
+
+setup()
+# * Standard Library Imports ---------------------------------------------------------------------------->
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Iterable, Optional, Generator
+from pathlib import Path
+from zipfile import ZipFile
+from datetime import datetime, timedelta
+from threading import Lock, RLock
+
+# * Third Party Imports --------------------------------------------------------------------------------->
 import yarl
-from dateutil.tz import UTC
 import httpx
+from httpx import Limits
+from dateutil.tz import UTC
+from webdav4.client import Client as WebdavClient
 from antistasi_logbook.errors import MissingLoginAndPasswordError
-from antistasi_logbook.utilities.path_utilities import url_to_path
-from antistasi_logbook.utilities.locks import DelayedSemaphore, MinDurationSemaphore
-from antistasi_logbook.utilities.nextcloud import Retrier, increasing_timeout, exponential_timeout
-from gidapptools import get_logger
+from antistasi_logbook.utilities.enums import RemoteItemType
+from antistasi_logbook.utilities.locks import MinDurationSemaphore
+from antistasi_logbook.updating.info_item import InfoItem
+from antistasi_logbook.utilities.nextcloud import Retrier, exponential_timeout
+from antistasi_logbook.utilities.path_utilities import RemotePath, url_to_path
+
+# * Gid Imports ----------------------------------------------------------------------------------------->
+from gidapptools import get_logger, get_meta_paths, get_meta_config
+
 if TYPE_CHECKING:
 
+    # * Third Party Imports --------------------------------------------------------------------------------->
+    from antistasi_logbook.storage.models.models import LogFile, RemoteStorage
+
+    # * Gid Imports ----------------------------------------------------------------------------------------->
     from gidapptools.meta_data.interface import MetaPaths
     from gidapptools.gid_config.meta_factory import GidIniConfig
-    from antistasi_logbook.storage.models.models import RemoteStorage, LogFile, Server
+
 # endregion[Imports]
 
 # region [TODO]

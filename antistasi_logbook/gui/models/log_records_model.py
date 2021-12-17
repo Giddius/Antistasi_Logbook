@@ -6,80 +6,36 @@ Soon.
 
 # region [Imports]
 
-import os
-import re
-import sys
-import json
-import queue
-import math
-import base64
-import pickle
-import random
-import shelve
-import dataclasses
-import shutil
-import asyncio
-import logging
-import sqlite3
-import platform
-import importlib
-import subprocess
-import inspect
-
-from time import sleep, process_time, process_time_ns, perf_counter, perf_counter_ns
-from io import BytesIO, StringIO
-from abc import ABC, ABCMeta, abstractmethod
-from copy import copy, deepcopy
-from enum import Enum, Flag, auto, unique
-from time import time, sleep
-from pprint import pprint, pformat
+# * Standard Library Imports ---------------------------------------------------------------------------->
+from time import sleep
+from typing import TYPE_CHECKING, Any, Union, Iterable
 from pathlib import Path
-from string import Formatter, digits, printable, whitespace, punctuation, ascii_letters, ascii_lowercase, ascii_uppercase
-from timeit import Timer
-from typing import TYPE_CHECKING, Union, Callable, Iterable, Optional, Mapping, Any, IO, TextIO, BinaryIO, Hashable, Generator, Literal, TypeVar, TypedDict, AnyStr
-from zipfile import ZipFile, ZIP_LZMA
-from datetime import datetime, timezone, timedelta
-from tempfile import TemporaryDirectory
-from textwrap import TextWrapper, fill, wrap, dedent, indent, shorten
-from functools import wraps, partial, lru_cache, singledispatch, total_ordering, cached_property, reduce
 from operator import or_
-from importlib import import_module, invalidate_caches
-from contextlib import contextmanager, asynccontextmanager, nullcontext, closing, ExitStack, suppress
-from statistics import mean, mode, stdev, median, variance, pvariance, harmonic_mean, median_grouped
-from collections import Counter, ChainMap, deque, namedtuple, defaultdict
-from urllib.parse import urlparse
-from importlib.util import find_spec, module_from_spec, spec_from_file_location
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
-from importlib.machinery import SourceFileLoader
-from gidapptools import get_logger
-from gidapptools.general_helper.conversion import bytes2human
-from antistasi_logbook.storage.models.models import Server, RemoteStorage, LogFile, RecordClass, LogRecord, AntstasiFunction, setup_db, DatabaseMetaData, GameMap, LogLevel
-import PySide6
-from peewee import Query, Select, Field, JOIN
-from PySide6 import QtCore, QtGui, QtWidgets
-from colorhash import ColorHash
+from functools import reduce
+from threading import Lock, Event
+from collections import namedtuple
+
+# * Third Party Imports --------------------------------------------------------------------------------->
+from peewee import Field, Query
+from antistasi_logbook.storage.models.models import LogRecord, RecordClass
 from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel
-from gidapptools.general_helper.string_helper import StringCaseConverter
-from PySide6.QtCore import (QCoreApplication, QDate, QDateTime, QLocale, QMetaObject, QObject, QPoint, QRect, QSize, QThread, QTime, QUrl, Qt, QRunnable, QThreadPool, Slot, Signal,
-                            QAbstractTableModel, QAbstractItemModel, QAbstractListModel, QEvent, QModelIndex)
-from PySide6.QtGui import (QAction, QBrush, QFontMetrics, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QGradient, QIcon, QImage, QKeySequence,
-                           QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform, QCloseEvent)
-from PySide6.QtWidgets import (QApplication, QGridLayout, QMainWindow, QMenu, QMenuBar, QSizePolicy, QStatusBar, QWidget, QPushButton, QLabel, QProgressBar, QProgressDialog,
-                               QBoxLayout, QHBoxLayout, QVBoxLayout, QSizePolicy, QMessageBox, QLayout, QGroupBox, QStyledItemDelegate, QAbstractItemDelegate, QDockWidget, QTabWidget, QSystemTrayIcon, QTableView, QListView, QTreeView, QColumnView)
-from antistasi_logbook.records.antistasi_records import PerformanceRecord
-from gidapptools import get_logger
-from threading import Event, Condition, Lock
-import pp
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-from playhouse.shortcuts import model_to_dict
+
+# * PyQt5 Imports --------------------------------------------------------------------------------------->
+from PySide6 import QtCore
+from PySide6.QtGui import QFont, QFontMetrics
+from PySide6.QtCore import Qt, QSize, Signal, QThread
+
+# * Gid Imports ----------------------------------------------------------------------------------------->
+from gidapptools import get_logger
 from gidapptools.general_helper.color.color_item import Color
+
 if TYPE_CHECKING:
+    # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.backend import Backend
-    from antistasi_logbook.gui.views.log_records_query_view import LogRecordsQueryView
-    from antistasi_logbook.backend import Backend
-    from antistasi_logbook.storage.models.models import BaseModel
     from antistasi_logbook.records.abstract_record import AbstractRecord
     from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE
+
 # endregion[Imports]
 
 # region [TODO]

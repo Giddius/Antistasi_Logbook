@@ -7,20 +7,21 @@ Soon.
 
 # region [Imports]
 
-
+# * Standard Library Imports ---------------------------------------------------------------------------->
 import re
-
-
-from pathlib import Path
 from typing import Union
-from datetime import datetime, timezone, timedelta, tzinfo
+from pathlib import Path
+from datetime import tzinfo, datetime, timezone, timedelta
 from functools import total_ordering
-from antistasi_logbook.errors import DurationTimezoneError
+
+# * Third Party Imports --------------------------------------------------------------------------------->
 import attr
 import tzlocal
-from gidapptools.general_helper.string_helper import replace_by_dict, extract_by_map
-from gidapptools.general_helper.timing import time_execution, time_func
+from antistasi_logbook.errors import DurationTimezoneError
+
+# * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
+from gidapptools.general_helper.string_helper import extract_by_map, replace_by_dict
 
 # endregion[Imports]
 
