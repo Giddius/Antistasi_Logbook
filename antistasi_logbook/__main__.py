@@ -22,7 +22,7 @@ from dotenv import load_dotenv
 from antistasi_logbook.backend import Backend, GidSqliteApswDatabase
 from antistasi_logbook.gui.main_window import start_gui
 from antistasi_logbook.storage.models.models import RemoteStorage
-from antistasi_logbook.storage.models.models import database as database_proxy
+from antistasi_logbook.storage.models.models import database_proxy
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
