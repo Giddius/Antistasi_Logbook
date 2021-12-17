@@ -1,6 +1,6 @@
 """Antistasi Logbook"""
 
-__version__ = '0.1.9'
+__version__ = '0.1.10'
 
 from gidapptools.meta_data import setup_meta_data
 from gidapptools import get_main_logger, get_main_logger_with_file_logging
