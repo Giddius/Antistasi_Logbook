@@ -18,15 +18,16 @@ from datetime import datetime, timezone, timedelta
 import yarl
 import httpx
 from PIL import Image
-from peewee import Field, BlobField
+# from peewee import Field, BlobField
 from dateutil.tz import UTC, tzoffset
 from playhouse.fields import CompressedField
+from playhouse.apsw_ext import IntegerField, CharField, TextField, Field, BlobField, DateTimeField, BooleanField, DecimalField, FixedCharField, BareField, ForeignKeyField, ManyToManyField, TimestampField
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from antistasi_logbook.utilities.misc import Version
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from antistasi_logbook.utilities.path_utilities import RemotePath
-
+from gidapptools import get_logger
 # endregion[Imports]
 
 # region [TODO]
@@ -42,7 +43,7 @@ from antistasi_logbook.utilities.path_utilities import RemotePath
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
-
+log = get_logger(__name__)
 # endregion[Constants]
 
 
@@ -104,18 +105,39 @@ class URLField(Field):
             return yarl.URL(value)
 
 
-class BetterDateTimeField(Field):
-    field_type = 'DATETIME'
+class AwareTimeStampField(TimestampField):
+    field_type = 'TIMESTAMP'
 
-    def db_value(self, value: Optional[datetime]):
-        if value is not None:
-            if value.tzinfo not in [UTC, timezone.utc]:
-                raise RuntimeError(f"{value!r} is a different timezone than {UTC!r} or {timezone.utc!r} -> {value.tzinfo!r}")
-            return value.isoformat()
+    def __init__(self, *args, **kwargs):
+        self.resolution = kwargs.pop('resolution', None)
+
+        if not self.resolution:
+            self.resolution = 1
+        elif self.resolution in range(2, 7):
+            self.resolution = 10 ** self.resolution
+        elif self.resolution not in self.valid_resolutions:
+            raise ValueError('TimestampField resolution must be one of: %s' %
+                             ', '.join(str(i) for i in self.valid_resolutions))
+        self.ticks_to_microsecond = 1000000 // self.resolution
+
+        self.utc = kwargs.pop('utc', False) or False
+        if kwargs.get("null", False) is False:
+            dflt = datetime.now
+            if self.utc:
+                dftl = lambda: datetime.now(tz=UTC)
+
+            kwargs.setdefault('default', dflt)
+        super(TimestampField, self).__init__(*args, **kwargs)
 
     def python_value(self, value):
-        if value is not None:
-            return datetime.fromisoformat(value)
+
+        dt = super().python_value(value)
+
+        if dt is None:
+            return
+        if self.utc and dt.tzinfo is None:
+            return dt.replace(tzinfo=UTC)
+        return dt
 
 
 class TzOffsetField(Field):

@@ -6,7 +6,8 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QApplication, QDockWidget, QGridLayout, QGroupBox,
-    QSizePolicy, QSpacerItem, QTabWidget, QWidget)
+    QSizePolicy, QSpacerItem, QTabWidget, QToolBox,
+    QWidget)
 
 
 class Ui_Form(object):
@@ -49,12 +50,27 @@ class Ui_Form(object):
         sizePolicy1.setVerticalStretch(0)
         sizePolicy1.setHeightForWidth(self.dockWidget.sizePolicy().hasHeightForWidth())
         self.dockWidget.setSizePolicy(sizePolicy1)
-        self.dockWidget.setMinimumSize(QSize(100, 50))
+        self.dockWidget.setMinimumSize(QSize(100, 171))
         self.dockWidget.setMaximumSize(QSize(524287, 524287))
         self.dockWidget.setFloating(True)
         self.dockWidget.setAllowedAreas(Qt.LeftDockWidgetArea)
         self.dockWidgetContents = QWidget()
         self.dockWidgetContents.setObjectName(u"dockWidgetContents")
+        self.gridLayout_2 = QGridLayout(self.dockWidgetContents)
+        self.gridLayout_2.setObjectName(u"gridLayout_2")
+        self.toolBox = QToolBox(self.dockWidgetContents)
+        self.toolBox.setObjectName(u"toolBox")
+        self.page = QWidget()
+        self.page.setObjectName(u"page")
+        self.page.setGeometry(QRect(0, 0, 82, 746))
+        self.toolBox.addItem(self.page, u"Page 1")
+        self.page_2 = QWidget()
+        self.page_2.setObjectName(u"page_2")
+        self.page_2.setGeometry(QRect(0, 0, 98, 28))
+        self.toolBox.addItem(self.page_2, u"Page 2")
+
+        self.gridLayout_2.addWidget(self.toolBox, 0, 0, 1, 1)
+
         self.dockWidget.setWidget(self.dockWidgetContents)
 
         self.gridLayout.addWidget(self.dockWidget, 1, 0, 1, 1)

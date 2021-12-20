@@ -7,6 +7,19 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+from gidapptools.general_helper.conversion import human2bytes
+from gidapptools.meta_data.interface import MetaPaths, get_meta_info, get_meta_paths, get_meta_config
+from gidapptools import get_logger
+from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
+from antistasi_logbook.storage.models.models import Server, GameMap, LogFile, LogLevel, RecordClass, RemoteStorage, AntstasiFunction, DatabaseMetaData, setup_db
+from playhouse.apsw_ext import APSWDatabase
+from peewee import DatabaseProxy
+from apsw import Connection
+from threading import Lock
+from functools import cached_property
+from pathlib import Path
+from typing import TYPE_CHECKING, Union, Protocol
 import os
 from weakref import WeakSet
 
@@ -15,22 +28,10 @@ from antistasi_logbook import setup
 
 setup()
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from typing import TYPE_CHECKING, Union, Protocol
-from pathlib import Path
-from functools import cached_property
-from threading import Lock
 
 # * Third Party Imports --------------------------------------------------------------------------------->
-from apsw import Connection
-from peewee import DatabaseProxy
-from playhouse.apsw_ext import APSWDatabase
-from antistasi_logbook.storage.models.models import Server, GameMap, LogFile, LogLevel, RecordClass, RemoteStorage, AntstasiFunction, DatabaseMetaData, setup_db
-from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
-from gidapptools import get_logger
-from gidapptools.meta_data.interface import MetaPaths, get_meta_info, get_meta_paths, get_meta_config
-from gidapptools.general_helper.conversion import human2bytes
 
 if TYPE_CHECKING:
     # * Gid Imports ----------------------------------------------------------------------------------------->
@@ -49,7 +50,6 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 META_PATHS: MetaPaths = get_meta_paths()
@@ -62,13 +62,12 @@ log = get_logger(__name__)
 DEFAULT_DB_NAME = "storage.db"
 
 DEFAULT_PRAGMAS = {
-    "cache_size": -1 * 64000,
+    "cache_size": -1 * 128000,
     "journal_mode": 'wal',
     "synchronous": 0,
     "ignore_check_constraints": 0,
     "foreign_keys": 1,
     "temp_store": "MEMORY",
-    "threads": 5,
     "mmap_size": human2bytes("1 gb")
 }
 
@@ -136,9 +135,9 @@ class GidSqliteApswDatabase(APSWDatabase):
     def base_record_id(self) -> int:
         return RecordClass.select().where(RecordClass.name == "BaseRecord").scalar()
 
-    # def _add_conn_hooks(self, conn):
-    #     super()._add_conn_hooks(conn)
-    #     self.all_connections.add(conn)
+    def _add_conn_hooks(self, conn):
+        super()._add_conn_hooks(conn)
+        self.all_connections.add(conn)
 
     def _pre_start_up(self, overwrite: bool = False) -> None:
         self.database_path.parent.mkdir(exist_ok=True, parents=True)
@@ -190,7 +189,7 @@ class GidSqliteApswDatabase(APSWDatabase):
 
         is_closed = self.close()
         for conn in self.all_connections:
-            conn.close(True)
+            conn.close()
         if self.auto_backup is True and error is None:
             # self.backup(backup_folder=backup_folder)
             log.warning("'backup-method' is not written!")

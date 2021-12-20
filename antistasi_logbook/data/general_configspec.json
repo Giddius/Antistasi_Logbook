@@ -7,7 +7,7 @@
         "max_inserting_threads": { "converter": "integer", "default": "5" },
         "max_update_time_frame": {
             "converter": "timedelta",
-            "default": "10 days"
+            "default": null
         },
         "remove_items_older_than_max_update_time_frame": {
             "converter": "boolean",
@@ -42,5 +42,7 @@
         "use_local_timezone": { "converter": "boolean", "default": "False" },
         "time_format": { "converter": "string", "default": "%Y-%m-%d %H:%M:%S" }
     },
-    "gui": { "style": { "converter": "string", "default": "base" } }
+    "gui": {
+        "style": { "converter": "string", "default": "base" }
+    }
 }

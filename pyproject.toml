@@ -25,13 +25,13 @@ dependencies = [
     "sortedcontainers>=2.4.0",
     "marshmallow>=3.14.0",
     "gidapptools>=0.1.10",
-    "PySide6>=6.2.2",
     "pyqtgraph>=0.12.3",
     "colorhash==1.0.4",
     "qdarkstyle",
     "pyparsing>=3.0.6",
     "python-dotenv",
-    "pp-ez"
+    "pp-ez",
+    "PySide6>=6.2.2"
 ]
 
 [project.urls]
@@ -58,7 +58,7 @@ exclude = [
 ]
 
 [tool.autopep8]
-ignore = ["E402", "E501"]
+ignore = ["E402", "E501", "E731"]
 max_line_length = 250
 
 [tool.isort]

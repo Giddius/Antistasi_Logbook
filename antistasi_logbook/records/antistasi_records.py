@@ -60,14 +60,49 @@ class PerfProfilingRecord(BaseRecord):
 
         return False
 
-    @property
-    def background_color(self) -> Optional[RGBColor]:
-        if self.qt_attributes.background_color is MiscEnum.NOTHING:
-            self.qt_attributes.background_color = Color.get_color_by_name("green").with_alpha(0.75).qcolor
-        return self.qt_attributes.background_color
+    def get_background_color(self):
+        return Color.get_color_by_name("green").with_alpha(0.75).qcolor
 
 
 ALL_ANTISTASI_RECORD_CLASSES.add(PerfProfilingRecord)
+
+
+class TFEInfoSettings(BaseRecord):
+    ___record_family___ = RecordFamily.GENERIC
+    ___specificity___ = 10
+    __slots__ = tuple(BASE_SLOTS + ["_array_data"])
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._array_data = None
+
+    def get_background_color(self):
+        return Color.get_color_by_name("BlueViolet").with_alpha(0.2).qcolor
+
+    @property
+    def array_data(self):
+        if self._array_data is None:
+            clean_message = self.message.replace('\n', ' ').replace('\\n', ' ').replace('""', '"')
+            clean_message = re.sub(r"\s{2,}", " ", clean_message)
+
+            self._array_data = parse_text_array(clean_message[clean_message.find("[", 5):])
+        return self._array_data
+
+    def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
+        if msg_format is MessageFormat.PRETTY:
+            text = self.message[:self.message.find('[', 5) - 1] + '\n'
+            text += pp.fmt(self.array_data).replace("'", '"')
+            return text
+
+    @classmethod
+    def check(cls, raw_record: "RawRecord") -> bool:
+        if raw_record.parsed_data.get("message").startswith("[TFE] Info: Settings:"):
+            return True
+
+        return False
+
+
+ALL_ANTISTASI_RECORD_CLASSES.add(TFEInfoSettings)
 
 
 class BaseAntistasiRecord(BaseRecord):
@@ -76,11 +111,8 @@ class BaseAntistasiRecord(BaseRecord):
     ___has_multiline_message___ = False
     __slots__ = tuple(BASE_SLOTS)
 
-    @property
-    def background_color(self) -> Optional[RGBColor]:
-        if self.qt_attributes.background_color is MiscEnum.NOTHING:
-            self.qt_attributes.background_color = Color.get_color_by_name("White").with_alpha(0.01).qcolor
-        return self.qt_attributes.background_color
+    def get_background_color(self):
+        return Color.get_color_by_name("White").with_alpha(0.01).qcolor
 
     @classmethod
     def check(cls, raw_record: "RawRecord") -> bool:
@@ -101,11 +133,8 @@ class PerformanceRecord(BaseAntistasiRecord):
         super().__init__(*args, **kwargs)
         self._stats: dict[str, Union[float, int]] = None
 
-    @property
-    def background_color(self) -> Optional[RGBColor]:
-        if self.qt_attributes.background_color is MiscEnum.NOTHING:
-            self.qt_attributes.background_color = Color.get_color_by_name("LightSteelBlue").with_alpha(0.25).qcolor
-        return self.qt_attributes.background_color
+    def get_background_color(self):
+        return Color.get_color_by_name("LightSteelBlue").with_alpha(0.5).qcolor
 
     @property
     def stats(self) -> dict[str, Union[int, float]]:
@@ -119,7 +148,7 @@ class PerformanceRecord(BaseAntistasiRecord):
 
     def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
         if msg_format is MessageFormat.PRETTY:
-            _out = []
+            _out = ["Performance Stats", "-" * 10]
             for k, v in self.stats.items():
                 try:
                     _full_num, _after_comma = str(v).split('.')
@@ -154,11 +183,8 @@ class IsNewCampaignRecord(BaseAntistasiRecord):
     ___specificity___ = 20
     __slots__ = tuple(BASE_SLOTS)
 
-    @property
-    def background_color(self) -> Optional[RGBColor]:
-        if self.qt_attributes.background_color is MiscEnum.NOTHING:
-            self.qt_attributes.background_color = Color.get_color_by_name("LightGreen").with_alpha(0.25).qcolor
-        return self.qt_attributes.background_color
+    def get_background_color(self):
+        return Color.get_color_by_name("LightGreen").with_alpha(0.5).qcolor
 
     @classmethod
     def check(cls, raw_record: "RawRecord") -> bool:
@@ -185,11 +211,8 @@ class FFPunishmentRecord(BaseAntistasiRecord):
         super().__init__(*args, **kwargs)
         self._punishment_type: str = None
 
-    @property
-    def background_color(self) -> Optional[RGBColor]:
-        if self.qt_attributes.background_color is MiscEnum.NOTHING:
-            self.qt_attributes.background_color = Color.get_color_by_name("OliveDrab").with_alpha(0.25).qcolor
-        return self.qt_attributes.background_color
+    def get_background_color(self):
+        return Color.get_color_by_name("OliveDrab").with_alpha(0.5).qcolor
 
     @property
     def punishment_type(self) -> str:
@@ -226,11 +249,8 @@ class UpdatePreferenceRecord(BaseAntistasiRecord):
         self.category = self.msg_start_regex.match(self.message.lstrip()).group("category")
         self._array_data: list[list[Any]] = None
 
-    @property
-    def background_color(self) -> Optional[RGBColor]:
-        if self.qt_attributes.background_color is MiscEnum.NOTHING:
-            self.qt_attributes.background_color = Color.get_color_by_name("Peru").with_alpha(0.25).qcolor
-        return self.qt_attributes.background_color
+    def get_background_color(self):
+        return Color.get_color_by_name("Peru").with_alpha(0.5).qcolor
 
     @property
     def array_data(self) -> list[list[Any]]:
@@ -250,7 +270,7 @@ class UpdatePreferenceRecord(BaseAntistasiRecord):
 
     def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
         if msg_format is MessageFormat.PRETTY:
-            return f"{self.category}_preference\n" + pp.fmt(self.array_data, indent=4)
+            return f"{self.category}_preference\n" + pp.fmt(self.array_data)
         return super().get_formated_message(msg_format=format)
 
 
@@ -267,11 +287,8 @@ class CreateConvoyInputRecord(BaseAntistasiRecord):
         super().__init__(*args, **kwargs)
         self._array_data: list[list[Any]] = None
 
-    @property
-    def background_color(self) -> Optional[RGBColor]:
-        if self.qt_attributes.background_color is MiscEnum.NOTHING:
-            self.qt_attributes.background_color = Color.get_color_by_name("Wheat").with_alpha(0.25).qcolor
-        return self.qt_attributes.background_color
+    def get_background_color(self):
+        return Color.get_color_by_name("Wheat").with_alpha(0.5).qcolor
 
     @property
     def array_data(self) -> list[list[Any]]:
@@ -314,11 +331,8 @@ class SaveParametersRecord(BaseAntistasiRecord):
         super().__init__(*args, **kwargs)
         self._array_data: list[list[Any]] = None
 
-    @property
-    def background_color(self) -> Optional[RGBColor]:
-        if self.qt_attributes.background_color is MiscEnum.NOTHING:
-            self.qt_attributes.background_color = Color.get_color_by_name("PeachPuff").with_alpha(0.25).qcolor
-        return self.qt_attributes.background_color
+    def get_background_color(self):
+        return Color.get_color_by_name("PeachPuff").with_alpha(0.5).qcolor
 
     @property
     def array_data(self) -> list[list[Any]]:
@@ -366,11 +380,8 @@ class ResourceCheckRecord(BaseAntistasiRecord):
         self._stats: dict[str, float] = None
         self.side = self.side_regex.match(self.message).group("side")
 
-    @property
-    def background_color(self) -> Optional[RGBColor]:
-        if self.qt_attributes.background_color is MiscEnum.NOTHING:
-            self.qt_attributes.background_color = Color.get_color_by_name("DarkSalmon").with_alpha(0.25).qcolor
-        return self.qt_attributes.background_color
+    def get_background_color(self):
+        return Color.get_color_by_name("DarkSalmon").with_alpha(0.5).qcolor
 
     @property
     def stats(self) -> dict[str, float]:
@@ -401,7 +412,7 @@ class ResourceCheckRecord(BaseAntistasiRecord):
 
     def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
         if msg_format is MessageFormat.PRETTY:
-            _out = [f"{self.side} arsenal", "--------------------"]
+            _out = [f"{self.side} arsenal", "-" * 10]
             for k, v in self.stats.items():
                 try:
                     _full_num, _after_comma = str(v).split('.')
@@ -416,6 +427,105 @@ class ResourceCheckRecord(BaseAntistasiRecord):
 
 
 ALL_ANTISTASI_RECORD_CLASSES.add(ResourceCheckRecord)
+
+
+class FreeSpawnPositionsRecord(BaseAntistasiRecord):
+    ___specificity___ = 20
+    ___has_multiline_message___ = True
+    place_regex = re.compile(r"Spawn places for (?P<place>\w+)", re.IGNORECASE)
+    __slots__ = tuple(BASE_SLOTS + ["_array_data", "_stats", "place"])
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._array_data: list[list[Any]] = None
+        self.place = self.place_regex.search(self.message).group("place")
+
+    def get_background_color(self):
+        return Color.get_color_by_name("pink").with_alpha(0.5).qcolor
+
+    @property
+    def array_data(self) -> list[list[Any]]:
+        if self._array_data is None:
+            array_txt = self.message[self.message.find('['):]
+            self._array_data = parse_text_array(array_txt)
+            if self._array_data == "ERROR":
+                self._array_data = [self.message]
+        return self._array_data
+
+    def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
+        if msg_format is MessageFormat.PRETTY:
+            txt = f"Spawn places for {self.place}"
+            array_data_text_lines = pp.fmt(self.array_data).replace("'", '"').replace('"false"', 'false').replace('"true"', 'true').splitlines()
+            txt_len = len(txt)
+            txt += array_data_text_lines[0] + '\n'
+            for line in array_data_text_lines[1:]:
+                txt += ' ' * txt_len + line + '\n'
+            return txt
+        return super().get_formated_message(format=format)
+
+    @classmethod
+    def check(cls, raw_record: "RawRecord") -> bool:
+        logged_from = raw_record.parsed_data.get("logged_from")
+
+        if logged_from is None:
+            return
+        if logged_from in {"freeSpawnPositions"} and raw_record.parsed_data.get("message").startswith("spawn places for") and '[' in raw_record.parsed_data.get("message") and ']' in raw_record.parsed_data.get("message"):
+            return True
+        return False
+
+
+ALL_ANTISTASI_RECORD_CLASSES.add(FreeSpawnPositionsRecord)
+
+
+class SelectReinfUnitsRecord(BaseAntistasiRecord):
+    ___specificity___ = 20
+    ___has_multiline_message___ = True
+    parse_regex = re.compile(r"units selected vehicle is (?P<unit>\w+) crew is (?P<crew>.*(?= cargo is)) cargo is (?P<cargo>.*)", re.IGNORECASE)
+
+    __slots__ = tuple(BASE_SLOTS + ["crew_array_data", "cargo_array_data", "unit", "crew_raw_text", "cargo_raw_text"])
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.unit: str = None
+        self.crew_raw_text: str = None
+        self.cargo_raw_text: str = None
+        self.crew_array_data: list[list[Any]] = None
+        self.cargo_array_data: list[list[Any]] = None
+        self.parse_it()
+
+    def get_background_color(self):
+        return Color.get_color_by_name("Gold").with_alpha(0.5).qcolor
+
+    def parse_it(self):
+        match = self.parse_regex.search(self.message)
+        if match:
+            self.unit = match.group("unit")
+            self.crew_raw_text = match.group("crew")
+            self.cargo_raw_text = match.group("cargo")
+            self.crew_array_data = parse_text_array(self.crew_raw_text)
+            self.cargo_array_data = parse_text_array(self.cargo_raw_text)
+        else:
+            log.critical(self.message)
+
+    def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
+        if msg_format is MessageFormat.PRETTY:
+            crew_text = pp.fmt(self.crew_array_data).replace("'", '"')
+            cargo_text = pp.fmt(self.cargo_array_data).replace("'", '"')
+            return f"units selected vehicle is\n\"{self.unit}\"\n\ncrew is\n{crew_text}\n\ncargo is\n{cargo_text}"
+        return super().get_formated_message(format=format)
+
+    @classmethod
+    def check(cls, raw_record: "RawRecord") -> bool:
+        logged_from = raw_record.parsed_data.get("logged_from")
+
+        if logged_from is None:
+            return
+        if logged_from in {"selectReinfUnits"} and '[' in raw_record.parsed_data.get("message") and ']' in raw_record.parsed_data.get("message"):
+            return True
+        return False
+
+
+ALL_ANTISTASI_RECORD_CLASSES.add(SelectReinfUnitsRecord)
 # region[Main_Exec]
 
 

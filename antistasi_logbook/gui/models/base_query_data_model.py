@@ -52,6 +52,15 @@ DATA_ROLE_MAP_TYPE = dict[Union[Qt.ItemDataRole, int], Callable[[INDEX_TYPE], An
 HEADER_DATA_ROLE_MAP_TYPE = dict[Union[Qt.ItemDataRole, int], Callable[[int, Qt.Orientation], Any]]
 
 
+def handler_for_role(role: Callable[[INDEX_TYPE], Any]):
+
+    def _inner(meth: Callable):
+        meth._data_handler_for = role
+        return meth
+
+    return _inner
+
+
 class BaseQueryDataModel(QAbstractTableModel):
     always_exclude_column_names: set[str] = {"id", "comments"}
     default_column_ordering: dict[str, int] = {"marked": 0, "name": 1}
@@ -205,7 +214,7 @@ class BaseQueryDataModel(QAbstractTableModel):
         pass
 
     def _get_tool_tip_data(self, index: INDEX_TYPE) -> Any:
-        pass
+        return self.columns[index.column()].help_text
 
     def _get_edit_data(self, index: INDEX_TYPE) -> Any:
         pass
@@ -386,7 +395,7 @@ class BaseQueryDataModel(QAbstractTableModel):
         else:
             self.content_items.clear()
 
-        for idx, item in enumerate(self.get_query().iterator()):
+        for idx, item in enumerate(self.get_query()):
             if abort_signal is None or abort_signal.is_set() is False:
                 self.content_items.append(item)
                 try:
@@ -402,7 +411,7 @@ class BaseQueryDataModel(QAbstractTableModel):
         return self, abort_signal
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(backend={self.backend!r}, db_model={self.db_model!r}, parent={self.parent!r})"
+        return f"{self.__class__.__name__}(backend={self.backend!r}, db_model={self.db_model!r}, parent={self.parent()!r})"
 # region[Main_Exec]
 
 

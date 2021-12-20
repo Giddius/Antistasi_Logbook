@@ -7,7 +7,7 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 from pathlib import Path
 from threading import Event
 
@@ -21,12 +21,41 @@ from antistasi_logbook.gui.views.log_records_query_view import LogRecordsQueryVi
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 
 # * PyQt5 Imports --------------------------------------------------------------------------------------->
-from PySide6.QtCore import Qt, QSize, QModelIndex
-from PySide6.QtWidgets import QWidget, QGroupBox, QTabWidget, QDockWidget, QGridLayout, QSizePolicy
+import PySide6
+from PySide6 import (QtCore, QtGui, QtWidgets, Qt3DAnimation, Qt3DCore, Qt3DExtras, Qt3DInput, Qt3DLogic, Qt3DRender, QtAxContainer, QtBluetooth,
+                     QtCharts, QtConcurrent, QtDataVisualization, QtDesigner, QtHelp, QtMultimedia, QtMultimediaWidgets, QtNetwork, QtNetworkAuth,
+                     QtOpenGL, QtOpenGLWidgets, QtPositioning, QtPrintSupport, QtQml, QtQuick, QtQuickControls2, QtQuickWidgets, QtRemoteObjects,
+                     QtScxml, QtSensors, QtSerialPort, QtSql, QtStateMachine, QtSvg, QtSvgWidgets, QtTest, QtUiTools, QtWebChannel, QtWebEngineCore,
+                     QtWebEngineQuick, QtWebEngineWidgets, QtWebSockets, QtXml)
 
+from PySide6.QtCore import (QByteArray, QCoreApplication, QDate, QDateTime, QEvent, QLocale, QMetaObject, QModelIndex, QModelRoleData, QMutex,
+                            QMutexLocker, QObject, QPoint, QRect, QRecursiveMutex, QRunnable, QSettings, QSize, QThread, QThreadPool, QTime, QUrl,
+                            QWaitCondition, Qt, QAbstractItemModel, QAbstractListModel, QAbstractTableModel, Signal, Slot)
+
+from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
+                           QKeySequence, QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform, Qt)
+
+from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QLCDNumber, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QDialogButtonBox,
+                               QDockWidget, QDoubleSpinBox, QFontComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
+                               QLCDNumber, QLabel, QLayout, QLineEdit, QListView, QListWidget, QMainWindow, QMenu, QMenuBar, QMessageBox,
+                               QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
+                               QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
+                               QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
+
+from matplotlib.cm import ScalarMappable
+from matplotlib.colors import Normalize, get_named_colors_mapping
+from matplotlib import pyplot as plt
+from matplotlib import patheffects
+from matplotlib import cm
+from io import BytesIO
+from threading import Thread
+import matplotlib.dates as mdates
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
-
+from antistasi_logbook.storage.models.models import Server, LogFile, RecordClass
+import pyqtgraph as pg
+from antistasi_logbook.gui.widgets.detail_view_widget import ServerDetailWidget, LogFileDetailWidget
+from antistasi_logbook.gui.widgets.query_tool_widget import LogFileDataToolWidget
 if TYPE_CHECKING:
     # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow
@@ -128,15 +157,49 @@ class MainWidget(QWidget):
         self.main_tabs_widget.addTab(self.query_result_tab, AllResourceItems.placeholder.get_as_icon(), "Log-Records")
 
         self.main_layout.addWidget(self.main_tabs_widget, 1, 1, 1, 1)
+        self.main_tabs_widget.currentChanged.connect(self.on_tab_changed)
+
+    def on_tab_changed(self, index: int):
+        if index == self.main_tabs_widget.indexOf(self.log_files_tab):
+            widget = LogFileDataToolWidget(backend=self.main_window.backend)
+            self.query_widget.setWidget(widget)
+            widget.get_page_by_name("filter").show_unparsable_check_box.toggled.connect(self.log_files_tab.model().change_show_unparsable)
+            widget.get_page_by_name("filter").filter_by_server_changed.connect(self.log_files_tab.model().filter_by_server)
+        else:
+            if self.query_widget.widget() is not None:
+                self.query_widget.setWidget(QWidget())
 
     def setup_views(self) -> None:
         server_model = ServerModel(self.main_window.backend)
         server_model.generator_refresh()
         self.server_tab.setModel(server_model)
+        self.server_tab.clicked.connect(self.show_server_detail)
 
         log_file_model = LogFilesModel(self.main_window.backend)
         log_file_model.generator_refresh()
         self.log_files_tab.setModel(log_file_model)
+        self.log_files_tab.clicked.connect(self.show_log_file_detail)
+
+    def show_server_detail(self, index):
+        item = self.server_tab.model().content_items[index.row()]
+        view = ServerDetailWidget(server=item, parent=self.detail_widget)
+        view.setup()
+        self.detail_widget.setWidget(view)
+        view.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
+
+        self.detail_widget.setMinimumSize(300, 100)
+
+        view.repaint()
+
+    def show_log_file_detail(self, index):
+        item = self.log_files_tab.model().content_items[index.row()]
+        view = LogFileDetailWidget(log_file=item, parent=self.detail_widget)
+        view.setup()
+        self.detail_widget.setWidget(view)
+        view.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Minimum)
+        self.detail_widget.setMinimumSize(450, 500)
+
+        view.repaint()
 
     def detail_widget_resize_on_undock(self, area: Qt.DockWidgetArea) -> None:
         if area == Qt.NoDockWidgetArea:
@@ -145,24 +208,30 @@ class MainWidget(QWidget):
     def query_log_file(self, index: QModelIndex):
 
         if self.query_result_finished.is_set() is True:
-            log.debug("Unable to aquire the lock %r, returning", self.query_result_lock)
+            log.debug("Unable to aquire the lock %r, returning", self.query_result_finished)
             return
         self.query_result_finished.set()
         log_file = self.log_files_tab.model().content_items[index.row()]
-
         log_record_model = LogRecordsModel(self.main_window.backend, parent=self.query_result_tab, filter_data=(LogRecord.log_file_id == log_file.id,))
 
-        abort_signal = Event()
+        def _connect_and_show():
+            # log.debug("setting model %r", log_record_model)
 
-        def _set_model():
-            self.query_result_tab.setModel(log_record_model)
-        log_record_model.first_data_available.connect(_set_model)
-        thread = log_record_model.generator_refresh(abort_signal=abort_signal)
-        thread.finished.connect(self.query_result_finished.clear)
+            # log.debug("finished setting model %r", log_record_model)
+            self.main_tabs_widget.setCurrentWidget(self.query_result_tab)
+            self.query_result_finished.clear()
 
-        thread.finished.connect(self.query_result_tab.resize_columns)
+        self.temp_runnable = log_record_model.generator_refresh(callback=_connect_and_show)
+        self.query_result_tab.setModel(log_record_model)
         self.main_tabs_widget.setCurrentWidget(self.query_result_tab)
-        log.debug("started thread")
+        # abort_signal = Event()
+        # log.debug("started thread")
+
+        # thread = log_record_model.generator_refresh(abort_signal=abort_signal)
+        # thread.finished.connect(self.query_result_finished.clear)
+        # self.query_result_tab.setModel(log_record_model)
+        # thread.finished.connect(self.query_result_tab.resize_columns)
+        # self.main_tabs_widget.setCurrentWidget(self.query_result_tab)
 
 
 # region[Main_Exec]

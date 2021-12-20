@@ -77,7 +77,7 @@ class LastUpdatedLabel(QLabel):
         super().__init__(parent=parent)
         self.status_bar = status_bar
         self.timer_id: int = None
-        self.refresh_interval: int = 1000 * 10
+        self.refresh_interval: int = 1000 * 30
         self.min_unit = "second"
         self.last_triggered: datetime = None
         self.label_text: str = None

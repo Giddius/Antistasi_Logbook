@@ -17,17 +17,18 @@ from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import
 
 # * PyQt5 Imports --------------------------------------------------------------------------------------->
 import PySide6
+import pp
 from PySide6.QtGui import QFont
 from PySide6.QtCore import Qt, Slot, Signal
-from PySide6.QtWidgets import (QWidget, QSpinBox, QComboBox, QLineEdit, QTextEdit, QFileDialog, QGridLayout, QHBoxLayout,
-                               QListWidget, QPushButton, QSizePolicy, QSpacerItem, QButtonGroup, QRadioButton, QDoubleSpinBox)
-
+from PySide6.QtWidgets import (QWidget, QSpinBox, QComboBox, QCheckBox, QLineEdit, QTextEdit, QFileDialog, QGridLayout, QHBoxLayout,
+                               QListWidget, QPushButton, QSizePolicy, QApplication, QSpacerItem, QFontDialog, QFontComboBox, QButtonGroup, QRadioButton, QDoubleSpinBox)
+from antistasi_logbook.gui.resources.style_sheets import ALL_STYLE_SHEETS
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.conversion import FILE_SIZE_REFERENCE, TimeUnit, TimeUnits, bytes2human, human2bytes, seconds2human
 from gidapptools.general_helper.typing_helper import implements_protocol
 from gidapptools.gid_config.conversion.extra_base_typus import NonTypeBaseTypus
-
+from antistasi_logbook.gui.models.style_sheets_model import StyleSheetsModel
 # region [TODO]
 
 
@@ -212,6 +213,39 @@ class TimeDeltaValueField(QWidget):
 
 
 _add_value_field(TimeDeltaValueField)
+
+
+@implements_protocol(TypeWidgetProtocol)
+class UpdateTimeFrameValueField(TimeDeltaValueField):
+
+    def setup_inputs(self):
+        self.all_check_box = QCheckBox(text="All")
+        self.all_check_box.setLayoutDirection(Qt.RightToLeft)
+        self.layout.addWidget(self.all_check_box)
+        super().setup_inputs()
+        self.all_check_box.stateChanged.connect(self.all_pressed)
+        self.all_check_box.setChecked(True)
+        self.all_pressed(True)
+
+    def set_value(self, value: timedelta, is_start: bool = False):
+        self.all_check_box.setChecked(False)
+        return super().set_value(value, is_start=is_start)
+
+    def get_value(self) -> timedelta:
+        if self.all_check_box.isChecked() is True:
+            return None
+        return super().get_value()
+
+    def all_pressed(self, active: bool):
+
+        for input_field in self.inputs.values():
+            input_field.setEnabled(not active)
+            if active == 2 or active is True:
+                input_field.setValue(0)
+        if active == 0 or active is False:
+
+            if self.get_value().total_seconds() == 0:
+                self.inputs[TimeUnits(False)["days"]].setValue(1)
 
 
 @implements_protocol(TypeWidgetProtocol)
@@ -536,6 +570,57 @@ class StringChoicesValueField(QWidget):
 
 
 _add_value_field(ListValueField)
+
+
+@implements_protocol(TypeWidgetProtocol)
+class StyleValueField(QComboBox):
+    ''' This QComboBox will allow the user to change the application
+        style sheet on demand '''
+
+    def __init__(self, parent=None):
+        ''' constructor only takes the parent widget as an argument '''
+        super().__init__(parent)
+        self.start_value: str = None
+        self.setModel(StyleSheetsModel())
+        self.setCurrentIndex(self.model.get_base_style_sheet_index())
+
+        self.activated.connect(self.change_app_style)
+
+    @property
+    def model(self) -> StyleSheetsModel:
+        return super().model()
+
+    @property
+    def layout(self):
+        return super().layout()
+
+    def change_app_style(self):
+        ''' this method fires when a new style is selected '''
+        style = self.model.content_items[self.currentIndex()]
+        app = QApplication.instance()
+        if app is not None:
+            app.setStyleSheet(style.content)
+
+    def set_value(self, value: str, is_start: bool = False):
+
+        self.setCurrentIndex(self.model.get_index_by_name(value))
+
+        if is_start is True:
+            self.start_value = value
+
+    def get_value(self) -> str:
+        style = self.model.content_items[self.currentIndex()]
+        if style.name == "base":
+            return None
+        return style.name
+
+    def value_is_changed(self) -> bool:
+        return self.get_value() != self.start_value
+
+    def set_alignment(self, alignment: Qt.Alignment):
+        self.layout.setAlignment(alignment)
+
+
 # region[Main_Exec]
 if __name__ == '__main__':
     pass

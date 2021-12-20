@@ -46,7 +46,8 @@ keywords = pp.Keyword("EAST") | pp.Keyword("WEST") | pp.Keyword("true", caseless
 items = pp.Forward()
 content = pp.Group(pp.ZeroOrMore(items + pp.Optional(colon)))
 array = sqb_open + content + sqb_close
-string = quote + pp.OneOrMore(pp.Word(pp.printables.replace('"', ''))) + quote
+string = quote + pp.OneOrMore(pp.Word(pp.printables.replace('"', ''))).set_parse_action(' '.join) + quote
+
 number = ppc.number
 items <<= string | keywords | array | number
 

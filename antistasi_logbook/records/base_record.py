@@ -19,7 +19,7 @@ from antistasi_logbook.records.abstract_record import RecordFamily, MessageForma
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.color.color_item import Color, RGBColor
-
+from collections import defaultdict
 try:
     # * PyQt5 Imports --------------------------------------------------------------------------------------->
     from PySide6.QtGui import QColor
@@ -65,7 +65,7 @@ class LineNumberLocation:
 
 @attr.s(slots=True, auto_attribs=True, auto_detect=True, weakref_slot=True)
 class QtAttributes:
-    background_color: "QColor" = attr.ib(default=MiscEnum.NOTHING)
+    # background_color: "QColor" = attr.ib(default=MiscEnum.NOTHING)
     message_size_hint: "QSize" = attr.ib(default=None)
 
 
@@ -93,6 +93,7 @@ class BaseRecord(AbstractRecord):
     ___record_family___ = RecordFamily.GENERIC | RecordFamily.ANTISTASI
     ___specificity___ = 0
     foreign_key_cache: "ForeignKeyCache" = None
+    _background_qcolors: dict[type, "QColor"] = defaultdict(lambda: MiscEnum.NOTHING)
     __slots__ = tuple(BASE_SLOTS)
 
     def __init__(self,
@@ -147,10 +148,13 @@ class BaseRecord(AbstractRecord):
         return self.log_level
 
     @property
-    def background_color(self) -> Optional[RGBColor]:
-        if self.qt_attributes.background_color is MiscEnum.NOTHING:
-            self.qt_attributes.background_color = Color.get_color_by_name("Gray").with_alpha(0.25).qcolor
-        return self.qt_attributes.background_color
+    def background_color(self) -> Optional["QColor"]:
+        if self._background_qcolors[self.__class__] is MiscEnum.NOTHING:
+            self._background_qcolors[self.__class__] = self.get_background_color()
+        return self._background_qcolors[self.__class__]
+
+    def get_background_color(self) -> "QColor":
+        return Color.get_color_by_name("Gray").with_alpha(0.1).qcolor
 
     @property
     def message_size_hint(self) -> "QSize":

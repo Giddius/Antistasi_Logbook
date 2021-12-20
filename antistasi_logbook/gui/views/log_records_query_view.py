@@ -7,14 +7,14 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union, Callable
 from pathlib import Path
 from threading import Lock
 
 # * PyQt5 Imports --------------------------------------------------------------------------------------->
 import PySide6
 from PySide6.QtGui import QFont
-from PySide6.QtCore import Qt, QThread
+from PySide6.QtCore import Qt, QThread, QThreadPool, QRunnable
 from PySide6.QtWidgets import QTreeView, QHeaderView, QAbstractItemView
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
@@ -71,17 +71,16 @@ class LogRecordsQueryView(QTreeView):
 
     def setup(self) -> "LogRecordsQueryView":
         self.setUniformRowHeights(False)
-        self.header_view.setStretchLastSection(False)
-        self.header_view.setCascadingSectionResizes(False)
-        self.header_view.setStretchLastSection(False)
+
+        # self.header_view.setStretchLastSection(False)
+        # self.header_view.setCascadingSectionResizes(False)
+        # self.header_view.setFirstSectionMovable(False)
+        self.header_view.setSectionResizeMode(QHeaderView.Interactive)
         self.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.verticalScrollBar().setSingleStep(3)
-        self.setFont(QFont("Arial", 12))
-        self.setWordWrap(False)
-        self.setAlternatingRowColors(False)
+        # self.setAlternatingRowColors(True)
         self.setSortingEnabled(False)
-        self.setTextElideMode(Qt.ElideNone)
 
         return self
 
@@ -98,7 +97,17 @@ class LogRecordsQueryView(QTreeView):
     def setModel(self, model: "LogRecordsModel") -> None:
 
         super().setModel(model)
+
         # self.resize_columns()
+
+    def selectionChanged(self, selected: PySide6.QtCore.QItemSelection, deselected: PySide6.QtCore.QItemSelection) -> None:
+        self.model()._expand = {i.row() for i in selected.indexes()}
+        for index in selected.indexes():
+
+            self.dataChanged(index, index)
+        for _index in deselected.indexes():
+
+            self.dataChanged(_index, _index)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}"

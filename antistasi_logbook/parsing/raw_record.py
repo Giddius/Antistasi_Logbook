@@ -12,7 +12,7 @@ from pathlib import Path
 from datetime import datetime
 
 # * Third Party Imports --------------------------------------------------------------------------------->
-from antistasi_logbook.storage.models.models import LogFile
+from antistasi_logbook.storage.models.models import LogFile, LogRecord
 
 if TYPE_CHECKING:
     # * Third Party Imports --------------------------------------------------------------------------------->
@@ -84,7 +84,7 @@ class RawRecord:
         if logged_from is not None:
             logged_from = logged_from.id
 
-        return (self.start, self.end, self.parsed_data.get("message"), self.parsed_data.get("recorded_at").isoformat(), called_by, int(self.is_antistasi_record), logged_from, log_file.id, self.parsed_data.get("log_level").id, self.record_class.id, 0)
+        return (self.start, self.end, self.parsed_data.get("message"), LogRecord.recorded_at.db_value(self.parsed_data.get("recorded_at")), called_by, int(self.is_antistasi_record), logged_from, log_file.id, self.parsed_data.get("log_level").id, self.record_class.id, 0)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(start={self.start!r}, end={self.end!r}, content={self.content!r}, is_antistasi_record={self.is_antistasi_record!r}, lines={self.lines!r})"

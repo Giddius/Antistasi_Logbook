@@ -56,6 +56,13 @@ class AbstractRecord(ABC):
     def pretty_message(self) -> str:
         return self.get_formated_message(MessageFormat.PRETTY)
 
+    @cached_property
+    def single_line_message(self) -> str:
+        pretty_message_lines = self.get_formated_message(MessageFormat.PRETTY).splitlines()
+        if len(pretty_message_lines) > 1:
+            return pretty_message_lines[0] + '...'
+        else:
+            return pretty_message_lines[0]
 # region[Main_Exec]
 
 

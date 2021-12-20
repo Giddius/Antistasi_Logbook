@@ -1,36 +1,40 @@
 # * Third Party Imports --------------------------------------------------------------------------------->
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
+from tzlocal import get_localzone
+from gidapptools.general_helper.conversion import bytes2human
+from antistasi_logbook.storage.models.custom_fields import (URLField, PathField, LoginField, VersionField, PasswordField, TzOffsetField,
+                                                            RemotePathField, CompressedTextField, CompressedImageField, AwareTimeStampField)
+from antistasi_logbook.updating.remote_managers import remote_manager_registry
+from antistasi_logbook.records.abstract_record import MessageFormat
+from antistasi_logbook.utilities.locks import FILE_LOCKS
+from antistasi_logbook.utilities.misc import Version
+from antistasi_logbook.data.misc import LOG_FILE_DATE_REGEX
+from playhouse.sqlite_ext import JSONField
+from playhouse.apsw_ext import BooleanField, IntegerField, CharField, ForeignKeyField, DeferredForeignKey, TextField, FixedCharField, BlobField, BareField, DecimalField
+from playhouse.signals import Model
+from dateutil.tz import UTC
+from peewee import TextField, BooleanField, IntegerField, DatabaseProxy, IntegrityError, ForeignKeyField
+from yarl import URL
+from statistics import mean
+import re
+from contextlib import contextmanager
+from threading import Lock, RLock
+from functools import cached_property
+from datetime import datetime
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Literal, Optional, Generator
+from time import sleep
+from io import TextIOWrapper
+import os
 from antistasi_logbook import setup
 
 setup()
 # * Standard Library Imports ---------------------------------------------------------------------------->
-import os
-from io import TextIOWrapper
-from time import sleep
-from typing import TYPE_CHECKING, Any, Literal, Optional, Generator
-from pathlib import Path
-from datetime import datetime
-from functools import cached_property
-from threading import Lock, RLock
-from contextlib import contextmanager
-from statistics import mean
 
 # * Third Party Imports --------------------------------------------------------------------------------->
-from yarl import URL
-from peewee import TextField, BooleanField, IntegerField, DatabaseProxy, IntegrityError, ForeignKeyField
-from dateutil.tz import UTC
-from playhouse.signals import Model
-from playhouse.apsw_ext import BooleanField, IntegerField
-from playhouse.sqlite_ext import JSONField
-from antistasi_logbook.data.misc import LOG_FILE_DATE_REGEX
-from antistasi_logbook.utilities.misc import Version
-from antistasi_logbook.utilities.locks import FILE_LOCKS
-from antistasi_logbook.records.abstract_record import MessageFormat
-from antistasi_logbook.updating.remote_managers import remote_manager_registry
-from antistasi_logbook.storage.models.custom_fields import (URLField, PathField, LoginField, VersionField, PasswordField, TzOffsetField,
-                                                            RemotePathField, BetterDateTimeField, CompressedTextField, CompressedImageField)
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
-from gidapptools.general_helper.conversion import bytes2human
 
 if TYPE_CHECKING:
     from antistasi_logbook.updating.remote_managers import AbstractRemoteStorageManager, InfoItem
@@ -39,11 +43,8 @@ if TYPE_CHECKING:
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
 
 # * Third Party Imports --------------------------------------------------------------------------------->
-from tzlocal import get_localzone
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
-from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 
 get_dummy_profile_decorator_in_globals()
 
@@ -132,8 +133,8 @@ class GameMap(BaseModel):
     name = TextField(unique=True, index=True)
     official = BooleanField(default=False, index=True)
     dlc = TextField(null=True, index=True)
-    map_image_high_resolution = CompressedImageField(null=True)
-    map_image_low_resolution = CompressedImageField(null=True)
+    map_image_high_resolution = PathField(null=True)
+    map_image_low_resolution = PathField(null=True)
     coordinates = JSONField(null=True)
     workshop_link = URLField(null=True)
     comments = TextField(null=True)
@@ -199,11 +200,13 @@ class RemoteStorage(BaseModel):
 
 class Server(BaseModel):
     local_path = PathField(null=True, unique=True, verbose_name="Local Path", help_text="Location where Log-Files of this server are downloaded to")
-    name = TextField(unique=True, index=True, verbose_name="Name")
-    remote_path = RemotePathField(null=True, unique=True, verbose_name="Remote Path")
+    name = TextField(unique=True, index=True, verbose_name="Name", help_text="The Name of the Server")
+    remote_path = RemotePathField(null=True, unique=True, verbose_name="Remote Path", help_text="The Path in the Remote Storage containing the log files")
     remote_storage = ForeignKeyField(column_name='remote_storage', default=0, field='id', model=RemoteStorage, lazy_load=True, index=True, verbose_name="Remote Storage")
-    update_enabled = BooleanField(default=False, verbose_name="Update")
-    comments = TextField(null=True, verbose_name="Comments")
+    update_enabled = BooleanField(default=False, verbose_name="Update", help_text="If this Server should update")
+    ip = TextField(null=True, verbose_name="IP Address", help_text="IP Adress of the Server")
+    port = IntegerField(null=True, verbose_name="Port", help_text="Port the Server uses")
+    comments = TextField(null=True, verbose_name="Comments", help_text="comments")
     marked = BooleanField(default=False, index=True, verbose_name="Marked", help_text=MARKED_HELP_TEXT)
 
     class Meta:
@@ -256,9 +259,9 @@ class Server(BaseModel):
 class LogFile(BaseModel):
     name = TextField(index=True, verbose_name="Name")
     remote_path = RemotePathField(unique=True, verbose_name="Remote Path")
-    modified_at = BetterDateTimeField(index=True, verbose_name="Modified at")
+    modified_at = AwareTimeStampField(index=True, utc=True, verbose_name="Modified at")
     size = IntegerField(verbose_name="Size")
-    created_at = BetterDateTimeField(null=True, index=True, verbose_name="Created at")
+    created_at = AwareTimeStampField(null=True, utc=True, index=True, verbose_name="Created at")
     header_text = CompressedTextField(null=True, verbose_name="Header Text")
     startup_text = CompressedTextField(null=True, verbose_name="Startup Text")
     last_parsed_line_number = IntegerField(default=0, null=True, verbose_name="Last Parsed Line Number")
@@ -269,7 +272,7 @@ class LogFile(BaseModel):
     campaign_id = IntegerField(null=True, index=True, verbose_name="Campaign Id")
     server = ForeignKeyField(column_name='server', field='id', model=Server, lazy_load=True, backref="log_files", index=True, verbose_name="Server")
     unparsable = BooleanField(default=False, index=True, verbose_name="Unparsable")
-    last_parsed_datetime = BetterDateTimeField(null=True, verbose_name="Last Parsed Datetime")
+    last_parsed_datetime = AwareTimeStampField(null=True, utc=True, verbose_name="Last Parsed Datetime")
     comments = TextField(null=True, verbose_name="Comments")
     marked = BooleanField(default=False, verbose_name="Marked", help_text=MARKED_HELP_TEXT)
 
@@ -401,23 +404,60 @@ class LogFile(BaseModel):
         return f"{self.name}"
 
 
+class ModLink(BaseModel):
+    cleaned_mod_name = TextField(unique=True)
+    link = URLField(unique=True)
+
+    class Meta:
+        table_name = 'ModLink'
+        indexes = (
+            (("cleaned_mod_name", "link"), True),
+        )
+
+
 class Mod(BaseModel):
     full_path = PathField(null=True)
     mod_hash = TextField(null=True)
     mod_hash_short = TextField(null=True)
-    link = TextField(null=True)
     mod_dir = TextField()
     name = TextField(index=True)
     default = BooleanField(default=False, index=True)
     official = BooleanField(default=False, index=True)
     comments = TextField(null=True)
     marked = BooleanField(default=False, index=True, help_text=MARKED_HELP_TEXT)
+    version_regex = re.compile(r"(\s*\-\s*)?v?\s*[\d\.]*$")
 
     class Meta:
         table_name = 'Mod'
         indexes = (
             (('name', 'mod_dir', "full_path", "mod_hash", "mod_hash_short"), True),
         )
+
+    @property
+    def link(self):
+        try:
+            _out = list(ModLink.select().where(ModLink.cleaned_mod_name == self.cleaned_name))[0]
+            if _out is not None:
+
+                return _out.link
+        except IndexError:
+            return None
+
+    @cached_property
+    def cleaned_name(self) -> str:
+        cleaned_name = str(self.name)
+        cleaned_name = cleaned_name.strip().strip('@')
+        cleaned_name = self.version_regex.sub("", cleaned_name)
+        cleaned_name = cleaned_name.strip().casefold()
+        log.debug(f"{cleaned_name=}")
+        return cleaned_name
+
+    def __str__(self):
+        return self.name
+
+    @cached_property
+    def pretty_name(self) -> str:
+        return self.name.removeprefix('@')
 
 
 class LogFileAndModJoin(BaseModel):
@@ -465,7 +505,7 @@ class LogRecord(BaseModel):
     start = IntegerField(help_text="Start Line number of the Record", verbose_name="Start Line Number", index=True)
     end = IntegerField(help_text="End Line number of the Record", verbose_name="End Line Number")
     message = TextField(help_text="Message part of the Record", verbose_name="Message")
-    recorded_at = BetterDateTimeField(index=True, verbose_name="Recorded at")
+    recorded_at = AwareTimeStampField(index=True, utc=True, verbose_name="Recorded at")
     called_by = ForeignKeyField(column_name='called_by', field='id', model=AntstasiFunction, backref="log_records_called_by", lazy_load=True, null=True, index=True, verbose_name="Called by")
     is_antistasi_record = BooleanField(default=False, index=True, verbose_name="Is Antistasi Record")
     logged_from = ForeignKeyField(column_name='logged_from', field='id', model=AntstasiFunction, backref="log_records_logged_from", lazy_load=True, null=True, index=True, verbose_name="Logged from")
@@ -518,14 +558,14 @@ DATABASE_META_LOCK = RLock()
 
 
 class DatabaseMetaData(BaseModel):
-    started_at = BetterDateTimeField()
+    started_at = AwareTimeStampField(utc=True)
     app_version = VersionField()
     new_log_files = IntegerField(default=0)
     updated_log_files = IntegerField(default=0)
     added_log_records = IntegerField(default=0)
     errored = TextField(null=True)
-    last_update_started_at = BetterDateTimeField(null=True)
-    last_update_finished_at = BetterDateTimeField(null=True)
+    last_update_started_at = AwareTimeStampField(null=True, utc=True)
+    last_update_finished_at = AwareTimeStampField(null=True, utc=True)
 
     class Meta:
         table_name = 'DatabaseMetaData'
@@ -542,6 +582,7 @@ class DatabaseMetaData(BaseModel):
 
     def get_absolute_last_update_finished_at(self) -> datetime:
         item = DatabaseMetaData.select(DatabaseMetaData.last_update_finished_at).where(DatabaseMetaData.last_update_finished_at != None).order_by(-DatabaseMetaData.last_update_finished_at).scalar()
+
         if self.last_update_finished_at is None:
             return item
         if item is None:
@@ -582,6 +623,7 @@ class DatabaseMetaData(BaseModel):
 
 
 def setup_db(database: "GidSqliteApswDatabase"):
+    from antistasi_logbook.data.map_images import MAP_IMAGES_DIR
     database_proxy.initialize(database)
 
     all_models = BaseModel.__subclasses__()
@@ -600,99 +642,140 @@ def setup_db(database: "GidSqliteApswDatabase"):
                             'name': 'NO_SERVER',
                            'remote_path': None,
                             'remote_storage': 0,
-                            'update_enabled': 0},
+                            'update_enabled': 0,
+                            "ip": None,
+                            "port": None},
                            {'local_path': None,
                            'name': 'Mainserver_1',
                             'remote_path': 'Antistasi_Community_Logs/Mainserver_1/Server/',
                             'remote_storage': 1,
-                            'update_enabled': 1},
+                            'update_enabled': 1,
+                            "ip": "38.133.154.60",
+                            "port": 2312},
                            {'local_path': None,
                            'name': 'Mainserver_2',
                             'remote_path': 'Antistasi_Community_Logs/Mainserver_2/Server/',
                             'remote_storage': 1,
-                            'update_enabled': 1},
+                            'update_enabled': 1,
+                            "ip": "38.133.154.60",
+                            "port": 2322},
                            {'local_path': None,
                            'name': 'Testserver_1',
                             'remote_path': 'Antistasi_Community_Logs/Testserver_1/Server/',
                             'remote_storage': 1,
-                            'update_enabled': 1},
+                            'update_enabled': 1,
+                            "ip": "38.133.154.60",
+                            "port": 2342},
                            {'local_path': None,
                            'name': 'Testserver_2',
                             'remote_path': 'Antistasi_Community_Logs/Testserver_2/Server/',
                             'remote_storage': 1,
-                            'update_enabled': 1},
+                            'update_enabled': 1,
+                            "ip": "38.133.154.60",
+                            "port": 2352},
                            {'local_path': None,
                            'name': 'Testserver_3',
                             'remote_path': 'Antistasi_Community_Logs/Testserver_3/Server/',
                             'remote_storage': 1,
-                            'update_enabled': 1},
+                            'update_enabled': 1,
+                            "ip": None,
+                            "port": None},
                            {'local_path': None,
                            'name': 'Eventserver',
                             'remote_path': 'Antistasi_Community_Logs/Eventserver/Server/',
                             'remote_storage': 1,
-                            'update_enabled': 0}],
+                            'update_enabled': 0,
+                            "ip": "38.133.154.60",
+                            "port": 2332}],
 
                   GameMap: [{'dlc': None,
                              'full_name': 'Altis',
                             'name': 'Altis',
                              'official': 1,
-                             'workshop_link': None},
+                             'workshop_link': None,
+                             "map_image_low_resolution": None},
                             {'dlc': 'Apex',
                             'full_name': 'Tanoa',
                              'name': 'Tanoa',
                              'official': 1,
-                             'workshop_link': None},
+                             'workshop_link': None,
+                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("tanoa_thumbnail.png")},
                             {'dlc': 'Contact',
                             'full_name': 'Livonia',
                              'name': 'Enoch',
                              'official': 1,
-                             'workshop_link': None},
+                             'workshop_link': None,
+                             "map_image_low_resolution": None},
                             {'dlc': 'Malden',
                             'full_name': 'Malden',
                              'name': 'Malden',
                              'official': 1,
-                             'workshop_link': None},
+                             'workshop_link': None,
+                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("malden_thumbnail.png")},
                             {'dlc': None,
                             'full_name': 'Takistan',
                              'name': 'takistan',
                              'official': 0,
-                             'workshop_link': None},
+                             'workshop_link': None,
+                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("takistan_thumbnail.png")},
                             {'dlc': None,
                             'full_name': 'Virolahti',
                              'name': 'vt7',
                              'official': 0,
-                             'workshop_link': 'https://steamcommunity.com/workshop/filedetails/?id=1926513010'},
+                             'workshop_link': 'https://steamcommunity.com/workshop/filedetails/?id=1926513010',
+                             "map_image_low_resolution": None},
                             {'dlc': None,
                             'full_name': 'Sahrani',
                              'name': 'sara',
                              'official': 0,
-                             'workshop_link': 'https://steamcommunity.com/sharedfiles/filedetails/?id=583544987'},
+                             'workshop_link': 'https://steamcommunity.com/sharedfiles/filedetails/?id=583544987',
+                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("sahrani_thumbnail.png")},
                             {'dlc': None,
                             'full_name': 'Chernarus Winter',
                              'name': 'Chernarus_Winter',
                              'official': 0,
-                             'workshop_link': 'https://steamcommunity.com/sharedfiles/filedetails/?id=583544987'},
+                             'workshop_link': 'https://steamcommunity.com/sharedfiles/filedetails/?id=583544987',
+                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("chernarus_winter_thumbnail.png")},
                             {'dlc': None,
                             'full_name': 'Anizay',
                              'name': 'tem_anizay',
                              'official': 0,
-                             'workshop_link': 'https://steamcommunity.com/workshop/filedetails/?id=1537973181'},
+                             'workshop_link': 'https://steamcommunity.com/workshop/filedetails/?id=1537973181',
+                             "map_image_low_resolution": None},
                             {'dlc': None,
                             'full_name': 'Tembelan',
                              'name': 'Tembelan',
                              'official': 0,
-                             'workshop_link': 'https://steamcommunity.com/workshop/filedetails/?id=1252091296'},
+                             'workshop_link': 'https://steamcommunity.com/workshop/filedetails/?id=1252091296',
+                             "map_image_low_resolution": None},
                             {'dlc': 'S.O.G. Prairie Fire',
                             'full_name': 'Cam Lao Nam',
                              'name': 'cam_lao_nam',
                              'official': 1,
-                             'workshop_link': None},
+                             'workshop_link': None,
+                             "map_image_low_resolution": None},
                             {'dlc': 'S.O.G. Prairie Fire',
                             'full_name': 'Khe Sanh',
                              'name': 'vn_khe_sanh',
                              'official': 1,
-                             'workshop_link': None}],
-
+                             'workshop_link': None,
+                             "map_image_low_resolution": None}],
+                  ModLink: [{"cleaned_mod_name": "vet_unflipping", "link": "https://steamcommunity.com/sharedfiles/filedetails/?id=1703187116"},
+                  {"cleaned_mod_name": "gruppe adler trenches", "link": "https://steamcommunity.com/workshop/filedetails/?id=1224892496"},
+                  {"cleaned_mod_name": "zeus enhanced", "link": "https://steamcommunity.com/sharedfiles/filedetails/?id=1779063631"},
+                  {"cleaned_mod_name": "tfar", "link": "https://steamcommunity.com/sharedfiles/filedetails/?id=894678801"},
+                  {"cleaned_mod_name": "enhanced movement", "link": "https://steamcommunity.com/sharedfiles/filedetails/?l=german&id=333310405"},
+                  {"cleaned_mod_name": "community base addons", "link": "https://steamcommunity.com/workshop/filedetails/?id=450814997"},
+                  {"cleaned_mod_name": "advanced combat environment", "link": "https://steamcommunity.com/workshop/filedetails/?id=463939057"},
+                  {"cleaned_mod_name": "rhs: united states forces", "link": "https://steamcommunity.com/sharedfiles/filedetails/?id=843577117"},
+                  {"cleaned_mod_name": "rhs: gref", "link": "https://steamcommunity.com/workshop/filedetails/?id=843593391"},
+                  {"cleaned_mod_name": "rhs: armed forces of the russian federation", "link": "https://steamcommunity.com/workshop/filedetails/?id=843425103"},
+                  {"cleaned_mod_name": "zeusenhancedace3compatibility", "link": "https://steamcommunity.com/sharedfiles/filedetails/?id=2018593688"},
+                  {"cleaned_mod_name": "acecompatrhsgref", "link": "https://steamcommunity.com/sharedfiles/filedetails/?id=884966711"},
+                  {"cleaned_mod_name": "acecompatrhsarmedforcesoftherussianfederation", "link": "https://steamcommunity.com/sharedfiles/filedetails/?id=773131200"},
+                  {"cleaned_mod_name": "acecompatrhsunitedstatesarmedforces", "link": "https://steamcommunity.com/sharedfiles/filedetails/?id=773125288"},
+                  {"cleaned_mod_name": "taskforceenforcer", "link": "https://github.com/Sparker95/TaskForceEnforcer"},
+                  {"cleaned_mod_name": "rksl attachments pack", "link": "https://steamcommunity.com/workshop/filedetails/?id=1661066023"}],
                   AntstasiFunction: [{'id': 1, 'name': 'init'},
                                      {'id': 2, 'name': 'initServer'},
                                      {'id': 3, 'name': 'initParams'},

@@ -8,39 +8,38 @@ Soon.
 # region [Imports]
 
 # * Third Party Imports --------------------------------------------------------------------------------->
+from antistasi_logbook.gui.application import AntistasiLogbookApplication
+from gidapptools.general_helper.string_helper import StringCaseConverter
+from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
+from PySide6.QtWidgets import QWidget, QStyle, QMenuBar, QMainWindow, QMessageBox, QApplication, QStyleFactory
+from PySide6.QtCore import Slot, QEvent, Signal, QSettings, QByteArray
+from PySide6.QtGui import QCloseEvent, QFont
+from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
+from antistasi_logbook.gui.resources.style_sheets import get_style_sheet_data
+from antistasi_logbook.storage.models.models import RemoteStorage
+from antistasi_logbook.gui.settings_window import SettingsWindow
+from antistasi_logbook.gui.main_widget import MainWidget
+from antistasi_logbook.gui.status_bar import LogbookStatusBar
+from antistasi_logbook.gui.sys_tray import LogbookSystemTray
+from antistasi_logbook.gui.menu_bar import LogbookMenuBar
+from antistasi_logbook.gui.misc import UpdaterSignaler
+from antistasi_logbook.backend import Backend, GidSqliteApswDatabase
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event, Thread
+from weakref import WeakSet
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Callable
+import sys
+import os
 from antistasi_logbook import setup
 
 setup()
 # * Standard Library Imports ---------------------------------------------------------------------------->
-import os
-import sys
-from typing import TYPE_CHECKING, Any, Callable
-from pathlib import Path
-from weakref import WeakSet
-from threading import Event, Thread
-from concurrent.futures import ThreadPoolExecutor
 
 # * Third Party Imports --------------------------------------------------------------------------------->
-from antistasi_logbook.backend import Backend, GidSqliteApswDatabase
-from antistasi_logbook.gui.misc import UpdaterSignaler
-from antistasi_logbook.gui.menu_bar import LogbookMenuBar
-from antistasi_logbook.gui.sys_tray import LogbookSystemTray
-from antistasi_logbook.gui.status_bar import LogbookStatusBar
-from antistasi_logbook.gui.main_widget import MainWidget
-from antistasi_logbook.gui.settings_window import SettingsWindow
-from antistasi_logbook.storage.models.models import RemoteStorage
-from antistasi_logbook.gui.resources.style_sheets import get_style_sheet_data
-from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 
 # * PyQt5 Imports --------------------------------------------------------------------------------------->
-from PySide6.QtGui import QCloseEvent
-from PySide6.QtCore import Slot, QEvent, Signal, QSettings, QByteArray
-from PySide6.QtWidgets import QWidget, QMenuBar, QMainWindow, QMessageBox, QApplication
-
 # * Gid Imports ----------------------------------------------------------------------------------------->
-from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
-from gidapptools.general_helper.string_helper import StringCaseConverter
-
 if TYPE_CHECKING:
     # * Gid Imports ----------------------------------------------------------------------------------------->
     from gidapptools.gid_config.interface import GidIniConfig
@@ -87,10 +86,8 @@ class AntistasiLogbookMainWindow(QMainWindow):
     update_started = Signal()
     update_finished = Signal()
 
-    def __init__(self, app: QApplication, config: "GidIniConfig") -> None:
-        self.app = app
+    def __init__(self, config: "GidIniConfig") -> None:
         self.config = config
-        self.backend: "Backend" = None
         self.main_widget: MainWidget = None
         self.menubar: QMenuBar = None
         self.statusbar: LogbookStatusBar = None
@@ -105,11 +102,19 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.setup()
 
     @property
+    def app(self) -> AntistasiLogbookApplication:
+        return AntistasiLogbookApplication.instance()
+
+    @property
+    def backend(self):
+        return self.app.backend
+
+    @property
     def initial_size(self) -> list[int, int]:
         return self.config.get("main_window", "initial_size", default=[1600, 1000])
 
     @property
-    def current_app_style(self) -> str:
+    def current_app_style_sheet(self) -> str:
         return self.config.get("gui", "style")
 
     def set_app_style_sheet(self, styleSheet: str) -> None:
@@ -119,7 +124,11 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.app.setStyleSheet(data)
 
     def setup(self) -> None:
-        self.set_app_style_sheet(self.current_app_style)
+        for i in QStyleFactory.keys():
+            log.info(i)
+        # self.app.setStyle("Fusion")
+
+        self.set_app_style_sheet(self.current_app_style_sheet)
         settings = QSettings(f"{META_INFO.app_name}_settings", "main_window")
         self.name = StringCaseConverter.convert_to(META_INFO.app_name, StringCaseConverter.TITLE)
         self.title = f"{self.name} {META_INFO.version}"
@@ -150,9 +159,6 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.menubar.open_settings_window_action.triggered.connect(self.open_settings_window)
 
     def setup_backend(self) -> None:
-        db_path = self.config.get('database', "database_path", default=None)
-        database = GidSqliteApswDatabase(db_path, config=self.config)
-        self.backend = Backend(database=database, config=self.config, update_signaler=UpdaterSignaler())
         self.backend.start_up()
         self.menubar.single_update_action.triggered.connect(self._single_update)
         self.menubar.reset_database_action.triggered.connect(self._reset_database)
@@ -223,9 +229,13 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
 
 def start_gui(nextcloud_username: str = None, nextcloud_password: str = None):
-    _app = QApplication(sys.argv)
+    config = META_CONFIG.get_config('general')
+    db_path = config.get('database', "database_path", default=None)
+    database = GidSqliteApswDatabase(db_path, config=config, thread_safe=True, autoconnect=True)
+    backend = Backend(database=database, config=config, update_signaler=UpdaterSignaler())
+    _app = AntistasiLogbookApplication(backend=backend, argvs=sys.argv)
     _app.icon = AllResourceItems.placeholder.get_as_icon()
-    m = AntistasiLogbookMainWindow(_app, META_CONFIG.get_config('general'))
+    m = AntistasiLogbookMainWindow(META_CONFIG.get_config('general'))
     if nextcloud_username is not None and nextcloud_password is not None:
         RemoteStorage.get(name="community_webdav").set_login_and_password(login=nextcloud_username, password=nextcloud_password, store_in_db=False)
 

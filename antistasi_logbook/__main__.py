@@ -129,16 +129,6 @@ def gui(login, password):
     start_gui(login, password)
 
 
-@cli.command(help="Installs APSW")
-def install_apsw():
-    apsw_path = THIS_FILE_DIR.joinpath("utilities").joinpath("apsw-3.36.0-cp39-cp39-win_amd64.whl")
-    cmd = ["pip", "install", apsw_path.as_posix()]
-    import subprocess
-    _cmd = subprocess.run(cmd, check=True, text=True)
-    if _cmd.stderr:
-        click.echo(_cmd.stderr)
-
-
 # region[Main_Exec]
 if __name__ == '__main__':
     pass

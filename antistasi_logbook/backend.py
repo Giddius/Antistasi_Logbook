@@ -189,6 +189,7 @@ class Backend:
         self.database.start_up(overwrite=overwrite)
 
         from antistasi_logbook.records import ALL_ANTISTASI_RECORD_CLASSES
+        self.database.connect(True)
         for record_class in ALL_ANTISTASI_RECORD_CLASSES:
             self.record_class_manager.register_record_class(record_class=record_class)
         RecordClass.record_class_manager = self.record_class_manager

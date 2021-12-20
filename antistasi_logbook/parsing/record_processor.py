@@ -200,6 +200,8 @@ class RecordProcessor:
                                              second=int(match.group("second")))
         if "error in expression" in raw_record.content.casefold():
             _out['log_level'] = "ERROR"
+        elif "warning message:" in raw_record.content.casefold():
+            _out["log_level"] = "WARNING"
         raw_record.parsed_data = _out
 
         return raw_record

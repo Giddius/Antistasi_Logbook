@@ -12,7 +12,7 @@ from pathlib import Path
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 from antistasi_logbook.gui.resources.style_sheets import ALL_STYLE_SHEETS
-from antistasi_logbook.gui.widgets.form_widgets.type_widgets import ALL_VALUE_FIELDS, StringValueField, StringChoicesValueField
+from antistasi_logbook.gui.widgets.form_widgets.type_widgets import ALL_VALUE_FIELDS, StringValueField, StringChoicesValueField, StyleValueField, UpdateTimeFrameValueField
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 
 # * PyQt5 Imports --------------------------------------------------------------------------------------->
@@ -37,6 +37,7 @@ if TYPE_CHECKING:
 
 # region [TODO]
 
+# TODO: Change the selection widget into a QListwidget in Iconmode
 
 # endregion [TODO]
 
@@ -146,17 +147,18 @@ class SettingsField:
 
     def determine_value_field(self) -> SETTINGS_VALUE_FIELD_TYPE:
         if self.name == "style":
-            field = StringChoicesValueField(choices=[i.removesuffix(".qss") for i in ALL_STYLE_SHEETS])
-            if self.start_value is not None:
-                if self.start_value.endswith('.qss'):
-                    self.start_value = self.start_value.removesuffix(".qss")
-                field.set_value(value=self.start_value, is_start=True)
+
+            field = StyleValueField()
+
+        elif self.name == "max_update_time_frame":
+            field = UpdateTimeFrameValueField()
+
         else:
             field_class = ALL_VALUE_FIELDS.get(self.value_typus.base_typus, StringValueField)
             field = field_class()
 
-            if self.start_value is not None:
-                field.set_value(value=self.start_value, is_start=True)
+        if self.start_value is not None:
+            field.set_value(value=self.start_value, is_start=True)
         field.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         return field
 
@@ -226,7 +228,7 @@ class SettingsWindow(QWidget):
         self.buttons.setOrientation(Qt.Horizontal)
         self.buttons.setStandardButtons(QDialogButtonBox.Cancel | QDialogButtonBox.Ok)
         self.main_layout.addWidget(self.buttons, 1, 0, 1, 2, Qt.AlignBottom)
-        self.buttons.rejected.connect(self.close)
+        self.buttons.rejected.connect(self.on_cancelled)
         self.buttons.accepted.connect(self.on_accepted)
 
     def setup_content_widget(self) -> None:
@@ -245,6 +247,10 @@ class SettingsWindow(QWidget):
         self.save_config()
         self.close()
 
+    def on_cancelled(self):
+        self.main_window.set_app_style_sheet(self.main_window.current_app_style_sheet)
+        self.close()
+
     def save_config(self) -> None:
         old_auto_write = self.general_config.config.auto_write
         self.general_config.config.auto_write = False
@@ -255,8 +261,7 @@ class SettingsWindow(QWidget):
                 if field.value_field.value_is_changed():
                     log.debug("sect_name=%r, field.name=%r, field.value_field.get_value()=%r", sect_name, field.name, field.value_field.get_value())
                     self.general_config.set(sect_name, field.name, field.value_field.get_value())
-                    if sect_name == "gui" and field.name == "style":
-                        self.main_window.set_app_style_sheet(self.main_window.current_app_style)
+
         self.general_config.config.save()
         self.general_config.config.auto_write = old_auto_write
 

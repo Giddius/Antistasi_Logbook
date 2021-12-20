@@ -162,7 +162,6 @@ class ModItem:
     full_path: Path = attr.ib(default=None, converter=strip_to_path)
     mod_hash: str = attr.ib(default=None, converter=strip_converter)
     mod_hash_short: str = attr.ib(default=None, converter=strip_converter)
-    link: str = attr.ib(default=None, converter=strip_converter)
 
     @ classmethod
     def from_text_line(cls, line: str) -> "ModItem":
