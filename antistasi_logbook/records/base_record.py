@@ -30,7 +30,7 @@ except ImportError:
     PYSIDE6_AVAILABLE = False
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools.general_helper.enums import MiscEnum
-
+from antistasi_logbook.records.enums import MessageTypus
 if TYPE_CHECKING:
     # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.parsing.parser import RawRecord

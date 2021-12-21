@@ -51,6 +51,7 @@ from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
 
+
 import PySide6
 from PySide6 import (QtCore, QtGui, QtWidgets, Qt3DAnimation, Qt3DCore, Qt3DExtras, Qt3DInput, Qt3DLogic, Qt3DRender, QtAxContainer, QtBluetooth,
                      QtCharts, QtConcurrent, QtDataVisualization, QtDesigner, QtHelp, QtMultimedia, QtMultimediaWidgets, QtNetwork, QtNetworkAuth,
@@ -58,11 +59,11 @@ from PySide6 import (QtCore, QtGui, QtWidgets, Qt3DAnimation, Qt3DCore, Qt3DExtr
                      QtScxml, QtSensors, QtSerialPort, QtSql, QtStateMachine, QtSvg, QtSvgWidgets, QtTest, QtUiTools, QtWebChannel, QtWebEngineCore,
                      QtWebEngineQuick, QtWebEngineWidgets, QtWebSockets, QtXml)
 
-from PySide6.QtCore import (QByteArray, QLibrary, QLibraryInfo, QCoreApplication, QDate, QDateTime, QEvent, QLocale, QMetaObject, QModelIndex, QModelRoleData, QMutex,
+from PySide6.QtCore import (QByteArray, QCoreApplication, QDate, QDateTime, QEvent, QLocale, QMetaObject, QModelIndex, QModelRoleData, QMutex,
                             QMutexLocker, QObject, QPoint, QRect, QRecursiveMutex, QRunnable, QSettings, QSize, QThread, QThreadPool, QTime, QUrl,
                             QWaitCondition, Qt, QAbstractItemModel, QAbstractListModel, QAbstractTableModel, Signal, Slot)
 
-from PySide6.QtGui import (QAction, QGuiApplication, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
+from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
                            QKeySequence, QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform)
 
 from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QDialogButtonBox,
@@ -71,10 +72,12 @@ from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog
                                QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
                                QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
                                QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
-from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
 
 if TYPE_CHECKING:
+    # * Third Party Imports --------------------------------------------------------------------------------->
+    from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow
     from antistasi_logbook.backend import Backend
+    from antistasi_logbook.gui.application import AntistasiLogbookApplication
     from gidapptools.gid_config.interface import GidIniConfig
 # endregion[Imports]
 
@@ -91,56 +94,56 @@ if TYPE_CHECKING:
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
-log = get_logger(__name__)
-META_INFO = get_meta_info()
-META_PATHS = get_meta_paths()
+
 # endregion[Constants]
 
 
-class AntistasiLogbookApplication(QApplication):
+class BaseDockWidget(QDockWidget):
 
-    def __init__(self, backend: "Backend", argvs: Iterable[str] = None):
-        super().__init__(argvs)
-        self.backend = backend
-        self.meta_info = get_meta_info()
-        self.meta_paths = get_meta_paths()
-        self.available_font_families = set(QFontDatabase().families())
-        self.setup()
-        self.pre_logging()
+    def __init__(self,
+                 parent: QMainWindow = None,
+                 title: str = None,
+                 start_floating: bool = False,
+                 start_hidden: bool = False,
+                 allowed_areas: Qt.DockWidgetArea = Qt.AllDockWidgetAreas,
+                 features: QDockWidget.DockWidgetFeature = QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetClosable | QDockWidget.DockWidgetFloatable):
+        super().__init__(parent)
+        if title:
+            self.setWindowTitle(title)
+        self.first_shown: bool = False
+        self.setHidden(start_hidden)
+        self.setFloating(start_floating)
+        self.setAllowedAreas(allowed_areas)
+        self.setFeatures(features)
 
-    def setup(self) -> None:
-        self.setApplicationName(self.meta_info.app_name)
-        self.setApplicationVersion(self.meta_info.version)
-        self.setOrganizationName(self.meta_info.app_author)
-        self.setOrganizationDomain(str(self.meta_info.url))
+    @property
+    def app(self) -> "AntistasiLogbookApplication":
+        return QApplication.instance()
 
-    def pre_logging(self) -> None:
-        log.debug("DesktopFileName: %r", self.desktopFileName())
-        log.debug("QLocale.system().dateTimeFormat(QLocale.FormatType.ShortFormat) = %r", QLocale.system().dateTimeFormat(QLocale.FormatType.LongFormat))
-        log.debug("QFontDatabase().families() = %r", QFontDatabase().families())
-        log.debug("self.keyboardModifiers()=%r", self.keyboardModifiers())
-
-    @ classmethod
-    def with_high_dpi_scaling(cls, backend: "Backend", argvs: Iterable[str] = None):
-        QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
-        QGuiApplication.setDesktopSettingsAware(True)
-        return cls(backend=backend, argvs=argvs)
+    @property
+    def backend(self) -> "Backend":
+        return self.app.backend
 
     @property
     def config(self) -> "GidIniConfig":
-        return self.backend.config
+        return self.app.config
 
-    def format_datetime(self, date_time: datetime) -> str:
-        if self.config.get("time", "use_local_timezone", default=False) is True:
-            date_time = date_time.astimezone(tz=self.meta_info.local_tz)
-        time_format = self.config.get("time", "time_format", default='%Y-%m-%d %H:%M:%S')
+    @property
+    def main_window(self) -> "AntistasiLogbookMainWindow":
+        return self.parentWidget()
 
-        if time_format == "local":
-            time_format = "%x %X"
-        return date_time.strftime(time_format)
+    def show_if_first(self):
+        if self.first_shown is False:
+            self.show()
+
+    def show(self) -> None:
+        super().show()
+        if self.first_shown is False:
+            self.first_shown = True
 
 
 # region[Main_Exec]
+
 if __name__ == '__main__':
     pass
 

@@ -26,8 +26,8 @@ from PySide6.QtCore import (QByteArray, QCoreApplication, QDate, QDateTime, QEve
                             QMutexLocker, QObject, QPoint, QRect, QRecursiveMutex, QRunnable, QSettings, QSize, QThread, QThreadPool, QTime, QUrl,
                             QWaitCondition, Qt, QUrl, QAbstractItemModel, QAbstractListModel, QAbstractTableModel, Signal, Slot)
 
-from PySide6.QtGui import (QAction, QBrush, QTextOption, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
-                           QKeySequence, QSyntaxHighlighter, QTextCharFormat, QTextFormat, QTextBlockFormat, QTextListFormat, QTextTableFormat,
+from PySide6.QtGui import (QAction, QTextCursor, QBrush, QTextOption, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
+                           QKeySequence, QSyntaxHighlighter, QTextCharFormat, QTextFormat, QTextBlockFormat, QTextListFormat, QTextTableFormat, QTextTable,
                            QTextTableCellFormat, QDesktopServices, QLinearGradient, QPainter, QFontInfo, QPalette, QPixmap, QRadialGradient, QTransform, Qt)
 
 from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QDialogButtonBox,
@@ -44,9 +44,10 @@ import pyqtgraph as pg
 from gidapptools.general_helper.string_helper import StringCase, StringCaseConverter
 import re
 import attr
-
+from antistasi_logbook.records.enums import MessageTypus
 from antistasi_logbook.data.sqf_syntax_data import SQF_BUILTINS_REGEX
 from gidapptools.general_helper.color.color_item import Color
+
 if TYPE_CHECKING:
 
     # * Third Party Imports --------------------------------------------------------------------------------->
@@ -473,6 +474,20 @@ class PunctuationHighlightRule(AbstractSyntaxHighlightRule):
         return style_format
 
 
+class KVHighlightRule(AbstractSyntaxHighlightRule):
+    def __init__(self) -> None:
+
+        self._pattern = re.compile(r"^◘.*")
+        self._style_format = self._make_style_format()
+
+    def _make_style_format(self) -> QTextCharFormat:
+        style_format = QTextCharFormat()
+
+        style_format.setBackground(QColor(25, 75, 25, 100))
+        style_format.setForeground(QColor(255, 255, 255, 255))
+        return style_format
+
+
 class MessageHighlighter(QSyntaxHighlighter):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -489,15 +504,16 @@ class MessageHighlighter(QSyntaxHighlighter):
 
 class MessageValue(QTextEdit):
 
-    def __init__(self, text: str = None, parent: Optional[PySide6.QtWidgets.QWidget] = None):
+    def __init__(self, record: "AbstractRecord", parent: Optional[PySide6.QtWidgets.QWidget] = None):
         super().__init__(parent)
+        self.record = record
         self.setReadOnly(True)
         self.setWordWrapMode(QTextOption.NoWrap)
-        self.highlighter: MessageHighlighter = MessageHighlighter()
-        self.setFont(self.get_text_font())
 
-        self.raw_text = "" if text is None else text
-        self.setPlainText(self.text)
+        self.setFont(self.get_text_font())
+        self.highlighter = MessageHighlighter(self)
+        self.raw_text = self.record.pretty_message
+        self.setPlainText(self.record.pretty_message)
         self.setup_highlighter()
 
     @property
@@ -506,8 +522,8 @@ class MessageValue(QTextEdit):
 
     def get_text_font(self) -> QFont:
         text_font = QFont()
-        text_font.setFamily("Cascadia Code")
-        text_font.setPointSize(int(self.font().pointSize() * 1.25))
+        text_font.setFamily("Lucida Console")
+        text_font.setPointSize(int(self.font().pointSize() * 1))
         return text_font
 
     def setup_highlighter(self):
@@ -518,6 +534,7 @@ class MessageValue(QTextEdit):
         self.highlighter.add_rule(FloatHighlightRule())
         self.highlighter.add_rule(SQFbuiltinsHighlightRule())
         self.highlighter.add_rule(PunctuationHighlightRule())
+        self.highlighter.add_rule(KVHighlightRule())
         self.highlighter.setDocument(self.document())
 
 
@@ -549,7 +566,7 @@ class LogRecordDetailView(BaseDetailWidget):
 
         self.layout.addRow("Antistasi Record", self.is_antistasi_record_value)
 
-        self.message_value = MessageValue(self.record.pretty_message)
+        self.message_value = MessageValue(self.record)
         self.layout.addRow("Message", self.message_value)
 
 

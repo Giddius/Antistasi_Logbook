@@ -33,7 +33,7 @@ from PySide6.QtCore import (QByteArray, QCoreApplication, QDate, QDateTime, QEve
                             QWaitCondition, Qt, QAbstractItemModel, QAbstractListModel, QAbstractTableModel, Signal, Slot)
 
 from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
-                           QKeySequence, QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform, Qt)
+                           QKeySequence, QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform)
 
 from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QLCDNumber, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QDialogButtonBox,
                                QDockWidget, QDoubleSpinBox, QFontComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
@@ -52,6 +52,7 @@ from threading import Thread
 import matplotlib.dates as mdates
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
+from antistasi_logbook.gui.widgets.dock_widget import BaseDockWidget
 from antistasi_logbook.storage.models.models import Server, LogFile, RecordClass
 import pyqtgraph as pg
 from antistasi_logbook.gui.widgets.detail_view_widget import ServerDetailWidget, LogFileDetailWidget, LogRecordDetailView
@@ -79,28 +80,6 @@ log = get_logger(__name__)
 # endregion[Constants]
 
 
-class DetailWidget(QDockWidget):
-
-    def __init__(self, title: str, parent: Optional[PySide6.QtWidgets.QWidget] = None):
-        super().__init__(title, parent)
-        self.first_shown: bool = False
-        self.setMinimumSize(QSize(175, 100))
-        self.setAllowedAreas(Qt.RightDockWidgetArea)
-        self.setFeatures(QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetFloatable | QDockWidget.DockWidgetClosable)
-        self.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding))
-        self.setFloating(True)
-        self.hide()
-
-    def show_if_first(self):
-        if self.first_shown is False:
-            self.show()
-
-    def show(self) -> None:
-        super().show()
-        if self.first_shown is False:
-            self.first_shown = True
-
-
 class MainWidget(QWidget):
     query_result_finished = Event()
 
@@ -108,18 +87,20 @@ class MainWidget(QWidget):
         super().__init__(parent=main_window)
         self.main_window = main_window
         self.info_widget: QGroupBox = None
-        self.query_widget: QDockWidget = None
-        self.detail_widget: DetailWidget = None
+        self.query_widget: BaseDockWidget = None
+        self.detail_widget: BaseDockWidget = None
         self.main_tabs_widget: QTabWidget = None
         self.server_tab: ServerQueryTreeView = None
         self.log_files_tab: LogFilesQueryTreeView = None
         self.query_result_tab: LogRecordsQueryView = None
+
         self.temp_runnable = None
         self.setup()
 
     def setup(self) -> None:
         self.main_layout = QGridLayout(self)
         self.setLayout(self.main_layout)
+
         self.setup_info_widget()
         self.setup_query_widget()
         self.setup_detail_widget()
@@ -132,25 +113,22 @@ class MainWidget(QWidget):
         self.main_layout.addWidget(self.info_widget, 0, 0, 1, 3)
 
     def setup_query_widget(self) -> None:
-        self.query_widget = QDockWidget("Query", self.parent())
-        self.query_widget.setMinimumSize(QSize(100, 75))
-        self.query_widget.setAllowedAreas(Qt.LeftDockWidgetArea)
-        self.query_widget.setFeatures(QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetFloatable | QDockWidget.DockWidgetClosable)
+        self.query_widget = BaseDockWidget(title="Query", parent=self.parent(), start_floating=True)
+
         view_action = self.query_widget.toggleViewAction()
         view_action.setText("Query")
         self.main_window.menubar.view_menu.addAction(view_action)
-        self.main_window.addDockWidget(Qt.LeftDockWidgetArea, self.query_widget)
-        # self.main_layout.addWidget(self.query_widget, 1, 0, 1, 1)
+        self.main_window.addDockWidget(Qt.LeftDockWidgetArea, self.query_widget, Qt.Vertical)
 
     def setup_detail_widget(self) -> None:
-        self.detail_widget = DetailWidget("Details", self.parent())
+        self.detail_widget = BaseDockWidget(title="Details", parent=self.parent(), start_floating=True)
 
         self.detail_widget.dockLocationChanged.connect(self.detail_widget_resize_on_undock)
 
         view_action = self.detail_widget.toggleViewAction()
         view_action.setText("Details")
         self.main_window.menubar.view_menu.addAction(view_action)
-        self.main_window.addDockWidget(Qt.RightDockWidgetArea, self.detail_widget)
+        self.main_window.addDockWidget(Qt.RightDockWidgetArea, self.detail_widget, Qt.Vertical)
 
     def setup_main_tabs_widget(self) -> None:
         self.main_tabs_widget = QTabWidget(self)
@@ -173,12 +151,12 @@ class MainWidget(QWidget):
         # self.query_result_tab.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.main_tabs_widget.addTab(self.query_result_tab, AllResourceItems.placeholder.get_as_icon(), "Log-Records")
 
-        self.main_layout.addWidget(self.main_tabs_widget, 1, 1, 1, 1)
+        self.main_layout.addWidget(self.main_tabs_widget, 1, 1, 4, 3)
         self.main_tabs_widget.currentChanged.connect(self.on_tab_changed)
 
     def on_tab_changed(self, index: int):
         if index == self.main_tabs_widget.indexOf(self.log_files_tab):
-            widget = LogFileDataToolWidget(backend=self.main_window.backend)
+            widget = LogFileDataToolWidget()
             self.query_widget.setWidget(widget)
             widget.get_page_by_name("filter").show_unparsable_check_box.toggled.connect(self.log_files_tab.model().change_show_unparsable)
             widget.get_page_by_name("filter").filter_by_server_changed.connect(self.log_files_tab.model().filter_by_server)

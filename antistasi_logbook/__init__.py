@@ -1,6 +1,6 @@
 """Antistasi Logbook"""
 
-__version__ = '0.1.11'
+__version__ = '0.1.12'
 
 from gidapptools.meta_data import setup_meta_data
 from gidapptools import get_main_logger, get_main_logger_with_file_logging, get_meta_paths
@@ -11,10 +11,11 @@ import atexit
 import os
 import sys
 
-from antistasi_logbook import apsw
+if "apsw" not in sys.modules:
 
+    from . import apsw
 
-sys.modules["apsw"] = apsw
+    sys.modules["apsw"] = apsw
 
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()

@@ -88,6 +88,14 @@ class RecordFamily(Flag):
     ANTISTASI = auto()
 
 
+class MessageTypus(Enum):
+    TEXT = auto()
+    TABLE = auto()
+    LIST = auto()
+    JSON = auto()
+    SQF = auto()
+
+
 # region[Main_Exec]
 if __name__ == '__main__':
     pass

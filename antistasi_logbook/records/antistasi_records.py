@@ -13,7 +13,7 @@ from pathlib import Path
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 import pp
-from antistasi_logbook.records.base_record import BASE_SLOTS, BaseRecord, RecordFamily
+from antistasi_logbook.records.base_record import BASE_SLOTS, BaseRecord, RecordFamily, MessageTypus
 from antistasi_logbook.utilities.parsing_misc import parse_text_array
 from antistasi_logbook.records.abstract_record import RecordFamily, MessageFormat
 
@@ -325,23 +325,25 @@ ALL_ANTISTASI_RECORD_CLASSES.add(CreateConvoyInputRecord)
 class SaveParametersRecord(BaseAntistasiRecord):
     ___specificity___ = 20
     ___has_multiline_message___ = True
-    __slots__ = tuple(BASE_SLOTS + ["_array_data"])
+    __slots__ = tuple(BASE_SLOTS + ["_kv_data"])
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self._array_data: list[list[Any]] = None
+        self._kv_data: dict[str, Any] = None
 
     def get_background_color(self):
         return Color.get_color_by_name("PeachPuff").with_alpha(0.5).qcolor
 
     @property
-    def array_data(self) -> list[list[Any]]:
-        if self._array_data is None:
+    def kv_data(self) -> dict[str, Any]:
+        if self._kv_data is None:
             array_txt = self.message[self.message.find('['):]
-            self._array_data = parse_text_array(array_txt)
-            if self._array_data == "ERROR":
-                self._array_data = [self.message]
-        return self._array_data
+            self._kv_data = parse_text_array(array_txt)
+            if self._kv_data == "ERROR":
+                self._kv_data = {self.message: "PARSING ERROR"}
+            else:
+                self._kv_data = {k: v for k, v in self._kv_data}
+        return self._kv_data
 
     @classmethod
     def check(cls, raw_record: "RawRecord") -> bool:
@@ -355,13 +357,17 @@ class SaveParametersRecord(BaseAntistasiRecord):
 
     def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
         if msg_format is MessageFormat.PRETTY:
-            txt = "Saving Params: "
-            array_data_text_lines = pp.fmt(self.array_data).replace("'", '"').replace('"false"', 'false').replace('"true"', 'true').splitlines()
-            txt_len = len(txt)
-            txt += array_data_text_lines[0] + '\n'
-            for line in array_data_text_lines[1:]:
-                txt += ' ' * txt_len + line + '\n'
-            return txt
+            txt_lines = ["Saving Params: ", '-' * 10]
+            for k, v in self.kv_data.items():
+                key = k.strip('"').strip("'")
+                value = v
+                if v == "true":
+                    value = "Yes"
+                elif v == "false":
+                    value = "No"
+                new_line = f"◘ {key:<40}{value:>10}"
+                txt_lines += [new_line, '┄' * int(len(new_line) * 0.9)]
+            return '\n'.join(txt_lines)
         return super().get_formated_message(format=format)
 
 
@@ -421,7 +427,7 @@ class ResourceCheckRecord(BaseAntistasiRecord):
                     _full_num = str(v)
                     _comma = ""
                     _after_comma = ""
-                _out.append(f"{k:<30}{_full_num:>30}{_comma}{_after_comma}")
+                _out.append(f"{k:<50}{_full_num:>25}{_comma}{_after_comma}")
             return '\n'.join(_out).strip()
         return super().get_formated_message(msg_format=format)
 

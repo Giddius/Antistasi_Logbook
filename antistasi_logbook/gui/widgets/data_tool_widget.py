@@ -78,6 +78,7 @@ from gidapptools import get_logger
 if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
+    from gidapptools.gid_config.interface import GidIniConfig
 # endregion[Imports]
 
 # region [TODO]
@@ -109,11 +110,22 @@ class BaseDataToolPage(QWidget):
     name: str = None
     icon_name: str = None
 
-    def __init__(self, backend: "Backend", parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
+    def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
         super().__init__(parent=parent)
-        self.backend = backend
         self.setLayout(QFormLayout(self))
         self.layout.setLabelAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+
+    @property
+    def app(self) -> "AntistasiLogbookApplication":
+        return QApplication.instance()
+
+    @property
+    def backend(self) -> "Backend":
+        return self.app.backend
+
+    @property
+    def config(self) -> "GidIniConfig":
+        return self.app.config
 
     @property
     def layout(self) -> QFormLayout:
@@ -127,13 +139,12 @@ class BaseDataToolPage(QWidget):
 
 
 class BaseDataToolWidget(QWidget):
-    def __init__(self, backend: "Backend", parent: Optional[PySide6.QtWidgets.QWidget] = None, ) -> None:
+    def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None, ) -> None:
         super().__init__(parent=parent)
         self.setLayout(QGridLayout(self))
         self.tool_box = QToolBox()
         self.layout.addWidget(self.tool_box)
-        self.layout.addItem(QSpacerItem(10, 10, QSizePolicy.Fixed, QSizePolicy.Expanding))
-        self.backend = backend
+
         self.pages: dict[str, BaseDataToolPage] = {}
 
     def add_page(self, page: BaseDataToolPage):
@@ -150,6 +161,18 @@ class BaseDataToolWidget(QWidget):
     @property
     def layout(self) -> QFormLayout:
         return super().layout()
+
+    @property
+    def app(self) -> "AntistasiLogbookApplication":
+        return AntistasiLogbookApplication.instance()
+
+    @property
+    def backend(self) -> "Backend":
+        return self.app.backend
+
+    @property
+    def config(self) -> "GidIniConfig":
+        return self.app.config
 
 
 class LogFileSearchPage(BaseDataToolPage):
@@ -244,8 +267,8 @@ class LogFileFilterPage(BaseDataToolPage):
     filter_by_server_changed = Signal(int)
     filter_by_game_map_changed = Signal(int)
 
-    def __init__(self, backend: "Backend", parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
-        super().__init__(backend, parent=parent)
+    def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
+        super().__init__(parent=parent)
 
         self.show_unparsable_check_box = QCheckBox()
         self.show_unparsable_check_box.setLayoutDirection(Qt.RightToLeft)
@@ -289,11 +312,11 @@ class LogFileFilterPage(BaseDataToolPage):
 
 class LogFileDataToolWidget(BaseDataToolWidget):
 
-    def __init__(self, backend: "Backend", parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
-        super().__init__(backend, parent=parent)
+    def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
+        super().__init__(parent=parent)
 
-        self.add_page(LogFileFilterPage(self.backend, self))
-        self.add_page(LogFileSearchPage(self.backend, self))
+        self.add_page(LogFileFilterPage(self))
+        self.add_page(LogFileSearchPage(self))
 
 # region[Main_Exec]
 

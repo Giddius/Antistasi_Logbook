@@ -12,11 +12,11 @@ from gidapptools.general_helper.conversion import human2bytes
 from gidapptools.meta_data.interface import MetaPaths, get_meta_info, get_meta_paths, get_meta_config
 from gidapptools import get_logger
 from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
-from antistasi_logbook.storage.models.models import Server, GameMap, LogFile, LogLevel, RecordClass, RemoteStorage, AntstasiFunction, DatabaseMetaData, setup_db
+from antistasi_logbook.storage.models.models import Server, GameMap, LogFile, LogLevel, RecordClass, RemoteStorage, AntstasiFunction, DatabaseMetaData, setup_db, LogRecord
 from playhouse.apsw_ext import APSWDatabase
-from peewee import DatabaseProxy
+from peewee import DatabaseProxy, JOIN
 from apsw import Connection
-from threading import Lock
+from threading import Lock, Thread, Event, Condition, Barrier, Semaphore
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Union, Protocol
@@ -197,26 +197,37 @@ class GidSqliteApswDatabase(APSWDatabase):
         self.started_up = False
 
     def get_all_server(self, ordered_by=Server.id) -> tuple[Server]:
-        with self:
-            return tuple(Server.select().join(RemoteStorage).order_by(ordered_by))
+        self.connect(True)
+        result = tuple(Server.select().join(RemoteStorage, on=Server.remote_storage).order_by(ordered_by))
+        self.close()
+        return result
 
     def get_log_files(self, server: Server = None, ordered_by=LogFile.id) -> tuple[LogFile]:
         with self:
+            query = LogFile.select()
+            query = query.join(Server, on=LogFile.server).join(RemoteStorage, on=Server.remote_storage).switch(LogFile)
+            query = query.join(GameMap, on=LogFile.game_map, join_type=JOIN.LEFT_OUTER).switch(LogFile)
             if server is None:
-                return tuple(LogFile.select().join(Server).order_by(ordered_by))
-            return tuple(LogFile.select().join(Server).where(LogFile.server_id == server.id).order_by(ordered_by))
+                return tuple(query.order_by(ordered_by))
+            return tuple(query.where(LogFile.server_id == server.id).order_by(ordered_by))
 
     def get_all_log_levels(self, ordered_by=LogLevel.id) -> tuple[LogLevel]:
-        with self:
-            return tuple(LogLevel.select().order_by(ordered_by))
+        self.connect(True)
+        result = tuple(LogLevel.select().order_by(ordered_by))
+        self.close()
+        return result
 
     def get_all_antistasi_functions(self, ordered_by=AntstasiFunction.id) -> tuple[AntstasiFunction]:
-        with self:
-            return tuple(AntstasiFunction.select().order_by(ordered_by))
+        self.connect(True)
+        result = tuple(AntstasiFunction.select().order_by(ordered_by))
+        self.close()
+        return result
 
     def get_all_game_maps(self, ordered_by=GameMap.id) -> tuple[GameMap]:
-        with self:
-            return tuple(GameMap.select().order_by(ordered_by))
+        self.connect(True)
+        result = tuple(GameMap.select().order_by(ordered_by))
+        self.close()
+        return result
 
     def __repr__(self) -> str:
         repr_attrs = ("database_name", "config", "auto_backup", "thread_safe", "autoconnect")

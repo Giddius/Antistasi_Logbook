@@ -11,7 +11,7 @@ Soon.
 from antistasi_logbook.gui.application import AntistasiLogbookApplication
 from gidapptools.general_helper.string_helper import StringCaseConverter
 from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
-from PySide6.QtWidgets import QWidget, QStyle, QMenuBar, QMainWindow, QMessageBox, QApplication, QStyleFactory
+from PySide6.QtWidgets import QWidget, QStyle, QMenuBar, QMainWindow, QMessageBox, QApplication, QStyleFactory, QLabel
 from PySide6.QtCore import Slot, QEvent, Signal, QSettings, QByteArray, Qt
 from PySide6.QtGui import QCloseEvent, QFont
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
@@ -124,9 +124,6 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.app.setStyleSheet(data)
 
     def setup(self) -> None:
-        for i in QStyleFactory.keys():
-            log.info(i)
-        # self.app.setStyle("Fusion")
 
         self.set_app_style_sheet(self.current_app_style_sheet)
         settings = QSettings(f"{META_INFO.app_name}_settings", "main_window")

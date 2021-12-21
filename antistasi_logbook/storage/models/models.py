@@ -582,6 +582,7 @@ class DatabaseMetaData(BaseModel):
         return item
 
     def get_absolute_last_update_finished_at(self) -> datetime:
+        self.database.connect(True)
         item = DatabaseMetaData.select(DatabaseMetaData.last_update_finished_at).where(DatabaseMetaData.last_update_finished_at != None).order_by(-DatabaseMetaData.last_update_finished_at).scalar()
 
         if self.last_update_finished_at is None:
@@ -590,6 +591,7 @@ class DatabaseMetaData(BaseModel):
             return self.last_update_finished_at
         if item < self.last_update_finished_at:
             return self.last_update_finished_at
+        self.database.close()
         return item
 
     def count_log_files(self, server: "Server" = None) -> int:

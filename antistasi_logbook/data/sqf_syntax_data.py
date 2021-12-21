@@ -2470,7 +2470,7 @@ SQF_BUILTINS : tuple[str]=tuple(sorted({"abs",
                         "worldSize",
                         "worldToModel",
                         "worldToModelVisual",
-                        "worldToScreen"}, key=len, reverse=True))
+                        "worldToScreen"}.union(SQF_KEYWORDS), key=len, reverse=True))
 
 
 SQF_BUILTINS_REGEX = re.compile(r"(?<![\w\d])(" + r'|'.join(SQF_BUILTINS) + r")(?![\w\d])")

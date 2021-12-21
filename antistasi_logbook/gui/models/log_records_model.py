@@ -88,7 +88,7 @@ class LogRecordsModel(BaseQueryDataModel):
     def __init__(self, backend: "Backend", filter_data: dict[str, Any], parent=None) -> None:
         super().__init__(backend, LogRecord, parent=parent)
         self.data_role_table = self.data_role_table | {Qt.BackgroundRole: self._get_background_data, Qt.FontRole: self._get_font_data}
-        self.filter_data = {"server_profiling_record": (LogRecord.record_class != RecordClass.get(name="PerfProfilingRecord"))} | filter_data
+        self.filter_data = {"server_profiling_record": (LogRecord.record_class != RecordClass.get(name="PerfProfilingRecord")), "antistasi_profiling_record": (LogRecord.record_class != RecordClass.get(name="PerformanceRecord"))} | filter_data
         self.ordered_by = (LogRecord.start, LogRecord.recorded_at)
         self.generator_refresh_chunk_size = 1
         self.message_column_font = self._make_message_column_font()

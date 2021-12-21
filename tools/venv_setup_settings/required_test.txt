@@ -1,5 +1,5 @@
-pytest
-pytest-html
 allure-pytest
 pyparsing==3.0.6
+pytest
+pytest-html
 time-machine>=2.4.0

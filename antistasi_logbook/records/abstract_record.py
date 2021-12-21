@@ -13,7 +13,7 @@ from pathlib import Path
 from functools import cached_property
 
 # * Third Party Imports --------------------------------------------------------------------------------->
-from antistasi_logbook.records.enums import RecordFamily, MessageFormat
+from antistasi_logbook.records.enums import RecordFamily, MessageFormat, MessageTypus
 
 if TYPE_CHECKING:
     # * Third Party Imports --------------------------------------------------------------------------------->
