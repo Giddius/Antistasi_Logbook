@@ -42,14 +42,10 @@ from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QLCDNumber, 
                                QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
                                QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
 
-from matplotlib.cm import ScalarMappable
-from matplotlib.colors import Normalize, get_named_colors_mapping
-from matplotlib import pyplot as plt
-from matplotlib import patheffects
-from matplotlib import cm
+
 from io import BytesIO
 from threading import Thread
-import matplotlib.dates as mdates
+
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from antistasi_logbook.gui.widgets.dock_widget import BaseDockWidget
