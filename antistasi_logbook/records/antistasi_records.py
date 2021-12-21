@@ -270,7 +270,7 @@ class UpdatePreferenceRecord(BaseAntistasiRecord):
 
     def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
         if msg_format is MessageFormat.PRETTY:
-            return f"{self.category}_preference\n" + pp.fmt(self.array_data)
+            return f"{self.category}_preference\n" + pp.fmt(self.array_data).replace("'", '"')
         return super().get_formated_message(msg_format=format)
 
 

@@ -13,9 +13,9 @@ from threading import Lock
 
 # * PyQt5 Imports --------------------------------------------------------------------------------------->
 import PySide6
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QKeyEvent
 from PySide6.QtCore import Qt, QThread, QThreadPool, QRunnable
-from PySide6.QtWidgets import QTreeView, QHeaderView, QAbstractItemView
+from PySide6.QtWidgets import QTreeView, QHeaderView, QAbstractItemView, QApplication
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -70,29 +70,16 @@ class LogRecordsQueryView(QTreeView):
         return self.model()
 
     def setup(self) -> "LogRecordsQueryView":
-        self.setUniformRowHeights(False)
+        self.setUniformRowHeights(True)
 
-        # self.header_view.setStretchLastSection(False)
-        # self.header_view.setCascadingSectionResizes(False)
-        # self.header_view.setFirstSectionMovable(False)
         self.header_view.setSectionResizeMode(QHeaderView.Interactive)
         self.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.verticalScrollBar().setSingleStep(3)
-        # self.setAlternatingRowColors(True)
+
         self.setSortingEnabled(False)
 
         return self
-
-    def resize_columns(self):
-        self.header_view.setSectionResizeMode(QHeaderView.ResizeToContents)
-        for idx in range(self.model().columnCount()):
-            self.resizeColumnToContents(idx)
-            column = self.model().columns[idx]
-            if column.name in {"start", "end", "marked", "is_antistasi_record"}:
-                self.header_view.setSectionResizeMode(idx, QHeaderView.Fixed)
-            else:
-                self.header_view.setSectionResizeMode(idx, QHeaderView.Interactive)
 
     def setModel(self, model: "LogRecordsModel") -> None:
 

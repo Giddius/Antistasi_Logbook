@@ -23,7 +23,7 @@ from collections import defaultdict
 try:
     # * PyQt5 Imports --------------------------------------------------------------------------------------->
     from PySide6.QtGui import QColor
-    from PySide6.QtCore import QSize
+    from PySide6.QtCore import QSize, Qt
 
     PYSIDE6_AVAILABLE = True
 except ImportError:
@@ -180,7 +180,6 @@ class BaseRecord(AbstractRecord):
         return True
 
     @classmethod
-    @profile
     def from_model_dict(cls, model_dict: dict[str, Any], log_file: "LogFile" = None) -> "BaseRecord":
 
         if log_file is not None:

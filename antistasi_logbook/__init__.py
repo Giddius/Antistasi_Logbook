@@ -1,6 +1,6 @@
 """Antistasi Logbook"""
 
-__version__ = '0.1.10'
+__version__ = '0.1.11'
 
 from gidapptools.meta_data import setup_meta_data
 from gidapptools import get_main_logger, get_main_logger_with_file_logging, get_meta_paths
@@ -9,6 +9,13 @@ import rich.traceback
 from rich.console import Console as RichConsole
 import atexit
 import os
+import sys
+
+from antistasi_logbook import apsw
+
+
+sys.modules["apsw"] = apsw
+
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 

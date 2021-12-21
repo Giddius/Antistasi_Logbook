@@ -62,7 +62,7 @@ from PySide6.QtCore import (QByteArray, QCoreApplication, QDate, QDateTime, QEve
                             QMutexLocker, QObject, QPoint, QRect, QRecursiveMutex, QRunnable, QSettings, QSize, QThread, QThreadPool, QTime, QUrl,
                             QWaitCondition, Qt, QAbstractItemModel, QAbstractListModel, QAbstractTableModel, Signal, Slot)
 
-from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
+from PySide6.QtGui import (QAction, QGuiApplication, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
                            QKeySequence, QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform, Qt)
 
 from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QDialogButtonBox,
@@ -102,20 +102,42 @@ class AntistasiLogbookApplication(QApplication):
     def __init__(self, backend: "Backend", argvs: Iterable[str] = None):
         super().__init__(argvs)
         self.backend = backend
+        self.meta_info = get_meta_info()
+        self.meta_paths = get_meta_paths()
+        self.available_font_families = set(QFontDatabase().families())
+        self.setup()
+        self.pre_logging()
 
     def setup(self) -> None:
-        self.setApplicationName(META_INFO.app_name)
-        self.setApplicationVersion(META_INFO.version)
-        self.setOrganizationName(META_INFO.app_author)
-        self.setOrganizationDomain(str(META_INFO.url))
+        self.setApplicationName(self.meta_info.app_name)
+        self.setApplicationVersion(self.meta_info.version)
+        self.setOrganizationName(self.meta_info.app_author)
+        self.setOrganizationDomain(str(self.meta_info.url))
 
     def pre_logging(self) -> None:
-        ...
+        log.debug("DesktopFileName: %r", self.desktopFileName())
+        log.debug("QLocale.system().dateTimeFormat(QLocale.FormatType.ShortFormat) = %r", QLocale.system().dateTimeFormat(QLocale.FormatType.LongFormat))
+        log.debug("QFontDatabase().families() = %r", QFontDatabase().families())
+        log.debug("self.keyboardModifiers()=%r", self.keyboardModifiers())
 
     @ classmethod
     def with_high_dpi_scaling(cls, backend: "Backend", argvs: Iterable[str] = None):
         QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+        QGuiApplication.setDesktopSettingsAware(True)
         return cls(backend=backend, argvs=argvs)
+
+    @property
+    def config(self) -> "GidIniConfig":
+        return self.backend.config
+
+    def format_datetime(self, date_time: datetime) -> str:
+        if self.config.get("time", "use_local_timezone", default=False) is True:
+            date_time = date_time.astimezone(tz=self.meta_info.local_tz)
+        time_format = self.config.get("time", "time_format", default='%Y-%m-%d %H:%M:%S')
+
+        if time_format == "local":
+            time_format = "%x %X"
+        return date_time.strftime(time_format)
 
 
 # region[Main_Exec]

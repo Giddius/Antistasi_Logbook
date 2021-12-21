@@ -14,7 +14,8 @@ from pathlib import Path
 from peewee import Field, Query
 from antistasi_logbook.storage.models.models import Server, GameMap, LogFile
 from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel, INDEX_TYPE
-
+from functools import reduce
+from operator import or_, and_
 # * PyQt5 Imports --------------------------------------------------------------------------------------->
 import PySide6
 from PySide6 import (QtCore, QtGui, QtWidgets, Qt3DAnimation, Qt3DCore, Qt3DExtras, Qt3DInput, Qt3DLogic, Qt3DRender, QtAxContainer, QtBluetooth,
@@ -81,7 +82,7 @@ class LogFilesModel(BaseQueryDataModel):
         self.show_unparsable = show_unparsable
         super().__init__(backend, LogFile, parent=parent)
         self.ordered_by = (-LogFile.modified_at, LogFile.server)
-        self.filters = []
+        self.filters = {}
 
     @property
     def column_names_to_exclude(self) -> set[str]:
@@ -94,32 +95,65 @@ class LogFilesModel(BaseQueryDataModel):
     def column_ordering(self) -> dict[str, int]:
         return self._column_ordering | {"server": 2, "remote_path": 100}
 
+    def on_filter_newer_than(self, dt: datetime):
+        if not isinstance(dt, datetime):
+            dt = None
+        if dt is None and "newer_than" in self.filters:
+            del self.filters["newer_than"]
+            self.refresh()
+
+        if dt is not None:
+            self.filters["newer_than"] = (LogFile.modified_at >= dt)
+            self.refresh()
+
+    def on_filter_by_new_campaign(self, checked):
+        if not checked and "new_campaign" in self.filters:
+            del self.filters["new_campaign"]
+            self.refresh()
+
+        elif checked:
+            self.filters["new_campaign"] = (LogFile.is_new_campaign == True)
+            self.refresh()
+
+    def on_filter_older_than(self, dt: datetime):
+        if not isinstance(dt, datetime):
+            dt = None
+        if dt is None and "older_than" in self.filters:
+            del self.filters["older_than"]
+            self.refresh()
+
+        if dt is not None:
+            self.filters["older_than"] = (LogFile.modified_at <= dt)
+            self.refresh()
+
     def filter_by_server(self, server_id: int):
-        log.debug("server_id=%r", server_id)
-        if server_id == -1 and self.filters != []:
-            self.filters = []
-            self.beginResetModel()
-            self.get_columns().get_content()
-            self.endResetModel()
+
+        if server_id == -1 and "server" in self.filters:
+            del self.filters["server"]
+            self.refresh()
 
         elif server_id != -1:
-            self.filters = [(LogFile.server_id == server_id)]
-            self.beginResetModel()
-            self.get_columns().get_content()
-            self.endResetModel()
+            self.filters["server"] = (LogFile.server_id == server_id)
+            self.refresh()
+
+    def filter_by_game_map(self, game_map_id: int):
+
+        if game_map_id == -1 and "game_map" in self.filters:
+            del self.filters["game_map"]
+            self.refresh()
+
+        elif game_map_id != -1:
+            self.filters["game_map"] = (LogFile.game_map_id == game_map_id)
+            self.refresh()
 
     def change_show_unparsable(self, show_unparsable):
         if show_unparsable and self.show_unparsable is False:
-            self.beginResetModel()
             self.show_unparsable = True
-            self.get_columns().get_content()
-            self.endResetModel()
+            self.refresh()
 
         elif not show_unparsable and self.show_unparsable is True:
-            self.beginResetModel()
             self.show_unparsable = False
-            self.get_columns().get_content()
-            self.endResetModel()
+            self.refresh()
 
     def on_display_data_bool(self, role: int, item: "BaseModel", column: "Field", value: bool) -> str:
         if role == Qt.DisplayRole:
@@ -137,8 +171,8 @@ class LogFilesModel(BaseQueryDataModel):
         query = LogFile.select().join(GameMap, join_type=JOIN.LEFT_OUTER).switch(LogFile).join(Server).switch(LogFile)
         if self.show_unparsable is False:
             query = query.where(LogFile.unparsable == False)
-        for filter_stmt in self.filters:
-            query = query.where(filter_stmt)
+        if len(self.filters.values()) != 0:
+            query = query.where(reduce(and_, self.filters.values()))
         return query.order_by(*self.ordered_by)
 
     def get_content(self) -> "BaseQueryDataModel":

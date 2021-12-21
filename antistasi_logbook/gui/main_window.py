@@ -12,7 +12,7 @@ from antistasi_logbook.gui.application import AntistasiLogbookApplication
 from gidapptools.general_helper.string_helper import StringCaseConverter
 from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
 from PySide6.QtWidgets import QWidget, QStyle, QMenuBar, QMainWindow, QMessageBox, QApplication, QStyleFactory
-from PySide6.QtCore import Slot, QEvent, Signal, QSettings, QByteArray
+from PySide6.QtCore import Slot, QEvent, Signal, QSettings, QByteArray, Qt
 from PySide6.QtGui import QCloseEvent, QFont
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 from antistasi_logbook.gui.resources.style_sheets import get_style_sheet_data
@@ -200,7 +200,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
         return super().close()
 
     def event(self, event: QEvent) -> bool:
-        # log.debug("received event %r", event.type().name)
+
         return super().event(event)
 
     def closeEvent(self, event: QCloseEvent):
@@ -233,7 +233,7 @@ def start_gui(nextcloud_username: str = None, nextcloud_password: str = None):
     db_path = config.get('database', "database_path", default=None)
     database = GidSqliteApswDatabase(db_path, config=config, thread_safe=True, autoconnect=True)
     backend = Backend(database=database, config=config, update_signaler=UpdaterSignaler())
-    _app = AntistasiLogbookApplication(backend=backend, argvs=sys.argv)
+    _app = AntistasiLogbookApplication.with_high_dpi_scaling(backend=backend, argvs=sys.argv)
     _app.icon = AllResourceItems.placeholder.get_as_icon()
     m = AntistasiLogbookMainWindow(META_CONFIG.get_config('general'))
     if nextcloud_username is not None and nextcloud_password is not None:

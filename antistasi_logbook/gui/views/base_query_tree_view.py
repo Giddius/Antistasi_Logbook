@@ -82,6 +82,18 @@ class BaseQueryTreeView(QTreeView):
         log.debug("reseting %s", self)
         return super().reset()
 
+    # def keyPressEvent(self, event: PySide6.QtGui.QKeyEvent) -> None:
+    #     if event.key() == Qt.Key_Alt:
+    #         log.debug("alt_key was pressed in %r, event.key()=%r", self, event.key())
+    #         self.verticalScrollBar().setSingleStep(30)
+    #     return super().keyPressEvent(event)
+
+    # def keyReleaseEvent(self, event: PySide6.QtGui.QKeyEvent) -> None:
+    #     if event.key() == Qt.Key_Alt:
+    #         log.debug("alt_key was rleased in %r, event.key()=%r", self, event.key())
+    #         self.verticalScrollBar().setSingleStep(3)
+    #     return super().keyReleaseEvent(event)
+
     def event(self, event: QtCore.QEvent) -> bool:
         # log.debug("%s received event %r", self, event.type().name)
         return super().event(event)

@@ -13,7 +13,7 @@ from pathlib import Path
 # * Third Party Imports --------------------------------------------------------------------------------->
 from peewee import Query
 from antistasi_logbook.storage.models.models import Server, RemoteStorage
-from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel, handler_for_header_role, handler_for_role, get_handlers
+from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel
 
 # * PyQt5 Imports --------------------------------------------------------------------------------------->
 from PySide6 import QtCore
@@ -50,7 +50,6 @@ SERVER_COLORS = {"no_server": QColor(25, 25, 25, 100),
                  "eventserver": QColor(62, 123, 79, SERVER_COLOR_ALPHA)}
 
 
-@get_handlers
 class ServerModel(BaseQueryDataModel):
     strict_exclude_columns: set[str] = {'id', 'remote_storage', "comments"}
 

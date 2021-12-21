@@ -135,9 +135,9 @@ class GidSqliteApswDatabase(APSWDatabase):
     def base_record_id(self) -> int:
         return RecordClass.select().where(RecordClass.name == "BaseRecord").scalar()
 
-    def _add_conn_hooks(self, conn):
-        super()._add_conn_hooks(conn)
-        self.all_connections.add(conn)
+    # def _add_conn_hooks(self, conn):
+    #     super()._add_conn_hooks(conn)
+    #     self.all_connections.add(conn)
 
     def _pre_start_up(self, overwrite: bool = False) -> None:
         self.database_path.parent.mkdir(exist_ok=True, parents=True)

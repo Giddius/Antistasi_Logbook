@@ -95,6 +95,7 @@ class BaseModel(Model):
         if self.config.get("time", "use_local_timezone", default=False) is True:
             date_time = date_time.astimezone(tz=LOCAL_TIMEZONE)
         time_format = self.config.get("time", "time_format", default='%Y-%m-%d %H:%M:%S')
+
         if time_format == "local":
             time_format = "%x %X"
         return date_time.strftime(time_format)

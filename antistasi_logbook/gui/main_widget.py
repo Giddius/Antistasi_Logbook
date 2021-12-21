@@ -54,8 +54,8 @@ import matplotlib.dates as mdates
 from gidapptools import get_logger
 from antistasi_logbook.storage.models.models import Server, LogFile, RecordClass
 import pyqtgraph as pg
-from antistasi_logbook.gui.widgets.detail_view_widget import ServerDetailWidget, LogFileDetailWidget
-from antistasi_logbook.gui.widgets.query_tool_widget import LogFileDataToolWidget
+from antistasi_logbook.gui.widgets.detail_view_widget import ServerDetailWidget, LogFileDetailWidget, LogRecordDetailView
+from antistasi_logbook.gui.widgets.data_tool_widget import LogFileDataToolWidget
 if TYPE_CHECKING:
     # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow
@@ -79,6 +79,28 @@ log = get_logger(__name__)
 # endregion[Constants]
 
 
+class DetailWidget(QDockWidget):
+
+    def __init__(self, title: str, parent: Optional[PySide6.QtWidgets.QWidget] = None):
+        super().__init__(title, parent)
+        self.first_shown: bool = False
+        self.setMinimumSize(QSize(175, 100))
+        self.setAllowedAreas(Qt.RightDockWidgetArea)
+        self.setFeatures(QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetFloatable | QDockWidget.DockWidgetClosable)
+        self.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding))
+        self.setFloating(True)
+        self.hide()
+
+    def show_if_first(self):
+        if self.first_shown is False:
+            self.show()
+
+    def show(self) -> None:
+        super().show()
+        if self.first_shown is False:
+            self.first_shown = True
+
+
 class MainWidget(QWidget):
     query_result_finished = Event()
 
@@ -87,7 +109,7 @@ class MainWidget(QWidget):
         self.main_window = main_window
         self.info_widget: QGroupBox = None
         self.query_widget: QDockWidget = None
-        self.detail_widget: QDockWidget = None
+        self.detail_widget: DetailWidget = None
         self.main_tabs_widget: QTabWidget = None
         self.server_tab: ServerQueryTreeView = None
         self.log_files_tab: LogFilesQueryTreeView = None
@@ -121,19 +143,14 @@ class MainWidget(QWidget):
         # self.main_layout.addWidget(self.query_widget, 1, 0, 1, 1)
 
     def setup_detail_widget(self) -> None:
-        self.detail_widget = QDockWidget("Details", self.parent())
-        self.detail_widget.setMinimumSize(QSize(175, 100))
+        self.detail_widget = DetailWidget("Details", self.parent())
 
-        self.detail_widget.setAllowedAreas(Qt.RightDockWidgetArea)
-        self.detail_widget.setFeatures(QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetFloatable | QDockWidget.DockWidgetClosable)
-        self.detail_widget.setSizePolicy(QSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding))
         self.detail_widget.dockLocationChanged.connect(self.detail_widget_resize_on_undock)
-        self.detail_widget.featuresChanged.connect(print)
+
         view_action = self.detail_widget.toggleViewAction()
         view_action.setText("Details")
         self.main_window.menubar.view_menu.addAction(view_action)
         self.main_window.addDockWidget(Qt.RightDockWidgetArea, self.detail_widget)
-        self.detail_widget.hide()
 
     def setup_main_tabs_widget(self) -> None:
         self.main_tabs_widget = QTabWidget(self)
@@ -165,41 +182,58 @@ class MainWidget(QWidget):
             self.query_widget.setWidget(widget)
             widget.get_page_by_name("filter").show_unparsable_check_box.toggled.connect(self.log_files_tab.model().change_show_unparsable)
             widget.get_page_by_name("filter").filter_by_server_changed.connect(self.log_files_tab.model().filter_by_server)
+            widget.get_page_by_name("filter").time_span_filter_box.older_than_changed.connect(self.log_files_tab.model().on_filter_older_than)
+            widget.get_page_by_name("filter").time_span_filter_box.newer_than_changed.connect(self.log_files_tab.model().on_filter_newer_than)
+            widget.get_page_by_name("filter").filter_by_game_map_changed.connect(self.log_files_tab.model().filter_by_game_map)
+            widget.get_page_by_name("filter").filter_by_new_campaign.toggled.connect(self.log_files_tab.model().on_filter_by_new_campaign)
         else:
             if self.query_widget.widget() is not None:
                 self.query_widget.setWidget(QWidget())
 
     def setup_views(self) -> None:
         server_model = ServerModel(self.main_window.backend)
-        server_model.generator_refresh()
+        server_model.refresh()
         self.server_tab.setModel(server_model)
         self.server_tab.clicked.connect(self.show_server_detail)
 
         log_file_model = LogFilesModel(self.main_window.backend)
-        log_file_model.generator_refresh()
+        log_file_model.refresh()
         self.log_files_tab.setModel(log_file_model)
         self.log_files_tab.clicked.connect(self.show_log_file_detail)
 
     def show_server_detail(self, index):
         item = self.server_tab.model().content_items[index.row()]
         view = ServerDetailWidget(server=item, parent=self.detail_widget)
-        view.setup()
+
         self.detail_widget.setWidget(view)
         view.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
 
         self.detail_widget.setMinimumSize(300, 100)
 
         view.repaint()
+        self.detail_widget.show_if_first()
 
     def show_log_file_detail(self, index):
         item = self.log_files_tab.model().content_items[index.row()]
         view = LogFileDetailWidget(log_file=item, parent=self.detail_widget)
-        view.setup()
+
         self.detail_widget.setWidget(view)
         view.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Minimum)
         self.detail_widget.setMinimumSize(450, 500)
 
         view.repaint()
+        self.detail_widget.show_if_first()
+
+    def show_log_record_detail(self, index):
+        item = self.query_result_tab.model().content_items[index.row()]
+        view = LogRecordDetailView(record=item, parent=self.detail_widget)
+        self.detail_widget.setWidget(view)
+        view.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
+
+        self.detail_widget.setMinimumSize(300, 100)
+
+        view.repaint()
+        self.detail_widget.show_if_first()
 
     def detail_widget_resize_on_undock(self, area: Qt.DockWidgetArea) -> None:
         if area == Qt.NoDockWidgetArea:
@@ -207,31 +241,13 @@ class MainWidget(QWidget):
 
     def query_log_file(self, index: QModelIndex):
 
-        if self.query_result_finished.is_set() is True:
-            log.debug("Unable to aquire the lock %r, returning", self.query_result_finished)
-            return
-        self.query_result_finished.set()
         log_file = self.log_files_tab.model().content_items[index.row()]
-        log_record_model = LogRecordsModel(self.main_window.backend, parent=self.query_result_tab, filter_data=(LogRecord.log_file_id == log_file.id,))
+        log_record_model = LogRecordsModel(self.main_window.backend, parent=self.query_result_tab, filter_data={"log_files": (LogRecord.log_file_id == log_file.id)})
+        log_record_model.refresh()
 
-        def _connect_and_show():
-            # log.debug("setting model %r", log_record_model)
-
-            # log.debug("finished setting model %r", log_record_model)
-            self.main_tabs_widget.setCurrentWidget(self.query_result_tab)
-            self.query_result_finished.clear()
-
-        self.temp_runnable = log_record_model.generator_refresh(callback=_connect_and_show)
         self.query_result_tab.setModel(log_record_model)
         self.main_tabs_widget.setCurrentWidget(self.query_result_tab)
-        # abort_signal = Event()
-        # log.debug("started thread")
-
-        # thread = log_record_model.generator_refresh(abort_signal=abort_signal)
-        # thread.finished.connect(self.query_result_finished.clear)
-        # self.query_result_tab.setModel(log_record_model)
-        # thread.finished.connect(self.query_result_tab.resize_columns)
-        # self.main_tabs_widget.setCurrentWidget(self.query_result_tab)
+        self.query_result_tab.clicked.connect(self.show_log_record_detail)
 
 
 # region[Main_Exec]

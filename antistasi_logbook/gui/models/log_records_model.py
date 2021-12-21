@@ -18,14 +18,14 @@ from collections import namedtuple
 # * Third Party Imports --------------------------------------------------------------------------------->
 from peewee import Field, Query
 from antistasi_logbook.storage.models.models import LogRecord, RecordClass
-from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel, handler_for_header_role, handler_for_role, get_handlers
+from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 
 # * PyQt5 Imports --------------------------------------------------------------------------------------->
 from PySide6 import QtCore
 from PySide6.QtGui import QFont, QFontMetrics
 from PySide6.QtCore import Qt, QSize, Signal, QObject, QThread
-
+import pp
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.color.color_item import Color
@@ -57,7 +57,6 @@ log = get_logger(__name__)
 # endregion[Constants]
 
 
-@cache
 def get_qsize_from_font(font: QFont, text: str) -> QSize:
     fm = QFontMetrics(font)
     return fm.boundingRect(text=text).size()
@@ -80,21 +79,21 @@ class RefreshWorker(QThread):
 RefreshItem = namedtuple("RefreshItem", ["idx", "item"])
 
 
-@get_handlers
 class LogRecordsModel(BaseQueryDataModel):
     initialized = Signal()
     default_column_ordering: dict[str, int] = {"marked": 0, "recorded_at": 1, "message": 2, "log_level": 3, "log_file": 4, "logged_from": 5, "called_by": 6}
     bool_images = {True: AllResourceItems.check_mark_green.get_as_icon(),
                    False: AllResourceItems.close_black.get_as_icon()}
 
-    def __init__(self, backend: "Backend", filter_data: Iterable, parent=None) -> None:
+    def __init__(self, backend: "Backend", filter_data: dict[str, Any], parent=None) -> None:
         super().__init__(backend, LogRecord, parent=parent)
-        self.filter_data = filter_data
+        self.data_role_table = self.data_role_table | {Qt.BackgroundRole: self._get_background_data, Qt.FontRole: self._get_font_data}
+        self.filter_data = {"server_profiling_record": (LogRecord.record_class != RecordClass.get(name="PerfProfilingRecord"))} | filter_data
         self.ordered_by = (LogRecord.start, LogRecord.recorded_at)
         self.generator_refresh_chunk_size = 1
         self.message_column_font = self._make_message_column_font()
         self.content_items = []
-        self.columns = self.get_columns()
+        self.columns: tuple[Field] = None
         self._expand: set[int] = set()
         self.expand_all: bool = False
 
@@ -113,27 +112,27 @@ class LogRecordsModel(BaseQueryDataModel):
 
     def get_query(self) -> "Query":
 
-        query = LogRecord.select().where(reduce(or_, self.filter_data)).where(LogRecord.record_class != RecordClass.get(name="PerfProfilingRecord")).order_by(*self.ordered_by)
-        return query
+        query = LogRecord.select()
+        for filter_stmt in self.filter_data.values():
+            query = query.where(filter_stmt)
 
-    @handler_for_role(Qt.DisplayRole)
+        return query.order_by(*self.ordered_by)
+
+    @profile
     def _get_display_data(self, index: "INDEX_TYPE") -> Any:
         item = self.content_items[index.row()]
         column = self.columns[index.column()]
 
         data = item.get_data(column.name)
         if column.name == "message":
-            if index.row() in self._expand or self.expand_all is True:
-                return item.pretty_message
-            else:
-                return item.single_line_message
+            return f"{item.message}"
         if data is None:
             return self.on_display_data_none(role=Qt.DisplayRole, item=item, column=column)
         if isinstance(data, bool):
             return self.on_display_data_bool(role=Qt.DisplayRole, item=item, column=column, value=data)
         return str(data)
 
-    @handler_for_role(Qt.BackgroundRole)
+    @profile
     def _get_background_data(self, index: "INDEX_TYPE") -> Any:
         item = self.content_items[index.row()]
         column = self.columns[index.column()]
@@ -144,61 +143,38 @@ class LogRecordsModel(BaseQueryDataModel):
             return Color(255, 103, 0, 0.5, "warning_orange").qcolor
         return item.background_color
 
-    def _make_size(self, item: Union["AbstractRecord", "LogRecord"]) -> Union["AbstractRecord", "LogRecord"]:
-        message = item.pretty_message.strip()
-        # metrics = QFontMetrics(self.message_column_font)
-        # b_rect = metrics.boundingRect(message)
-        # width = b_rect.width()
-        # height = 0
-        # for line in message.splitlines():
-        #     height += metrics.boundingRect(line).height()
-        # item.message_size_hint = QSize(width, height)
-        item.message_size_hint = get_qsize_from_font(font=self.message_column_font, text=message)
-        return item
-
-    # def _get_size_hint_data(self, index: "INDEX_TYPE") -> Any:
-    #     if index.row() in self._expand or self.expand_all is True:
-    #         item = self.content_items[index.row()]
-    #         column = self.columns[index.column()]
-    #         if column.name == "message":
-    #             # if item.message_size_hint is None:
-
-    #             #     message = item.pretty_message.strip()
-    #             #     metrics = QFontMetrics(self.message_column_font)
-    #             #     b_rect = metrics.boundingRect(message)
-    #             #     width = b_rect.width()
-    #             #     height = 0
-    #             #     for line in message.splitlines():
-    #             #         height += metrics.boundingRect(line).height()
-    #             #     item.message_size_hint = QSize(width, height)
-
-    #             return item.message_size_hint
-    @handler_for_role(Qt.FontRole)
+    @profile
     def _get_font_data(self, index: "INDEX_TYPE") -> Any:
         column = self.columns[index.column()]
         if column.name == "message":
             return self.message_column_font
         return self.parent().font()
 
+    @profile
     def get_content(self) -> None:
 
+        @profile
         def _get_record(_item_data, _all_log_files):
             record_class = self.backend.record_class_manager.get_by_id(_item_data.get('record_class'))
             log_file = _all_log_files[_item_data.get('log_file')]
             record_item = record_class.from_model_dict(_item_data, log_file=log_file)
+
             return record_item
+
         log.debug("starting getting content for %r", self)
         all_log_files = {log_file.id: log_file for log_file in self.backend.database.get_log_files()}
-        with self.backend.database:
-            with ThreadPoolExecutor() as pool:
-                self.content_items = list(pool.map(lambda x: _get_record(_item_data=x, _all_log_files=all_log_files), self.get_query().dicts().iterator()))
+        # with self.backend.database:
+        with ThreadPoolExecutor() as pool:
+            self.content_items = list(pool.map(lambda x: _get_record(_item_data=x, _all_log_files=all_log_files), self.get_query().dicts().iterator()))
 
         log.debug("finished getting content for %r", self)
         self.initialized.emit()
 
-    def get_columns(self) -> tuple["Field"]:
+    @profile
+    def get_columns(self) -> "BaseQueryDataModel":
         columns = [field for field_name, field in LogRecord._meta.fields.items() if field_name not in self.column_names_to_exclude]
-        return tuple(sorted(columns, key=lambda x: self.column_ordering.get(x.name.casefold(), 99)))
+        self.columns = tuple(sorted(columns, key=lambda x: self.column_ordering.get(x.name.casefold(), 99)))
+        return self
 
     def insertRow(self, row: "BaseRecord") -> bool:
         self.layoutAboutToBeChanged.emit()
@@ -220,57 +196,9 @@ class LogRecordsModel(BaseQueryDataModel):
         self.columns = tuple(self.columns)
         self.endInsertColumns()
 
-    def refresh(self, abort_signal: Event = None) -> "BaseQueryDataModel":
+    def refresh(self) -> "BaseQueryDataModel":
         super().refresh()
-        return self, abort_signal
-
-    def _generator_refresh(self, abort_signal: Event = None) -> "LogRecordsModel":
-        def _get_record_item(_item_data, _all_log_files):
-
-            record_class = self.backend.record_class_manager.get_by_id(_item_data.get('record_class'))
-            log_file = _all_log_files.get(_item_data.get("log_file"))
-
-            return record_class.from_model_dict(_item_data, log_file)
-        log.debug("starting generator_refresh of %r", self)
-        self.modelAboutToBeReset.emit()
-        self.content_items = []
-        items = []
-        idx = 0
-        all_log_files = {log_file.id: log_file for log_file in self.backend.database.get_log_files()}
-        xlock = Lock()
-        with self.backend.database:
-            with ThreadPoolExecutor() as pool:
-                for record_item in pool.map(lambda x: _get_record_item(_item_data=x, _all_log_files=all_log_files), self.get_query().dicts().iterator()):
-                    with xlock:
-                        idx += 1
-
-                        items.append(RefreshItem(idx, record_item))
-                        if len(items) == self.generator_refresh_chunk_size:
-
-                            self.content_items += [i.item for i in items]
-                            self.dataChanged.emit(self.index(min([i.idx for i in items]), 0, QtCore.QModelIndex()), self.index(max([i.idx for i in items]), len(self.columns) - 1, QtCore.QModelIndex()))
-                            items.clear()
-                            sleep(0.00001)
-
-        with xlock:
-            if len(items) > 0:
-
-                self.content_items += [i.item for i in items]
-
-                min_index = min([i.idx for i in items]) if len(items) >= 2 else items[0].idx
-                max_index = max([i.idx for i in items]) if len(items) >= 2 else items[0].idx
-                self.dataChanged.emit(self.index(min_index, 0, QtCore.QModelIndex()), self.index(max_index, len(self.columns) - 1, QtCore.QModelIndex()))
-                items.clear()
-        self.modelReset.emit()
-        log.debug("finished generator_refresh of %r", self)
-        return self, abort_signal
-
-    def generator_refresh(self, abort_signal: Event = None, callback: Callable = None) -> RefreshWorker:
-
-        thread = RefreshWorker(self, abort_signal=abort_signal)
-        thread.finished.connect(callback)
-        thread.start()
-        return thread
+        return self
 
 
 # region[Main_Exec]
