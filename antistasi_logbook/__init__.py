@@ -1,14 +1,15 @@
 """Antistasi Logbook"""
 
-__version__ = '0.1.13'
+__version__ = '0.1.14'
 import sys
 
 if "apsw" not in sys.modules:
+    try:
+        from . import apsw
 
-    from . import apsw
-
-    sys.modules["apsw"] = apsw
-
+        sys.modules["apsw"] = apsw
+    except ImportError:
+        print("Unable to import 'apsw' from included file")
 from gidapptools.meta_data import setup_meta_data
 from gidapptools import get_main_logger, get_main_logger_with_file_logging, get_meta_paths
 from pathlib import Path
