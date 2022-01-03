@@ -25,7 +25,7 @@ from gidapptools.general_helper.color.color_item import Color, RGBColor
 if TYPE_CHECKING:
     # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.parsing.parser import RawRecord
-
+    from PySide6.QtGui import QColor
 # endregion[Imports]
 
 # region [TODO]
@@ -45,70 +45,13 @@ log = get_logger(__name__)
 # endregion[Constants]
 
 ALL_ANTISTASI_RECORD_CLASSES: set[type[BaseRecord]] = set()
-# "[ASU] Perf-profiling : FPS=11.1111 nbPlayers=28 nbAIs=421"
-
-
-class PerfProfilingRecord(BaseRecord):
-    ___record_family___ = RecordFamily.GENERIC
-    ___specificity___ = 10
-    __slots__ = tuple(BASE_SLOTS)
-
-    @classmethod
-    def check(cls, raw_record: "RawRecord") -> bool:
-        if raw_record.parsed_data.get("message").strip().startswith("[ASU] Perf-profiling"):
-            return True
-
-        return False
-
-    def get_background_color(self):
-        return Color.get_color_by_name("green").with_alpha(0.75).qcolor
-
-
-ALL_ANTISTASI_RECORD_CLASSES.add(PerfProfilingRecord)
-
-
-class TFEInfoSettings(BaseRecord):
-    ___record_family___ = RecordFamily.GENERIC
-    ___specificity___ = 10
-    __slots__ = tuple(BASE_SLOTS + ["_array_data"])
-
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self._array_data = None
-
-    def get_background_color(self):
-        return Color.get_color_by_name("BlueViolet").with_alpha(0.2).qcolor
-
-    @property
-    def array_data(self):
-        if self._array_data is None:
-            clean_message = self.message.replace('\n', ' ').replace('\\n', ' ').replace('""', '"')
-            clean_message = re.sub(r"\s{2,}", " ", clean_message)
-
-            self._array_data = parse_text_array(clean_message[clean_message.find("[", 5):])
-        return self._array_data
-
-    def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
-        if msg_format is MessageFormat.PRETTY:
-            text = self.message[:self.message.find('[', 5) - 1] + '\n'
-            text += pp.fmt(self.array_data).replace("'", '"')
-            return text
-
-    @classmethod
-    def check(cls, raw_record: "RawRecord") -> bool:
-        if raw_record.parsed_data.get("message").startswith("[TFE] Info: Settings:"):
-            return True
-
-        return False
-
-
-ALL_ANTISTASI_RECORD_CLASSES.add(TFEInfoSettings)
 
 
 class BaseAntistasiRecord(BaseRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 1
     ___has_multiline_message___ = False
+    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
     __slots__ = tuple(BASE_SLOTS)
 
     def get_background_color(self):
@@ -127,6 +70,7 @@ class PerformanceRecord(BaseAntistasiRecord):
     ___specificity___ = 10
     ___has_multiline_message___ = True
     performance_regex = re.compile(r"(?P<name>\w+\s?\w*)(?:\:\s?)(?P<value>\d[\d\.]*)")
+    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
     __slots__ = tuple(BASE_SLOTS + ["_stats"])
 
     def __init__(self, *args, **kwargs) -> None:
@@ -144,7 +88,7 @@ class PerformanceRecord(BaseAntistasiRecord):
 
     def _get_stats(self) -> dict[str, Union[int, float]]:
         data = {item.group('name'): item.group('value') for item in self.performance_regex.finditer(self.message)}
-        return {k: float(v) if '.' in v else int(v) for k, v in data.items()}
+        return {k: float(v) if '.' in v else int(v) for k, v in data.items()} | {"timestamp": self.recorded_at}
 
     def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
         if msg_format is MessageFormat.PRETTY:
@@ -181,6 +125,7 @@ ALL_ANTISTASI_RECORD_CLASSES.add(PerformanceRecord)
 class IsNewCampaignRecord(BaseAntistasiRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 20
+    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
     __slots__ = tuple(BASE_SLOTS)
 
     def get_background_color(self):
@@ -205,6 +150,7 @@ class FFPunishmentRecord(BaseAntistasiRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 10
     punishment_type_regex = re.compile(r"(?P<punishment_type>[A-Z]+)")
+    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
     __slots__ = tuple(BASE_SLOTS + ["_punishment_type"])
 
     def __init__(self, *args, **kwargs) -> None:
@@ -239,7 +185,7 @@ class UpdatePreferenceRecord(BaseAntistasiRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 20
     ___has_multiline_message___ = True
-
+    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
     msg_start_regex = re.compile(r"(?P<category>[a-zA-Z]+)\_preference")
 
     __slots__ = tuple(BASE_SLOTS + ["category", "_array_data"])
@@ -281,6 +227,7 @@ class CreateConvoyInputRecord(BaseAntistasiRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 20
     ___has_multiline_message___ = True
+    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
     __slots__ = tuple(BASE_SLOTS + ["_array_data"])
 
     def __init__(self, *args, **kwargs) -> None:
@@ -325,6 +272,7 @@ ALL_ANTISTASI_RECORD_CLASSES.add(CreateConvoyInputRecord)
 class SaveParametersRecord(BaseAntistasiRecord):
     ___specificity___ = 20
     ___has_multiline_message___ = True
+    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
     __slots__ = tuple(BASE_SLOTS + ["_kv_data"])
 
     def __init__(self, *args, **kwargs) -> None:
@@ -378,6 +326,7 @@ class ResourceCheckRecord(BaseAntistasiRecord):
     ___specificity___ = 20
     ___has_multiline_message___ = True
     side_regex = re.compile(r"(?P<side>\w+)\sarsenal")
+    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
     __slots__ = tuple(BASE_SLOTS + ["_array_data", "_stats", "side"])
 
     def __init__(self, *args, **kwargs) -> None:
@@ -439,6 +388,7 @@ class FreeSpawnPositionsRecord(BaseAntistasiRecord):
     ___specificity___ = 20
     ___has_multiline_message___ = True
     place_regex = re.compile(r"Spawn places for (?P<place>\w+)", re.IGNORECASE)
+    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
     __slots__ = tuple(BASE_SLOTS + ["_array_data", "_stats", "place"])
 
     def __init__(self, *args, **kwargs) -> None:
@@ -487,7 +437,7 @@ class SelectReinfUnitsRecord(BaseAntistasiRecord):
     ___specificity___ = 20
     ___has_multiline_message___ = True
     parse_regex = re.compile(r"units selected vehicle is (?P<unit>\w+) crew is (?P<crew>.*(?= cargo is)) cargo is (?P<cargo>.*)", re.IGNORECASE)
-
+    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
     __slots__ = tuple(BASE_SLOTS + ["crew_array_data", "cargo_array_data", "unit", "crew_raw_text", "cargo_raw_text"])
 
     def __init__(self, *args, **kwargs) -> None:

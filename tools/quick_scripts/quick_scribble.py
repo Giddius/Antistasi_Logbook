@@ -1,17 +1,20 @@
 from pathlib import Path
-import os
+import json
+import pp
+
+infile = Path(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\antistasi_logbook\data\coordinates\chernarus_winter_pos.json")
+
+old_data = json.loads(infile.read_text(encoding='utf-8', errors='ignore'))
 
 
-base_path = Path(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook")
+new_data = {}
 
 
-def gg():
-    for dirname, folderlist, filelist in os.walk(base_path):
-        for _file in filelist:
-            file = Path(dirname, _file)
-            if "apsw" in file.stem.casefold():
-                yield file
+for cat, data in old_data.items():
+    new_data[cat] = []
+    for subdata in data:
+        new_data[cat].append({"name": subdata[0], "x": subdata[1][0], "y": subdata[1][1]})
 
 
-for i in gg():
-    print(i.as_posix())
+with infile.open("w", encoding='utf-8', errors='ignore') as f:
+    json.dump(new_data, f, default=str, indent=4)

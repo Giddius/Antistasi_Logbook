@@ -7,7 +7,7 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from typing import TYPE_CHECKING, Any, Union, Mapping, Callable
+from typing import TYPE_CHECKING, Any, Union, Mapping, Callable, Optional
 from pathlib import Path
 
 # * Third Party Imports --------------------------------------------------------------------------------->
@@ -17,10 +17,11 @@ from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import
 
 # * PyQt5 Imports --------------------------------------------------------------------------------------->
 import PySide6
-from PySide6.QtGui import QPixmap
-from PySide6.QtCore import Qt, Signal
+from PySide6 import QtGui, QtCore, QtWidgets
+from PySide6.QtGui import QPixmap, QIcon
+from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtWidgets import (QFrame, QLabel, QWidget, QSpinBox, QCheckBox, QComboBox, QGroupBox, QTextEdit, QTimeEdit, QFormLayout, QGridLayout,
-                               QSizePolicy, QVBoxLayout, QDateTimeEdit, QFontComboBox, QDoubleSpinBox, QStackedWidget, QDialogButtonBox)
+                               QSizePolicy, QVBoxLayout, QDateTimeEdit, QFontComboBox, QListWidgetItem, QAbstractItemView, QDoubleSpinBox, QStackedWidget, QDialogButtonBox, QListWidget)
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -51,6 +52,33 @@ if TYPE_CHECKING:
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
+
+
+class CategorySelectionWidget(QListWidget):
+    clicked = Signal(int)
+
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
+        super().__init__(parent=parent)
+        self.setup()
+
+    def setup(self):
+        self.setViewMode(QListWidget.ViewMode.IconMode)
+        self.setFlow(QListWidget.Flow.LeftToRight)
+        self.setSortingEnabled(False)
+        self.setFixedWidth(100)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.setItemAlignment(Qt.AlignCenter)
+        self.setGridSize(QSize(75, 75))
+        self.setIconSize(QSize(50, 50))
+        self.setUniformItemSizes(True)
+        self.setWordWrap(False)
+        self.setMovement(QListWidget.Movement.Static)
+        self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectItems)
+
+    def add_category(self, name: str, icon: QIcon, category_page_number: int):
+        item = QListWidgetItem(icon, name)
+        item.page_number = category_page_number
+        self.addItem(item)
 
 
 class CategoryPicture(QFrame):
@@ -89,11 +117,11 @@ class CategoryPicture(QFrame):
 
         self.layout.addWidget(self.picture)
 
-    def mousePressEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
+    def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:
         self.setFrameStyle(QFrame.StyledPanel | QFrame.Plain)
         self.clicked.emit(self.category_page_number)
 
-    def mouseReleaseEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
+    def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:
         self.setFrameStyle(self.base_style)
 
     @property
@@ -197,21 +225,32 @@ class SettingsForm(QFrame):
         return instance
 
 
+class ContentStackedwidget(QStackedWidget):
+
+    def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
+        super().__init__(parent=parent)
+        self.pages: dict[str, QWidget] = {}
+
+    def addWidget(self, w: "SettingsForm") -> int:
+        self.pages[w.section_name] = w
+        return super().addWidget(w)
+
+
 class SettingsWindow(QWidget):
     window_title: str = "Settings"
 
-    def __init__(self, general_config: "GidIniConfig", main_window: "AntistasiLogbookMainWindow") -> None:
-        super().__init__()
+    def __init__(self, general_config: "GidIniConfig", main_window: "AntistasiLogbookMainWindow", parent=None) -> None:
+        super().__init__(parent=parent, f=Qt.Dialog)
         self.general_config = general_config
         self.main_window = main_window
         self.main_layout: QGridLayout = None
         self.buttons: QDialogButtonBox = None
         self.selection_box: PictureCategorySelector = None
-        self.content_widget: QStackedWidget = None
+        self.content_widget: ContentStackedwidget = None
 
     def setup(self) -> "SettingsWindow":
         self.setWindowTitle(self.window_title)
-        self.setWindowIcon(AllResourceItems.settings_window_symbol.get_as_icon())
+        self.setWindowIcon(AllResourceItems.settings_window_symbol_image.get_as_icon())
 
         self.main_layout = QGridLayout()
         self.setLayout(self.main_layout)
@@ -220,7 +259,7 @@ class SettingsWindow(QWidget):
         self.setup_content_widget()
         self.setup_selection_box()
         for cat, sub_data in self.general_config.as_dict(with_typus=True).items():
-            self.add_category(cat, sub_data, getattr(AllResourceItems, f"{cat}_icon").get_as_pixmap())
+            self.add_category(cat, sub_data, getattr(AllResourceItems, f"{cat}_icon_image").get_as_pixmap())
         return self
 
     def setup_buttons(self) -> None:
@@ -232,23 +271,32 @@ class SettingsWindow(QWidget):
         self.buttons.accepted.connect(self.on_accepted)
 
     def setup_content_widget(self) -> None:
-        self.content_widget = QStackedWidget(self)
+        self.content_widget = ContentStackedwidget(self)
         self.main_layout.addWidget(self.content_widget, 0, 1, 1, 1)
 
     def setup_selection_box(self) -> None:
-        self.selection_box = PictureCategorySelector(content_widget=self.content_widget)
-        self.main_layout.addWidget(self.selection_box, 0, 0, 1, 1, Qt.AlignTop)
+        self.selection_box = PictureCategorySelector(self.content_widget)
+
+        self.main_layout.addWidget(self.selection_box, 0, 0, 4, 1, Qt.AlignTop)
 
     def add_category(self, text: str, data_dict: Mapping[str, Any], picture: QPixmap):
         page_number = self.content_widget.addWidget(SettingsForm.from_dict(section_name=text, data_dict=data_dict, parent=self.content_widget))
         self.selection_box.add_category(text, picture, page_number)
+
+    def change_page(self, current_item, previous_item):
+        self.content_widget.setCurrentIndex(current_item.page_number)
 
     def on_accepted(self):
         self.save_config()
         self.close()
 
     def on_cancelled(self):
-        self.main_window.set_app_style_sheet(self.main_window.current_app_style_sheet)
+        page = self.content_widget.pages.get("gui")
+        if page is not None:
+            field = page.fields.get("style")
+            if field.value_field.value_is_changed():
+                log.debug("style value has changed from %r to %r", field.start_value, field.get_value())
+                self.main_window.set_app_style_sheet(self.main_window.current_app_style_sheet)
         self.close()
 
     def save_config(self) -> None:

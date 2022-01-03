@@ -30,7 +30,9 @@ dependencies = [
     "qdarkstyle",
     "pyparsing>=3.0.6",
     "python-dotenv",
+    "pprintpp",
     "pp-ez",
+    "jinja2==2.11.3",
     "PySide6>=6.2.2"
 ]
 
@@ -67,17 +69,11 @@ ensure_newline_before_comments = true
 group_by_package = true
 import_heading_firstparty = "* Local Imports --------------------------------------------------------------------------------------->"
 import_heading_gid = "* Gid Imports ----------------------------------------------------------------------------------------->"
-import_heading_pyqt = "* PyQt5 Imports --------------------------------------------------------------------------------------->"
+import_heading_qt = "* Qt Imports --------------------------------------------------------------------------------------->"
 import_heading_stdlib = "* Standard Library Imports ---------------------------------------------------------------------------->"
 import_heading_thirdparty = "* Third Party Imports --------------------------------------------------------------------------------->"
-known_gid = [
-    "gidtools",
-    "gidlogger",
-    "gidqtutils",
-    "gidviewmodels",
-    "gidapptools"
-]
-known_pyqt = ["PyQt5", "PySide6"]
+known_gid = ["gid*"]
+known_qt = ["PyQt5", "PyQt6", "PySide6", "pyqtgraph"]
 length_sort = true
 line_length = 200
 lines_after_imports = 1
@@ -85,11 +81,12 @@ sections = [
     "FUTURE",
     "STDLIB",
     "THIRDPARTY",
-    "PYQT",
+    "QT",
     "GID",
     "FIRSTPARTY",
     "LOCALFOLDER",
 ]
+indented_import_headings = false
 
 [tool.pytest.ini_options]
 addopts = "-rA -vv --durations=0 --capture=tee-sys --show-capture=all --color=auto --code-highlight=yes"

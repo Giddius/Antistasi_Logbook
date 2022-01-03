@@ -212,12 +212,17 @@ class LogParsingContext:
             self.log_file_data["campaign_id"] = finder.campaign_id
 
         if self.log_file_data.get("utc_offset") is None:
-            difference_seconds = (finder.full_datetime[0] - finder.full_datetime[1]).total_seconds()
-            if difference_seconds > (60 * 60 * 24):
-                difference_seconds = difference_seconds - (60 * 60 * 24)
-            offset_timedelta = timedelta(hours=difference_seconds // (60 * 60))
+            difference_seconds = (finder.full_datetime.utc_datetime - finder.full_datetime.local_datetime).total_seconds()
+            log.debug("found tz offset seconds: %r", difference_seconds)
+            offset_timedelta = timedelta(seconds=int(difference_seconds))
             offset = tzoffset(self.log_file_data["name"], offset_timedelta)
+
             self.log_file_data["utc_offset"] = offset
+            log.debug("tzoffset test: utc_datetime = %r, local_datetime = %r, offset = %r, >> utc_from_local_datetime = %r", finder.full_datetime.utc_datetime.isoformat(sep=" "),
+                      finder.full_datetime.local_datetime.isoformat(sep=" "), offset, (finder.full_datetime.local_datetime + offset._offset).isoformat(sep=" "))
+            with self.database.write_lock:
+                with self.database:
+                    self._log_file.update(utc_offset=offset)
             self.log_file_data["created_at"] = self._log_file.name_datetime.replace(tzinfo=offset).astimezone(UTC)
 
         if finder.mods is not None and finder.mods is not MiscEnum.DEFAULT:

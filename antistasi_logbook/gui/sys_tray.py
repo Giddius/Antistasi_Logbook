@@ -58,12 +58,12 @@ class LogbookSystemTray(QSystemTrayIcon):
 
     def setup_menu(self) -> None:
         self.menu = QMenu(self.main_window)
-        self.menu.setStyleSheet(f"border: 1px solid black;background-color: white;margin: 4px")
+        self.menu.setStyleSheet("border: 1px solid black;background-color: white;margin: 4px")
 
         self.add_menu_title()
-        self.hide_show_action = self.add_action("Minimize to Tray", connect_to=self.switch_main_window_visible, icon=AllResourceItems.hidden.get_as_icon())
+        self.hide_show_action = self.add_action("Minimize to Tray", connect_to=self.switch_main_window_visible, icon=AllResourceItems.hidden_image.get_as_icon())
 
-        self.close_action = self.add_action("Close", connect_to=self.main_window.close, icon=AllResourceItems.close_cancel.get_as_icon())
+        self.close_action = self.add_action("Close", connect_to=self.main_window.close, icon=AllResourceItems.close_cancel_image.get_as_icon())
         self.setContextMenu(self.menu)
 
     def add_menu_title(self) -> None:
@@ -92,9 +92,13 @@ class LogbookSystemTray(QSystemTrayIcon):
         main_window_visible = self.main_window.isVisible()
         self.main_window.setVisible(not main_window_visible)
         text = "Minimize to Tray" if main_window_visible is False else "Open"
-        icon = AllResourceItems.hidden.get_as_icon() if main_window_visible is False else AllResourceItems.view.get_as_icon()
+        icon = AllResourceItems.hidden_image.get_as_icon() if main_window_visible is False else AllResourceItems.view_image.get_as_icon()
         self.hide_show_action.setText(text)
         self.hide_show_action.setIcon(icon)
+
+    def send_update_finished_message(self):
+
+        self.showMessage("Update finished!", "The Database is now up to date!", QSystemTrayIcon.MessageIcon.Information, 15 * 1000)
 
     # region[Main_Exec]
 

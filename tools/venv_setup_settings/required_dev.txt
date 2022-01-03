@@ -23,3 +23,5 @@ pydeps
 pylint
 pympler
 tomlkit
+tabulate
+dateparser

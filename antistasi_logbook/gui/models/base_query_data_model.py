@@ -56,8 +56,8 @@ HEADER_DATA_ROLE_MAP_TYPE = dict[Union[Qt.ItemDataRole, int], Callable[[int, Qt.
 class BaseQueryDataModel(QAbstractTableModel):
     always_exclude_column_names: set[str] = {"id", "comments"}
     default_column_ordering: dict[str, int] = {"marked": 0, "name": 1}
-    bool_images = {True: AllResourceItems.check_mark_green.get_as_icon(),
-                   False: AllResourceItems.close_black.get_as_icon()}
+    bool_images = {True: AllResourceItems.check_mark_green_image.get_as_icon(),
+                   False: AllResourceItems.close_black_image.get_as_icon()}
 
     def __init__(self, backend: "Backend", db_model: "BaseModel", parent: Optional[QtCore.QObject] = None) -> None:
         self.data_role_table: DATA_ROLE_MAP_TYPE = {Qt.DisplayRole: self._get_display_data,
@@ -79,7 +79,8 @@ class BaseQueryDataModel(QAbstractTableModel):
                                                     # Qt.StatusTipPropertyRole: self._get_status_tip_property_data,
                                                     # Qt.WhatsThisPropertyRole: self._get_whats_this_property_data,
                                                     # Qt.DecorationPropertyRole: self._get_decoration_property_data,
-                                                    # Qt.AccessibleDescriptionRole: self._get_accessible_description_data
+                                                    # Qt.AccessibleDescriptionRole: self._get_accessible_description_data,
+
                                                     }
 
         self.header_data_role_table: HEADER_DATA_ROLE_MAP_TYPE = {Qt.DisplayRole: self._get_display_header_data,
@@ -111,7 +112,7 @@ class BaseQueryDataModel(QAbstractTableModel):
         self.db_model = db_model
         self.ordered_by = (self.db_model.id,)
         self.content_items: list[Union["BaseModel", "AbstractRecord"]] = None
-        self.columns: tuple[Field] = None
+        self.columns: tuple[Field] = self.db_model.get_meta().sorted_fields
         self.generator_refresh_chunk_size: int = 250
 
         super().__init__(parent=parent)
@@ -154,6 +155,11 @@ class BaseQueryDataModel(QAbstractTableModel):
         self.refresh()
         return self
 
+    def get_column_index(self, column: Union[str, Field]) -> Optional[int]:
+        if isinstance(column, str):
+            return self.db_model.get_meta().fields.get(column, None)
+        return self.db_model.get_meta().sorted_fields[column]
+
     @profile
     def on_display_data_bool(self, role: int, item: "BaseModel", column: "Field", value: bool) -> str:
         if role == Qt.DisplayRole:
@@ -189,6 +195,8 @@ class BaseQueryDataModel(QAbstractTableModel):
             return
         if not 0 <= index.row() < len(self.content_items):
             return None
+        if role not in self.data_role_table:
+            return
         if role is not None:
             handler = self.data_role_table.get(role, None)
             if handler is not None:
@@ -277,6 +285,8 @@ class BaseQueryDataModel(QAbstractTableModel):
 
     @profile
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = None) -> Any:
+        if role not in self.header_data_role_table:
+            return
         if role is not None:
             handler = self.header_data_role_table.get(role, None)
             if handler is not None:

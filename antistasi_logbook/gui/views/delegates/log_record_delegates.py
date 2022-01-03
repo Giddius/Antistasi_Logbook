@@ -50,8 +50,7 @@ from urllib.parse import urlparse
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
-
-
+from gidapptools import get_logger
 import PySide6
 from PySide6 import (QtCore, QtGui, QtWidgets, Qt3DAnimation, Qt3DCore, Qt3DExtras, Qt3DInput, Qt3DLogic, Qt3DRender, QtAxContainer, QtBluetooth,
                      QtCharts, QtConcurrent, QtDataVisualization, QtDesigner, QtHelp, QtMultimedia, QtMultimediaWidgets, QtNetwork, QtNetworkAuth,
@@ -70,15 +69,10 @@ from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog
                                QDockWidget, QDoubleSpinBox, QFontComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
                                QLCDNumber, QLabel, QLayout, QLineEdit, QListView, QListWidget, QMainWindow, QMenu, QMenuBar, QMessageBox,
                                QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
-                               QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
+                               QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView, QItemDelegate,
                                QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
 
-if TYPE_CHECKING:
-    # * Third Party Imports --------------------------------------------------------------------------------->
-    from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow
-    from antistasi_logbook.backend import Backend
-    from antistasi_logbook.gui.application import AntistasiLogbookApplication
-    from gidapptools.gid_config.interface import GidIniConfig
+from antistasi_logbook.gui.widgets.detail_view_widget import MessageValue
 # endregion[Imports]
 
 # region [TODO]
@@ -94,63 +88,13 @@ if TYPE_CHECKING:
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
-
+log = get_logger(__name__)
 # endregion[Constants]
 
 
-class BaseDockWidget(QDockWidget):
-
-    def __init__(self,
-                 parent: QMainWindow,
-                 title: str,
-                 start_floating: bool = False,
-                 start_hidden: bool = False,
-                 allowed_areas: Qt.DockWidgetArea = Qt.AllDockWidgetAreas,
-                 features: QDockWidget.DockWidgetFeature = QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetClosable | QDockWidget.DockWidgetFloatable,
-                 add_menu_bar_action: bool = False):
-        super().__init__(parent)
-        self.title = title
-        self.setWindowTitle(title)
-        self.first_shown: bool = False
-        self.setHidden(start_hidden)
-        self.setFloating(start_floating)
-        self.setAllowedAreas(allowed_areas)
-        self.setFeatures(features)
-        if add_menu_bar_action is True:
-            self._add_to_menu_bar()
-
-    def _add_to_menu_bar(self):
-        view_action = self.toggleViewAction()
-        view_action.setText(f"{self.title} Window")
-        self.main_window.menubar.view_menu.addAction(view_action)
-
-    @property
-    def app(self) -> "AntistasiLogbookApplication":
-        return QApplication.instance()
-
-    @property
-    def backend(self) -> "Backend":
-        return self.app.backend
-
-    @property
-    def config(self) -> "GidIniConfig":
-        return self.app.config
-
-    @property
-    def main_window(self) -> "AntistasiLogbookMainWindow":
-        return self.parentWidget()
-
-    def show_if_first(self):
-        if self.first_shown is False:
-            self.show()
-
-    def show(self) -> None:
-        super().show()
-        if self.first_shown is False:
-            self.first_shown = True
-
-
 # region[Main_Exec]
+
+
 if __name__ == '__main__':
     pass
 

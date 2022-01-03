@@ -28,7 +28,11 @@ from gidapptools import get_logger
 from gidapptools.general_helper.conversion import FILE_SIZE_REFERENCE, TimeUnit, TimeUnits, bytes2human, human2bytes, seconds2human
 from gidapptools.general_helper.typing_helper import implements_protocol
 from gidapptools.gid_config.conversion.extra_base_typus import NonTypeBaseTypus
-from antistasi_logbook.gui.models.style_sheets_model import StyleSheetsModel
+from antistasi_logbook.gui.models.style_sheets_model import StyleSheetsModel, StoredStyleSheet, MaterialStyleSheet
+
+import qt_material
+# endregion [Imports]
+
 # region [TODO]
 
 
@@ -262,7 +266,7 @@ class FileSizeValueField(QWidget):
         self.number_part.setKeyboardTracking(False)
         self.number_part.setMaximum(10000000)
         self.number_part.setMinimum(0)
-        self.number_part.setDecimals(1)
+        self.number_part.setDecimals(0)
         self.layout.addItem(QSpacerItem(100, 20, QSizePolicy.Expanding, QSizePolicy.Fixed))
         self.layout.addWidget(self.number_part)
         self.unit_part = QComboBox(self)
@@ -277,16 +281,22 @@ class FileSizeValueField(QWidget):
 
     def set_text_value(self, text_value: str):
         match = self.extraction_regex.match(text_value)
-        self.number_part.setValue(float(match.group("number_value")))
+
         self.unit_part.setCurrentIndex({name.casefold(): idx for idx, name in enumerate(self.all_symbols)}[match.group('unit_value').casefold()])
         if self.unit_part.currentIndex() == 0:
             self.number_part.setSingleStep(1)
+            self.number_part.setValue(int(match.group("number_value")))
             self.number_part.setDecimals(0)
+
+            log.debug("set unit part to b with 0 decimals")
         else:
             self.number_part.setSingleStep(0.1)
+            self.number_part.setValue(float(match.group("number_value")))
             self.number_part.setDecimals(1)
 
     def get_value(self):
+        if self.number_part.value() == 0 and self.unit_part.currentIndex() == 0:
+            return None
         text = f"{self.number_part.value()} {self.unit_part.currentText()}"
         return human2bytes(text)
 
@@ -457,7 +467,7 @@ class PathValueField(QWidget):
         self.path_part = QLineEdit(self)
         self.path_part.setClearButtonEnabled(True)
         self.button = QPushButton(parent=self)
-        self.button.setIcon(AllResourceItems.select_path_symbol.get_as_icon())
+        self.button.setIcon(AllResourceItems.select_path_symbol_image.get_as_icon())
         self.layout.addWidget(self.button, 0, 3, 1, 1)
         self.layout.addWidget(self.path_part, 0, 0, 1, 4)
 
@@ -599,13 +609,19 @@ class StyleValueField(QComboBox):
         style = self.model.content_items[self.currentIndex()]
         app = QApplication.instance()
         if app is not None:
-            app.setStyleSheet(style.content)
+            if style.___typus___ == "LOCAL":
+
+                app.setStyleSheet(style.content)
+            elif style.___typus___ == "MATERIAL":
+                qt_material.apply_stylesheet(app, theme=style.___style_key___)
 
     def set_value(self, value: str, is_start: bool = False):
 
         self.setCurrentIndex(self.model.get_index_by_name(value))
 
         if is_start is True:
+            if value is None or value.casefold() == "base":
+                value = None
             self.start_value = value
 
     def get_value(self) -> str:

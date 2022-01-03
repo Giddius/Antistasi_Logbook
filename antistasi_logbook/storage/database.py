@@ -19,7 +19,7 @@ from apsw import Connection
 from threading import Lock, Thread, Event, Condition, Barrier, Semaphore
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING, Union, Protocol
+from typing import TYPE_CHECKING, Union, Protocol, Iterable, Generator, Any, Optional
 import os
 from weakref import WeakSet
 
@@ -98,6 +98,8 @@ class GidSqliteDatabase(Protocol):
 
     def backup(self, backup_path: Union[str, os.PathLike, Path] = None) -> "GidSqliteDatabase":
         ...
+
+# pylint: disable=abstract-method
 
 
 class GidSqliteApswDatabase(APSWDatabase):
@@ -197,9 +199,9 @@ class GidSqliteApswDatabase(APSWDatabase):
         self.started_up = False
 
     def get_all_server(self, ordered_by=Server.id) -> tuple[Server]:
-        self.connect(True)
-        result = tuple(Server.select().join(RemoteStorage, on=Server.remote_storage).order_by(ordered_by))
-        self.close()
+        with self.connection_context() as ctx:
+            result = tuple(Server.select().join(RemoteStorage, on=Server.remote_storage).order_by(ordered_by))
+
         return result
 
     def get_log_files(self, server: Server = None, ordered_by=LogFile.id) -> tuple[LogFile]:
@@ -212,21 +214,21 @@ class GidSqliteApswDatabase(APSWDatabase):
             return tuple(query.where(LogFile.server_id == server.id).order_by(ordered_by))
 
     def get_all_log_levels(self, ordered_by=LogLevel.id) -> tuple[LogLevel]:
-        self.connect(True)
-        result = tuple(LogLevel.select().order_by(ordered_by))
-        self.close()
+        with self.connection_context() as ctx:
+            result = tuple(LogLevel.select().order_by(ordered_by))
+
         return result
 
     def get_all_antistasi_functions(self, ordered_by=AntstasiFunction.id) -> tuple[AntstasiFunction]:
-        self.connect(True)
-        result = tuple(AntstasiFunction.select().order_by(ordered_by))
-        self.close()
+        with self.connection_context() as ctx:
+            result = tuple(AntstasiFunction.select().order_by(ordered_by))
+
         return result
 
     def get_all_game_maps(self, ordered_by=GameMap.id) -> tuple[GameMap]:
-        self.connect(True)
-        result = tuple(GameMap.select().order_by(ordered_by))
-        self.close()
+        with self.connection_context() as ctx:
+            result = tuple(GameMap.select().order_by(ordered_by))
+
         return result
 
     def __repr__(self) -> str:

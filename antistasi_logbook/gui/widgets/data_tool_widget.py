@@ -177,7 +177,7 @@ class BaseDataToolWidget(QWidget):
 
 class LogFileSearchPage(BaseDataToolPage):
     name: str = "Search"
-    icon_name: str = "log_file_search_page_symbol"
+    icon_name: str = "log_file_search_page_symbol_image"
 
 
 class TimeSpanFilterWidget(QGroupBox):
@@ -262,7 +262,7 @@ class TimeSpanFilterWidget(QGroupBox):
 
 class LogFileFilterPage(BaseDataToolPage):
     name: str = "Filter"
-    icon_name: str = "log_file_filter_page_symbol"
+    icon_name: str = "log_file_filter_page_symbol_image"
 
     filter_by_server_changed = Signal(int)
     filter_by_game_map_changed = Signal(int)

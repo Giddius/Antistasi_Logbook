@@ -21,7 +21,7 @@ from PIL import Image
 # from peewee import Field, BlobField
 from dateutil.tz import UTC, tzoffset
 from playhouse.fields import CompressedField
-from playhouse.apsw_ext import IntegerField, CharField, TextField, Field, BlobField, DateTimeField, BooleanField, DecimalField, FixedCharField, BareField, ForeignKeyField, ManyToManyField, TimestampField
+from playhouse.apsw_ext import IntegerField, CharField, TextField, BigIntegerField, Field, BlobField, DateTimeField, BooleanField, DecimalField, FixedCharField, BareField, ForeignKeyField, ManyToManyField, TimestampField
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from antistasi_logbook.utilities.misc import Version
@@ -105,38 +105,44 @@ class URLField(Field):
             return yarl.URL(value)
 
 
-class AwareTimeStampField(TimestampField):
+class AwareTimeStampField(BigIntegerField):
     field_type = 'TIMESTAMP'
+    mult_factor = 1000000
 
     def __init__(self, *args, **kwargs):
-        self.resolution = kwargs.pop('resolution', None)
-
-        if not self.resolution:
-            self.resolution = 1
-        elif self.resolution in range(2, 7):
-            self.resolution = 10 ** self.resolution
-        elif self.resolution not in self.valid_resolutions:
-            raise ValueError('TimestampField resolution must be one of: %s' %
-                             ', '.join(str(i) for i in self.valid_resolutions))
-        self.ticks_to_microsecond = 1000000 // self.resolution
 
         self.utc = kwargs.pop('utc', False) or False
         if kwargs.get("null", False) is False:
-            dflt = datetime.now
-            if self.utc:
-                dftl = lambda: datetime.now(tz=UTC)
 
-            kwargs.setdefault('default', dflt)
-        super(TimestampField, self).__init__(*args, **kwargs)
+            kwargs.setdefault('default', self._get_default)
+        super().__init__(*args, **kwargs)
+
+    def _get_default(self):
+        if self.utc is True:
+            return datetime.now(tz=UTC)
+        return datetime.now()
+
+    def db_value(self, value: datetime):
+        if value is None:
+            return
+        if value.tzinfo is None:
+            raise ValueError(f"tzinfo of {value} can not be non!")
+        if value.tzinfo is not UTC and value.tzinfo is not timezone.utc:
+            # value = value.astimezone(UTC)
+            raise TypeError(f"tzinfo needs to be utc not {value.tzinfo!r}")
+        raw_value = value.timestamp()
+        return int(raw_value * self.mult_factor)
 
     def python_value(self, value):
 
-        dt = super().python_value(value)
-
-        if dt is None:
+        if value is None:
             return
+
+        reduced_value = value / self.mult_factor
+        dt = datetime.fromtimestamp(reduced_value)
         if self.utc and dt.tzinfo is None:
-            return dt.replace(tzinfo=UTC)
+            dt = dt.astimezone(tz=UTC)
+
         return dt
 
 

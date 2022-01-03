@@ -8,12 +8,16 @@ Soon.
 # region [Imports]
 
 # * Third Party Imports --------------------------------------------------------------------------------->
+import atexit
+import inspect
+from antistasi_logbook.utilities.html_generation import dict_to_html
+from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
 from antistasi_logbook.gui.application import AntistasiLogbookApplication
 from gidapptools.general_helper.string_helper import StringCaseConverter
 from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
-from PySide6.QtWidgets import QWidget, QStyle, QMenuBar, QMainWindow, QMessageBox, QApplication, QStyleFactory, QLabel
+from PySide6.QtWidgets import QWidget, QStyle, QMenuBar, QMainWindow, QMessageBox, QApplication, QStyleFactory, QLabel, QTextEdit, QTextBrowser, QPushButton, QDialog
 from PySide6.QtCore import Slot, QEvent, Signal, QSettings, QByteArray, Qt
-from PySide6.QtGui import QCloseEvent, QFont
+from PySide6.QtGui import QCloseEvent, QFont, QFontDatabase, QFontInfo
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 from antistasi_logbook.gui.resources.style_sheets import get_style_sheet_data
 from antistasi_logbook.storage.models.models import RemoteStorage
@@ -31,8 +35,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 import sys
 import os
-from antistasi_logbook import setup
 
+from antistasi_logbook.gui.widgets.debug_widgets import DebugDockWidget
+from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
+from antistasi_logbook import setup
+import qt_material
 setup()
 # * Standard Library Imports ---------------------------------------------------------------------------->
 
@@ -89,16 +96,18 @@ class AntistasiLogbookMainWindow(QMainWindow):
     def __init__(self, config: "GidIniConfig") -> None:
         self.config = config
         self.main_widget: MainWidget = None
-        self.menubar: QMenuBar = None
+        self.menubar: LogbookMenuBar = None
         self.statusbar: LogbookStatusBar = None
 
         self._temp_settings_window: "SettingsWindow" = None
+        self._temp_folder_window = None
 
         self.sys_tray: "LogbookSystemTray" = None
         self.name: str = None
         self.title: str = None
 
         super().__init__()
+
         self.setup()
 
     @property
@@ -124,7 +133,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.app.setStyleSheet(data)
 
     def setup(self) -> None:
-
+        qt_material.add_fonts()
         self.set_app_style_sheet(self.current_app_style_sheet)
         settings = QSettings(f"{META_INFO.app_name}_settings", "main_window")
         self.name = StringCaseConverter.convert_to(META_INFO.app_name, StringCaseConverter.TITLE)
@@ -132,6 +141,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.setWindowTitle(self.title)
 
         self.set_menubar(LogbookMenuBar(self))
+        self.menubar.folder_action.triggered.connect(self.show_folder_window)
         self.setWindowIcon(self.app.icon)
         geometry = settings.value('geometry', QByteArray())
         if geometry.size():
@@ -151,9 +161,37 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.backend.updater.signaler.update_increment.connect(self.statusbar.increment_progress_bar)
         self.main_widget.setup_views()
         self.backend.updater.signaler.update_finished.connect(self.main_widget.server_tab.model().refresh)
+        # self.backend.updater.signaler.update_finished.connect(self.sys_tray.send_update_finished_message)
         self.backend.updater.signaler.update_finished.connect(self.main_widget.log_files_tab.model().refresh)
         self.backend.updater.signaler.update_finished.connect(self.statusbar.last_updated_label.refresh_text)
         self.menubar.open_settings_window_action.triggered.connect(self.open_settings_window)
+        self.development_setup()
+
+    def development_setup(self):
+        if os.getenv("IS_DEV", "false") == "false":
+            return
+        self.debug_dock_widget = DebugDockWidget(parent=self)
+        self.addDockWidget(Qt.NoDockWidgetArea, self.debug_dock_widget)
+
+        for attr_name in ["desktopFileName",
+                          "desktopSettingsAware",
+                          "devicePixelRatio",
+                          "highDpiScaleFactorRoundingPolicy",
+                          "platformName",
+                          "applicationState",
+                          "font",
+                          "applicationDirPath",
+                          "applicationFilePath",
+                          "applicationPid",
+                          "arguments",
+                          "isQuitLockEnabled",
+                          "isSetuidAllowed",
+                          "libraryPaths",
+                          "available_font_families"]:
+            self.debug_dock_widget.add_show_attr_button(attr_name=attr_name, obj=self.app)
+
+        self.debug_dock_widget.add_show_attr_button(attr_name="missing_items", obj=AllResourceItems)
+        self.debug_dock_widget.add_show_attr_button(attr_name="standardSizes", obj=QFontDatabase)
 
     def setup_backend(self) -> None:
         self.backend.start_up()
@@ -171,6 +209,12 @@ class AntistasiLogbookMainWindow(QMainWindow):
     def set_main_widget(self, main_widget: QWidget) -> None:
         self.main_widget = main_widget
         self.setCentralWidget(main_widget)
+
+    def show_folder_window(self):
+        self._temp_folder_window = DataView(title="Folder")
+        self._temp_folder_window.add_row("Database", self.backend.database.database_path)
+        self._temp_folder_window.add_row("Config", self.config.config.file_path)
+        self._temp_folder_window.show()
 
     def _reset_database(self) -> None:
         reply = QMessageBox.warning(self, 'THIS IS IRREVERSIBLE', 'Are you sure you want to REMOVE the existing Database and REBUILD it?', QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
@@ -205,6 +249,10 @@ class AntistasiLogbookMainWindow(QMainWindow):
         reply = QMessageBox.question(self, 'Message', 'Are you sure you want to quit?', QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
         if reply == QMessageBox.Yes:
+            try:
+                self.sys_tray.hide()
+            except AttributeError:
+                pass
             log.info("closing %r", self)
             log.debug("Starting shutting down %r", self.backend)
             self.backend.shutdown()
@@ -213,6 +261,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
             settings = QSettings(f"{META_INFO.app_name}_settings", "main_window")
             settings.setValue('geometry', self.saveGeometry())
             event.accept()
+            self.app.closeAllWindows()
         else:
             event.ignore()
 
@@ -231,13 +280,14 @@ def start_gui(nextcloud_username: str = None, nextcloud_password: str = None):
     database = GidSqliteApswDatabase(db_path, config=config, thread_safe=True, autoconnect=True)
     backend = Backend(database=database, config=config, update_signaler=UpdaterSignaler())
     _app = AntistasiLogbookApplication.with_high_dpi_scaling(backend=backend, argvs=sys.argv)
-    _app.icon = AllResourceItems.placeholder.get_as_icon()
+    _app.icon = AllResourceItems.app_icon_image.get_as_icon()
     m = AntistasiLogbookMainWindow(META_CONFIG.get_config('general'))
+    _app.main_window = m
     if nextcloud_username is not None and nextcloud_password is not None:
         RemoteStorage.get(name="community_webdav").set_login_and_password(login=nextcloud_username, password=nextcloud_password, store_in_db=False)
 
     m.show()
-    _app.exec()
+    return _app.exec()
 
 
 # region[Main_Exec]
@@ -245,7 +295,7 @@ if __name__ == '__main__':
 
     import dotenv
     dotenv.load_dotenv(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\antistasi_logbook\nextcloud.env")
-    start_gui(os.getenv("NEXTCLOUD_USERNAME"), os.getenv("NEXTCLOUD_PASSWORD"))
+    sys.exit(start_gui(os.getenv("NEXTCLOUD_USERNAME"), os.getenv("NEXTCLOUD_PASSWORD")))
 
 
 # endregion[Main_Exec]

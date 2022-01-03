@@ -43,9 +43,12 @@ log = get_logger(__name__)
 
 class BaseQueryTreeView(QTreeView):
 
-    def __init__(self, icon: QIcon = None, name: str = None) -> None:
-        self.icon = AllResourceItems.placeholder.get_as_icon() if icon is None else icon
+    def __init__(self, name: str, icon: QIcon = None) -> None:
+        self.icon = icon
+
         self.name = "" if name is None else name
+        if self.icon is None:
+            self.icon = getattr(AllResourceItems, f"{self.name.casefold().replace('-','_').replace(' ','_').replace('.','_')}_tab_icon_image").get_as_icon()
         super().__init__()
 
     @property
@@ -108,12 +111,12 @@ class BaseQueryTreeView(QTreeView):
 class ServerQueryTreeView(BaseQueryTreeView):
 
     def __init__(self) -> None:
-        super().__init__(icon=AllResourceItems.server_query_icon.get_as_icon(), name="Server")
+        super().__init__(name="Server")
 
 
 class LogFilesQueryTreeView(BaseQueryTreeView):
     def __init__(self) -> None:
-        super().__init__(icon=AllResourceItems.log_files_query_icon.get_as_icon(), name="Log-Files")
+        super().__init__(name="Log-Files")
 
 
 # region[Main_Exec]

@@ -498,6 +498,7 @@ from enum import Enum, auto, Flag
 from pathlib import Path
 from PySide6.QtGui import QPixmap, QIcon,QImage
 from typing import Union, Optional, Iterable, TYPE_CHECKING
+from collections import defaultdict
 from gidapptools.gidapptools_qt.resources_helper import ressource_item_factory,ResourceItem,AllResourceItemsMeta
 from . import {converted_module_path}
 
@@ -508,9 +509,10 @@ from . import {converted_module_path}
 
 RESOURCE_ITEM_COLLECTION_TEXT = """
 class AllResourceItems(metaclass=AllResourceItemsMeta):
-
+    categories = {category_names}
+    missing_items = defaultdict(set)
 """
-RESSOURCE_ITEM_COLLECTION_ATTRIBUTE_TEMPLATE = "    {att_name} = {obj_name}"
+RESSOURCE_ITEM_COLLECTION_ATTRIBUTE_TEMPLATE = "    {att_name}_{cat_name_lower} = {obj_name}_{cat_name}"
 
 
 AUTO_GENERATED_HINT = '"""\nThis File was auto-generated\n"""\n\n\n'
@@ -522,6 +524,11 @@ def _write_resource_list_mapping(raw_text: str, tgt_file: Path, converted_file_p
         tgt_file.write_text(raw_text, encoding='utf-8', errors='ignore')
 
     def _to_py():
+
+        def _make_singular(word: str) -> str:
+            if word == "IMAGES":
+                return word.removesuffix("S")
+            return word
         text_lines = [AUTO_GENERATED_HINT]
 
         try:
@@ -532,16 +539,19 @@ def _write_resource_list_mapping(raw_text: str, tgt_file: Path, converted_file_p
         text_lines.append(RESOURCE_HEADER_TEXT.format(converted_module_path=module_path))
 
         items = [line.split('\t') for line in raw_text.splitlines() if line]
-        all_obj_names = []
+        all_obj_names = defaultdict(list)
         for qt_path, file_path in items:
             _file_path = Path(file_path)
             obj_name = make_attribute_name(_file_path.stem).upper()
-            all_obj_names.append(obj_name)
-            text_lines.append(f"{obj_name} = ressource_item_factory(file_path={_file_path.as_posix()!r}, qt_path={qt_path!r})\n")
+            cat_name = make_attribute_name(qt_path.removeprefix(":/").split("/")[0]).upper()
+            cat_name = _make_singular(cat_name)
+            all_obj_names[cat_name].append(obj_name)
+            text_lines.append(f"{obj_name}_{cat_name} = ressource_item_factory(file_path={_file_path.as_posix()!r}, qt_path={qt_path!r})\n")
 
-        text_lines.append(RESOURCE_ITEM_COLLECTION_TEXT)
-        for obj_name in all_obj_names:
-            text_lines.append(RESSOURCE_ITEM_COLLECTION_ATTRIBUTE_TEMPLATE.format(att_name=obj_name.casefold(), obj_name=obj_name))
+        text_lines.append(RESOURCE_ITEM_COLLECTION_TEXT.format(category_names="{" + ', '.join(f'{cat!r}'.casefold() for cat in all_obj_names.keys()) + '}'))
+        for cat_name, obj_names in all_obj_names.items():
+            for obj_name in obj_names:
+                text_lines.append(RESSOURCE_ITEM_COLLECTION_ATTRIBUTE_TEMPLATE.format(att_name=obj_name.casefold(), obj_name=obj_name, cat_name=cat_name, cat_name_lower=cat_name.casefold()))
 
         tgt_file.write_text('\n'.join(text_lines), encoding='utf-8', errors='ignore')
 
@@ -564,7 +574,7 @@ def _write_resource_list_mapping(raw_text: str, tgt_file: Path, converted_file_p
 
         items = [_make_sub_items(*line.split('\t')) for line in raw_text.splitlines() if line]
         for k, v in sorted_items.items():
-            text_lines.append(f'### {k}\n\n')
+            text_lines.append(f'### {k.title()}\n\n')
             text_lines.append(tabulate(v, headers=headers, tablefmt="github"))
 
         tgt_file.write_text('\n'.join(text_lines), encoding='utf-8', errors='ignore')

@@ -72,10 +72,11 @@ from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog
                                QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
                                QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
 from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
-
+from jinja2 import Environment, BaseLoader
 if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend
     from gidapptools.gid_config.interface import GidIniConfig
+    from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow
 # endregion[Imports]
 
 # region [TODO]
@@ -97,6 +98,15 @@ META_PATHS = get_meta_paths()
 # endregion[Constants]
 
 
+ABOUT_TEMPLATE = """
+<dl>
+    {% for key, value in data.items() %}
+    <dt><b><u>{{key}}:</u></b></dt>
+    <dd>{{value}}</dd>
+    {% endfor %}
+</dl>"""
+
+
 class AntistasiLogbookApplication(QApplication):
 
     def __init__(self, backend: "Backend", argvs: Iterable[str] = None):
@@ -105,24 +115,28 @@ class AntistasiLogbookApplication(QApplication):
         self.meta_info = get_meta_info()
         self.meta_paths = get_meta_paths()
         self.available_font_families = set(QFontDatabase().families())
+        self.jinja_environment = Environment(loader=BaseLoader)
+        self.main_window: "AntistasiLogbookMainWindow" = None
         self.setup()
-        self.pre_logging()
 
     def setup(self) -> None:
         self.setApplicationName(self.meta_info.app_name)
+        self.setApplicationDisplayName(self.meta_info.pretty_app_name)
         self.setApplicationVersion(self.meta_info.version)
-        self.setOrganizationName(self.meta_info.app_author)
+        self.setOrganizationName(self.meta_info.pretty_app_author)
         self.setOrganizationDomain(str(self.meta_info.url))
 
-    def pre_logging(self) -> None:
-        log.debug("DesktopFileName: %r", self.desktopFileName())
-        log.debug("QLocale.system().dateTimeFormat(QLocale.FormatType.ShortFormat) = %r", QLocale.system().dateTimeFormat(QLocale.FormatType.LongFormat))
-        log.debug("QFontDatabase().families() = %r", QFontDatabase().families())
-        log.debug("self.keyboardModifiers()=%r", self.keyboardModifiers())
+        font: QFont = self.font()
+        font.setFamily("Roboto Medium")
+        font.setPointSize(10)
+
+        self.setFont(font)
 
     @ classmethod
     def with_high_dpi_scaling(cls, backend: "Backend", argvs: Iterable[str] = None):
-        QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+        cls.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+        cls.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
+        # cls.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.Round)
         QGuiApplication.setDesktopSettingsAware(True)
         return cls(backend=backend, argvs=argvs)
 
@@ -133,11 +147,43 @@ class AntistasiLogbookApplication(QApplication):
     def format_datetime(self, date_time: datetime) -> str:
         if self.config.get("time", "use_local_timezone", default=False) is True:
             date_time = date_time.astimezone(tz=self.meta_info.local_tz)
-        time_format = self.config.get("time", "time_format", default='%Y-%m-%d %H:%M:%S')
-
+        time_format = self.config.get("time", "time_format", default='%Y-%m-%d %H:%M:%S.%f')
+        if time_format == "iso":
+            return date_time.isoformat()
         if time_format == "local":
             time_format = "%x %X"
-        return date_time.strftime(time_format)
+
+        _out = date_time.strftime(time_format)
+        if "%f" in time_format:
+            _out = _out[:-3]
+        return _out
+
+    def _get_about_text(self) -> str:
+        text_parts = {"Name": self.applicationDisplayName(),
+                      "Author": self.organizationName(),
+                      "Link": f'<a href="{self.organizationDomain()}">{self.organizationDomain()}</a>',
+                      "Version": self.applicationVersion(),
+                      "Dev Mode": self.meta_info.pretty_is_dev,
+                      "Operating System": self.meta_info.os,
+                      "Python Version": self.meta_info.python_version}
+
+        # text = "<dl>"
+        # for k, v in text_parts.items():
+        #     text += f"<dt><b>{k.title()}:</b></dt><dd>{v}</dd><br>"
+        # text += "</dl>"
+        # return text
+        return self.jinja_environment.from_string(ABOUT_TEMPLATE).render(data=text_parts)
+
+    def show_about(self) -> None:
+        title = f"About {self.applicationDisplayName()}"
+        text = self._get_about_text()
+        QMessageBox.about(self.main_window, title, text)
+
+    def show_about_qt(self) -> None:
+        self.aboutQt()
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(name={self.applicationDisplayName()!r})"
 
 
 # region[Main_Exec]

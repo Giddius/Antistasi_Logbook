@@ -8,7 +8,7 @@ Soon.
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 from time import sleep
-from typing import TYPE_CHECKING, Any, Union, Iterable, Callable
+from typing import TYPE_CHECKING, Any, Union, Iterable, Callable, Optional, Mapping
 from pathlib import Path
 from operator import or_
 from functools import reduce, cache
@@ -17,19 +17,38 @@ from collections import namedtuple
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 from peewee import Field, Query
-from antistasi_logbook.storage.models.models import LogRecord, RecordClass
+from antistasi_logbook.storage.models.models import LogRecord, RecordClass, LogFile
 from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 
 # * PyQt5 Imports --------------------------------------------------------------------------------------->
-from PySide6 import QtCore
-from PySide6.QtGui import QFont, QFontMetrics
-from PySide6.QtCore import Qt, QSize, Signal, QObject, QThread
+import PySide6
+from PySide6 import (QtCore, QtGui, QtWidgets, Qt3DAnimation, Qt3DCore, Qt3DExtras, Qt3DInput, Qt3DLogic, Qt3DRender, QtAxContainer, QtBluetooth,
+                     QtCharts, QtConcurrent, QtDataVisualization, QtDesigner, QtHelp, QtMultimedia, QtMultimediaWidgets, QtNetwork, QtNetworkAuth,
+                     QtOpenGL, QtOpenGLWidgets, QtPositioning, QtPrintSupport, QtQml, QtQuick, QtQuickControls2, QtQuickWidgets, QtRemoteObjects,
+                     QtScxml, QtSensors, QtSerialPort, QtSql, QtStateMachine, QtSvg, QtSvgWidgets, QtTest, QtUiTools, QtWebChannel, QtWebEngineCore,
+                     QtWebEngineQuick, QtWebEngineWidgets, QtWebSockets, QtXml)
+
+from PySide6.QtCore import (QByteArray, QCoreApplication, QDate, QDateTime, QEvent, QLocale, QMetaObject, QModelIndex, QModelRoleData, QMutex,
+                            QMutexLocker, QObject, QPoint, QRect, QRecursiveMutex, QRunnable, QSettings, QSize, QThread, QThreadPool, QTime, QUrl,
+                            QWaitCondition, Qt, QAbstractItemModel, QAbstractListModel, QAbstractTableModel, Signal, Slot)
+
+from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
+                           QKeySequence, QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform)
+
+from PySide6.QtWidgets import (QApplication, QDataWidgetMapper, QBoxLayout, QCheckBox, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QDialogButtonBox,
+                               QDockWidget, QDoubleSpinBox, QFontComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
+                               QLCDNumber, QLabel, QLayout, QLineEdit, QListView, QListWidget, QMainWindow, QMenu, QMenuBar, QMessageBox,
+                               QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
+                               QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
+                               QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
+
 import pp
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.color.color_item import Color
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
+import attr
 if TYPE_CHECKING:
     # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.backend import Backend
@@ -72,18 +91,25 @@ class RefreshWorker(QThread):
 
     def run(self):
         self.model._generator_refresh(**self.kwargs)
+
+        self.model.is_init = True
         self.finished.emit()
         log.debug("finished refreshing %r", self.model)
 
 
-RefreshItem = namedtuple("RefreshItem", ["idx", "item"])
+@attr.s(slots=True, auto_attribs=True, auto_detect=True, weakref_slot=True)
+class RefreshItem:
+    record: "AbstractRecord" = attr.ib()
+    idx: int = attr.ib()
 
 
 class LogRecordsModel(BaseQueryDataModel):
     initialized = Signal()
+    batch_completed = Signal(bool)
     default_column_ordering: dict[str, int] = {"marked": 0, "recorded_at": 1, "message": 2, "log_level": 3, "log_file": 4, "logged_from": 5, "called_by": 6}
-    bool_images = {True: AllResourceItems.check_mark_green.get_as_icon(),
-                   False: AllResourceItems.close_black.get_as_icon()}
+    bool_images = {True: AllResourceItems.check_mark_green_image.get_as_icon(),
+                   False: AllResourceItems.close_black_image.get_as_icon()}
+    insert_rows_lock = Lock()
 
     def __init__(self, backend: "Backend", filter_data: dict[str, Any], parent=None) -> None:
         super().__init__(backend, LogRecord, parent=parent)
@@ -96,10 +122,8 @@ class LogRecordsModel(BaseQueryDataModel):
         self.columns: tuple[Field] = None
         self._expand: set[int] = set()
         self.expand_all: bool = False
-
-    @property
-    def resize_lock(self) -> Lock:
-        return self.parent().resize_lock
+        self.generator_refresh_chunk_size: int = 10000
+        self.is_init: bool = False
 
     def _make_message_column_font(self) -> QFont:
         font = QFont()
@@ -108,7 +132,7 @@ class LogRecordsModel(BaseQueryDataModel):
 
     @property
     def column_names_to_exclude(self) -> set[str]:
-        return self._column_names_to_exclude.union({"start", "end", "record_class", "is_antistasi_record"})
+        return self._column_names_to_exclude.union({"end", "record_class", "is_antistasi_record"})
 
     def get_query(self) -> "Query":
 
@@ -176,15 +200,19 @@ class LogRecordsModel(BaseQueryDataModel):
         self.columns = tuple(sorted(columns, key=lambda x: self.column_ordering.get(x.name.casefold(), 99)))
         return self
 
+    @profile
     def insertRow(self, row: "BaseRecord") -> bool:
         self.layoutAboutToBeChanged.emit()
         self.content_items.append(row)
         self.layoutChanged.emit()
 
+    @profile
     def insertRows(self, rows: Iterable["BaseRecord"]) -> bool:
-        self.beginInsertRows(QtCore.QModelIndex(), len(self.content_items), len(self.content_items) + len(rows))
-        self.content_items += list(rows)
-        self.endInsertRows()
+        with self.insert_rows_lock:
+            self.beginInsertRows(QtCore.QModelIndex(), len(self.content_items), len(self.content_items) + len(rows))
+            self.content_items += list(rows)
+            self.endInsertRows()
+            self.batch_completed.emit(True)
 
     def insertColumns(self, columns: Iterable[Field]) -> bool:
         if self.columns is None:
@@ -195,6 +223,49 @@ class LogRecordsModel(BaseQueryDataModel):
         self.columns += list(columns)
         self.columns = tuple(self.columns)
         self.endInsertColumns()
+
+    @profile
+    def _record_dict_to_record_item(self, record_dict: dict[str, Any], log_file_cache: dict[str, LogFile] = None) -> "BaseRecord":
+        record_class = self.backend.record_class_manager.get_by_id(record_dict.get('record_class'))
+        if log_file_cache is not None:
+            log_file = log_file_cache[str(record_dict.get('log_file'))]
+        else:
+            with self.backend.database.connection_context() as db_ctx:
+                log_file = LogFile.get_by_id(record_dict.get('log_file'))
+
+        record_item = record_class.from_model_dict(record_dict, log_file=log_file)
+        return record_item
+
+    @profile
+    def _generator_refresh(self):
+        log_file_cache = {str(i.id): i for i in self.backend.database.get_log_files()}
+
+        temp_items = []
+        tasks = []
+        with ThreadPoolExecutor(2) as pool:
+            with self.backend.database:
+                for item_data in self.get_query().dicts().iterator():
+
+                    temp_items.append(self._record_dict_to_record_item(item_data, log_file_cache=log_file_cache))
+                    if len(temp_items) == self.generator_refresh_chunk_size:
+                        tasks.append(pool.submit(self.insertRows, temp_items))
+                        temp_items = []
+                        sleep(0.00001)
+
+            if len(temp_items) > 0:
+                tasks.append(pool.submit(self.insertRows, temp_items))
+                temp_items = []
+            wait(tasks, return_when=ALL_COMPLETED)
+
+    @profile
+    def generator_refresh(self) -> RefreshWorker:
+        self.get_columns()
+        self.beginResetModel()
+        self.content_items = []
+
+        self.endResetModel()
+        thread = RefreshWorker(self)
+        return thread
 
     def refresh(self) -> "BaseQueryDataModel":
         super().refresh()

@@ -1,6 +1,7 @@
 """Antistasi Logbook"""
 
-__version__ = '0.1.14'
+from pyqtgraph.Qt import QT_LIB
+__version__ = '0.2.0'
 import sys
 
 if "apsw" not in sys.modules:
@@ -19,6 +20,8 @@ import atexit
 import os
 import sys
 
+
+os.environ["PYQTGRAPH_QT_LIB"] = "PySide6"
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 

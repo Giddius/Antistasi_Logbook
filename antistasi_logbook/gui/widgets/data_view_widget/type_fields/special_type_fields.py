@@ -33,10 +33,10 @@ from copy import copy, deepcopy
 from enum import Enum, Flag, auto, unique
 from time import time, sleep
 from pprint import pprint, pformat
-from pathlib import Path
+from pathlib import Path, WindowsPath
 from string import Formatter, digits, printable, whitespace, punctuation, ascii_letters, ascii_lowercase, ascii_uppercase
 from timeit import Timer
-from typing import TYPE_CHECKING, Union, Callable, Iterable, Optional, Mapping, Any, IO, TextIO, BinaryIO, Hashable, Generator, Literal, TypeVar, TypedDict, AnyStr
+from typing import TYPE_CHECKING, Protocol, Union, Callable, Iterable, Optional, Mapping, Any, IO, TextIO, BinaryIO, Hashable, Generator, Literal, TypeVar, TypedDict, AnyStr
 from zipfile import ZipFile, ZIP_LZMA
 from datetime import datetime, timezone, timedelta
 from tempfile import TemporaryDirectory
@@ -51,7 +51,6 @@ from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
 
-
 import PySide6
 from PySide6 import (QtCore, QtGui, QtWidgets, Qt3DAnimation, Qt3DCore, Qt3DExtras, Qt3DInput, Qt3DLogic, Qt3DRender, QtAxContainer, QtBluetooth,
                      QtCharts, QtConcurrent, QtDataVisualization, QtDesigner, QtHelp, QtMultimedia, QtMultimediaWidgets, QtNetwork, QtNetworkAuth,
@@ -64,7 +63,7 @@ from PySide6.QtCore import (QByteArray, QCoreApplication, QDate, QDateTime, QEve
                             QWaitCondition, Qt, QAbstractItemModel, QAbstractListModel, QAbstractTableModel, Signal, Slot)
 
 from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
-                           QKeySequence, QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform)
+                           QKeySequence, QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform, QDesktopServices)
 
 from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QDialogButtonBox,
                                QDockWidget, QDoubleSpinBox, QFontComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
@@ -73,12 +72,11 @@ from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog
                                QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
                                QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
 
-if TYPE_CHECKING:
-    # * Third Party Imports --------------------------------------------------------------------------------->
-    from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow
-    from antistasi_logbook.backend import Backend
-    from antistasi_logbook.gui.application import AntistasiLogbookApplication
-    from gidapptools.gid_config.interface import GidIniConfig
+from gidapptools import get_logger
+from antistasi_logbook.gui.widgets.data_view_widget.type_fields.base_type_field import TypeFieldProtocol
+from gidapptools.general_helper.typing_helper import implements_protocol
+from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
+from yarl import URL
 # endregion[Imports]
 
 # region [TODO]
@@ -94,63 +92,101 @@ if TYPE_CHECKING:
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
-
+log = get_logger(__name__)
 # endregion[Constants]
 
 
-class BaseDockWidget(QDockWidget):
+@implements_protocol(TypeFieldProtocol)
+class URLTypeField(QPushButton):
+    ___typus___ = URL
 
-    def __init__(self,
-                 parent: QMainWindow,
-                 title: str,
-                 start_floating: bool = False,
-                 start_hidden: bool = False,
-                 allowed_areas: Qt.DockWidgetArea = Qt.AllDockWidgetAreas,
-                 features: QDockWidget.DockWidgetFeature = QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetClosable | QDockWidget.DockWidgetFloatable,
-                 add_menu_bar_action: bool = False):
-        super().__init__(parent)
-        self.title = title
-        self.setWindowTitle(title)
-        self.first_shown: bool = False
-        self.setHidden(start_hidden)
-        self.setFloating(start_floating)
-        self.setAllowedAreas(allowed_areas)
-        self.setFeatures(features)
-        if add_menu_bar_action is True:
-            self._add_to_menu_bar()
-
-    def _add_to_menu_bar(self):
-        view_action = self.toggleViewAction()
-        view_action.setText(f"{self.title} Window")
-        self.main_window.menubar.view_menu.addAction(view_action)
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+        self.url: URL = None
+        self._set_link_color()
 
     @property
-    def app(self) -> "AntistasiLogbookApplication":
-        return QApplication.instance()
+    def url_text(self) -> Optional[str]:
+        if self.url is not None:
+            return str(self.url)
+
+    def set_size(self, h, w):
+        pass
+
+    def set_value(self, value: URL):
+        self.url = value
+        self.setText(self.url_text)
+        self.pressed.connect(self.open_link)
+
+    def open_link(self):
+        QDesktopServices.openUrl(self.url_text)
+
+    def _set_link_color(self):
+        link_color = QApplication.instance().palette().color(QPalette.Button.Link)
+        r = link_color.red()
+        g = link_color.green()
+        b = link_color.blue()
+        self.setStyleSheet(f"color: rgb({', '.join(str(i) for i in [r,g,b])})")
+        self.setCursor(Qt.PointingHandCursor)
+
+    @classmethod
+    def add_to_type_field_table(cls, table: dict):
+        table[cls.___typus___] = cls
+        return table
+
+
+@implements_protocol(TypeFieldProtocol)
+class PathTypeField(QPushButton):
+    ___typus___ = Path
+
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+        self.path = None
+        self._set_link_color()
+
+    def set_size(self, h, w):
+        pass
+
+    def set_value(self, value: Path):
+        self.path = value
+        self.setText(self.path_text)
+        self.pressed.connect(self.open_folder)
 
     @property
-    def backend(self) -> "Backend":
-        return self.app.backend
+    def path_text(self) -> Optional[str]:
+        if self.path is not None:
+            return str(self.path)
 
-    @property
-    def config(self) -> "GidIniConfig":
-        return self.app.config
+    def _set_link_color(self):
+        link_color = QApplication.instance().palette().color(QPalette.Button.Link)
+        r = link_color.red()
+        g = link_color.green()
+        b = link_color.blue()
+        self.setStyleSheet(f"color: rgb({', '.join(str(i) for i in [r,g,b])})")
+        self.setCursor(Qt.PointingHandCursor)
 
-    @property
-    def main_window(self) -> "AntistasiLogbookMainWindow":
-        return self.parentWidget()
+    def open_folder(self):
+        safe_path = str(self.path)
+        if self.path.is_dir() is False and self.path.is_file() is True:
+            safe_path = str(self.path.parent)
 
-    def show_if_first(self):
-        if self.first_shown is False:
-            self.show()
+        if sys.platform == 'darwin':
+            subprocess.run(['open', '--', safe_path], check=False)
+        elif sys.platform == 'linux2':
+            subprocess.run(['gnome-open', '--', safe_path], check=False)
+        elif sys.platform == 'win32':
+            subprocess.run(['explorer', safe_path], check=False)
 
-    def show(self) -> None:
-        super().show()
-        if self.first_shown is False:
-            self.first_shown = True
+    @classmethod
+    def add_to_type_field_table(cls, table: dict):
+        table[cls.___typus___] = cls
+        table[WindowsPath] = cls
+        return table
 
 
 # region[Main_Exec]
+
+
 if __name__ == '__main__':
     pass
 

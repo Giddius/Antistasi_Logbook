@@ -18,11 +18,11 @@ from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataMode
 # * PyQt5 Imports --------------------------------------------------------------------------------------->
 from PySide6 import QtCore
 from PySide6.QtGui import QColor
-
+from gidapptools import get_logger
 if TYPE_CHECKING:
     # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.backend import Backend
-
+    from peewee import ModelIndex
 # endregion[Imports]
 
 # region [TODO]
@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
-
+log = get_logger(__name__)
 # endregion[Constants]
 SERVER_COLOR_ALPHA = 50
 SERVER_COLORS = {"no_server": QColor(25, 25, 25, 100),
@@ -77,10 +77,11 @@ class ServerModel(BaseQueryDataModel):
             self.content_items = list(self.get_query().execute())
         return self
 
-    def get_columns(self) -> "BaseQueryDataModel":
-        columns = [field for field_name, field in Server._meta.fields.items() if field_name not in self.column_names_to_exclude]
-        self.columns = sorted(columns, key=lambda x: self.column_ordering.get(x.name.casefold(), 99))
-        return self
+    # def get_columns(self) -> "BaseQueryDataModel":
+    #     columns = [field for field_name, field in Server._meta.fields.items() if field_name not in self.column_names_to_exclude]
+    #     self.columns = sorted(columns, key=lambda x: self.column_ordering.get(x.name.casefold(), 99))
+
+    #     return self
 
 
 # region[Main_Exec]

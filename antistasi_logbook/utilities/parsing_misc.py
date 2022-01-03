@@ -47,9 +47,9 @@ items = pp.Forward()
 content = pp.Group(pp.ZeroOrMore(items + pp.Optional(colon)))
 array = sqb_open + content + sqb_close
 string = quote + pp.OneOrMore(pp.Word(pp.printables.replace('"', ''))).set_parse_action(' '.join) + quote
-
+empty_string = quote + quote
 number = ppc.number
-items <<= string | keywords | array | number
+items <<= string | empty_string | keywords | array | number
 
 
 def parse_text_array(in_text: str) -> list[list[Any]]:
@@ -63,13 +63,6 @@ def parse_text_array(in_text: str) -> list[list[Any]]:
 
 
 if __name__ == '__main__':
-    x = """[
-        ["LAND_LIGHT",-1,"GROUP"]
-["LAND_LIGHT",-1,"GROUP"]
-["LAND_DEFAULT",0,"EMPTY"]
-["HELI_TRANSPORT",-1,"SQUAD"]
-["HELI_TRANSPORT",0,"EMPTY"]
-["LAND_LIGHT",-1,"SQUAD"]
-]"""
+    x = '''[["CUP_arifle_ACRC_EGLM_blk_556","CUP_muzzle_snds_M16","CUP_acc_ANPEQ_15_Black","CUP_optic_1P87_RIS",["CUP_30Rnd_556x45_PMAG_QP",30],["CUP_1Rnd_HE_M203",1],""],[],[],[],[],[],"","",[],["","","","","",""]]'''
     pprint(parse_text_array(x))
 # endregion[Main_Exec]

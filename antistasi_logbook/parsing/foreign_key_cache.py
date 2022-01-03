@@ -126,18 +126,15 @@ class ForeignKeyCache:
         return self.__class__._all_game_map_objects_by_id
 
     def get_log_level_by_id(self, model_id: int) -> Optional[LogLevel]:
-        if model_id is None:
-            return None
+
         return self.all_log_levels_by_id.get(model_id)
 
     def get_antistasi_file_by_id(self, model_id: int) -> Optional[AntstasiFunction]:
-        if model_id is None:
-            return None
+
         return self.all_antistasi_file_objects_by_id.get(str(model_id))
 
     def get_game_map_by_id(self, model_id: int) -> Optional[GameMap]:
-        if model_id is None:
-            return None
+
         return self.all_game_map_objects_by_id.get(str(model_id))
 
     def reset_all(self) -> None:

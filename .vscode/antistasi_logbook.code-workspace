@@ -120,55 +120,59 @@
                     "clear": true
                 }
             },
-                        {
-                            "label": "convert_resources",
-                            "type": "shell",
-                            "command": "${config:python.pythonPath} -m invoke convert-resources",
-                            "options": {
-                                "cwd": "${workspaceFolder}"
-                            },
-                            "presentation": {
-                                "echo": true,
-                                "reveal": "always",
-                                "focus": false,
-                                "panel": "shared",
-                                "showReuseMessage": true,
-                                "clear": true
-                            }
-                        },{
-                            "label": "convert_ui",
-                            "type": "shell",
-                            "command": "${config:python.pythonPath} -m invoke convert-designer-files ",
-                            "options": {
-                                "cwd": "${workspaceFolder}"
-                            },
-                            "presentation": {
-                                "echo": true,
-                                "reveal": "always",
-                                "focus": false,
-                                "panel": "shared",
-                                "showReuseMessage": true,
-                                "clear": true
-                            }
-                        },
+            {
+                "label": "convert_resources",
+                "type": "shell",
+                "command": "${config:python.pythonPath} -m invoke convert-resources",
+                "options": {
+                    "cwd": "${workspaceFolder}"
+                },
+                "presentation": {
+                    "echo": true,
+                    "reveal": "always",
+                    "focus": false,
+                    "panel": "shared",
+                    "showReuseMessage": true,
+                    "clear": true
+                }
+            },
+            {
+                "label": "convert_ui",
+                "type": "shell",
+                "command": "${config:python.pythonPath} -m invoke convert-designer-files ",
+                "options": {
+                    "cwd": "${workspaceFolder}"
+                },
+                "presentation": {
+                    "echo": true,
+                    "reveal": "always",
+                    "focus": false,
+                    "panel": "shared",
+                    "showReuseMessage": true,
+                    "clear": true
+                }
+            },
 
-                        {
-                            "label": "launch designer",
-                            "type": "shell",
-                            "command": "${workspaceFolder}/.venv/scripts/activate&&pyside6-designer.exe",
-                            "options": {
-                                "cwd": "${workspaceFolder}"
-                            },
-                            "presentation": {
-                                "echo": true,
-                                "reveal": "always",
-                                "focus": false,
-                                "panel": "shared",
-                                "showReuseMessage": true,
-                                "clear": true
-                            }
-                        }
+            {
+                "label": "launch designer",
+                "type": "shell",
+                "command": "${workspaceFolder}/.venv/scripts/activate&&pyside6-designer.exe",
+                "options": {
+                    "cwd": "${workspaceFolder}"
+                },
+                "presentation": {
+                    "echo": true,
+                    "reveal": "always",
+                    "focus": false,
+                    "panel": "shared",
+                    "showReuseMessage": true,
+                    "clear": true
+                }
+            }
         ]
     },
-    "settings": {"python.pythonPath": "${workspaceFolder}/.venv/scripts/python"}
+    "settings": {
+        "python.pythonPath": "${workspaceFolder}/.venv/scripts/python",
+        "qtForPython.designer.path": "d:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\.venv\\Scripts\\pyside6-designer.exe"
+    }
 }

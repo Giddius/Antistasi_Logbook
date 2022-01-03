@@ -10,7 +10,7 @@ Soon.
 from typing import TYPE_CHECKING
 from pathlib import Path
 from datetime import datetime
-
+from collections import namedtuple
 # * Third Party Imports --------------------------------------------------------------------------------->
 from dateutil.tz import UTC
 from antistasi_logbook.utilities.misc import ModItem, Version
@@ -43,6 +43,9 @@ log = get_logger(__name__)
 # endregion[Constants]
 
 
+FullDateTimes = namedtuple("FullDateTimes", ["local_datetime", "utc_datetime"])
+
+
 class MetaFinder:
 
     __slots__ = ("game_map", "full_datetime", "version", "mods", "campaign_id", "is_new_campaign", "regex_keeper")
@@ -50,7 +53,7 @@ class MetaFinder:
     def __init__(self, regex_keeper: "SimpleRegexKeeper", context: "ParsingContext") -> None:
         self.regex_keeper = regex_keeper
         self.game_map: str = MiscEnum.NOT_FOUND if not context._log_file.has_game_map() else MiscEnum.DEFAULT
-        self.full_datetime: tuple[datetime, datetime] = MiscEnum.NOT_FOUND if not context._log_file.utc_offset else MiscEnum.DEFAULT
+        self.full_datetime: FullDateTimes = MiscEnum.NOT_FOUND if not context._log_file.utc_offset else MiscEnum.DEFAULT
         self.version: Version = MiscEnum.NOT_FOUND if not context._log_file.version else MiscEnum.DEFAULT
         self.mods: list[ModItem] = MiscEnum.NOT_FOUND if not context._log_file.has_mods() else MiscEnum.DEFAULT
         self.campaign_id: int = MiscEnum.NOT_FOUND if context._log_file.campaign_id is None else MiscEnum.DEFAULT
@@ -64,7 +67,8 @@ class MetaFinder:
         if match := self.regex_keeper.first_full_datetime.search(text):
             utc_datetime_kwargs = {k: int(v) for k, v in match.groupdict().items() if not k.startswith('local_')}
             local_datetime_kwargs = {k.removeprefix('local_'): int(v) for k, v in match.groupdict().items() if k.startswith('local_')}
-            self.full_datetime = (datetime(tzinfo=UTC, **utc_datetime_kwargs), datetime(tzinfo=UTC, **local_datetime_kwargs))
+            self.full_datetime = FullDateTimes(utc_datetime=datetime(tzinfo=UTC, **utc_datetime_kwargs), local_datetime=datetime(tzinfo=UTC, **local_datetime_kwargs))
+            log.debug("found full datetime, local datetime: %r, utc datetime: %r", self.full_datetime.local_datetime.isoformat(sep=" "), self.full_datetime.utc_datetime.isoformat(sep=" "))
 
     def _resolve_version(self, text: str) -> None:
         if match := self.regex_keeper.game_file.search(text):

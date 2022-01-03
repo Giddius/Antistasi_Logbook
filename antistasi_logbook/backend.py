@@ -16,6 +16,7 @@ from concurrent.futures import ALL_COMPLETED, wait
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
+from itertools import chain
 from antistasi_logbook.parsing.parser import Parser
 from antistasi_logbook.utilities.locks import FILE_LOCKS
 from antistasi_logbook.storage.database import GidSqliteApswDatabase
@@ -28,7 +29,7 @@ from antistasi_logbook.updating.update_manager import UpdateManager
 from antistasi_logbook.parsing.record_processor import RecordInserter, RecordProcessor
 from antistasi_logbook.updating.remote_managers import remote_manager_registry
 from antistasi_logbook.records.record_class_manager import RECORD_CLASS_TYPE, RecordClassManager
-
+from antistasi_logbook.records import ALL_ANTISTASI_RECORD_CLASSES, ALL_GENERIC_RECORD_CLASSES
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
 from gidapptools.gid_signal.interface import get_signal
@@ -180,6 +181,11 @@ class Backend:
             self.record_class_manager.register_record_class(record_class=record_class)
         return self
 
+    def fill_record_class_manager(self) -> None:
+        for record_class in chain(ALL_ANTISTASI_RECORD_CLASSES, ALL_GENERIC_RECORD_CLASSES):
+            self.record_class_manager.register_record_class(record_class=record_class)
+        RecordClass.record_class_manager = self.record_class_manager
+
     def start_up(self, overwrite: bool = False) -> "Backend":
         """
         Start up the database, populates the database with all necessary tables and default entries ("or_ignore"), registers all record_classes and connects basic signals.
@@ -188,11 +194,14 @@ class Backend:
 
         self.database.start_up(overwrite=overwrite)
 
-        from antistasi_logbook.records import ALL_ANTISTASI_RECORD_CLASSES
         self.database.connect(True)
-        for record_class in ALL_ANTISTASI_RECORD_CLASSES:
-            self.record_class_manager.register_record_class(record_class=record_class)
-        RecordClass.record_class_manager = self.record_class_manager
+        self.fill_record_class_manager()
+        _ = self.foreign_key_cache.all_antistasi_file_objects
+        _ = self.foreign_key_cache.all_antistasi_file_objects_by_id
+        _ = self.foreign_key_cache.all_game_map_objects
+        _ = self.foreign_key_cache.all_game_map_objects_by_id
+        _ = self.foreign_key_cache.all_log_levels
+        _ = self.foreign_key_cache.all_log_levels_by_id
 
         self.signals.new_log_record.connect(self.database.session_meta_data.increment_added_log_records)
         self.signals.new_log_file.connect(self.database.session_meta_data.increment_new_log_file)

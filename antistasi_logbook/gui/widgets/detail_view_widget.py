@@ -9,9 +9,10 @@ Soon.
 # * Standard Library Imports ---------------------------------------------------------------------------->
 from typing import TYPE_CHECKING, Union, Optional, Iterable, Any, Generator
 from pathlib import Path
-
+from datetime import datetime
 # * Third Party Imports --------------------------------------------------------------------------------->
-
+import json
+import random
 from abc import ABC, ABCMeta, abstractmethod
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -30,7 +31,7 @@ from PySide6.QtGui import (QAction, QTextCursor, QBrush, QTextOption, QColor, QC
                            QKeySequence, QSyntaxHighlighter, QTextCharFormat, QTextFormat, QTextBlockFormat, QTextListFormat, QTextTableFormat, QTextTable,
                            QTextTableCellFormat, QDesktopServices, QLinearGradient, QPainter, QFontInfo, QPalette, QPixmap, QRadialGradient, QTransform, Qt)
 
-from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QDialogButtonBox,
+from PySide6.QtWidgets import (QApplication, QGraphicsView, QBoxLayout, QCheckBox, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QDialogButtonBox,
                                QDockWidget, QDoubleSpinBox, QFontComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
                                QLCDNumber, QLabel, QLayout, QLineEdit, QListView, QListWidget, QMainWindow, QMenu, QMenuBar, QMessageBox,
                                QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
@@ -43,11 +44,15 @@ from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import
 import pyqtgraph as pg
 from gidapptools.general_helper.string_helper import StringCase, StringCaseConverter
 import re
+from dateutil.tz import UTC
 import attr
+from peewee import DoesNotExist
 from antistasi_logbook.records.enums import MessageTypus
 from antistasi_logbook.data.sqf_syntax_data import SQF_BUILTINS_REGEX
 from gidapptools.general_helper.color.color_item import Color
-
+from matplotlib.colors import get_named_colors_mapping
+from antistasi_logbook.gui.widgets.stats_viewer import StatsWindow
+from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
 if TYPE_CHECKING:
 
     # * Third Party Imports --------------------------------------------------------------------------------->
@@ -141,6 +146,100 @@ class ModModel(QAbstractTableModel):
             link_item.save()
         except IntegrityError:
             link_item.update()
+
+
+class ModDataView(DataView):
+    def __init__(self, mod: Mod, parent: Optional[PySide6.QtWidgets.QWidget] = None, show_none: bool = False) -> None:
+        super().__init__(parent=parent, show_none=show_none, title=mod.pretty_name)
+        self.mod = mod
+
+        for column in sorted(list(self.mod.get_meta().sorted_fields), key=self.column_sorter):
+            self.add_row(column.verbose_name or column.name, getattr(self.mod, column.name))
+        for extra_name in ["cleaned_name", "link"]:
+            self.add_row(extra_name, getattr(self.mod, extra_name))
+        self.add_row("log_files", [f"{i.server.name}/{i}" for i in sorted(self.mod.get_log_files(), key=lambda x: (-x.server_id, x.modified_at), reverse=True)])
+
+    def column_sorter(self, column: Field) -> int:
+        if column.name.casefold() == "marked":
+            return -1
+        return len(column.verbose_name or column.name)
+
+
+class ModView(QListView):
+
+    def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
+        super().__init__(parent=parent)
+
+        self.open_link_action: QAction = None
+        self.set_link_action: QAction = None
+        self.all_actions: set[QAction] = set()
+        self.mod_data_view: ModDataView = None
+        self.setup_actions()
+
+    @property
+    def app(self) -> "AntistasiLogbookApplication":
+        return QApplication.instance()
+
+    @property
+    def backend(self) -> "Backend":
+        return self.app.backend
+
+    def setup_actions(self):
+        self.open_link_action = QAction(text="open link")
+        self.open_link_action.triggered.connect(self.open_link)
+        self.all_actions.add(self.open_link_action)
+
+        self.set_link_action = QAction(text="set link")
+        self.set_link_action.triggered.connect(self.set_link)
+        self.all_actions.add(self.set_link_action)
+
+        self.open_mod_data_view_action = QAction(text="Details")
+        self.open_mod_data_view_action.triggered.connect(self.open_mod_data_view)
+        self.all_actions.add(self.open_mod_data_view_action)
+
+    def set_link(self):
+        index = self.currentIndex()
+        item = self.model().mods[index.row()]
+        if item.default is True or item.official is True:
+            return
+        link, accepted = QInputDialog.getText(self, f'New link for Mod {item.cleaned_name!r}', f"please enter an valid link for {item.cleaned_name!r}", QLineEdit.EchoMode.Normal)
+        if accepted and link:
+            try:
+                mod_link = ModLink.get(cleaned_mod_name=item.cleaned_name)
+                with self.backend.database.write_lock:
+                    ModLink.update(link=link).where(ModLink.id == mod_link.id)
+            except DoesNotExist:
+                with self.backend.database.write_lock:
+                    mod_link = ModLink(cleaned_mod_name=item.cleaned_name, link=link)
+                    mod_link.save()
+
+    def open_link(self):
+        index = self.currentIndex()
+        item = self.model().mods[index.row()]
+        if item.default is True or item.official is True:
+            return
+        if item.link:
+            QDesktopServices.openUrl(QUrl(str(item.link)))
+        else:
+            QDesktopServices.openUrl(QUrl(f'https://www.google.com/search?q={item.cleaned_name}'))
+
+    def open_mod_data_view(self):
+        mod = self.model().mods[self.currentIndex().row()]
+        self.mod_data_view = ModDataView(mod=mod)
+        self.mod_data_view.show()
+
+    def contextMenuEvent(self, event: PySide6.QtGui.QContextMenuEvent) -> None:
+        index = self.indexAt(event.pos())
+        item = self.model().mods[index.row()]
+        if index.isValid():
+            menu = QMenu(self)
+            if item.default is True or item.official is True:
+                pass
+            else:
+                menu.addAction(self.open_link_action)
+                menu.addAction(self.set_link_action)
+            menu.addAction(self.open_mod_data_view_action)
+            menu.exec(event.globalPos())
 
 
 class ValueLineEdit(QLineEdit):
@@ -263,13 +362,24 @@ class LogFileDetailWidget(BaseDetailWidget):
         self.layout.addRow("Amount Log-Records", self.amount_log_records_value)
 
         self.mods_label = QLabel("Mods", parent=self)
-        self.mods_value = QListView(self)
+        self.mods_value = ModView(self)
         model = ModModel(self.log_file.get_mods())
         self.mods_value.setModel(model)
 
         self.layout.addRow(self.mods_label, self.mods_value)
         self.mods_value.doubleClicked.connect(self.open_mod_link)
-        # self.mods_value.doubleClicked.connect(self.add_mod_link)
+
+        self.get_stats_button = QPushButton("Get Stats")
+        self.layout.addWidget(self.get_stats_button)
+        self.get_stats_button.pressed.connect(self.show_stats)
+        self.temp_plot_widget = None
+
+    def show_stats(self):
+        all_stats = self.log_file.get_stats()
+
+        self.temp_plot_widget = StatsWindow(all_stats, title=self.log_file.name.upper)
+
+        self.temp_plot_widget.show()
 
     def open_mod_link(self, index):
 
@@ -313,7 +423,7 @@ class BoolLabel(QWidget):
         self.value = value
         self.setLayout(QHBoxLayout())
         self._text = "Yes" if self.value else "No"
-        self._pixmap = AllResourceItems.check_mark_green.get_as_pixmap() if self.value else AllResourceItems.close_cancel.get_as_pixmap()
+        self._pixmap = AllResourceItems.check_mark_green_image.get_as_pixmap() if self.value else AllResourceItems.close_cancel_image.get_as_pixmap()
         font: QFont = self.font()
         fm = QFontMetrics(font)
         h = fm.height()
@@ -504,17 +614,24 @@ class MessageHighlighter(QSyntaxHighlighter):
 
 class MessageValue(QTextEdit):
 
-    def __init__(self, record: "AbstractRecord", parent: Optional[PySide6.QtWidgets.QWidget] = None):
+    def __init__(self, record: "AbstractRecord" = None, parent: Optional[PySide6.QtWidgets.QWidget] = None):
         super().__init__(parent)
         self.record = record
         self.setReadOnly(True)
-        self.setWordWrapMode(QTextOption.NoWrap)
+        self.setLineWrapMode(QTextEdit.WidgetWidth)
+        self.setWordWrapMode(QTextOption.WrapAtWordBoundaryOrAnywhere)
 
         self.setFont(self.get_text_font())
         self.highlighter = MessageHighlighter(self)
-        self.raw_text = self.record.pretty_message
-        self.setPlainText(self.record.pretty_message)
         self.setup_highlighter()
+        if self.record is not None:
+            self.raw_text = self.record.pretty_message
+            self.setPlainText(self.record.pretty_message)
+
+    def set_record(self, record: "AbstractRecord"):
+        self.record = record
+        self.raw_text = record.pretty_message
+        self.setPlainText(self.raw_text)
 
     @property
     def text(self) -> str:
@@ -568,6 +685,16 @@ class LogRecordDetailView(BaseDetailWidget):
 
         self.message_value = MessageValue(self.record)
         self.layout.addRow("Message", self.message_value)
+
+        self.get_stats_button = QPushButton(text="Stats for this Record")
+        self.layout.addWidget(self.get_stats_button)
+        self.get_stats_button.pressed.connect(self.get_stats)
+
+    def get_stats(self):
+        all_stats = self.record.log_file.get_stats()
+        self.temp_plot_widget = StatsWindow(all_stats, title=self.record.log_file.name.upper)
+        self.temp_plot_widget.add_line_at(self.record.recorded_at)
+        self.temp_plot_widget.show()
 
 
 # region[Main_Exec]

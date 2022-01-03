@@ -36,7 +36,7 @@ from pprint import pprint, pformat
 from pathlib import Path
 from string import Formatter, digits, printable, whitespace, punctuation, ascii_letters, ascii_lowercase, ascii_uppercase
 from timeit import Timer
-from typing import TYPE_CHECKING, Union, Callable, Iterable, Optional, Mapping, Any, IO, TextIO, BinaryIO, Hashable, Generator, Literal, TypeVar, TypedDict, AnyStr
+from typing import TYPE_CHECKING, Protocol, Union, Callable, Iterable, Optional, Mapping, Any, IO, TextIO, BinaryIO, Hashable, Generator, Literal, TypeVar, TypedDict, AnyStr
 from zipfile import ZipFile, ZIP_LZMA
 from datetime import datetime, timezone, timedelta
 from tempfile import TemporaryDirectory
@@ -50,7 +50,6 @@ from urllib.parse import urlparse
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
-
 
 import PySide6
 from PySide6 import (QtCore, QtGui, QtWidgets, Qt3DAnimation, Qt3DCore, Qt3DExtras, Qt3DInput, Qt3DLogic, Qt3DRender, QtAxContainer, QtBluetooth,
@@ -73,12 +72,10 @@ from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog
                                QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
                                QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
 
-if TYPE_CHECKING:
-    # * Third Party Imports --------------------------------------------------------------------------------->
-    from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow
-    from antistasi_logbook.backend import Backend
-    from antistasi_logbook.gui.application import AntistasiLogbookApplication
-    from gidapptools.gid_config.interface import GidIniConfig
+from gidapptools import get_logger
+from antistasi_logbook.gui.widgets.data_view_widget.type_fields.base_type_field import TypeFieldProtocol
+from gidapptools.general_helper.typing_helper import implements_protocol
+from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 # endregion[Imports]
 
 # region [TODO]
@@ -94,60 +91,101 @@ if TYPE_CHECKING:
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
-
+log = get_logger(__name__)
 # endregion[Constants]
 
 
-class BaseDockWidget(QDockWidget):
+@implements_protocol(TypeFieldProtocol)
+class BoolTypeField(QLabel):
+    ___typus___: type = bool
 
-    def __init__(self,
-                 parent: QMainWindow,
-                 title: str,
-                 start_floating: bool = False,
-                 start_hidden: bool = False,
-                 allowed_areas: Qt.DockWidgetArea = Qt.AllDockWidgetAreas,
-                 features: QDockWidget.DockWidgetFeature = QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetClosable | QDockWidget.DockWidgetFloatable,
-                 add_menu_bar_action: bool = False):
-        super().__init__(parent)
-        self.title = title
-        self.setWindowTitle(title)
-        self.first_shown: bool = False
-        self.setHidden(start_hidden)
-        self.setFloating(start_floating)
-        self.setAllowedAreas(allowed_areas)
-        self.setFeatures(features)
-        if add_menu_bar_action is True:
-            self._add_to_menu_bar()
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+        # self.setLayoutDirection(Qt.RightToLeft)
+        self.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self._image_size: QSize = QSize(50, 50)
+        self.image_table = {True: AllResourceItems.check_mark_green_image.get_as_pixmap(),
+                            False: AllResourceItems.close_cancel_image.get_as_pixmap()}
 
-    def _add_to_menu_bar(self):
-        view_action = self.toggleViewAction()
-        view_action.setText(f"{self.title} Window")
-        self.main_window.menubar.view_menu.addAction(view_action)
+    def set_size(self, w: int, h: int) -> None:
+        self._image_size = QSize(w, h)
+        if self.pixmap() is not None:
+            self.setPixmap(self.pixmap().scaled(self._image_size, Qt.KeepAspectRatioByExpanding))
 
-    @property
-    def app(self) -> "AntistasiLogbookApplication":
-        return QApplication.instance()
+    def set_value(self, value: bool) -> None:
+        self.clear()
+        pixmap = self.image_table.get(value, None)
+        if pixmap is None:
 
-    @property
-    def backend(self) -> "Backend":
-        return self.app.backend
+            self.setText('-')
+        else:
+            if self._image_size is not None:
+                pixmap = pixmap.scaled(self._image_size, Qt.KeepAspectRatioByExpanding)
+            self.setPixmap(pixmap)
 
-    @property
-    def config(self) -> "GidIniConfig":
-        return self.app.config
+    @classmethod
+    def add_to_type_field_table(cls, table: dict):
+        table[cls.___typus___] = cls
+        return table
 
-    @property
-    def main_window(self) -> "AntistasiLogbookMainWindow":
-        return self.parentWidget()
 
-    def show_if_first(self):
-        if self.first_shown is False:
-            self.show()
+@implements_protocol(TypeFieldProtocol)
+class StringTypeField(QLabel):
+    ___typus___: type = str
 
-    def show(self) -> None:
-        super().show()
-        if self.first_shown is False:
-            self.first_shown = True
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+        self.setLayoutDirection(Qt.RightToLeft)
+        self.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.setTextFormat(Qt.MarkdownText)
+
+    def set_size(self, h, w):
+        pass
+
+    def set_value(self, value: str):
+        self.setText(f"`{value}`")
+
+    @classmethod
+    def add_to_type_field_table(cls, table: dict):
+        table[cls.___typus___] = cls
+        return table
+
+
+@implements_protocol(TypeFieldProtocol)
+class IntTypeField(StringTypeField):
+    ___typus___: type = int
+
+    def set_value(self, value: int):
+        return super().set_value(str(value))
+
+
+@implements_protocol(TypeFieldProtocol)
+class FloatTypeField(StringTypeField):
+    ___typus___: type = float
+
+    def set_value(self, value: float):
+        return super().set_value(str(value))
+
+
+@implements_protocol(TypeFieldProtocol)
+class ListTypeField(QListWidget):
+    ___typus___: type = list
+
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+        self.values = None
+
+    def set_size(self, h, w):
+        pass
+
+    def set_value(self, value: list):
+        self.values = value
+        self.addItems(str(i) for i in value)
+
+    @classmethod
+    def add_to_type_field_table(cls, table: dict):
+        table[cls.___typus___] = cls
+        return table
 
 
 # region[Main_Exec]

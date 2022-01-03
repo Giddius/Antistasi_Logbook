@@ -109,16 +109,21 @@ class LastUpdatedLabel(QLabel):
             self.label_text = "Never Updated"
         else:
             delta = self._time_since_last_update_finished()
-            delta_text = seconds2human(round(delta.total_seconds(), -1), min_unit=[v for k, v in self.min_unit_progression_table.items() if k <= delta][-1])
-            self.label_text = f"Last update finished {delta_text} ago"
+            try:
+                delta_text = seconds2human(round(delta.total_seconds(), -1), min_unit=[v for k, v in self.min_unit_progression_table.items() if k <= delta][-1])
+                self.label_text = f"Last update finished {delta_text} ago"
+            except IndexError:
+                log.error("indexerror with self.last_update_finished_at = %r, now = %r, now-self.last_update_finished_at = %r", self.last_update_finished_at.isoformat(sep=" "), datetime.now(tz=UTC).isoformat(sep=" "), delta)
+                self.label_text = "Never Updated"
 
     def refresh_text(self) -> None:
-
-        if self.running_thread is not None:
-            return
-        self.running_thread = FuncRunner(self, )
-        self.running_thread.signaler.finished.connect(self._thread_finished)
-        self.running_thread.start()
+        self._refresh_text_helper()
+        self._thread_finished()
+        # if self.running_thread is not None:
+        #     return
+        # self.running_thread = FuncRunner(self)
+        # self.running_thread.signaler.finished.connect(self._thread_finished)
+        # self.running_thread.start()
 
     def start_timer(self) -> None:
         if self.timer_id is not None:

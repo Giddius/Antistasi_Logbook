@@ -2,6 +2,7 @@
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
 from tzlocal import get_localzone
+import json
 from gidapptools.general_helper.conversion import bytes2human
 from antistasi_logbook.storage.models.custom_fields import (URLField, PathField, LoginField, VersionField, PasswordField, TzOffsetField,
                                                             RemotePathField, CompressedTextField, CompressedImageField, AwareTimeStampField)
@@ -94,11 +95,15 @@ class BaseModel(Model):
     def format_datetime(self, date_time: datetime) -> str:
         if self.config.get("time", "use_local_timezone", default=False) is True:
             date_time = date_time.astimezone(tz=LOCAL_TIMEZONE)
-        time_format = self.config.get("time", "time_format", default='%Y-%m-%d %H:%M:%S')
-
+        time_format = self.config.get("time", "time_format", default='%Y-%m-%d %H:%M:%S.%f')
+        if time_format == "iso":
+            return date_time.isoformat()
         if time_format == "local":
             time_format = "%x %X"
-        return date_time.strftime(time_format)
+        _out = date_time.strftime(time_format)
+        if "%f" in time_format:
+            _out = _out[:-3]
+        return _out
 
 
 class AntstasiFunction(BaseModel):
@@ -336,6 +341,15 @@ class LogFile(BaseModel):
         if players:
             return round(mean(players), 2)
 
+    def get_stats(self):
+        all_stats: list[dict[str, Any]] = []
+        query = LogRecord.select().where(LogRecord.log_file_id == self.id).where(LogRecord.record_class_id == RecordClass.get(name="PerformanceRecord").id).order_by(-LogRecord.recorded_at)
+        for item_data in query.dicts().iterator():
+            record_class = RecordClass.record_class_manager.get_by_id(item_data["record_class"])
+            item = record_class.from_model_dict(item_data, log_file=self)
+            all_stats.append(item.stats)
+        return all_stats
+
     @property
     def name_datetime(self) -> Optional[datetime]:
         if match := LOG_FILE_DATE_REGEX.search(self.name):
@@ -450,8 +464,13 @@ class Mod(BaseModel):
         cleaned_name = cleaned_name.strip().strip('@')
         cleaned_name = self.version_regex.sub("", cleaned_name)
         cleaned_name = cleaned_name.strip().casefold()
-        log.debug(f"{cleaned_name=}")
+
         return cleaned_name
+
+    def get_log_files(self) -> tuple[LogFile]:
+        joiners = LogFileAndModJoin.select().where(LogFileAndModJoin.mod_id == self.id)
+        log_files = [LogFile.get_by_id(i.log_file_id) for i in joiners]
+        return tuple(log_files)
 
     def __str__(self):
         return self.name
@@ -582,17 +601,17 @@ class DatabaseMetaData(BaseModel):
         return item
 
     def get_absolute_last_update_finished_at(self) -> datetime:
-        self.database.connect(True)
-        item = DatabaseMetaData.select(DatabaseMetaData.last_update_finished_at).where(DatabaseMetaData.last_update_finished_at != None).order_by(-DatabaseMetaData.last_update_finished_at).scalar()
+        with self.database.connection_context() as ctx:
+            item = DatabaseMetaData.select(DatabaseMetaData.last_update_finished_at).where(DatabaseMetaData.last_update_finished_at != None).order_by(-DatabaseMetaData.last_update_finished_at).scalar()
 
-        if self.last_update_finished_at is None:
+            if self.last_update_finished_at is None:
+                return item
+            if item is None:
+                return self.last_update_finished_at
+            if item < self.last_update_finished_at:
+                return self.last_update_finished_at
+
             return item
-        if item is None:
-            return self.last_update_finished_at
-        if item < self.last_update_finished_at:
-            return self.last_update_finished_at
-        self.database.close()
-        return item
 
     def count_log_files(self, server: "Server" = None) -> int:
         if server is None:
@@ -627,6 +646,7 @@ class DatabaseMetaData(BaseModel):
 
 def setup_db(database: "GidSqliteApswDatabase"):
     from antistasi_logbook.data.map_images import MAP_IMAGES_DIR
+    from antistasi_logbook.data.coordinates import MAP_COORDS_DIR
     database_proxy.initialize(database)
 
     all_models = BaseModel.__subclasses__()
@@ -738,7 +758,9 @@ def setup_db(database: "GidSqliteApswDatabase"):
                              'name': 'Chernarus_Winter',
                              'official': 0,
                              'workshop_link': 'https://steamcommunity.com/sharedfiles/filedetails/?id=583544987',
-                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("chernarus_winter_thumbnail.png")},
+                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("chernarus_winter_thumbnail.png"),
+                             "map_image_high_resolution": MAP_IMAGES_DIR.joinpath("chernarus_winter_small.png"),
+                             "coordinates": json.loads(MAP_COORDS_DIR.joinpath("chernarus_winter_pos.json").read_text(encoding='utf-8', errors='ignore'))},
                             {'dlc': None,
                             'full_name': 'Anizay',
                              'name': 'tem_anizay',
@@ -958,6 +980,16 @@ def setup_db(database: "GidSqliteApswDatabase"):
     with database:
         database.create_tables(all_models)
     for model, data in setup_data.items():
+        if model == GameMap:
+            base_data = {'dlc': None,
+                         'full_name': 'Altis',
+                         'name': 'Altis',
+                         'official': 1,
+                         'workshop_link': None,
+                         "map_image_low_resolution": None,
+                         "map_image_high_resolution": None,
+                         "coordinates": None}
+            data = [base_data.copy() | d for d in data]
         x = model.insert_many(data).on_conflict_ignore()
         with database:
             x.execute()

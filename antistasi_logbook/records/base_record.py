@@ -7,7 +7,7 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Union
 from pathlib import Path
 from datetime import datetime
 from functools import cached_property
@@ -57,7 +57,7 @@ log = get_logger(__name__)
 # endregion[Constants]
 
 
-@attr.s(slots=True, auto_attribs=True, auto_detect=True, frozen=True, weakref_slot=True)
+@attr.s(slots=True, frozen=True)
 class LineNumberLocation:
     start: int = attr.ib()
     end: int = attr.ib()
@@ -78,7 +78,8 @@ class PrettyAttributeCache:
 BASE_SLOTS: list[str] = ["record_id",
                          "log_file",
                          "is_antistasi_record",
-                         "line_number_location",
+                         "start",
+                         "end",
                          "message",
                          "recorded_at",
                          "log_level",
@@ -93,14 +94,15 @@ class BaseRecord(AbstractRecord):
     ___record_family___ = RecordFamily.GENERIC | RecordFamily.ANTISTASI
     ___specificity___ = 0
     foreign_key_cache: "ForeignKeyCache" = None
-    _background_qcolors: dict[type, "QColor"] = defaultdict(lambda: MiscEnum.NOTHING)
+    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
     __slots__ = tuple(BASE_SLOTS)
 
     def __init__(self,
                  record_id: int,
                  log_file: "LogFile",
                  is_antistasi_record: bool,
-                 line_number_location: LineNumberLocation,
+                 start: int,
+                 end: int,
                  message: str,
                  recorded_at: datetime,
                  log_level: "LogLevel",
@@ -110,7 +112,8 @@ class BaseRecord(AbstractRecord):
         self.record_id = record_id
         self.log_file = log_file
         self.is_antistasi_record = is_antistasi_record
-        self.line_number_location = line_number_location
+        self.start = start
+        self.end = end
         self.message = message
         self.recorded_at = recorded_at
         self.log_level = log_level
@@ -149,9 +152,9 @@ class BaseRecord(AbstractRecord):
 
     @property
     def background_color(self) -> Optional["QColor"]:
-        if self._background_qcolors[self.__class__] is MiscEnum.NOTHING:
-            self._background_qcolors[self.__class__] = self.get_background_color()
-        return self._background_qcolors[self.__class__]
+        if self._background_qcolor is MiscEnum.NOTHING:
+            self._background_qcolor = self.get_background_color()
+        return self._background_qcolor
 
     def get_background_color(self) -> "QColor":
         return Color.get_color_by_name("Gray").with_alpha(0.1).qcolor
@@ -159,14 +162,6 @@ class BaseRecord(AbstractRecord):
     @property
     def message_size_hint(self) -> "QSize":
         return self.qt_attributes.message_size_hint
-
-    @property
-    def start(self) -> int:
-        return self.line_number_location.start
-
-    @property
-    def end(self) -> int:
-        return self.line_number_location.end
 
     @message_size_hint.setter
     def message_size_hint(self, value: "QSize") -> None:
@@ -180,18 +175,23 @@ class BaseRecord(AbstractRecord):
         return True
 
     @classmethod
+    @profile
     def from_model_dict(cls, model_dict: dict[str, Any], log_file: "LogFile" = None) -> "BaseRecord":
 
         if log_file is not None:
             model_dict['log_file'] = log_file
 
-        model_dict['record_id'] = model_dict.pop('id')
-        model_dict["line_number_location"] = LineNumberLocation(model_dict.pop('start'), model_dict.pop("end"))
-        model_dict['log_level'] = cls.foreign_key_cache.get_log_level_by_id(model_dict.pop('log_level'))
-        model_dict["called_by"] = cls.foreign_key_cache.get_antistasi_file_by_id(model_dict["called_by"])
-        model_dict["logged_from"] = cls.foreign_key_cache.get_antistasi_file_by_id(model_dict["logged_from"])
-        model_dict.pop("record_class")
-        return cls(**model_dict)
+        return cls(record_id=model_dict["id"],
+                   log_file=model_dict["log_file"],
+                   is_antistasi_record=model_dict["is_antistasi_record"],
+                   start=model_dict['start'],
+                   end=model_dict["end"],
+                   message=model_dict["message"],
+                   recorded_at=model_dict["recorded_at"],
+                   log_level=cls.foreign_key_cache.get_log_level_by_id(model_dict['log_level']),
+                   marked=model_dict["marked"],
+                   called_by=cls.foreign_key_cache.get_antistasi_file_by_id(model_dict["called_by"]),
+                   logged_from=cls.foreign_key_cache.get_antistasi_file_by_id(model_dict["logged_from"]))
 
 
 # region[Main_Exec]

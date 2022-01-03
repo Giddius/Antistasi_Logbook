@@ -197,7 +197,8 @@ class RecordProcessor:
                                              day=int(match.group("day")),
                                              hour=int(match.group("hour")),
                                              minute=int(match.group("minute")),
-                                             second=int(match.group("second")))
+                                             second=int(match.group("second")),
+                                             microsecond=0)
         if "error in expression" in raw_record.content.casefold():
             _out['log_level'] = "ERROR"
         elif "warning message:" in raw_record.content.casefold():
@@ -268,8 +269,8 @@ class RecordProcessor:
 
         if parsed_data.get("local_recorded_at"):
             local_recorded_at = parsed_data.pop("local_recorded_at")
-            parsed_data["recorded_at"] = local_recorded_at.replace(tzinfo=utc_offset).astimezone(UTC)
-
+            utc_recorded_at = (local_recorded_at + utc_offset._offset).replace(tzinfo=UTC)
+            parsed_data["recorded_at"] = utc_recorded_at
         return parsed_data
 
     def __call__(self, raw_record: "RawRecord", utc_offset: timezone) -> "RawRecord":

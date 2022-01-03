@@ -12,7 +12,7 @@ import random
 from time import sleep
 from typing import TYPE_CHECKING, Any, Callable, Optional
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from threading import Event
 from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor, wait
 
@@ -251,7 +251,7 @@ class Updater:
         self.is_updating_event.set()
         self.before_updates()
         try:
-            self.database.session_meta_data.last_update_started_at = datetime.now(tz=UTC)
+            self.database.session_meta_data.last_update_started_at = datetime.now(tz=timezone.utc)
             for server in self.database.get_all_server():
                 if server.is_updatable() is False:
                     continue
@@ -273,7 +273,7 @@ class Updater:
                 if self.stop_event.is_set() is False:
                     self.database.vacuum()
                     self.database.optimize()
-            self.database.session_meta_data.last_update_finished_at = datetime.now(tz=UTC)
+            self.database.session_meta_data.last_update_finished_at = datetime.now(tz=timezone.utc)
 
         finally:
             self.is_updating_event.clear()

@@ -102,6 +102,9 @@ class MainWidget(QWidget):
         self.setup_detail_widget()
         self.setup_main_tabs_widget()
 
+    def _clear_temp_runnable(self):
+        self.temp_runnable = None
+
     def setup_info_widget(self) -> None:
         self.info_widget = QGroupBox(self)
         self.info_widget.setMinimumSize(QSize(0, 50))
@@ -109,21 +112,15 @@ class MainWidget(QWidget):
         self.main_layout.addWidget(self.info_widget, 0, 0, 1, 3)
 
     def setup_query_widget(self) -> None:
-        self.query_widget = BaseDockWidget(title="Query", parent=self.parent(), start_floating=True)
+        self.query_widget = BaseDockWidget(title="Query", parent=self.parent(), start_floating=False, add_menu_bar_action=True)
 
-        view_action = self.query_widget.toggleViewAction()
-        view_action.setText("Query")
-        self.main_window.menubar.view_menu.addAction(view_action)
         self.main_window.addDockWidget(Qt.LeftDockWidgetArea, self.query_widget, Qt.Vertical)
 
     def setup_detail_widget(self) -> None:
-        self.detail_widget = BaseDockWidget(title="Details", parent=self.parent(), start_floating=True)
+        self.detail_widget = BaseDockWidget(title="Details", parent=self.parent(), start_floating=False, add_menu_bar_action=True)
 
         self.detail_widget.dockLocationChanged.connect(self.detail_widget_resize_on_undock)
 
-        view_action = self.detail_widget.toggleViewAction()
-        view_action.setText("Details")
-        self.main_window.menubar.view_menu.addAction(view_action)
         self.main_window.addDockWidget(Qt.RightDockWidgetArea, self.detail_widget, Qt.Vertical)
 
     def setup_main_tabs_widget(self) -> None:
@@ -145,7 +142,7 @@ class MainWidget(QWidget):
         self.query_result_tab = LogRecordsQueryView(main_window=self.main_window).setup()
 
         # self.query_result_tab.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-        self.main_tabs_widget.addTab(self.query_result_tab, AllResourceItems.placeholder.get_as_icon(), "Log-Records")
+        self.main_tabs_widget.addTab(self.query_result_tab, self.query_result_tab.icon, "Log-Records")
 
         self.main_layout.addWidget(self.main_tabs_widget, 1, 1, 4, 3)
         self.main_tabs_widget.currentChanged.connect(self.on_tab_changed)
@@ -214,12 +211,19 @@ class MainWidget(QWidget):
             self.detail_widget.adjustSize()
 
     def query_log_file(self, index: QModelIndex):
-
+        if self.temp_runnable is not None:
+            log.warning("allready laoding Log-Record-Model")
+            return
         log_file = self.log_files_tab.model().content_items[index.row()]
         log_record_model = LogRecordsModel(self.main_window.backend, parent=self.query_result_tab, filter_data={"log_files": (LogRecord.log_file_id == log_file.id)})
-        log_record_model.refresh()
-
+        # log_record_model.batch_completed.connect(self.query_result_tab.doItemsLayout)
         self.query_result_tab.setModel(log_record_model)
+        self.temp_runnable = log_record_model.generator_refresh()
+        self.temp_runnable.finished.connect(self._clear_temp_runnable)
+        self.temp_runnable.finished.connect(self.query_result_tab.executeDelayedItemsLayout)
+        log.debug("starting refreshing %r", log_record_model)
+        self.temp_runnable.start(QThread.Priority.LowPriority)
+
         self.main_tabs_widget.setCurrentWidget(self.query_result_tab)
         self.query_result_tab.clicked.connect(self.show_log_record_detail)
 
