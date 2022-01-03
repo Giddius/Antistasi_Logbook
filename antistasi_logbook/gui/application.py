@@ -76,7 +76,7 @@ from jinja2 import Environment, BaseLoader
 if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend
     from gidapptools.gid_config.interface import GidIniConfig
-    from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow
+    from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow, LogbookSystemTray
 # endregion[Imports]
 
 # region [TODO]
@@ -117,6 +117,7 @@ class AntistasiLogbookApplication(QApplication):
         self.available_font_families = set(QFontDatabase().families())
         self.jinja_environment = Environment(loader=BaseLoader)
         self.main_window: "AntistasiLogbookMainWindow" = None
+        self.sys_tray: "LogbookSystemTray" = None
         self.setup()
 
     def setup(self) -> None:

@@ -21,7 +21,7 @@ from PySide6.QtGui import QCloseEvent, QFont, QFontDatabase, QFontInfo
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 from antistasi_logbook.gui.resources.style_sheets import get_style_sheet_data
 from antistasi_logbook.storage.models.models import RemoteStorage
-from antistasi_logbook.gui.settings_window import SettingsWindow
+from antistasi_logbook.gui.settings_window import SettingsWindow, CredentialsManagmentWindow
 from antistasi_logbook.gui.main_widget import MainWidget
 from antistasi_logbook.gui.status_bar import LogbookStatusBar
 from antistasi_logbook.gui.sys_tray import LogbookSystemTray
@@ -101,6 +101,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
         self._temp_settings_window: "SettingsWindow" = None
         self._temp_folder_window = None
+        self._temp_credentials_managment_window = None
 
         self.sys_tray: "LogbookSystemTray" = None
         self.name: str = None
@@ -142,6 +143,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
         self.set_menubar(LogbookMenuBar(self))
         self.menubar.folder_action.triggered.connect(self.show_folder_window)
+        self.menubar.open_credentials_managment_action.triggered.connect(self.show_credentials_managment_window)
         self.setWindowIcon(self.app.icon)
         geometry = settings.value('geometry', QByteArray())
         if geometry.size():
@@ -150,6 +152,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
             self.resize(*self.initial_size)
         self.set_main_widget(MainWidget(self))
         self.sys_tray = LogbookSystemTray(self, self.app)
+        self.app.sys_tray = self.sys_tray
         self.sys_tray.show()
 
         self.setup_backend()
@@ -270,6 +273,10 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self._temp_settings_window = SettingsWindow(general_config=self.config, main_window=self).setup()
         self._temp_settings_window.show()
 
+    def show_credentials_managment_window(self):
+        self._temp_credentials_managment_window = CredentialsManagmentWindow()
+        self._temp_credentials_managment_window.show()
+
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}"
 
@@ -294,8 +301,8 @@ def start_gui(nextcloud_username: str = None, nextcloud_password: str = None):
 if __name__ == '__main__':
 
     import dotenv
-    dotenv.load_dotenv(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\antistasi_logbook\nextcloud.env")
-    sys.exit(start_gui(os.getenv("NEXTCLOUD_USERNAME"), os.getenv("NEXTCLOUD_PASSWORD")))
+    # dotenv.load_dotenv(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\antistasi_logbook\nextcloud.env")
+    sys.exit(start_gui(os.getenv("NEXTCLOUD_USERNAME", None), os.getenv("NEXTCLOUD_PASSWORD", None)))
 
 
 # endregion[Main_Exec]

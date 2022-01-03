@@ -59,6 +59,9 @@ exclude = [
     ".editorconfig",
     "planning.todo",
     "tasks.py",
+    "designer_files",
+    ".vscode",
+    ".favorites.json"
 ]
 
 [tool.autopep8]

@@ -19,14 +19,15 @@ from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import
 import PySide6
 from PySide6 import QtGui, QtCore, QtWidgets
 from PySide6.QtGui import QPixmap, QIcon
-from PySide6.QtCore import Qt, Signal, QSize
-from PySide6.QtWidgets import (QFrame, QLabel, QWidget, QSpinBox, QCheckBox, QComboBox, QGroupBox, QTextEdit, QTimeEdit, QFormLayout, QGridLayout,
+from PySide6.QtCore import Qt, Signal, QSize, Slot
+from PySide6.QtWidgets import (QFrame, QLabel, QWidget, QSpinBox, QCheckBox, QComboBox, QGroupBox, QTextEdit, QTimeEdit, QFormLayout, QGridLayout, QLineEdit, QPushButton,
                                QSizePolicy, QVBoxLayout, QDateTimeEdit, QFontComboBox, QListWidgetItem, QAbstractItemView, QDoubleSpinBox, QStackedWidget, QDialogButtonBox, QListWidget)
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.string_helper import StringCase, StringCaseConverter
-
+from antistasi_logbook.storage.models.models import RemoteStorage
+from antistasi_logbook.gui.application import AntistasiLogbookApplication
 if TYPE_CHECKING:
     # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow
@@ -312,6 +313,99 @@ class SettingsWindow(QWidget):
 
         self.general_config.config.save()
         self.general_config.config.auto_write = old_auto_write
+
+
+class CredentialsBox(QGroupBox):
+    def __init__(self, remote_storage: RemoteStorage, parent=None):
+        super().__init__(parent=parent)
+        self.remote_storage = remote_storage
+        self.setLayout(QFormLayout())
+        self.setTitle(self.remote_storage.name)
+        self.login_input_widget = QLineEdit(self)
+        self.login_input_widget.setClearButtonEnabled(True)
+
+        self.password_input_widget = QLineEdit(self)
+        self.password_input_widget.setEchoMode(QLineEdit.Password)
+        self.password_input_widget.setClearButtonEnabled(True)
+
+        self.store_in_db_checkbox = QCheckBox(self)
+
+        self.show_password_checkbox = QCheckBox(self)
+
+        self.submit_button = QPushButton("Submit")
+
+        self.layout.addRow("Login", self.login_input_widget)
+        self.layout.addRow("Password", self.password_input_widget)
+        self.layout.addRow("Show Password", self.show_password_checkbox)
+        self.layout.addRow("Store Credentials in Database", self.store_in_db_checkbox)
+        self.layout.addWidget(self.submit_button)
+
+        self.submit_button.pressed.connect(self.submit_credentials)
+        self.show_password_checkbox.clicked.connect(self.show_password)
+
+    def setup(self):
+        if self.remote_storage.get_login() is not None:
+            self.login_input_widget.setText(self.remote_storage.get_login())
+        if self.remote_storage.get_password() is not None:
+            self.password_input_widget.setText(self.remote_storage.get_password())
+
+    @property
+    def app(self) -> "AntistasiLogbookApplication":
+        return AntistasiLogbookApplication.instance()
+
+    @property
+    def layout(self) -> QFormLayout:
+        return super().layout()
+
+    @Slot(bool)
+    def show_password(self, show: bool):
+        if show:
+            self.password_input_widget.setEchoMode(QLineEdit.Normal)
+        else:
+            self.password_input_widget.setEchoMode(QLineEdit.Password)
+
+    def submit_credentials(self):
+        login = self.login_input_widget.text()
+        password = self.password_input_widget.text()
+        store_in_db = self.store_in_db_checkbox.isChecked()
+
+        if not login:
+            self.login_input_widget.setStyleSheet("background-color: red")
+
+        if not password:
+            self.password_input_widget.setStyleSheet("background-color: red")
+
+        if not login or not password:
+            return
+
+        self.login_input_widget.setStyleSheet("")
+        self.password_input_widget.setStyleSheet("")
+        self.remote_storage.set_login_and_password(login=login, password=password, store_in_db=store_in_db)
+        self.app.sys_tray.showMessage("Credentials Set", f"Credentials for {self.remote_storage.name!r} succesfully set.", self.app.icon, 10 * 1000)
+
+
+class CredentialsManagmentWindow(QWidget):
+
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
+        super().__init__(parent=parent)
+        self.setLayout(QVBoxLayout())
+        with self.app.backend.database:
+            for remote_storage in RemoteStorage.select():
+                if remote_storage.credentials_required:
+                    widget = CredentialsBox(remote_storage, self)
+                    self.layout.addWidget(widget)
+                    widget.setup()
+        self.ok_button = QPushButton("OK")
+        self.layout.addWidget(self.ok_button)
+        self.ok_button.pressed.connect(self.close)
+
+    @property
+    def app(self) -> "AntistasiLogbookApplication":
+        return AntistasiLogbookApplication.instance()
+
+    @property
+    def layout(self) -> QVBoxLayout:
+        return super().layout()
 
 # region[Main_Exec]
 

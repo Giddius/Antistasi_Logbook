@@ -55,10 +55,10 @@ class LogbookMenuBar(BaseMenuBar):
         self.exit_action.setIcon(AllResourceItems.close_cancel_image.get_as_icon())
         self.test_menu = self.add_new_menu("test")
         self.folder_action = self.add_new_action(self.help_menu, "folder")
+        self.open_credentials_managment_action = self.add_new_action(self.settings_menu, "Credentials Managment")
 
 
 # region[Main_Exec]
-
 
 if __name__ == '__main__':
     pass

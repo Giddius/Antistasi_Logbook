@@ -159,6 +159,7 @@ class RemoteStorage(BaseModel):
     _login = LoginField(null=True)
     _password = PasswordField(null=True)
     manager_type = TextField(index=True)
+    credentials_required = BooleanField(default=False)
 
     class Meta:
         table_name = 'RemoteStorage'
@@ -191,7 +192,9 @@ class RemoteStorage(BaseModel):
         if store_in_db is True:
             self._login = login
             self._password = password
-            self.save()
+            with self.database.write_lock:
+                with self.database:
+                    self.save()
         else:
             os.environ[self.login_env_var_name] = login
             os.environ[self.password_env_var_name] = password
@@ -651,8 +654,8 @@ def setup_db(database: "GidSqliteApswDatabase"):
 
     all_models = BaseModel.__subclasses__()
 
-    setup_data = {RemoteStorage: [{"name": "local_files", "id": 0, "base_url": "--LOCAL--", "manager_type": "LocalManager"},
-                                  {"name": "community_webdav", "id": 1, "base_url": "https://antistasi.de", "manager_type": "WebdavManager"}],
+    setup_data = {RemoteStorage: [{"name": "local_files", "id": 0, "base_url": "--LOCAL--", "manager_type": "LocalManager", "credentials_required": False},
+                                  {"name": "community_webdav", "id": 1, "base_url": "https://antistasi.de", "manager_type": "WebdavManager", "credentials_required": True}],
 
                   LogLevel: [{"id": 0, "name": "NO_LEVEL"},
                              {"id": 1, "name": "DEBUG"},
