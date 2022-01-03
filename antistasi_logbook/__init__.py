@@ -1,7 +1,7 @@
 """Antistasi Logbook"""
 
 from pyqtgraph.Qt import QT_LIB
-__version__ = '0.2.0'
+__version__ = '0.2.1'
 import sys
 
 if "apsw" not in sys.modules:

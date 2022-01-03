@@ -33,7 +33,8 @@ dependencies = [
     "pprintpp",
     "pp-ez",
     "jinja2==2.11.3",
-    "PySide6>=6.2.2"
+    "PySide6>=6.2.2",
+    "qt_material"
 ]
 
 [project.urls]
