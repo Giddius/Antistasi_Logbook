@@ -14,7 +14,7 @@ from pathlib import Path
 import attr
 from sortedcontainers import SortedSet
 from antistasi_logbook.records.base_record import BaseRecord, RecordFamily
-from antistasi_logbook.storage.models.models import RecordClass
+from antistasi_logbook.storage.models.models import RecordClass, LogRecord, RecordOrigin
 
 if TYPE_CHECKING:
     # * Third Party Imports --------------------------------------------------------------------------------->
@@ -49,8 +49,8 @@ class StoredRecordClass:
     concrete_class: RECORD_CLASS_TYPE = attr.ib()
     model: RecordClass = attr.ib()
 
-    def check(self, raw_record: "RawRecord") -> bool:
-        return self.concrete_class.check(raw_record=raw_record)
+    def check(self, log_record: "LogRecord") -> bool:
+        return self.concrete_class.check(log_record=log_record)
 
 
 class RecordClassManager:
@@ -100,10 +100,10 @@ class RecordClassManager:
     def get_by_id(self, model_id: int) -> RECORD_CLASS_TYPE:
         return self.record_class_registry_by_id.get(str(model_id), self.default_record_class).concrete_class
 
-    def determine_record_class(self, raw_record: "RawRecord") -> "RecordClass":
-        record_classes = self.antistasi_record_classes if raw_record.is_antistasi_record is True else self.generic_record_classes
+    def determine_record_class(self, log_record: LogRecord) -> "RecordClass":
+        record_classes = self.antistasi_record_classes if log_record.origin.name.casefold() == "antistasi" else self.generic_record_classes
         for stored_class in record_classes:
-            if stored_class.check(raw_record) is True:
+            if stored_class.check(log_record) is True:
                 return stored_class.model
         return self.default_record_class.model
 

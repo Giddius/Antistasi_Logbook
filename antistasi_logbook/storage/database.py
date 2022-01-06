@@ -5,14 +5,14 @@ Soon.
 """
 
 # region [Imports]
-
+from contextlib import contextmanager
 # * Standard Library Imports ---------------------------------------------------------------------------->
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 from gidapptools.general_helper.conversion import human2bytes
 from gidapptools.meta_data.interface import MetaPaths, get_meta_info, get_meta_paths, get_meta_config
 from gidapptools import get_logger
 from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
-from antistasi_logbook.storage.models.models import Server, GameMap, LogFile, LogLevel, RecordClass, RemoteStorage, AntstasiFunction, DatabaseMetaData, setup_db, LogRecord
+from antistasi_logbook.storage.models.models import Server, GameMap, LogFile, LogLevel, RecordClass, RemoteStorage, AntstasiFunction, DatabaseMetaData, setup_db, LogRecord, RecordOrigin
 from playhouse.apsw_ext import APSWDatabase
 from peewee import DatabaseProxy, JOIN
 from apsw import Connection
@@ -36,6 +36,7 @@ setup()
 if TYPE_CHECKING:
     # * Gid Imports ----------------------------------------------------------------------------------------->
     from gidapptools.gid_config.interface import GidIniConfig
+    from antistasi_logbook.parsing.record_processor import RecordProcessor, RecordInserter
 
 # endregion[Imports]
 
@@ -117,7 +118,7 @@ class GidSqliteApswDatabase(APSWDatabase):
                  autoconnect=True,
                  pragmas=None,
                  extensions=None):
-        self.database_path = self.default_db_path.joinpath(DEFAULT_DB_NAME) if database_path is None else Path(database_path)
+        self.database_path = self.default_db_path.joinpath(DEFAULT_DB_NAME) if database_path is None else Path(database_path).joinpath(DEFAULT_DB_NAME)
         self.database_name = self.database_path.name
         self.config = CONFIG if config is None else config
         self.auto_backup = auto_backup
@@ -128,6 +129,8 @@ class GidSqliteApswDatabase(APSWDatabase):
         super().__init__(make_db_path(self.database_path), thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, timeout=30, **extensions)
         self.foreign_key_cache = ForeignKeyCache(self)
         self.write_lock = Lock()
+        self.record_processor: "RecordProcessor" = None
+        self.record_inserter: "RecordInserter" = None
 
     @property
     def default_backup_folder(self) -> Path:
@@ -230,6 +233,24 @@ class GidSqliteApswDatabase(APSWDatabase):
             result = tuple(GameMap.select().order_by(ordered_by))
 
         return result
+
+    def get_all_origins(self, ordered_by=RecordOrigin.id) -> tuple[RecordOrigin]:
+        with self.connection_context() as ctx:
+            result = tuple(RecordOrigin.select().order_by(ordered_by))
+        return result
+
+    def iter_all_records(self, server: Server = None, only_missing_record_class: bool = False) -> Generator[LogRecord, None, None]:
+        self.connect(True)
+
+        query = LogRecord.select().join(RecordClass, join_type=JOIN.LEFT_OUTER).switch(LogRecord).join(LogFile).switch(LogRecord).join(AntstasiFunction, on=(LogRecord.logged_from == AntstasiFunction.id), join_type=JOIN.LEFT_OUTER)
+        if server is not None:
+            nested = LogFile.select().where(LogFile.server_id == server.id)
+            query = query.where(LogRecord.log_file << nested)
+        if only_missing_record_class is True:
+            query = query.where(LogRecord.record_class == None)
+        for record in query.iterator():
+            yield record
+        self.close()
 
     def __repr__(self) -> str:
         repr_attrs = ("database_name", "config", "auto_backup", "thread_safe", "autoconnect")

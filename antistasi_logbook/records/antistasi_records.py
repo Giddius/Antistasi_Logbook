@@ -16,7 +16,6 @@ import pp
 from antistasi_logbook.records.base_record import BASE_SLOTS, BaseRecord, RecordFamily, MessageTypus
 from antistasi_logbook.utilities.parsing_misc import parse_text_array
 from antistasi_logbook.records.abstract_record import RecordFamily, MessageFormat
-
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.enums import MiscEnum
@@ -26,6 +25,8 @@ if TYPE_CHECKING:
     # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.parsing.parser import RawRecord
     from PySide6.QtGui import QColor
+    from antistasi_logbook.storage.models.models import LogFile, LogLevel, AntstasiFunction, LogRecord, RecordOrigin
+
 # endregion[Imports]
 
 # region [TODO]
@@ -58,7 +59,7 @@ class BaseAntistasiRecord(BaseRecord):
         return Color.get_color_by_name("White").with_alpha(0.01).qcolor
 
     @classmethod
-    def check(cls, raw_record: "RawRecord") -> bool:
+    def check(cls, log_record: "LogRecord") -> bool:
         return True
 
 
@@ -106,13 +107,13 @@ class PerformanceRecord(BaseAntistasiRecord):
         return super().get_formated_message(msg_format=format)
 
     @classmethod
-    def check(cls, raw_record: "RawRecord") -> bool:
-        logged_from = raw_record.parsed_data.get("logged_from")
+    def check(cls, log_record: "LogRecord") -> bool:
+        logged_from = log_record.logged_from
 
         if logged_from is None:
             return False
 
-        if logged_from == "logPerformance":
+        if logged_from.name == "logPerformance":
 
             return True
 
@@ -132,12 +133,12 @@ class IsNewCampaignRecord(BaseAntistasiRecord):
         return Color.get_color_by_name("LightGreen").with_alpha(0.5).qcolor
 
     @classmethod
-    def check(cls, raw_record: "RawRecord") -> bool:
-        logged_from = raw_record.parsed_data.get("logged_from")
+    def check(cls, log_record: "LogRecord") -> bool:
+        logged_from = log_record.logged_from
 
         if logged_from is None:
             return False
-        if logged_from == "initServer" and "Creating new campaign with ID" in raw_record.parsed_data.get("message"):
+        if logged_from.name == "initServer" and "Creating new campaign with ID" in log_record.message:
             return True
 
         return False
@@ -167,12 +168,12 @@ class FFPunishmentRecord(BaseAntistasiRecord):
         return self._punishment_type
 
     @classmethod
-    def check(cls, raw_record: "RawRecord") -> bool:
-        logged_from = raw_record.parsed_data.get("logged_from")
+    def check(cls, log_record: "LogRecord") -> bool:
+        logged_from = log_record.logged_from
 
         if logged_from is None:
             return False
-        if logged_from in {"punishment_FF", "punishment"}:
+        if logged_from.name in {"punishment_FF", "punishment"}:
             return True
 
         return False
@@ -205,12 +206,12 @@ class UpdatePreferenceRecord(BaseAntistasiRecord):
         return self._array_data
 
     @classmethod
-    def check(cls, raw_record: "RawRecord") -> bool:
-        logged_from = raw_record.parsed_data.get("logged_from")
+    def check(cls, log_record: "LogRecord") -> bool:
+        logged_from = log_record.logged_from
 
         if logged_from is None:
             return False
-        if logged_from in {"updatePreference"} and cls.msg_start_regex.match(raw_record.parsed_data.get("message").lstrip()):
+        if logged_from.name in {"updatePreference"} and cls.msg_start_regex.match(log_record.message.lstrip()):
             return True
         return False
 
@@ -245,12 +246,12 @@ class CreateConvoyInputRecord(BaseAntistasiRecord):
         return self._array_data
 
     @classmethod
-    def check(cls, raw_record: "RawRecord") -> bool:
-        logged_from = raw_record.parsed_data.get("logged_from")
+    def check(cls, log_record: "LogRecord") -> bool:
+        logged_from = log_record.logged_from
 
         if logged_from is None:
             return
-        if logged_from in {"createConvoy"} and raw_record.parsed_data.get("message").casefold().startswith("input"):
+        if logged_from.name in {"createConvoy"} and log_record.message.casefold().startswith("input"):
             return True
         return False
 
@@ -294,12 +295,12 @@ class SaveParametersRecord(BaseAntistasiRecord):
         return self._kv_data
 
     @classmethod
-    def check(cls, raw_record: "RawRecord") -> bool:
-        logged_from = raw_record.parsed_data.get("logged_from")
+    def check(cls, log_record: "LogRecord") -> bool:
+        logged_from = log_record.logged_from
 
         if logged_from is None:
             return
-        if logged_from in {"saveLoop"} and '[' in raw_record.parsed_data.get("message") and ']' in raw_record.parsed_data.get("message"):
+        if logged_from.name in {"saveLoop"} and '[' in log_record.message and ']' in log_record.message:
             return True
         return False
 
@@ -356,12 +357,12 @@ class ResourceCheckRecord(BaseAntistasiRecord):
         return self._array_data
 
     @classmethod
-    def check(cls, raw_record: "RawRecord") -> bool:
-        logged_from = raw_record.parsed_data.get("logged_from")
+    def check(cls, log_record: "LogRecord") -> bool:
+        logged_from = log_record.logged_from
 
         if logged_from is None:
             return
-        if logged_from in {"economicsAI"} and '[' in raw_record.parsed_data.get("message") and ']' in raw_record.parsed_data.get("message"):
+        if logged_from.name in {"economicsAI"} and '[' in log_record.message and ']' in log_record.message:
             return True
         return False
 
@@ -420,12 +421,12 @@ class FreeSpawnPositionsRecord(BaseAntistasiRecord):
         return super().get_formated_message(format=format)
 
     @classmethod
-    def check(cls, raw_record: "RawRecord") -> bool:
-        logged_from = raw_record.parsed_data.get("logged_from")
+    def check(cls, log_record: "LogRecord") -> bool:
+        logged_from = log_record.logged_from
 
         if logged_from is None:
             return
-        if logged_from in {"freeSpawnPositions"} and raw_record.parsed_data.get("message").startswith("spawn places for") and '[' in raw_record.parsed_data.get("message") and ']' in raw_record.parsed_data.get("message"):
+        if logged_from.name in {"freeSpawnPositions"} and log_record.message.startswith("spawn places for") and '[' in log_record.message and ']' in log_record.message:
             return True
         return False
 
@@ -471,12 +472,12 @@ class SelectReinfUnitsRecord(BaseAntistasiRecord):
         return super().get_formated_message(format=format)
 
     @classmethod
-    def check(cls, raw_record: "RawRecord") -> bool:
-        logged_from = raw_record.parsed_data.get("logged_from")
+    def check(cls, log_record: "LogRecord") -> bool:
+        logged_from = log_record.logged_from
 
         if logged_from is None:
             return
-        if logged_from in {"selectReinfUnits"} and '[' in raw_record.parsed_data.get("message") and ']' in raw_record.parsed_data.get("message"):
+        if logged_from.name in {"selectReinfUnits"} and '[' in log_record.message and ']' in log_record.message:
             return True
         return False
 

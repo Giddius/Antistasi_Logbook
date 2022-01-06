@@ -142,6 +142,8 @@ class Backend:
         self.parser = Parser(record_processor=self.record_processor, regex_keeper=SimpleRegexKeeper(), stop_event=self.events.stop)
         self.updater = Updater(config=self.config, parsing_context_factory=self.get_parsing_context, parser=self.parser, stop_event=self.events.stop, pause_event=self.events.pause, database=self.database, signaler=self.update_signaler)
         self.records_inserter = RecordInserter(config=self.config, database=self.database)
+        self.database.record_inserter = self.records_inserter
+        self.database.record_processor = self.record_processor
         # thread
         self.update_manager: UpdateManager = None
 
@@ -202,6 +204,8 @@ class Backend:
         _ = self.foreign_key_cache.all_game_map_objects_by_id
         _ = self.foreign_key_cache.all_log_levels
         _ = self.foreign_key_cache.all_log_levels_by_id
+        _ = self.foreign_key_cache.all_origin_objects
+        _ = self.foreign_key_cache.all_origin_objects_by_id
 
         self.signals.new_log_record.connect(self.database.session_meta_data.increment_added_log_records)
         self.signals.new_log_file.connect(self.database.session_meta_data.increment_new_log_file)

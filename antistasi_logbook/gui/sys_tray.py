@@ -9,7 +9,7 @@ Soon.
 # * Standard Library Imports ---------------------------------------------------------------------------->
 from typing import TYPE_CHECKING, Callable
 from pathlib import Path
-
+from weakref import WeakSet
 # * Third Party Imports --------------------------------------------------------------------------------->
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 
@@ -17,10 +17,10 @@ from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import
 from PySide6.QtGui import QIcon, QAction
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QMenu, QLabel, QApplication, QWidgetAction, QSystemTrayIcon
-
+from gidapptools import get_logger
 if TYPE_CHECKING:
     # * Third Party Imports --------------------------------------------------------------------------------->
-    from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow
+    from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow, AntistasiLogbookApplication
 
 # endregion[Imports]
 
@@ -37,13 +37,13 @@ if TYPE_CHECKING:
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
-
+log = get_logger(__name__)
 # endregion[Constants]
 
 
 class LogbookSystemTray(QSystemTrayIcon):
 
-    def __init__(self, main_window: "AntistasiLogbookMainWindow", app: "QApplication") -> None:
+    def __init__(self, main_window: "AntistasiLogbookMainWindow", app: "AntistasiLogbookApplication") -> None:
         self.main_window = main_window
         self.app = app
         self.tray_icon = self.app.icon
@@ -70,7 +70,7 @@ class LogbookSystemTray(QSystemTrayIcon):
         widget_action = QWidgetAction(self.menu)
         self.menu_title = QLabel(self.main_window.name)
         self.menu_title.setAlignment(Qt.AlignCenter)
-        self.menu_title.setStyleSheet(f"background-color: rgba(87,80,68,200); color: white; font: bold 14px;margin: 6px")
+        self.menu_title.setStyleSheet("background-color: rgba(87,80,68,200); color: white; font: bold 14px;margin: 6px")
 
         widget_action.setDefaultWidget(self.menu_title)
         self.menu.addAction(widget_action)
@@ -90,7 +90,10 @@ class LogbookSystemTray(QSystemTrayIcon):
 
     def switch_main_window_visible(self):
         main_window_visible = self.main_window.isVisible()
+
         self.main_window.setVisible(not main_window_visible)
+        # for widget in self.app.extra_windows:
+        #     widget.setVisible(not main_window_visible)
         text = "Minimize to Tray" if main_window_visible is False else "Open"
         icon = AllResourceItems.hidden_image.get_as_icon() if main_window_visible is False else AllResourceItems.view_image.get_as_icon()
         self.hide_show_action.setText(text)

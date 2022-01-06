@@ -20,14 +20,36 @@ from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import
 
 # * PyQt5 Imports --------------------------------------------------------------------------------------->
 import PySide6
-from PySide6 import QtCore
-from PySide6.QtCore import Qt, QAbstractTableModel
+from PySide6 import (QtCore, QtGui, QtWidgets, Qt3DAnimation, Qt3DCore, Qt3DExtras, Qt3DInput, Qt3DLogic, Qt3DRender, QtAxContainer, QtBluetooth,
+                     QtCharts, QtConcurrent, QtDataVisualization, QtDesigner, QtHelp, QtMultimedia, QtMultimediaWidgets, QtNetwork, QtNetworkAuth,
+                     QtOpenGL, QtOpenGLWidgets, QtPositioning, QtPrintSupport, QtQml, QtQuick, QtQuickControls2, QtQuickWidgets, QtRemoteObjects,
+                     QtScxml, QtSensors, QtSerialPort, QtSql, QtStateMachine, QtSvg, QtSvgWidgets, QtTest, QtUiTools, QtWebChannel, QtWebEngineCore,
+                     QtWebEngineQuick, QtWebEngineWidgets, QtWebSockets, QtXml)
 
+from PySide6.QtCore import (QByteArray, QCoreApplication, QDate, QDateTime, QEvent, QLocale, QMetaObject, QModelIndex, QModelRoleData, QMutex,
+                            QMutexLocker, QObject, QPoint, QRect, QRecursiveMutex, QRunnable, QSettings, QSize, QThread, QThreadPool, QTime, QUrl,
+                            QWaitCondition, Qt, QAbstractItemModel, QAbstractListModel, QAbstractTableModel, Signal, QPersistentModelIndex, Slot)
+
+from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
+                           QKeySequence, QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform)
+
+from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QDialogButtonBox,
+                               QDockWidget, QDoubleSpinBox, QFontComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
+                               QLCDNumber, QLabel, QLayout, QLineEdit, QListView, QListWidget, QMainWindow, QMenu, QMenuBar, QMessageBox,
+                               QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
+                               QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
+                               QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
+
+from natsort import natsorted
+from gidapptools import get_logger
 if TYPE_CHECKING:
     # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.backend import Backend
     from antistasi_logbook.records.abstract_record import AbstractRecord
+    from antistasi_logbook.gui.widgets.data_tool_widget import BaseDataToolWidget, BaseDataToolPage
 
+    from antistasi_logbook.storage.database import GidSqliteApswDatabase
+    from antistasi_logbook.gui.application import AntistasiLogbookApplication
 # endregion[Imports]
 
 # region [TODO]
@@ -44,9 +66,9 @@ if TYPE_CHECKING:
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
-
+log = get_logger(__name__)
 # endregion[Constants]
-INDEX_TYPE = Union[QtCore.QModelIndex, QtCore.QPersistentModelIndex]
+INDEX_TYPE = Union[QModelIndex, QPersistentModelIndex]
 
 DATA_ROLE_MAP_TYPE = dict[Union[Qt.ItemDataRole, int], Callable[[INDEX_TYPE], Any]]
 
@@ -54,12 +76,13 @@ HEADER_DATA_ROLE_MAP_TYPE = dict[Union[Qt.ItemDataRole, int], Callable[[int, Qt.
 
 
 class BaseQueryDataModel(QAbstractTableModel):
-    always_exclude_column_names: set[str] = {"id", "comments"}
-    default_column_ordering: dict[str, int] = {"marked": 0, "name": 1}
+    extra_columns = set()
+    strict_exclude_columns = set()
+
     bool_images = {True: AllResourceItems.check_mark_green_image.get_as_icon(),
                    False: AllResourceItems.close_black_image.get_as_icon()}
 
-    def __init__(self, backend: "Backend", db_model: "BaseModel", parent: Optional[QtCore.QObject] = None) -> None:
+    def __init__(self, db_model: "BaseModel", parent: Optional[QtCore.QObject] = None) -> None:
         self.data_role_table: DATA_ROLE_MAP_TYPE = {Qt.DisplayRole: self._get_display_data,
                                                     Qt.ToolTipRole: self._get_tool_tip_data,
                                                     Qt.TextAlignmentRole: self._get_text_alignment_data,
@@ -105,17 +128,32 @@ class BaseQueryDataModel(QAbstractTableModel):
                                                                   #   Qt.DecorationPropertyRole: self._get_decoration_property_header_data,
                                                                   #   Qt.AccessibleDescriptionRole: self._get_accessible_description_header_data
                                                                   }
-        self.backend = backend
-        self._column_names_to_exclude: set[str] = self.always_exclude_column_names.copy()
-        self._column_ordering: dict[str, int] = self.default_column_ordering.copy()
 
         self.db_model = db_model
         self.ordered_by = (self.db_model.id,)
         self.content_items: list[Union["BaseModel", "AbstractRecord"]] = None
-        self.columns: tuple[Field] = self.db_model.get_meta().sorted_fields
-        self.generator_refresh_chunk_size: int = 250
+        self.columns: tuple[Field] = tuple(c for c in list(self.db_model.get_meta().sorted_fields) + list(self.extra_columns) if c.name not in self.strict_exclude_columns)
+        self.data_tool: "BaseDataToolWidget" = None
+        self.original_sort_order: tuple[int] = tuple()
 
         super().__init__(parent=parent)
+
+    @property
+    def app(self) -> "AntistasiLogbookApplication":
+        return QApplication.instance()
+
+    @property
+    def backend(self) -> "Backend":
+        return self.app.backend
+
+    @property
+    def database(self) -> "GidSqliteApswDatabase":
+        return self.backend.database
+
+    def modify_index(self, index: INDEX_TYPE) -> INDEX_TYPE:
+        index.row_item = self.content_items[index.row()]
+        index.column_item = self.columns[index.column()]
+        return index
 
     def get_query(self) -> "Query":
         return self.db_model.select().order_by(self.ordered_by)
@@ -140,25 +178,17 @@ class BaseQueryDataModel(QAbstractTableModel):
         Returns:
             [type]: [description]
         """
-        return self
-
-    @ property
-    def column_names_to_exclude(self) -> set[str]:
-        return self._column_names_to_exclude
-
-    @ property
-    def column_ordering(self) -> dict[str, int]:
-        return self._column_ordering
-
-    def add_column_name_to_exclude(self, name) -> "BaseQueryDataModel":
-        self._column_names_to_exclude.add(name)
-        self.refresh()
+        self.columns = tuple(c for c in list(self.db_model.get_meta().sorted_fields) + list(self.extra_columns) if c.name not in self.strict_exclude_columns)
         return self
 
     def get_column_index(self, column: Union[str, Field]) -> Optional[int]:
+
         if isinstance(column, str):
-            return self.db_model.get_meta().fields.get(column, None)
-        return self.db_model.get_meta().sorted_fields[column]
+            try:
+                return [idx for idx, c in enumerate(self.columns) if c.name == column][0]
+            except IndexError:
+                return None
+        return list(self.columns).index(column)
 
     @profile
     def on_display_data_bool(self, role: int, item: "BaseModel", column: "Field", value: bool) -> str:
@@ -176,6 +206,9 @@ class BaseQueryDataModel(QAbstractTableModel):
     def on_display_data_none(self, role: int, item: "BaseModel", column: "Field") -> str:
         if role == Qt.DisplayRole:
             return '-'
+
+    def _modify_display_data(self, data: Any) -> str:
+        return str(data)
 
     @profile
     def columnCount(self, parent: Union[PySide6.QtCore.QModelIndex, PySide6.QtCore.QPersistentModelIndex] = None) -> int:
@@ -200,18 +233,12 @@ class BaseQueryDataModel(QAbstractTableModel):
         if role is not None:
             handler = self.data_role_table.get(role, None)
             if handler is not None:
-                return handler(index=index)
+                return handler(index=self.modify_index(index))
 
     @profile
     def _get_display_data(self, index: INDEX_TYPE) -> Any:
-        item = self.content_items[index.row()]
-        column = self.columns[index.column()]
-        data = item.get_data(column.name)
-        if data is None:
-            return self.on_display_data_none(role=Qt.DisplayRole, item=item, column=column)
-        if isinstance(data, bool):
-            return self.on_display_data_bool(role=Qt.DisplayRole, item=item, column=column, value=data)
-        return str(data)
+        data = index.row_item.get_data(index.column_item.name)
+        return self._modify_display_data(data)
 
     def _get_foreground_data(self, index: INDEX_TYPE) -> Any:
         pass
@@ -224,12 +251,9 @@ class BaseQueryDataModel(QAbstractTableModel):
 
     @profile
     def _get_tool_tip_data(self, index: INDEX_TYPE) -> Any:
-        return self.columns[index.column()].help_text
+        return index.column_item.help_text
 
     def _get_edit_data(self, index: INDEX_TYPE) -> Any:
-        pass
-
-    def _get_initial_sort_order_data(self, index: INDEX_TYPE) -> Any:
         pass
 
     def _get_user_data(self, index: INDEX_TYPE) -> Any:
@@ -241,13 +265,11 @@ class BaseQueryDataModel(QAbstractTableModel):
     @profile
     def _get_decoration_data(self, index: INDEX_TYPE) -> Any:
 
-        item = self.content_items[index.row()]
-        column = self.columns[index.column()]
-        data = getattr(item, column.name)
+        data = getattr(index.row_item, index.column_item.name)
         if data is None:
-            return self.on_display_data_none(role=Qt.DecorationRole, item=item, column=column)
+            return self.on_display_data_none(role=Qt.DecorationRole, item=index.row_item, column=index.column_item)
         if isinstance(data, bool):
-            return self.on_display_data_bool(role=Qt.DecorationRole, item=item, column=column, value=data)
+            return self.on_display_data_bool(role=Qt.DecorationRole, item=index.row_item, column=index.column_item, value=data)
 
     def _get_status_tip_data(self, index: INDEX_TYPE) -> Any:
         pass
@@ -295,7 +317,10 @@ class BaseQueryDataModel(QAbstractTableModel):
     @profile
     def _get_display_header_data(self, section: int, orientation: Qt.Orientation) -> Any:
         if orientation == Qt.Horizontal:
-            return self.columns[section].verbose_name
+            _out = self.columns[section].verbose_name
+            if _out is None:
+                _out = self.columns[section].name
+            return _out
 
     def _get_foreground_header_data(self, section: int, orientation: Qt.Orientation) -> Any:
         pass
@@ -359,39 +384,33 @@ class BaseQueryDataModel(QAbstractTableModel):
     def _get_accessible_description_header_data(self, section: int, orientation: Qt.Orientation) -> Any:
         pass
 
-    @ staticmethod
-    def _sort_helper(item: Any, column: Field):
-        value = getattr(item, column.name)
-        if isinstance(value, BaseModel):
-            return str(value)
-        return value
-
     @profile
-    def sort(self, column: int, order: PySide6.QtCore.Qt.SortOrder = ...) -> None:
+    def sort(self, column: int, order: PySide6.QtCore.Qt.SortOrder = None) -> None:
+
         self.layoutAboutToBeChanged.emit()
+
         if self.columns is None or self.content_items is None:
             return
-
-        try:
+        new_content = list(self.content_items)
+        if column < 0:
+            if self.original_sort_order:
+                _helper_dict = {i.id: i for i in self.content_items}
+                new_content = [_helper_dict.get(i) for i in self.original_sort_order]
+        else:
             _column = self.columns[column]
-        except IndexError:
-            return
-        as_reversed = True if order == Qt.DescendingOrder else False
-        non_none_items = (item for item in self.content_items if getattr(item, _column.name, None))
-        none_items = (item for item in self.content_items if not getattr(item, _column.name, None))
 
-        new_content = sorted(list(non_none_items), key=partial(self._sort_helper, column=_column))
+            if order == Qt.AscendingOrder:
+                reverse = False
+            elif order == Qt.DescendingOrder:
+                reverse = True
+            try:
+                new_content = natsorted(list(self.content_items), key=lambda x: x.get_data(_column.name), reverse=reverse)
+            except TypeError:
+                new_content = sorted(list(self.content_items), key=lambda x: x.get_data(_column.name), reverse=reverse)
 
-        new_content += list(none_items)
-        if as_reversed is True:
-            new_content = list(reversed(new_content))
-        self.content_items = new_content
+        self.content_items = tuple(new_content)
+
         self.layoutChanged.emit()
-
-    @profile
-    def event(self, event: PySide6.QtCore.QEvent) -> bool:
-        # log.debug("%s received event %r", self, event.type().name)
-        return super().event(event)
 
     def refresh(self) -> "BaseQueryDataModel":
         self.beginResetModel()
@@ -399,6 +418,22 @@ class BaseQueryDataModel(QAbstractTableModel):
         self.endResetModel()
 
         return self
+
+    def refresh_items(self):
+        new_items = []
+        with self.database:
+            for item in self.content_items:
+                new_item = self.db_model.get_by_id(item.id)
+                new_items.append(new_item)
+        self.content_items = tuple(new_items)
+        self.dataChanged.emit(self.index(0, 0, QModelIndex()), self.index(self.rowCount(), self.columnCount(), QModelIndex()))
+
+    def refresh_item(self, index: "INDEX_TYPE"):
+        item = self.content_items[index.row()]
+        with self.database:
+            new_item = self.db_model.get_by_id(item.id)
+        self.content_items = tuple([new_item if i is item else i for i in self.content_items])
+        self.dataChanged.emit(self.index(index.row(), 0, QModelIndex()), self.index(index.row(), self.columnCount(), QModelIndex()))
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(backend={self.backend!r}, db_model={self.db_model!r}, parent={self.parent()!r})"

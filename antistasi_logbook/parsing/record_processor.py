@@ -13,13 +13,14 @@ from pathlib import Path
 from datetime import datetime, timezone
 from threading import Lock, RLock
 from concurrent.futures import Future, ThreadPoolExecutor
-
+from time import sleep
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
+from functools import cached_property
 from dateutil.tz import UTC, tzoffset
 from playhouse.shortcuts import update_model_from_dict
 from antistasi_logbook.parsing.raw_record import RawRecord
-from antistasi_logbook.storage.models.models import Mod, GameMap, LogFile, AntstasiFunction, LogFileAndModJoin
+from antistasi_logbook.storage.models.models import Mod, GameMap, LogFile, AntstasiFunction, LogFileAndModJoin, RecordOrigin, LogRecord, RecordClass
 from antistasi_logbook.parsing.parsing_context import LogParsingContext
 from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 
@@ -28,7 +29,7 @@ from gidapptools import get_logger
 
 if TYPE_CHECKING:
     # * Third Party Imports --------------------------------------------------------------------------------->
-    from antistasi_logbook.parsing.parser import RecordClass, SimpleRegexKeeper, RecordClassManager
+    from antistasi_logbook.parsing.parser import SimpleRegexKeeper, RecordClassManager
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
 
     # * Gid Imports ----------------------------------------------------------------------------------------->
@@ -79,8 +80,8 @@ class ManyRecordsInsertResult:
 
 
 class RecordInserter:
-    insert_phrase = """INSERT OR IGNORE INTO "LogRecord" ("start", "end", "message", "recorded_at", "called_by", "is_antistasi_record", "logged_from", "log_file", "log_level", "record_class", "marked") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
-
+    insert_records_phrase = """INSERT OR IGNORE INTO "LogRecord" ("start", "end", "message", "recorded_at", "called_by", "origin", "logged_from", "log_file", "log_level", "marked") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
+    update_record_record_class_phrase = """UPDATE "LogRecord" SET "record_class" = ? WHERE "id" = ?"""
     thread_prefix: str = "inserting_thread"
 
     def __init__(self, config: "GidIniConfig", database: "GidSqliteApswDatabase", thread_pool_class: type["ThreadPoolExecutor"] = None) -> None:
@@ -105,7 +106,7 @@ class RecordInserter:
             with self.database:
                 cur = self.database.cursor(True)
 
-                cur.executemany(self.insert_phrase, params)
+                cur.executemany(self.insert_records_phrase, params)
 
         # for record in records:
         #     params = record.to_sql_params(log_file=context._log_file)
@@ -123,6 +124,28 @@ class RecordInserter:
         future = self.thread_pool.submit(self._insert_func, records=records, context=context)
         future.add_done_callback(_callback(_context=context))
         return future
+
+    def _execute_update_record_class(self, log_record: LogRecord, record_class: RecordClass) -> None:
+        with self.database.write_lock:
+            with self.database:
+                LogRecord.update(record_class=record_class).where(LogRecord.id == log_record.id).execute()
+
+    def _execute_many_update_record_class(self, pairs: list[tuple[int, int]]) -> int:
+
+        with self.write_lock:
+            with self.database:
+                cur = self.database.cursor(True)
+                cur.executemany(self.update_record_record_class_phrase, pairs)
+
+        return len(pairs)
+
+    @profile
+    def update_record_class(self, log_record: LogRecord, record_class: RecordClass) -> Future:
+        return self.thread_pool.submit(self._execute_update_record_class, log_record=log_record, record_class=record_class)
+
+    @profile
+    def many_update_record_class(self, pairs: list[tuple[int, int]]) -> Future:
+        return self.thread_pool.submit(self._execute_many_update_record_class, pairs=pairs)
 
     @profile
     def _execute_insert_mods(self, mod_items: Iterable[Mod], log_file: LogFile) -> None:
@@ -171,6 +194,8 @@ class RecordInserter:
 
 
 class RecordProcessor:
+    _default_origin: "RecordOrigin" = None
+    _antistasi_origin: "RecordOrigin" = None
     __slots__ = ("regex_keeper", "record_class_manager", "database", "foreign_key_cache")
 
     def __init__(self, database: "GidSqliteApswDatabase", regex_keeper: "SimpleRegexKeeper", foreign_key_cache: "ForeignKeyCache", record_class_manager: "RecordClassManager") -> None:
@@ -182,6 +207,18 @@ class RecordProcessor:
     @staticmethod
     def clean_antistasi_function_name(in_name: str) -> str:
         return in_name.strip().removeprefix("A3A_fnc_").removeprefix("fn_").removesuffix('.sqf')
+
+    @property
+    def default_origin(self) -> RecordOrigin:
+        if self.__class__._default_origin is None:
+            self.__class__._default_origin = [origin for origin in self.foreign_key_cache.all_origin_objects.values() if origin.is_default is True][0]
+        return self.__class__._default_origin
+
+    @property
+    def antistasi_origin(self) -> RecordOrigin:
+        if self.__class__._antistasi_origin is None:
+            self.__class__._antistasi_origin = [origin for origin in self.foreign_key_cache.all_origin_objects.values() if origin.name.casefold() == "antistasi"][0]
+        return self.__class__._antistasi_origin
 
     def _process_generic_record(self, raw_record: "RawRecord") -> "RawRecord":
         match = self.regex_keeper.generic_record.match(raw_record.content.strip())
@@ -239,7 +276,7 @@ class RecordProcessor:
             log.info(_out)
         return raw_record
 
-    def _determine_record_class(self, raw_record: "RawRecord") -> "RecordClass":
+    def determine_record_class(self, raw_record: "RawRecord") -> "RecordClass":
         record_class = self.record_class_manager.determine_record_class(raw_record)
         return record_class
 
@@ -273,16 +310,23 @@ class RecordProcessor:
             parsed_data["recorded_at"] = utc_recorded_at
         return parsed_data
 
-    def __call__(self, raw_record: "RawRecord", utc_offset: timezone) -> "RawRecord":
+    @profile
+    def determine_origin(self, raw_record: "RawRecord") -> RecordOrigin:
+        for origin in self.foreign_key_cache.all_origin_objects.values():
+            if origin.is_default is False:
+                if origin.check(raw_record) is True:
+                    return origin
+        return self.default_origin
 
-        if raw_record.is_antistasi_record is True:
+    def __call__(self, raw_record: "RawRecord", utc_offset: timezone) -> "RawRecord":
+        raw_record.record_origin = self.determine_origin(raw_record)
+        if raw_record.record_origin == self.antistasi_origin:
             raw_record = self._process_antistasi_record(raw_record)
         else:
             raw_record = self._process_generic_record(raw_record)
         if raw_record is None:
             return
-        record_class = self._determine_record_class(raw_record)
-        raw_record.record_class = record_class
+
         raw_record.parsed_data = self._convert_raw_record_foreign_keys(parsed_data=raw_record.parsed_data, utc_offset=utc_offset)
 
         return raw_record

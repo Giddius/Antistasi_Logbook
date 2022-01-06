@@ -19,7 +19,7 @@ from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import
 import PySide6
 from PySide6 import QtGui, QtCore, QtWidgets
 from PySide6.QtGui import QPixmap, QIcon
-from PySide6.QtCore import Qt, Signal, QSize, Slot
+from PySide6.QtCore import Qt, Signal, QSize, Slot, QTimer
 from PySide6.QtWidgets import (QFrame, QLabel, QWidget, QSpinBox, QCheckBox, QComboBox, QGroupBox, QTextEdit, QTimeEdit, QFormLayout, QGridLayout, QLineEdit, QPushButton,
                                QSizePolicy, QVBoxLayout, QDateTimeEdit, QFontComboBox, QListWidgetItem, QAbstractItemView, QDoubleSpinBox, QStackedWidget, QDialogButtonBox, QListWidget)
 
@@ -342,6 +342,7 @@ class CredentialsBox(QGroupBox):
 
         self.submit_button.pressed.connect(self.submit_credentials)
         self.show_password_checkbox.clicked.connect(self.show_password)
+        self._single_shot_timer: QTimer = None
 
     def setup(self):
         if self.remote_storage.get_login() is not None:
@@ -364,6 +365,20 @@ class CredentialsBox(QGroupBox):
         else:
             self.password_input_widget.setEchoMode(QLineEdit.Password)
 
+    def color_box(self, clean: bool = True):
+        if clean is False:
+            self.login_input_widget.setStyleSheet("background-color: rgba(75,181,67, 200)")
+            self.password_input_widget.setStyleSheet("background-color: rgba(75,181,67, 200)")
+            self.submit_button.setStyleSheet("background-color: rgba(75,181,67, 200)")
+        else:
+            self.login_input_widget.setStyleSheet("")
+            self.password_input_widget.setStyleSheet("")
+            self.submit_button.setStyleSheet("")
+
+    def indicate_success(self):
+        self.color_box(False)
+        self._single_shot_timer = QTimer.singleShot(1 * 1000, self.color_box)
+
     def submit_credentials(self):
         login = self.login_input_widget.text()
         password = self.password_input_widget.text()
@@ -381,7 +396,7 @@ class CredentialsBox(QGroupBox):
         self.login_input_widget.setStyleSheet("")
         self.password_input_widget.setStyleSheet("")
         self.remote_storage.set_login_and_password(login=login, password=password, store_in_db=store_in_db)
-        self.app.sys_tray.showMessage("Credentials Set", f"Credentials for {self.remote_storage.name!r} succesfully set.", self.app.icon, 10 * 1000)
+        self.indicate_success()
 
 
 class CredentialsManagmentWindow(QWidget):
@@ -395,9 +410,6 @@ class CredentialsManagmentWindow(QWidget):
                     widget = CredentialsBox(remote_storage, self)
                     self.layout.addWidget(widget)
                     widget.setup()
-        self.ok_button = QPushButton("OK")
-        self.layout.addWidget(self.ok_button)
-        self.ok_button.pressed.connect(self.close)
 
     @property
     def app(self) -> "AntistasiLogbookApplication":

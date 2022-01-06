@@ -213,13 +213,12 @@ class LogParsingContext:
 
         if self.log_file_data.get("utc_offset") is None:
             difference_seconds = (finder.full_datetime.utc_datetime - finder.full_datetime.local_datetime).total_seconds()
-            log.debug("found tz offset seconds: %r", difference_seconds)
+
             offset_timedelta = timedelta(seconds=int(difference_seconds))
             offset = tzoffset(self.log_file_data["name"], offset_timedelta)
 
             self.log_file_data["utc_offset"] = offset
-            log.debug("tzoffset test: utc_datetime = %r, local_datetime = %r, offset = %r, >> utc_from_local_datetime = %r", finder.full_datetime.utc_datetime.isoformat(sep=" "),
-                      finder.full_datetime.local_datetime.isoformat(sep=" "), offset, (finder.full_datetime.local_datetime + offset._offset).isoformat(sep=" "))
+
             with self.database.write_lock:
                 with self.database:
                     self._log_file.update(utc_offset=offset)

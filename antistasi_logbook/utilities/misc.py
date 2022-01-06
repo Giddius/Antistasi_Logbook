@@ -126,6 +126,8 @@ class Version:
         return NotImplemented
 
     def __lt__(self, other: object) -> bool:
+        if other is None:
+            return False
         if isinstance(other, self.__class__):
             if (self.major, self.minor, self.patch) == (other.major, other.minor, other.patch):
                 if self.extra is None and other.extra is not None:

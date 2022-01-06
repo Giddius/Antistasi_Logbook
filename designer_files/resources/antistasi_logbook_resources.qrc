@@ -9,5 +9,6 @@
     <file>check_mark_green.svg</file>
     <file>close_black.svg</file>
     <file>app_icon.png</file>
+    <file>check_mark_black.svg</file>
   </qresource>
 </RCC>

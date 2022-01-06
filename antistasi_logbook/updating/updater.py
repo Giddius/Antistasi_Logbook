@@ -18,7 +18,7 @@ from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor, wait
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 from dateutil.tz import UTC
-from antistasi_logbook.storage.models.models import Server, LogFile
+from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord, RecordClass
 from antistasi_logbook.updating.remote_managers import remote_manager_registry
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
@@ -236,6 +236,36 @@ class Updater:
 
         wait(tasks, return_when=ALL_COMPLETED, timeout=None)
 
+    @profile
+    def update_record_classes(self, server: Server = None, force: bool = False):
+        def _find_record_class(_record: "LogRecord") -> tuple["LogRecord", "RecordClass"]:
+            _record_class = self.database.record_processor.determine_record_class(_record)
+            return _record, _record_class
+
+        log.info("updating record classes")
+        batch_size = (32767 // 2) - 1
+        tasks = []
+        to_update = []
+
+        for record in self.database.iter_all_records(server=server, only_missing_record_class=not force):
+            record, record_class = _find_record_class(record)
+            if record.record_class_id == record_class.id:
+                continue
+
+            to_update.append((record_class.id, record.id))
+            if len(to_update) == batch_size:
+                log.debug("updating %r records with their record class", len(to_update))
+                task = self.database.record_inserter.many_update_record_class(list(to_update))
+                tasks.append(task)
+
+                to_update.clear()
+        if len(to_update) > 0:
+            log.debug("updating %r records with their record class", len(to_update))
+            task = self.database.record_inserter.many_update_record_class(list(to_update))
+            tasks.append(task)
+            to_update.clear()
+        wait(tasks, return_when=ALL_COMPLETED)
+
     def before_updates(self):
         log.debug("emiting before_updates_signal")
         self.signaler.send_update_started()
@@ -246,11 +276,13 @@ class Updater:
         remote_manager_registry.close()
 
     def update(self) -> None:
+
         if self.is_updating_event.is_set() is True:
             return
         self.is_updating_event.set()
         self.before_updates()
         try:
+            tasks = []
             self.database.session_meta_data.last_update_started_at = datetime.now(tz=timezone.utc)
             for server in self.database.get_all_server():
                 if server.is_updatable() is False:
@@ -261,10 +293,15 @@ class Updater:
                         sleep(0.25)
                     log.info("STARTED updating %r", server)
                     self.process(server=server)
+                    tasks.append(self.thread_pool.submit(self.update_record_classes, server=server))
                     log.info("FINISHED updating server %r", server)
-
+            log.debug("Waiting for all %r record class update tasks to finish", len(tasks))
+            wait(tasks, return_when=ALL_COMPLETED)
+            log.debug("All record class update tasks have finished")
             amount_deleted = 0
             for server in self.database.get_all_server():
+                if server.is_updatable() is False:
+                    continue
                 if self.stop_event.is_set() is False:
                     log.info("checking old log_files to delete for server %r", server)
                     amount_deleted += self._handle_old_log_files(server=server)
@@ -273,6 +310,7 @@ class Updater:
                 if self.stop_event.is_set() is False:
                     self.database.vacuum()
                     self.database.optimize()
+
             self.database.session_meta_data.last_update_finished_at = datetime.now(tz=timezone.utc)
 
         finally:

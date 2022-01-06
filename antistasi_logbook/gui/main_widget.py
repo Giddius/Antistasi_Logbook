@@ -16,7 +16,8 @@ from antistasi_logbook.storage.models.models import LogRecord
 from antistasi_logbook.gui.models.server_model import ServerModel
 from antistasi_logbook.gui.models.log_files_model import LogFilesModel
 from antistasi_logbook.gui.models.log_records_model import LogRecordsModel
-from antistasi_logbook.gui.views.base_query_tree_view import ServerQueryTreeView, LogFilesQueryTreeView
+from antistasi_logbook.gui.views.base_query_tree_view import LogFilesQueryTreeView
+from antistasi_logbook.gui.views.server_query_view import ServerQueryTreeView
 from antistasi_logbook.gui.views.log_records_query_view import LogRecordsQueryView
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 
@@ -48,7 +49,7 @@ from threading import Thread
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
-from antistasi_logbook.gui.widgets.dock_widget import BaseDockWidget
+from antistasi_logbook.gui.widgets.dock_widget import BaseDockWidget, QueryWidget
 from antistasi_logbook.storage.models.models import Server, LogFile, RecordClass
 import pyqtgraph as pg
 from antistasi_logbook.gui.widgets.detail_view_widget import ServerDetailWidget, LogFileDetailWidget, LogRecordDetailView
@@ -83,7 +84,7 @@ class MainWidget(QWidget):
         super().__init__(parent=main_window)
         self.main_window = main_window
         self.info_widget: QGroupBox = None
-        self.query_widget: BaseDockWidget = None
+        self.query_widget: QueryWidget = None
         self.detail_widget: BaseDockWidget = None
         self.main_tabs_widget: QTabWidget = None
         self.server_tab: ServerQueryTreeView = None
@@ -112,7 +113,7 @@ class MainWidget(QWidget):
         self.main_layout.addWidget(self.info_widget, 0, 0, 1, 3)
 
     def setup_query_widget(self) -> None:
-        self.query_widget = BaseDockWidget(title="Query", parent=self.parent(), start_floating=False, add_menu_bar_action=True)
+        self.query_widget = QueryWidget(parent=self.parent())
 
         self.main_window.addDockWidget(Qt.LeftDockWidgetArea, self.query_widget, Qt.Vertical)
 
@@ -139,7 +140,7 @@ class MainWidget(QWidget):
         self.log_files_tab.doubleClicked.connect(self.query_log_file)
         self.main_tabs_widget.addTab(self.log_files_tab, self.log_files_tab.icon, self.log_files_tab.name)
 
-        self.query_result_tab = LogRecordsQueryView(main_window=self.main_window).setup()
+        self.query_result_tab = LogRecordsQueryView().setup()
 
         # self.query_result_tab.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.main_tabs_widget.addTab(self.query_result_tab, self.query_result_tab.icon, "Log-Records")
@@ -149,31 +150,32 @@ class MainWidget(QWidget):
 
     def on_tab_changed(self, index: int):
         if index == self.main_tabs_widget.indexOf(self.log_files_tab):
+            if self.log_files_tab.model.data_tool is not None:
+                self.query_widget.set_current_index(self.log_files_tab.model.data_tool)
+                return
             widget = LogFileDataToolWidget()
-            self.query_widget.setWidget(widget)
-            widget.get_page_by_name("filter").show_unparsable_check_box.toggled.connect(self.log_files_tab.model().change_show_unparsable)
-            widget.get_page_by_name("filter").filter_by_server_changed.connect(self.log_files_tab.model().filter_by_server)
-            widget.get_page_by_name("filter").time_span_filter_box.older_than_changed.connect(self.log_files_tab.model().on_filter_older_than)
-            widget.get_page_by_name("filter").time_span_filter_box.newer_than_changed.connect(self.log_files_tab.model().on_filter_newer_than)
-            widget.get_page_by_name("filter").filter_by_game_map_changed.connect(self.log_files_tab.model().filter_by_game_map)
-            widget.get_page_by_name("filter").filter_by_new_campaign.toggled.connect(self.log_files_tab.model().on_filter_by_new_campaign)
-        else:
-            if self.query_widget.widget() is not None:
-                self.query_widget.setWidget(QWidget())
+            self.query_widget.add_page(widget, name="log_file")
+            self.log_files_tab.model.data_tool = widget
+            widget.get_page_by_name("filter").show_unparsable_check_box.toggled.connect(self.log_files_tab.model.change_show_unparsable)
+            widget.get_page_by_name("filter").filter_by_server_changed.connect(self.log_files_tab.model.filter_by_server)
+            widget.get_page_by_name("filter").time_span_filter_box.older_than_changed.connect(self.log_files_tab.model.on_filter_older_than)
+            widget.get_page_by_name("filter").time_span_filter_box.newer_than_changed.connect(self.log_files_tab.model.on_filter_newer_than)
+            widget.get_page_by_name("filter").filter_by_game_map_changed.connect(self.log_files_tab.model.filter_by_game_map)
+            widget.get_page_by_name("filter").filter_by_new_campaign.toggled.connect(self.log_files_tab.model.on_filter_by_new_campaign)
 
     def setup_views(self) -> None:
-        server_model = ServerModel(self.main_window.backend)
-        server_model.refresh()
+        server_model = ServerModel().get_content()
+
         self.server_tab.setModel(server_model)
         self.server_tab.clicked.connect(self.show_server_detail)
 
-        log_file_model = LogFilesModel(self.main_window.backend)
-        log_file_model.refresh()
+        log_file_model = LogFilesModel().get_content()
+
         self.log_files_tab.setModel(log_file_model)
         self.log_files_tab.clicked.connect(self.show_log_file_detail)
 
     def show_server_detail(self, index):
-        item = self.server_tab.model().content_items[index.row()]
+        item = self.server_tab.model.content_items[index.row()]
         view = ServerDetailWidget(server=item, parent=self.detail_widget)
 
         self.detail_widget.setWidget(view)
@@ -185,7 +187,7 @@ class MainWidget(QWidget):
         self.detail_widget.show_if_first()
 
     def show_log_file_detail(self, index):
-        item = self.log_files_tab.model().content_items[index.row()]
+        item = self.log_files_tab.model.content_items[index.row()]
         view = LogFileDetailWidget(log_file=item, parent=self.detail_widget)
 
         self.detail_widget.setWidget(view)
@@ -196,7 +198,7 @@ class MainWidget(QWidget):
         self.detail_widget.show_if_first()
 
     def show_log_record_detail(self, index):
-        item = self.query_result_tab.model().content_items[index.row()]
+        item = self.query_result_tab.model.content_items[index.row()]
         view = LogRecordDetailView(record=item, parent=self.detail_widget)
         self.detail_widget.setWidget(view)
         view.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
@@ -211,19 +213,13 @@ class MainWidget(QWidget):
             self.detail_widget.adjustSize()
 
     def query_log_file(self, index: QModelIndex):
-        if self.temp_runnable is not None:
-            log.warning("allready laoding Log-Record-Model")
-            return
-        log_file = self.log_files_tab.model().content_items[index.row()]
-        log_record_model = LogRecordsModel(self.main_window.backend, parent=self.query_result_tab, filter_data={"log_files": (LogRecord.log_file_id == log_file.id)})
-        # log_record_model.batch_completed.connect(self.query_result_tab.doItemsLayout)
-        self.query_result_tab.setModel(log_record_model)
-        self.temp_runnable = log_record_model.generator_refresh()
-        self.temp_runnable.finished.connect(self._clear_temp_runnable)
-        self.temp_runnable.finished.connect(self.query_result_tab.executeDelayedItemsLayout)
-        log.debug("starting refreshing %r", log_record_model)
-        self.temp_runnable.start(QThread.Priority.LowPriority)
 
+        log_file = self.log_files_tab.model.content_items[index.row()]
+        log_record_model = LogRecordsModel(parent=self.query_result_tab, filter_data={"log_files": (LogRecord.log_file_id == log_file.id)})
+
+        log_record_model.refresh()
+        self.query_result_tab.setModel(log_record_model)
+        self.query_result_tab.repaint()
         self.main_tabs_widget.setCurrentWidget(self.query_result_tab)
         self.query_result_tab.clicked.connect(self.show_log_record_detail)
 

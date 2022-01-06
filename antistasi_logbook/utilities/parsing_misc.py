@@ -31,30 +31,47 @@ from gidapptools import get_logger
 # endregion[Logging]
 
 # region [Constants]
-
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
 
+
+@profile
+def _maybe_join(parts):
+    if parts is None:
+        return ""
+    try:
+        ' '.join(parts)
+    except TypeError as e:
+        log.error(e, exc_info=True)
+        return ""
+
 # Array parsing Grammar
 
-colon = pp.Suppress(',')
-sqb_open = pp.Suppress('[')
-sqb_close = pp.Suppress(']')
-quote = pp.Suppress('"')
-keywords = pp.Keyword("EAST") | pp.Keyword("WEST") | pp.Keyword("true", caseless=True) | pp.Keyword("false", caseless=True)
-items = pp.Forward()
-content = pp.Group(pp.ZeroOrMore(items + pp.Optional(colon)))
-array = sqb_open + content + sqb_close
-string = quote + pp.OneOrMore(pp.Word(pp.printables.replace('"', ''))).set_parse_action(' '.join) + quote
-empty_string = quote + quote
-number = ppc.number
-items <<= string | empty_string | keywords | array | number
+
+@profile
+def get_array_grammar():
+    colon = pp.Suppress(',')
+    sqb_open = pp.Suppress('[')
+    sqb_close = pp.Suppress(']')
+    quote = pp.Suppress('"')
+    keywords = pp.Keyword("EAST") | pp.Keyword("WEST") | pp.Keyword("true", caseless=True) | pp.Keyword("false", caseless=True)
+    items = pp.Forward()
+    content = pp.Group(pp.ZeroOrMore(items + pp.Optional(colon)))
+    array = sqb_open + content + sqb_close
+    string = quote + pp.OneOrMore(pp.Word(pp.printables.replace('"', ''))).set_parse_action(_maybe_join) + quote
+    empty_string = quote + quote
+    number = ppc.number
+    items <<= string | empty_string | keywords | array | number
+    return array
 
 
+@profile
 def parse_text_array(in_text: str) -> list[list[Any]]:
     try:
-        return array.parse_string(in_text, parse_all=True).as_list()[0]
+        return get_array_grammar().parse_string(in_text, parse_all=True).as_list()[0]
     except pp.ParseException as e:
         log.error(e, exc_info=True, extra={"in_text": in_text})
         log.critical("%r was caused by %r", e, in_text)

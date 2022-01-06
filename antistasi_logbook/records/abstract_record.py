@@ -18,7 +18,7 @@ from antistasi_logbook.records.enums import RecordFamily, MessageFormat, Message
 if TYPE_CHECKING:
     # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.parsing.parser import RawRecord
-
+    from antistasi_logbook.storage.models.models import LogRecord, RecordOrigin
 # endregion[Imports]
 
 # region [TODO]
@@ -45,16 +45,22 @@ class AbstractRecord(ABC):
 
     @classmethod
     @abstractmethod
-    def check(cls, raw_record: "RawRecord") -> bool:
+    def check(cls, log_record: "LogRecord") -> bool:
         ...
+
+    # @classmethod
+    # @abstractmethod
+    # def check_from_raw_record(cls, raw_record:"RawRecord")->bool:
+    #     ...
+
+    # @classmethod
+    # @abstractmethod
+    # def check_from_log_record(cls, log_record:"LogRecord")->bool:
+    #     ...
 
     @abstractmethod
     def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
         return self.message
-
-    @cached_property
-    def pretty_message(self) -> str:
-        return self.get_formated_message(MessageFormat.PRETTY)
 
     @cached_property
     def single_line_message(self) -> str:

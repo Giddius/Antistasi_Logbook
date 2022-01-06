@@ -34,8 +34,9 @@ from antistasi_logbook.records.enums import MessageTypus
 if TYPE_CHECKING:
     # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.parsing.parser import RawRecord
-    from antistasi_logbook.storage.models.models import LogFile, LogLevel, AntstasiFunction
+
     from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
+    from antistasi_logbook.storage.models.models import LogFile, LogLevel, AntstasiFunction, LogRecord, RecordOrigin
 
 # endregion[Imports]
 
@@ -57,12 +58,6 @@ log = get_logger(__name__)
 # endregion[Constants]
 
 
-@attr.s(slots=True, frozen=True)
-class LineNumberLocation:
-    start: int = attr.ib()
-    end: int = attr.ib()
-
-
 @attr.s(slots=True, auto_attribs=True, auto_detect=True, weakref_slot=True)
 class QtAttributes:
     # background_color: "QColor" = attr.ib(default=MiscEnum.NOTHING)
@@ -73,11 +68,12 @@ class QtAttributes:
 class PrettyAttributeCache:
     pretty_recorded_at: str = attr.ib(default=MiscEnum.NOTHING)
     pretty_log_level: str = attr.ib(default=MiscEnum.NOTHING)
+    pretty_message: str = attr.ib(default=MiscEnum.NOTHING)
 
 
 BASE_SLOTS: list[str] = ["record_id",
                          "log_file",
-                         "is_antistasi_record",
+                         "origin",
                          "start",
                          "end",
                          "message",
@@ -100,7 +96,7 @@ class BaseRecord(AbstractRecord):
     def __init__(self,
                  record_id: int,
                  log_file: "LogFile",
-                 is_antistasi_record: bool,
+                 origin: "RecordOrigin",
                  start: int,
                  end: int,
                  message: str,
@@ -111,7 +107,7 @@ class BaseRecord(AbstractRecord):
                  logged_from: "AntstasiFunction" = None) -> None:
         self.record_id = record_id
         self.log_file = log_file
-        self.is_antistasi_record = is_antistasi_record
+        self.origin = origin
         self.start = start
         self.end = end
         self.message = message
@@ -133,6 +129,12 @@ class BaseRecord(AbstractRecord):
         return _out
 
     @property
+    def pretty_message(self) -> str:
+        if self.pretty_attribute_cache.pretty_message is MiscEnum.NOTHING:
+            self.pretty_attribute_cache.pretty_message = self.get_formated_message(MessageFormat.PRETTY)
+        return self.pretty_attribute_cache.pretty_message
+
+    @property
     def pretty_log_level(self) -> Optional[str]:
         if self.pretty_attribute_cache.pretty_log_level is MiscEnum.NOTHING:
             self.pretty_attribute_cache.pretty_log_level = str(self.log_level) if self.log_level.id != 0 else None
@@ -144,12 +146,6 @@ class BaseRecord(AbstractRecord):
             self.pretty_attribute_cache.pretty_recorded_at = self.log_file.format_datetime(self.recorded_at)
         return self.pretty_attribute_cache.pretty_recorded_at
 
-    @cached_property
-    def pretty_log_level(self) -> str:
-        if self.log_level.name == "NO_LEVEL":
-            return None
-        return self.log_level
-
     @property
     def background_color(self) -> Optional["QColor"]:
         if self._background_qcolor is MiscEnum.NOTHING:
@@ -159,19 +155,11 @@ class BaseRecord(AbstractRecord):
     def get_background_color(self) -> "QColor":
         return Color.get_color_by_name("Gray").with_alpha(0.1).qcolor
 
-    @property
-    def message_size_hint(self) -> "QSize":
-        return self.qt_attributes.message_size_hint
-
-    @message_size_hint.setter
-    def message_size_hint(self, value: "QSize") -> None:
-        self.qt_attributes.message_size_hint = value
-
     def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
         return self.message
 
     @classmethod
-    def check(cls, raw_record: "RawRecord") -> bool:
+    def check(cls, log_record: "LogRecord") -> bool:
         return True
 
     @classmethod
@@ -183,7 +171,7 @@ class BaseRecord(AbstractRecord):
 
         return cls(record_id=model_dict["id"],
                    log_file=model_dict["log_file"],
-                   is_antistasi_record=model_dict["is_antistasi_record"],
+                   origin=cls.foreign_key_cache.get_origin_by_id(model_dict["origin"]),
                    start=model_dict['start'],
                    end=model_dict["end"],
                    message=model_dict["message"],
@@ -192,6 +180,11 @@ class BaseRecord(AbstractRecord):
                    marked=model_dict["marked"],
                    called_by=cls.foreign_key_cache.get_antistasi_file_by_id(model_dict["called_by"]),
                    logged_from=cls.foreign_key_cache.get_antistasi_file_by_id(model_dict["logged_from"]))
+
+    def __getattr__(self, name: str):
+        if name == "id":
+            return self.record_id
+        raise AttributeError(f"{self!r} does not have an attribute {name!r}")
 
 
 # region[Main_Exec]

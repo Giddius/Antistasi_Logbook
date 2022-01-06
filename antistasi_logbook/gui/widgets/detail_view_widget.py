@@ -23,15 +23,15 @@ from PySide6 import (QtCore, QtGui, QtWidgets, Qt3DAnimation, Qt3DCore, Qt3DExtr
                      QtScxml, QtSensors, QtSerialPort, QtSql, QtStateMachine, QtSvg, QtSvgWidgets, QtTest, QtUiTools, QtWebChannel, QtWebEngineCore,
                      QtWebEngineQuick, QtWebEngineWidgets, QtWebSockets, QtXml)
 
-from PySide6.QtCore import (QByteArray, QCoreApplication, QDate, QDateTime, QEvent, QLocale, QMetaObject, QModelIndex, QModelRoleData, QMutex,
+from PySide6.QtCore import (QByteArray, QSize, QCoreApplication, QDate, QDateTime, QEvent, QLocale, QMetaObject, QModelIndex, QModelRoleData, QMutex,
                             QMutexLocker, QObject, QPoint, QRect, QRecursiveMutex, QRunnable, QSettings, QSize, QThread, QThreadPool, QTime, QUrl,
                             QWaitCondition, Qt, QUrl, QAbstractItemModel, QAbstractListModel, QAbstractTableModel, Signal, Slot)
 
-from PySide6.QtGui import (QAction, QTextCursor, QBrush, QTextOption, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
+from PySide6.QtGui import (QAction, QTextDocument, QTextCursor, QBrush, QTextOption, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
                            QKeySequence, QSyntaxHighlighter, QTextCharFormat, QTextFormat, QTextBlockFormat, QTextListFormat, QTextTableFormat, QTextTable,
                            QTextTableCellFormat, QDesktopServices, QLinearGradient, QPainter, QFontInfo, QPalette, QPixmap, QRadialGradient, QTransform, Qt)
 
-from PySide6.QtWidgets import (QApplication, QGraphicsView, QBoxLayout, QCheckBox, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QDialogButtonBox,
+from PySide6.QtWidgets import (QApplication, QTextBrowser, QGraphicsView, QBoxLayout, QCheckBox, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QDialogButtonBox,
                                QDockWidget, QDoubleSpinBox, QFontComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
                                QLCDNumber, QLabel, QLayout, QLineEdit, QListView, QListWidget, QMainWindow, QMenu, QMenuBar, QMessageBox,
                                QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
@@ -230,6 +230,7 @@ class ModView(QListView):
 
     def contextMenuEvent(self, event: PySide6.QtGui.QContextMenuEvent) -> None:
         index = self.indexAt(event.pos())
+        self.setCurrentIndex(index)
         item = self.model().mods[index.row()]
         if index.isValid():
             menu = QMenu(self)
@@ -298,15 +299,17 @@ class ServerDetailWidget(BaseDetailWidget):
 
         self.layout.addRow(self.remote_path_label, self.remote_path_value)
 
-        # TODO: Find Faster solution, or only on button press
+        self.comments_value = QTextBrowser(self)
+        self.comments_value.setOpenExternalLinks(True)
+        self.comments_value.setOpenLinks(True)
+        self.comments_value.setReadOnly(True)
 
-        # self.player_stats_label = QLabel(text="Players")
-        # axis = pg.DateAxisItem()
-        # self.player_stats_value = pg.PlotWidget()
-        # self.player_stats_value.getPlotItem().setAxisItems({'bottom': axis})
-        # self.player_stats_value.getPlotItem().plot(*self.get_player_stats())
+        self.comments_value.setStyleSheet("""background-color: rgba(255,255,255,150)""")
+        self.comments_value.setMarkdown(self.server.comments)
+        document: QTextDocument = self.comments_value.document()
 
-        # self.layout.addRow(self.player_stats_label, self.player_stats_value)
+        self.layout.addWidget(QLabel("Comments"))
+        self.layout.addWidget(self.comments_value)
 
     def get_player_stats(self):
         log_files = LogFile.select().where(LogFile.server == self.server)
@@ -679,9 +682,9 @@ class LogRecordDetailView(BaseDetailWidget):
         self.called_by_value = ValueLineEdit(text=str(self.record.called_by))
         self.layout.addRow("Called by", self.called_by_value)
 
-        self.is_antistasi_record_value = BoolLabel(self.record.is_antistasi_record)
+        self.origin_value = ValueLineEdit(self.record.origin.name)
 
-        self.layout.addRow("Antistasi Record", self.is_antistasi_record_value)
+        self.layout.addRow("Origin", self.origin_value)
 
         self.message_value = MessageValue(self.record)
         self.layout.addRow("Message", self.message_value)
@@ -692,9 +695,11 @@ class LogRecordDetailView(BaseDetailWidget):
 
     def get_stats(self):
         all_stats = self.record.log_file.get_stats()
-        self.temp_plot_widget = StatsWindow(all_stats, title=self.record.log_file.name.upper)
-        self.temp_plot_widget.add_line_at(self.record.recorded_at)
-        self.temp_plot_widget.show()
+        if len(all_stats) < 2:
+            return
+        temp_plot_widget = StatsWindow(all_stats, title=self.record.log_file.name.upper)
+        temp_plot_widget.add_line_at(self.record.recorded_at)
+        temp_plot_widget.show()
 
 
 # region[Main_Exec]

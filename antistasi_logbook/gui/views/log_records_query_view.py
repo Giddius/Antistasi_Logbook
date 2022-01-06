@@ -38,6 +38,7 @@ from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 import pp
+from antistasi_logbook.gui.views.base_query_tree_view import BaseQueryTreeView
 if TYPE_CHECKING:
     # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow
@@ -62,78 +63,25 @@ log = get_logger(__name__)
 # endregion[Constants]
 
 
-class ResizeWorker(QThread):
+class LogRecordsQueryView(BaseQueryTreeView):
+    initially_hidden_columns: set[str] = {"id", "comments"}
 
-    def __init__(self, view: "LogRecordsQueryView", parent: Optional[PySide6.QtCore.QObject] = None) -> None:
-        super().__init__(parent=parent)
-        self.view = view
+    def __init__(self) -> None:
+        super().__init__(name="Log-Records")
 
-    def run(self) -> None:
-        self.view.setup_header()
-
-
-class LogRecordsQueryView(QTreeView):
-
-    def __init__(self, main_window: "AntistasiLogbookMainWindow", parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
-        super().__init__(parent=parent)
-        self.name = "Log-Records"
-        self.icon = AllResourceItems.log_records_tab_icon_image.get_as_icon()
-        self.main_window = main_window
+    def extra_setup(self):
+        super().extra_setup()
+        self.setSortingEnabled(False)
 
     @property
     def header_view(self) -> QHeaderView:
         return self.header()
 
-    @property
-    def current_model(self) -> Optional["LogRecordsModel"]:
-        return self.model()
+    def pre_set_model(self):
+        super().pre_set_model()
 
-    def setup(self) -> "LogRecordsQueryView":
-        self.setUniformRowHeights(True)
-
-        self.header_view.setSectionResizeMode(QHeaderView.Interactive)
-        self.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
-        self.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
-        self.verticalScrollBar().setSingleStep(3)
-        self.header_view.setSizeAdjustPolicy(self.header_view.AdjustToContents)
-        self.setSortingEnabled(False)
-
-        return self
-
-    def selectionChanged(self, selected: QItemSelection, deselected: QItemSelection) -> None:
-        self.model()._expand = {i.row() for i in selected.indexes()}
-        for index in selected.indexes():
-
-            self.dataChanged(index, index)
-        for _index in deselected.indexes():
-
-            self.dataChanged(_index, _index)
-
-    def setModel(self, model: PySide6.QtCore.QAbstractItemModel) -> None:
-        self.scheduleDelayedItemsLayout()
-        super().setModel(model)
-
-    def scheduleDelayedItemsLayout(self) -> None:
-        log.debug("running 'scheduleDelayedItemsLayout'")
-        self.setEnabled(False)
-        return super().scheduleDelayedItemsLayout()
-
-    def executeDelayedItemsLayout(self) -> None:
-        log.debug("running 'executeDelayedItemsLayout'")
-
-        super().executeDelayedItemsLayout()
-
-        self.setEnabled(True)
-
-    def doItemsLayout(self, forced: bool = False) -> None:
-        if forced is False and self.current_model is not None and self.current_model.is_init is False:
-            return
-        log.debug("running 'doItemsLayout'")
-
-        super().doItemsLayout()
-        # self.header_view.setSectionResizeMode(QHeaderView.ResizeToContents)
-        # self.header_view.resizeSections()
-        # self.header_view.setSectionResizeMode(QHeaderView.Interactive)
+    def post_set_model(self):
+        return super().post_set_model()
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}"

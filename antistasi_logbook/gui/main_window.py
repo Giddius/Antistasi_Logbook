@@ -35,7 +35,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 import sys
 import os
-
+from antistasi_logbook.gui.widgets.markdown_editor import MarkdownEditorDialog
 from antistasi_logbook.gui.widgets.debug_widgets import DebugDockWidget
 from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
 from antistasi_logbook import setup
@@ -163,9 +163,9 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.backend.updater.signaler.update_info.connect(self.statusbar.start_progress_bar)
         self.backend.updater.signaler.update_increment.connect(self.statusbar.increment_progress_bar)
         self.main_widget.setup_views()
-        self.backend.updater.signaler.update_finished.connect(self.main_widget.server_tab.model().refresh)
-        # self.backend.updater.signaler.update_finished.connect(self.sys_tray.send_update_finished_message)
-        self.backend.updater.signaler.update_finished.connect(self.main_widget.log_files_tab.model().refresh)
+        self.backend.updater.signaler.update_finished.connect(self.main_widget.server_tab.model.refresh)
+
+        self.backend.updater.signaler.update_finished.connect(self.main_widget.log_files_tab.model.refresh)
         self.backend.updater.signaler.update_finished.connect(self.statusbar.last_updated_label.refresh_text)
         self.menubar.open_settings_window_action.triggered.connect(self.open_settings_window)
         self.development_setup()
@@ -196,10 +196,17 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.debug_dock_widget.add_show_attr_button(attr_name="missing_items", obj=AllResourceItems)
         self.debug_dock_widget.add_show_attr_button(attr_name="standardSizes", obj=QFontDatabase)
 
+        self.markdown_editor_button = QPushButton("Markdown Editor")
+        self.markdown_editor_button.pressed.connect(self.show_markdown_editor)
+        self.debug_dock_widget.add_widget("markdown_editor", "experimental", self.markdown_editor_button)
+
+    def show_markdown_editor(self):
+        self.markdown_editor = MarkdownEditorDialog('# blah\n\n---', self)
+        self.markdown_editor.dialog_accepted.connect(log.debug)
+        self.markdown_editor.show()
+
     def setup_backend(self) -> None:
-        self.backend.start_up()
         self.menubar.single_update_action.triggered.connect(self._single_update)
-        self.menubar.reset_database_action.triggered.connect(self._reset_database)
 
     def setup_statusbar(self) -> None:
         self.statusbar = LogbookStatusBar(self)
@@ -217,24 +224,18 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self._temp_folder_window = DataView(title="Folder")
         self._temp_folder_window.add_row("Database", self.backend.database.database_path)
         self._temp_folder_window.add_row("Config", self.config.config.file_path)
+        self._temp_folder_window.add_row("Log", self.app.meta_paths.log_dir)
         self._temp_folder_window.show()
-
-    def _reset_database(self) -> None:
-        reply = QMessageBox.warning(self, 'THIS IS IRREVERSIBLE', 'Are you sure you want to REMOVE the existing Database and REBUILD it?', QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-        if reply == QMessageBox.Yes:
-            self.menubar.single_update_action.setEnabled(False)
-            self.statusbar.last_updated_label.shutdown()
-            self.backend.remove_and_reset_database()
-            self.statusbar.last_updated_label.start_timer()
-            self.menubar.single_update_action.setEnabled(True)
 
     def _single_update(self) -> None:
         def _run_update():
             self.menubar.single_update_action.setEnabled(False)
             self.update_started.emit()
-            self.backend.updater()
-            self.update_finished.emit()
-            self.menubar.single_update_action.setEnabled(True)
+            try:
+                self.backend.updater()
+            finally:
+                self.update_finished.emit()
+                self.menubar.single_update_action.setEnabled(True)
 
         x = Thread(target=_run_update)
         x.start()
@@ -242,10 +243,6 @@ class AntistasiLogbookMainWindow(QMainWindow):
     def close(self) -> bool:
         log.debug("%r executing 'close'", self)
         return super().close()
-
-    def event(self, event: QEvent) -> bool:
-
-        return super().event(event)
 
     def closeEvent(self, event: QCloseEvent):
 
@@ -286,8 +283,7 @@ def start_gui(nextcloud_username: str = None, nextcloud_password: str = None):
     db_path = config.get('database', "database_path", default=None)
     database = GidSqliteApswDatabase(db_path, config=config, thread_safe=True, autoconnect=True)
     backend = Backend(database=database, config=config, update_signaler=UpdaterSignaler())
-    _app = AntistasiLogbookApplication.with_high_dpi_scaling(backend=backend, argvs=sys.argv)
-    _app.icon = AllResourceItems.app_icon_image.get_as_icon()
+    _app = AntistasiLogbookApplication.with_high_dpi_scaling(backend=backend, icon=AllResourceItems.app_icon_image, argvs=sys.argv)
     m = AntistasiLogbookMainWindow(META_CONFIG.get_config('general'))
     _app.main_window = m
     if nextcloud_username is not None and nextcloud_password is not None:
@@ -301,7 +297,7 @@ def start_gui(nextcloud_username: str = None, nextcloud_password: str = None):
 if __name__ == '__main__':
 
     import dotenv
-    # dotenv.load_dotenv(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\antistasi_logbook\nextcloud.env")
+    dotenv.load_dotenv(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\antistasi_logbook\nextcloud.env")
     sys.exit(start_gui(os.getenv("NEXTCLOUD_USERNAME", None), os.getenv("NEXTCLOUD_PASSWORD", None)))
 
 

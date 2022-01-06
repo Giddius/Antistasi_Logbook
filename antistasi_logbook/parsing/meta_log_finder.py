@@ -68,7 +68,6 @@ class MetaFinder:
             utc_datetime_kwargs = {k: int(v) for k, v in match.groupdict().items() if not k.startswith('local_')}
             local_datetime_kwargs = {k.removeprefix('local_'): int(v) for k, v in match.groupdict().items() if k.startswith('local_')}
             self.full_datetime = FullDateTimes(utc_datetime=datetime(tzinfo=UTC, **utc_datetime_kwargs), local_datetime=datetime(tzinfo=UTC, **local_datetime_kwargs))
-            log.debug("found full datetime, local datetime: %r, utc datetime: %r", self.full_datetime.local_datetime.isoformat(sep=" "), self.full_datetime.utc_datetime.isoformat(sep=" "))
 
     def _resolve_version(self, text: str) -> None:
         if match := self.regex_keeper.game_file.search(text):
@@ -86,7 +85,6 @@ class MetaFinder:
     def _resolve_game_map(self, text: str) -> None:
         # takes about 0.170319 s
         if match := self.regex_keeper.game_map.search(text):
-            log.debug("found game-map as %r", match)
             self.game_map = match.group('game_map')
 
     def _resolve_mods(self, text: str) -> None:

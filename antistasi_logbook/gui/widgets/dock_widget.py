@@ -122,7 +122,7 @@ class BaseDockWidget(QDockWidget):
     def _add_to_menu_bar(self):
         view_action = self.toggleViewAction()
         view_action.setText(f"{self.title} Window")
-        self.main_window.menubar.view_menu.addAction(view_action)
+        self.main_window.menubar.windows_menu.addAction(view_action)
 
     @property
     def app(self) -> "AntistasiLogbookApplication":
@@ -148,6 +148,42 @@ class BaseDockWidget(QDockWidget):
         super().show()
         if self.first_shown is False:
             self.first_shown = True
+
+
+class QueryWidget(BaseDockWidget):
+
+    def __init__(self, parent: QMainWindow):
+        super().__init__(parent, title="Query", start_floating=False, add_menu_bar_action=True)
+        self.setWidget(QStackedWidget(self))
+        self.widget.setHidden(True)
+        self.pages: dict[str, QWidget] = {}
+
+    def add_page(self, widget: QWidget, name: str = None):
+        if name is None:
+            for attr_name in ["name", "title"]:
+                if hasattr(widget, attr_name):
+                    name = getattr(widget, attr_name)
+                    break
+        if name is None:
+            raise AttributeError(f"missing parameter 'name' for {widget!r}")
+        page_index = self.widget.addWidget(widget)
+        widget.page_index = page_index
+        self.pages[name] = widget
+        self.widget.setHidden(False)
+
+    def set_current_index(self, target: Union[str, int, QWidget]):
+        if isinstance(target, int):
+            index = target
+        elif isinstance(target, str):
+            index = self.pages[target].page_index
+
+        elif isinstance(target, QWidget):
+            index = target.page_index
+        self.widget.setCurrentIndex(index)
+
+    @property
+    def widget(self) -> QStackedWidget:
+        return super().widget()
 
 
 # region[Main_Exec]

@@ -50,7 +50,7 @@ from urllib.parse import urlparse
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
-
+from weakref import WeakSet
 import PySide6
 from PySide6 import (QtCore, QtGui, QtWidgets, Qt3DAnimation, Qt3DCore, Qt3DExtras, Qt3DInput, Qt3DLogic, Qt3DRender, QtAxContainer, QtBluetooth,
                      QtCharts, QtConcurrent, QtDataVisualization, QtDesigner, QtHelp, QtMultimedia, QtMultimediaWidgets, QtNetwork, QtNetworkAuth,
@@ -77,6 +77,7 @@ if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend
     from gidapptools.gid_config.interface import GidIniConfig
     from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow, LogbookSystemTray
+    from gidapptools.gidapptools_qt.resources_helper import PixmapResourceItem
 # endregion[Imports]
 
 # region [TODO]
@@ -109,18 +110,21 @@ ABOUT_TEMPLATE = """
 
 class AntistasiLogbookApplication(QApplication):
 
-    def __init__(self, backend: "Backend", argvs: Iterable[str] = None):
+    def __init__(self, backend: "Backend", icon: "PixmapResourceItem" = None, argvs: Iterable[str] = None):
         super().__init__(argvs)
         self.backend = backend
+        self.icon = icon.get_as_icon() if icon is not None else icon
         self.meta_info = get_meta_info()
         self.meta_paths = get_meta_paths()
         self.available_font_families = set(QFontDatabase().families())
         self.jinja_environment = Environment(loader=BaseLoader)
         self.main_window: "AntistasiLogbookMainWindow" = None
         self.sys_tray: "LogbookSystemTray" = None
+        self.extra_windows = WeakSet()
         self.setup()
 
     def setup(self) -> None:
+        self.backend.start_up()
         self.setApplicationName(self.meta_info.app_name)
         self.setApplicationDisplayName(self.meta_info.pretty_app_name)
         self.setApplicationVersion(self.meta_info.version)
@@ -134,12 +138,12 @@ class AntistasiLogbookApplication(QApplication):
         self.setFont(font)
 
     @ classmethod
-    def with_high_dpi_scaling(cls, backend: "Backend", argvs: Iterable[str] = None):
+    def with_high_dpi_scaling(cls, backend: "Backend", icon: "PixmapResourceItem" = None, argvs: Iterable[str] = None):
         cls.setAttribute(Qt.AA_EnableHighDpiScaling, True)
         cls.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
         # cls.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.Round)
         QGuiApplication.setDesktopSettingsAware(True)
-        return cls(backend=backend, argvs=argvs)
+        return cls(backend=backend, icon=icon, argvs=argvs)
 
     @property
     def config(self) -> "GidIniConfig":

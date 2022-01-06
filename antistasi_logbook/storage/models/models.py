@@ -5,7 +5,7 @@ from tzlocal import get_localzone
 import json
 from gidapptools.general_helper.conversion import bytes2human
 from antistasi_logbook.storage.models.custom_fields import (URLField, PathField, LoginField, VersionField, PasswordField, TzOffsetField,
-                                                            RemotePathField, CompressedTextField, CompressedImageField, AwareTimeStampField)
+                                                            RemotePathField, CompressedTextField, CompressedImageField, AwareTimeStampField, CaselessTextField)
 from antistasi_logbook.updating.remote_managers import remote_manager_registry
 from antistasi_logbook.records.abstract_record import MessageFormat
 from antistasi_logbook.utilities.locks import FILE_LOCKS
@@ -20,6 +20,7 @@ from yarl import URL
 from statistics import mean
 import re
 from contextlib import contextmanager
+from playhouse.shortcuts import model_to_dict, update_model_from_dict
 from threading import Lock, RLock
 from functools import cached_property
 from datetime import datetime
@@ -42,6 +43,7 @@ if TYPE_CHECKING:
     from gidapptools.gid_config.meta_factory import GidIniConfig
     from antistasi_logbook.records.record_class_manager import RECORD_CLASS_TYPE, RecordClassManager
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
+    from antistasi_logbook.parsing.raw_record import RawRecord
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 
@@ -105,6 +107,12 @@ class BaseModel(Model):
             _out = _out[:-3]
         return _out
 
+    def __str__(self) -> str:
+        if hasattr(self, "name"):
+            return str(self.name)
+
+        return super().__str__()
+
 
 class AntstasiFunction(BaseModel):
     name = TextField(unique=True)
@@ -143,7 +151,7 @@ class GameMap(BaseModel):
     map_image_low_resolution = PathField(null=True)
     coordinates = JSONField(null=True)
     workshop_link = URLField(null=True)
-    comments = TextField(null=True)
+    comments = CompressedTextField(null=True)
     marked = BooleanField(default=False, index=True, help_text=MARKED_HELP_TEXT)
 
     class Meta:
@@ -215,7 +223,7 @@ class Server(BaseModel):
     update_enabled = BooleanField(default=False, verbose_name="Update", help_text="If this Server should update")
     ip = TextField(null=True, verbose_name="IP Address", help_text="IP Adress of the Server")
     port = IntegerField(null=True, verbose_name="Port", help_text="Port the Server uses")
-    comments = TextField(null=True, verbose_name="Comments", help_text="comments")
+    comments = CompressedTextField(null=True, verbose_name="Comments", help_text="comments")
     marked = BooleanField(default=False, index=True, verbose_name="Marked", help_text=MARKED_HELP_TEXT)
 
     class Meta:
@@ -259,7 +267,7 @@ class Server(BaseModel):
         return local_path
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(name={self.name!r}, remote_storage={self.remote_storage.name!r}, update_enabled={self.update_enabled!r}, remote_manager={self.remote_manager!r})"
+        return f"{self.__class__.__name__}(name={self.name!r}, remote_storage={self.remote_storage.name!r}, update_enabled={self.update_enabled!r})"
 
     def __str__(self) -> str:
         return self.name
@@ -282,7 +290,7 @@ class LogFile(BaseModel):
     server = ForeignKeyField(column_name='server', field='id', model=Server, lazy_load=True, backref="log_files", index=True, verbose_name="Server")
     unparsable = BooleanField(default=False, index=True, verbose_name="Unparsable")
     last_parsed_datetime = AwareTimeStampField(null=True, utc=True, verbose_name="Last Parsed Datetime")
-    comments = TextField(null=True, verbose_name="Comments")
+    comments = CompressedTextField(null=True, verbose_name="Comments")
     marked = BooleanField(default=False, verbose_name="Marked", help_text=MARKED_HELP_TEXT)
 
     class Meta:
@@ -294,6 +302,17 @@ class LogFile(BaseModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.is_downloaded = False
+
+    @cached_property
+    def pretty_server(self) -> str:
+        return self.server.pretty_name
+
+    @cached_property
+    def pretty_utc_offset(self) -> str:
+        offset = self.utc_offset
+        offset_hours = offset._offset.total_seconds() / 3600
+
+        return f"UTC{offset_hours:+}"
 
     @cached_property
     def amount_log_records(self) -> int:
@@ -346,11 +365,13 @@ class LogFile(BaseModel):
 
     def get_stats(self):
         all_stats: list[dict[str, Any]] = []
+        self.database.connect(True)
         query = LogRecord.select().where(LogRecord.log_file_id == self.id).where(LogRecord.record_class_id == RecordClass.get(name="PerformanceRecord").id).order_by(-LogRecord.recorded_at)
         for item_data in query.dicts().iterator():
             record_class = RecordClass.record_class_manager.get_by_id(item_data["record_class"])
             item = record_class.from_model_dict(item_data, log_file=self)
             all_stats.append(item.stats)
+        self.database.close()
         return all_stats
 
     @property
@@ -441,7 +462,7 @@ class Mod(BaseModel):
     name = TextField(index=True)
     default = BooleanField(default=False, index=True)
     official = BooleanField(default=False, index=True)
-    comments = TextField(null=True)
+    comments = CompressedTextField(null=True)
     marked = BooleanField(default=False, index=True, help_text=MARKED_HELP_TEXT)
     version_regex = re.compile(r"(\s*\-\s*)?v?\s*[\d\.]*$")
 
@@ -524,17 +545,26 @@ class RecordClass(BaseModel):
         return self.name
 
 
+class RecordOrigin(BaseModel):
+    name = TextField(unique=True, verbose_name="Name")
+    identifier = CaselessTextField(unique=True, verbose_name="Identifier")
+    is_default = BooleanField(default=False, verbose_name="Is Default Origin")
+
+    def check(self, raw_record: "RawRecord") -> bool:
+        return self.identifier in raw_record.content.casefold()
+
+
 class LogRecord(BaseModel):
     start = IntegerField(help_text="Start Line number of the Record", verbose_name="Start Line Number", index=True)
     end = IntegerField(help_text="End Line number of the Record", verbose_name="End Line Number")
     message = TextField(help_text="Message part of the Record", verbose_name="Message")
     recorded_at = AwareTimeStampField(index=True, utc=True, verbose_name="Recorded at")
     called_by = ForeignKeyField(column_name='called_by', field='id', model=AntstasiFunction, backref="log_records_called_by", lazy_load=True, null=True, index=True, verbose_name="Called by")
-    is_antistasi_record = BooleanField(default=False, index=True, verbose_name="Is Antistasi Record")
+    origin = ForeignKeyField(column_name="origin", field="id", model=RecordOrigin, backref="records", lazy_load=True, index=True, verbose_name="Origin", default=0)
     logged_from = ForeignKeyField(column_name='logged_from', field='id', model=AntstasiFunction, backref="log_records_logged_from", lazy_load=True, null=True, index=True, verbose_name="Logged from")
     log_file = ForeignKeyField(column_name='log_file', field='id', model=LogFile, lazy_load=True, backref="log_records", null=False, verbose_name="Log-File", index=True)
     log_level = ForeignKeyField(column_name='log_level', default=0, field='id', model=LogLevel, null=True, lazy_load=True, index=True, verbose_name="Log-Level")
-    record_class = ForeignKeyField(column_name='record_class', field='id', model=RecordClass, lazy_load=True, index=True, verbose_name="Record Class")
+    record_class = ForeignKeyField(column_name='record_class', field='id', model=RecordClass, lazy_load=True, index=True, verbose_name="Record Class", null=True)
     marked = BooleanField(default=False, index=True, help_text=MARKED_HELP_TEXT, verbose_name="Marked")
     ___has_multiline_message___: bool = False
     message_size_hint = None
@@ -601,6 +631,7 @@ class DatabaseMetaData(BaseModel):
         with cls._meta.database.write_lock:
             with cls._meta.database:
                 item.save()
+
         return item
 
     def get_absolute_last_update_finished_at(self) -> datetime:
@@ -656,7 +687,8 @@ def setup_db(database: "GidSqliteApswDatabase"):
 
     setup_data = {RemoteStorage: [{"name": "local_files", "id": 0, "base_url": "--LOCAL--", "manager_type": "LocalManager", "credentials_required": False},
                                   {"name": "community_webdav", "id": 1, "base_url": "https://antistasi.de", "manager_type": "WebdavManager", "credentials_required": True}],
-
+                  RecordOrigin: [{"id": 0, "name": "Generic", "identifier": "generic", "is_default": True},
+                  {"id": 1, "name": "Antistasi", "identifier": "| antistasi |", "is_default": False}],
                   LogLevel: [{"id": 0, "name": "NO_LEVEL"},
                              {"id": 1, "name": "DEBUG"},
                              {"id": 2, "name": "INFO"},

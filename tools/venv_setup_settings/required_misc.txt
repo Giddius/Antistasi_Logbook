@@ -12,3 +12,5 @@ qdarkstyle
 webdav4==0.9.3
 yarl==1.7.0
 jinja2==2.11.3
+natsort
+qtawesome

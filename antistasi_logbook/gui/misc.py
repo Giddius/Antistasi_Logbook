@@ -10,8 +10,8 @@ Soon.
 from pathlib import Path
 
 # * PyQt5 Imports --------------------------------------------------------------------------------------->
-from PySide6.QtCore import Signal, QObject
-
+from PySide6.QtCore import Signal, QObject, Qt
+from enum import Enum, Flag, auto, unique
 # endregion[Imports]
 
 # region [TODO]
@@ -29,6 +29,17 @@ from PySide6.QtCore import Signal, QObject
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 # endregion[Constants]
+
+
+class UserRole(Enum):
+    def _generate_next_value_(name, start, count, last_values):
+        return Enum._generate_next_value_(name, int(Qt.UserRole), count, last_values)
+
+
+@unique
+class CustomRole(int, UserRole):
+    UPDATE_ENABLED_ROLE = auto()
+    MARKED_ROLE = auto()
 
 
 class UpdaterSignaler(QObject):
@@ -54,5 +65,4 @@ class UpdaterSignaler(QObject):
 
 if __name__ == '__main__':
     pass
-
 # endregion[Main_Exec]

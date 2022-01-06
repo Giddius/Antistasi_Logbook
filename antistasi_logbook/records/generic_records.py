@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.parsing.parser import RawRecord
     from PySide6.QtGui import QColor
+    from antistasi_logbook.storage.models.models import LogFile, LogLevel, AntstasiFunction, LogRecord
 # endregion[Imports]
 
 # region [TODO]
@@ -55,8 +56,8 @@ class PerfProfilingRecord(BaseRecord):
     __slots__ = tuple(BASE_SLOTS)
 
     @classmethod
-    def check(cls, raw_record: "RawRecord") -> bool:
-        if raw_record.parsed_data.get("message").strip().startswith("[ASU] Perf-profiling"):
+    def check(cls, log_record: "LogRecord") -> bool:
+        if log_record.message.strip().startswith("[ASU] Perf-profiling"):
             return True
 
         return False
@@ -97,8 +98,8 @@ class TFEInfoSettings(BaseRecord):
             return text
 
     @classmethod
-    def check(cls, raw_record: "RawRecord") -> bool:
-        if raw_record.parsed_data.get("message").startswith("[TFE] Info: Settings:"):
+    def check(cls, log_record: "LogRecord") -> bool:
+        if log_record.message.startswith("[TFE] Info: Settings:"):
             return True
 
         return False

@@ -77,23 +77,14 @@ class FakeField:
 
 
 class LogFilesModel(BaseQueryDataModel):
+    extra_columns = {FakeField(name="amount_log_records", verbose_name="Amount Log Records")}
+    strict_exclude_columns = {"startup_text", "header_text"}
 
-    def __init__(self, backend: "Backend", parent: Optional[QtCore.QObject] = None, show_unparsable: bool = False) -> None:
+    def __init__(self, parent: Optional[QtCore.QObject] = None, show_unparsable: bool = False) -> None:
         self.show_unparsable = show_unparsable
-        super().__init__(backend, LogFile, parent=parent)
+        super().__init__(LogFile, parent=parent)
         self.ordered_by = (-LogFile.modified_at, LogFile.server)
         self.filters = {}
-
-    @property
-    def column_names_to_exclude(self) -> set[str]:
-        _out = self._column_names_to_exclude.union({'header_text', 'startup_text', 'utc_offset', 'last_parsed_datetime', 'last_parsed_line_number', "remote_path"})
-        if self.show_unparsable is False:
-            _out.add("unparsable")
-        return _out
-
-    @property
-    def column_ordering(self) -> dict[str, int]:
-        return self._column_ordering | {"server": 2, "remote_path": 100}
 
     def on_filter_newer_than(self, dt: datetime):
         if not isinstance(dt, datetime):
@@ -179,12 +170,6 @@ class LogFilesModel(BaseQueryDataModel):
         with self.backend.database:
             self.content_items = list(self.get_query().execute())
 
-        return self
-
-    def get_columns(self) -> "BaseQueryDataModel":
-        columns = [field for field_name, field in LogFile._meta.fields.items() if field_name not in self.column_names_to_exclude]
-        columns.append(FakeField(name="amount_log_records", verbose_name="Amount Log Records"))
-        self.columns = tuple(sorted(columns, key=lambda x: self.column_ordering.get(x.name.casefold(), 99)))
         return self
 
     def _get_tool_tip_data(self, index: INDEX_TYPE) -> Any:

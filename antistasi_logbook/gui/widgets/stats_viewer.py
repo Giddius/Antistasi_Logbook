@@ -102,6 +102,20 @@ COLORS = ["red", "tan", "blue", "gold", "gray", "lime", "peru", "pink", "plum", 
           "olive", "wheat", "white", "bisque", "indigo", "maroon", "orange", "purple", "sienna", "tomato", "yellow"]
 
 
+class CustomSampleItem(pg.ItemSample):
+    changed_vis = Signal(object)
+
+    def mouseClickEvent(self, event):
+        """Use the mouseClick event to toggle the visibility of the plotItem
+        """
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
+            visible = self.item.isVisible()
+            self.item.setVisible(not visible)
+            self.changed_vis.emit(self.item)
+        event.accept()
+        self.update()
+
+
 class ColorSelector(QGroupBox):
     color_changed = Signal(str, QColor)
 
@@ -161,7 +175,8 @@ class StatsWindow(QMainWindow):
         self.stat_data = sorted(stat_data, key=lambda x: x.get("timestamp"), reverse=False)
         self.available_colors = COLORS.copy()
         random.shuffle(self.available_colors)
-        self.legend = pg.LegendItem((80, 80), 50, colCount=2)
+        self.legend = pg.LegendItem((80, 80), 50, colCount=2, sampleType=CustomSampleItem)
+        self.visible_item_names = {"ServerFPS"}
 
         self.setup()
 
@@ -176,6 +191,15 @@ class StatsWindow(QMainWindow):
     @cached_property
     def all_timestamps(self) -> list[float]:
         return [i.get("timestamp").timestamp() for i in self.stat_data]
+
+    @property
+    def max_value(self) -> float:
+        data = []
+        for item in self.stat_data:
+            for k, v in item.items():
+                if k in self.visible_item_names:
+                    data.append(v)
+        return max(data)
 
     @property
     def app(self) -> "AntistasiLogbookApplication":
@@ -202,6 +226,9 @@ class StatsWindow(QMainWindow):
         self.vertical_crosshair.setVisible(False)
         self.horizontal_crosshair.setVisible(False)
         self.plot_widget.setMouseEnabled(True)
+        time_padding = 30 * 60  # half an hour
+        self.plot_widget.setLimits(yMin=0, yMax=self.max_value * 1.00001, xMin=min(self.all_timestamps) - time_padding, xMax=max(self.all_timestamps) + time_padding)
+
         self.legend.setParentItem(self.plot_widget.getPlotItem())
 
         for idx, key in enumerate(self.keys):
@@ -212,7 +239,21 @@ class StatsWindow(QMainWindow):
             if item.name().casefold() != "serverfps":
                 item.setVisible(False)
 
+            for sample, label in self.legend.items:
+                sample.changed_vis.connect(self.change_limits)
+
             self.plot_widget.sceneObj.sigMouseMoved.connect(self.mouse_moved_in_plot)
+
+    def change_limits(self, item: pg.PlotDataItem):
+        name = item.name()
+        is_visible = item.isVisible()
+        if is_visible is True:
+            self.visible_item_names.add(name)
+        elif name in self.visible_item_names:
+            self.visible_item_names.remove(name)
+
+        self.plot_widget.setLimits(yMax=self.max_value * 1.00001)
+        self.plot_widget.update()
 
     def mouse_moved_in_plot(self, pos) -> None:
         def set_vertical(point):
@@ -263,8 +304,15 @@ class StatsWindow(QMainWindow):
         time_stamp = date_time.timestamp()
         self.plot_widget.addLine(x=time_stamp, pen=pg.mkPen("red", width=3))
 
+    def show(self) -> None:
+        self.app.extra_windows.add(self)
+        return super().show()
 
+    def closeEvent(self, event: PySide6.QtGui.QCloseEvent) -> None:
+        self.app.extra_windows.remove(self)
+        return super().closeEvent(event)
 # region[Main_Exec]
+
 
 if __name__ == '__main__':
     pass

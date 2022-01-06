@@ -47,6 +47,19 @@ log = get_logger(__name__)
 # endregion[Constants]
 
 
+class CaselessTextField(TextField):
+
+    def db_value(self, value):
+        if value is not None:
+            value = str(value).casefold()
+        return super().db_value(value)
+
+    def python_value(self, value):
+        if value is not None:
+            value = value.casefold()
+        return super().python_value(value)
+
+
 class RemotePathField(Field):
     field_type = "REMOTEPATH"
 

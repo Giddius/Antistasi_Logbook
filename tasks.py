@@ -496,14 +496,19 @@ RESOURCE_HEADER_TEXT = """
 
 from enum import Enum, auto, Flag
 from pathlib import Path
-from PySide6.QtGui import QPixmap, QIcon,QImage
+from PySide6.QtGui import QPixmap, QIcon, QImage
 from typing import Union, Optional, Iterable, TYPE_CHECKING
 from collections import defaultdict
-from gidapptools.gidapptools_qt.resources_helper import ressource_item_factory,ResourceItem,AllResourceItemsMeta
-from . import {converted_module_path}
+import atexit
+import pp
+from pprint import pprint, pformat
+from gidapptools.gidapptools_qt.resources_helper import ressource_item_factory, ResourceItem, AllResourceItemsMeta
+from gidapptools import get_meta_info, get_logger
+from . import antistasi_logbook_resources
 
 # endregion[Imports]
 
+log = get_logger(__name__)
 
 """
 
@@ -516,6 +521,19 @@ RESSOURCE_ITEM_COLLECTION_ATTRIBUTE_TEMPLATE = "    {att_name}_{cat_name_lower} 
 
 
 AUTO_GENERATED_HINT = '"""\nThis File was auto-generated\n"""\n\n\n'
+
+RESOURCE_ITEM_COLLECTION_POST_TEXT = r"""
+
+    @classmethod
+    def dump_missing(cls):
+        missing_items = {k: [i.rsplit('_', 1)[0] for i in v] for k, v in cls.missing_items.items()}
+
+        log.info("Missing Ressource Items:\n%s", pp.fmt(missing_items).replace("'", '"'))
+
+
+if get_meta_info().is_dev is True:
+    atexit.register(AllResourceItems.dump_missing)
+"""
 
 
 def _write_resource_list_mapping(raw_text: str, tgt_file: Path, converted_file_path: Path):
@@ -552,7 +570,7 @@ def _write_resource_list_mapping(raw_text: str, tgt_file: Path, converted_file_p
         for cat_name, obj_names in all_obj_names.items():
             for obj_name in obj_names:
                 text_lines.append(RESSOURCE_ITEM_COLLECTION_ATTRIBUTE_TEMPLATE.format(att_name=obj_name.casefold(), obj_name=obj_name, cat_name=cat_name, cat_name_lower=cat_name.casefold()))
-
+        text_lines.append(RESOURCE_ITEM_COLLECTION_POST_TEXT)
         tgt_file.write_text('\n'.join(text_lines), encoding='utf-8', errors='ignore')
 
     def _to_md():
