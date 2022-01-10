@@ -14,7 +14,7 @@ from functools import cached_property
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 from antistasi_logbook.records.enums import RecordFamily, MessageFormat, MessageTypus
-
+from gidapptools.general_helper.enums import MiscEnum
 if TYPE_CHECKING:
     # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.parsing.parser import RawRecord
@@ -69,8 +69,9 @@ class AbstractRecord(ABC):
             return pretty_message_lines[0] + '...'
         else:
             return pretty_message_lines[0]
-# region[Main_Exec]
 
+
+# region[Main_Exec]
 
 if __name__ == '__main__':
     pass

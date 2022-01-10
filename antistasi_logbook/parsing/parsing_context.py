@@ -19,7 +19,7 @@ from concurrent.futures import FIRST_EXCEPTION, Future, wait
 import attr
 from dateutil.tz import UTC, tzoffset
 from playhouse.shortcuts import model_to_dict
-from antistasi_logbook.storage.models.models import GameMap, LogFile, LogRecord
+from antistasi_logbook.storage.models.models import GameMap, LogFile, LogRecord, Version
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -203,7 +203,8 @@ class LogParsingContext:
             self.log_file_data["game_map"] = game_map_item
 
         if self.log_file_data.get("version") is None:
-            self.log_file_data["version"] = finder.version
+            version = Version.add_or_get_version(finder.version)
+            self.log_file_data["version"] = version
 
         if self.log_file_data.get("is_new_campaign") is None:
             self.log_file_data["is_new_campaign"] = finder.is_new_campaign

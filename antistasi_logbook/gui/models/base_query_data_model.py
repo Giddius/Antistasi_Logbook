@@ -12,9 +12,10 @@ from typing import TYPE_CHECKING, Any, Union, Callable, Optional
 from pathlib import Path
 from functools import partial
 from threading import Event
-
+import inspect
 # * Third Party Imports --------------------------------------------------------------------------------->
 from peewee import Field, Query
+from apsw import SQLError
 from antistasi_logbook.storage.models.models import BaseModel
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 
@@ -39,9 +40,12 @@ from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog
                                QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
                                QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
                                QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
-
+from antistasi_logbook.storage.models.custom_fields import PathField, URLField
 from natsort import natsorted
-from gidapptools import get_logger
+from gidapptools.general_helper.enums import MiscEnum
+from gidapptools import get_logger, get_meta_config
+from antistasi_logbook.gui.widgets.markdown_editor import MarkdownEditorDialog
+from peewee import IntegerField
 if TYPE_CHECKING:
     # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.backend import Backend
@@ -50,6 +54,7 @@ if TYPE_CHECKING:
 
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
+    from antistasi_logbook.gui.views.base_query_tree_view import CustomContextMenu
 # endregion[Imports]
 
 # region [TODO]
@@ -75,6 +80,37 @@ DATA_ROLE_MAP_TYPE = dict[Union[Qt.ItemDataRole, int], Callable[[INDEX_TYPE], An
 HEADER_DATA_ROLE_MAP_TYPE = dict[Union[Qt.ItemDataRole, int], Callable[[int, Qt.Orientation], Any]]
 
 
+class EmptyContentItem:
+
+    def __init__(self, display_text: str = "") -> None:
+        self.display_text = display_text
+
+    def get_data(self, column_name: str):
+        if column_name == "name":
+            return self.display_text
+
+        if column_name == "full":
+            return self.display_text
+
+    def __getattr__(self, key: str):
+        return None
+
+
+class ModelContextMenuAction(QAction):
+    clicked = Signal(object, object, QModelIndex)
+
+    def __init__(self, item: BaseModel, column: Field, index: QModelIndex, icon: QIcon = None, text: str = None, parent=None):
+        super().__init__(**{k: v for k, v in dict(icon=icon, text=text, parent=parent).items() if v is not None})
+        self.item = item
+        self.column = column
+        self.index = index
+        self.triggered.connect(self.on_triggered)
+
+    @Slot()
+    def on_triggered(self):
+        self.clicked.emit(self.item, self.column, self.index)
+
+
 class BaseQueryDataModel(QAbstractTableModel):
     extra_columns = set()
     strict_exclude_columns = set()
@@ -82,13 +118,16 @@ class BaseQueryDataModel(QAbstractTableModel):
     bool_images = {True: AllResourceItems.check_mark_green_image.get_as_icon(),
                    False: AllResourceItems.close_black_image.get_as_icon()}
 
-    def __init__(self, db_model: "BaseModel", parent: Optional[QtCore.QObject] = None) -> None:
+    mark_images = {"marked": AllResourceItems.mark_image.get_as_icon(),
+                   "unmark": AllResourceItems.unmark_image.get_as_icon()}
+
+    def __init__(self, db_model: "BaseModel", parent: Optional[QtCore.QObject] = None, name: str = None) -> None:
         self.data_role_table: DATA_ROLE_MAP_TYPE = {Qt.DisplayRole: self._get_display_data,
                                                     Qt.ToolTipRole: self._get_tool_tip_data,
                                                     Qt.TextAlignmentRole: self._get_text_alignment_data,
                                                     Qt.DecorationRole: self._get_decoration_data,
                                                     # Qt.ForegroundRole: self._get_foreground_data,
-                                                    # Qt.BackgroundRole: self._get_background_data,
+                                                    Qt.BackgroundRole: self._get_background_data,
                                                     # Qt.FontRole: self._get_font_data,
                                                     # Qt.EditRole: self._get_edit_data,
                                                     # Qt.InitialSortOrderRole: self._get_initial_sort_order_data,
@@ -130,11 +169,14 @@ class BaseQueryDataModel(QAbstractTableModel):
                                                                   }
 
         self.db_model = db_model
+        self.name = name or self.__class__.__name__
         self.ordered_by = (self.db_model.id,)
         self.content_items: list[Union["BaseModel", "AbstractRecord"]] = None
         self.columns: tuple[Field] = tuple(c for c in list(self.db_model.get_meta().sorted_fields) + list(self.extra_columns) if c.name not in self.strict_exclude_columns)
         self.data_tool: "BaseDataToolWidget" = None
         self.original_sort_order: tuple[int] = tuple()
+        self.color_config = get_meta_config().get_config("color")
+        self.filter_item = None
 
         super().__init__(parent=parent)
 
@@ -155,8 +197,66 @@ class BaseQueryDataModel(QAbstractTableModel):
         index.column_item = self.columns[index.column()]
         return index
 
+    def add_empty_item(self, position: int = None):
+        empty_item = EmptyContentItem()
+        content_items = list(self.content_items)
+
+        if position is None:
+            content_items.append(empty_item)
+        else:
+            content_items.insert(position, empty_item)
+        self.original_sort_order = tuple(content_items)
+        self.content_items = content_items
+
+    def add_context_menu_actions(self, menu: "CustomContextMenu", index: QModelIndex):
+        if self.app.is_dev is True:
+            force_refresh_model_action = QAction(f"Force Refresh Model {self.name!r}")
+            force_refresh_model_action.triggered.connect(self.force_refresh)
+            menu.add_action(force_refresh_model_action, "debug")
+
+        item, column = self.get(index)
+
+        if item is None or column is None:
+            return
+        if self.db_model.has_column_named("marked"):
+            mark_text = f"Mark {item}" if item.marked is False else f"Unmark {item}"
+            mark_action = ModelContextMenuAction(item, column, index, text=mark_text)
+            mark_action.clicked.connect(self.mark_item)
+
+            menu.add_action(mark_action, "edit")
+
+        if self.db_model.has_column_named("comments"):
+            edit_comments_action = ModelContextMenuAction(item, column, index, text="Edit Comments")
+            edit_comments_action.clicked.connect(self.edit_comments)
+
+            menu.add_action(edit_comments_action, "edit")
+
+    @Slot()
+    def force_refresh(self):
+        log.debug("starting force refreshing %r", self)
+        self.refresh()
+        log.debug("finished force refreshing %r", self)
+
+    @Slot(object, object, QModelIndex)
+    def edit_comments(self, item: BaseModel, column: Field, index: QModelIndex):
+        log.debug("starting comments editor for %r", item)
+        accepted, text = MarkdownEditorDialog.show_dialog(text=item.comments)
+        log.debug("result of comments editor: (%r, %r)", accepted, text)
+        if accepted:
+            comments_index = self.index(index.row(), self.get_column_index("comments"), index.parent())
+            self.setData(index=comments_index, value=text, role=Qt.DisplayRole)
+
+    @Slot(object, object, QModelIndex)
+    def mark_item(self, item: BaseModel, column: Field, index: QModelIndex):
+        log.debug("marking %r", item)
+        marked_index = self.index(index.row(), self.get_column_index("marked"), index.parent())
+        self.setData(index=marked_index, value=not item.marked, role=Qt.DisplayRole)
+
     def get_query(self) -> "Query":
-        return self.db_model.select().order_by(self.ordered_by)
+        query = self.db_model.select()
+        if self.filter_item is not None:
+            query = query.where(self.filter_item)
+        return query.order_by(*self.ordered_by)
 
     def get_content(self) -> "BaseQueryDataModel":
         """
@@ -167,6 +267,13 @@ class BaseQueryDataModel(QAbstractTableModel):
         Returns:
             [type]: [description]
         """
+        try:
+            with self.app.backend.database:
+
+                self.content_items = list(self.get_query().execute())
+        except SQLError as e:
+            log.error(e, True)
+            log.debug(f"{self.get_query()=}")
         return self
 
     def get_columns(self) -> "BaseQueryDataModel":
@@ -198,7 +305,7 @@ class BaseQueryDataModel(QAbstractTableModel):
             return "Yes" if value is True else "No"
         if role == Qt.DecorationRole:
             if column.name == "marked":
-                return self.bool_images[True] if value is True else None
+                return self.mark_images.get("marked") if value is True else self.mark_images.get("unmark")
 
             return self.bool_images[value]
 
@@ -207,7 +314,11 @@ class BaseQueryDataModel(QAbstractTableModel):
         if role == Qt.DisplayRole:
             return '-'
 
-    def _modify_display_data(self, data: Any) -> str:
+    def _modify_display_data(self, data: Any, item: "BaseModel", column: "Field") -> str:
+        if isinstance(data, bool):
+            return self.on_display_data_bool(Qt.DisplayRole, item, column, data)
+        if data is None:
+            return self.on_display_data_none(Qt.DisplayRole, item, column)
         return str(data)
 
     @profile
@@ -238,13 +349,17 @@ class BaseQueryDataModel(QAbstractTableModel):
     @profile
     def _get_display_data(self, index: INDEX_TYPE) -> Any:
         data = index.row_item.get_data(index.column_item.name)
-        return self._modify_display_data(data)
+        return self._modify_display_data(data, index.row_item, index.column_item)
 
     def _get_foreground_data(self, index: INDEX_TYPE) -> Any:
         pass
 
+    @profile
     def _get_background_data(self, index: INDEX_TYPE) -> Any:
-        pass
+        item, column = self.get(index)
+        value = getattr(item, column.name)
+        if hasattr(value, "background_color"):
+            return value.background_color
 
     def _get_font_data(self, index: INDEX_TYPE) -> Any:
         pass
@@ -387,6 +502,39 @@ class BaseQueryDataModel(QAbstractTableModel):
     @profile
     def sort(self, column: int, order: PySide6.QtCore.Qt.SortOrder = None) -> None:
 
+        def make_sort_key(in_column: Field):
+            def sort_key(item):
+                if in_column.field_type in {"TIMESTAMP", "TZOFFSET"} or in_column.name in {"size"}:
+                    _out = getattr(item, in_column.name)
+                else:
+                    try:
+                        _out = item.get_data(in_column.name, None)
+                    except AttributeError:
+
+                        _out = getattr(item, in_column.name, None)
+
+                if isinstance(in_column, PathField):
+
+                    if _out is None:
+                        return ""
+                    return _out.as_posix()
+
+                if isinstance(in_column, URLField):
+
+                    if _out is None:
+                        return ""
+                    return str(item.get_data(in_column.name))
+
+                if isinstance(in_column, IntegerField) and _out is None:
+                    return 9999999
+
+                if _out is None:
+                    return ""
+
+                return _out
+
+            return sort_key
+
         self.layoutAboutToBeChanged.emit()
 
         if self.columns is None or self.content_items is None:
@@ -404,11 +552,12 @@ class BaseQueryDataModel(QAbstractTableModel):
             elif order == Qt.DescendingOrder:
                 reverse = True
             try:
-                new_content = natsorted(list(self.content_items), key=lambda x: x.get_data(_column.name), reverse=reverse)
+                new_content = natsorted(list(self.content_items), key=make_sort_key(in_column=_column), reverse=reverse)
             except TypeError:
-                new_content = sorted(list(self.content_items), key=lambda x: x.get_data(_column.name), reverse=reverse)
 
-        self.content_items = tuple(new_content)
+                new_content = sorted(list(self.content_items), key=make_sort_key(in_column=_column), reverse=reverse)
+
+        self.content_items = list(new_content)
 
         self.layoutChanged.emit()
 
@@ -435,8 +584,37 @@ class BaseQueryDataModel(QAbstractTableModel):
         self.content_items = tuple([new_item if i is item else i for i in self.content_items])
         self.dataChanged.emit(self.index(index.row(), 0, QModelIndex()), self.index(index.row(), self.columnCount(), QModelIndex()))
 
+    def get(self, key: Union[QModelIndex, int]) -> Union[tuple, BaseModel]:
+        if isinstance(key, QModelIndex):
+            if not (0 <= key.row() < len(self.content_items)):
+                return None, None
+            return self.content_items[key.row()], self.columns[key.column()]
+
+        if isinstance(key, int):
+            if not (0 <= key < len(self.content_items)):
+                return None
+            return self.content_items[key]
+
+    def setData(self, index: Union[PySide6.QtCore.QModelIndex, PySide6.QtCore.QPersistentModelIndex], value: Any, role: int = ...) -> bool:
+        if not index.isValid():
+            return
+        if not 0 <= index.row() < len(self.content_items):
+            return None
+
+        item, column = self.get(index)
+        if role == Qt.DisplayRole:
+            log.debug("setting role %r data of %r column %r to %r", Qt.DisplayRole, item, column, value)
+            with self.database.write_lock:
+                with self.database:
+                    self.db_model.update(**{column.name: value}).where(self.db_model.id == item.id).execute()
+
+        self.refresh_item(index)
+
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(backend={self.backend!r}, db_model={self.db_model!r}, parent={self.parent()!r})"
+        return f"{self.__class__.__name__}(backend={self.backend!r}, db_model={self.db_model!r})"
+
+    def __str__(self) -> str:
+        return self.name
 # region[Main_Exec]
 
 

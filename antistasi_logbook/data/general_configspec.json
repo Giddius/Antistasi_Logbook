@@ -1,10 +1,13 @@
 {
-    "database": { "database_path": { "converter": "path", "default": null } },
+    "general": { "max_threads": { "converter": "integer", "default": "5" } },
+    "database": {
+        "database_path": { "converter": "path", "default": null },
+        "backup_database": { "converter": "boolean", "default": "False" },
+        "backup_limit": { "converter": "integer", "default": "0" }
+    },
     "updating": {
         "updates_enabled": { "converter": "boolean", "default": "True" },
         "update_interval": { "converter": "timedelta", "default": "5 min" },
-        "max_updating_threads": { "converter": "integer", "default": "5" },
-        "max_inserting_threads": { "converter": "integer", "default": "5" },
         "max_update_time_frame": {
             "converter": "timedelta",
             "default": null
@@ -44,5 +47,8 @@
     },
     "gui": {
         "style": { "converter": "string", "default": "base" }
+    },
+    "debug": {
+        "dev_mode": { "converter": "boolean", "default": "False" }
     }
 }

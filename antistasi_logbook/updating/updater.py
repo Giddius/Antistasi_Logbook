@@ -28,6 +28,7 @@ from gidapptools.gid_signal.interface import get_signal
 if TYPE_CHECKING:
     # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.gui.misc import UpdaterSignaler
+    from antistasi_logbook.backend import Backend
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
     from antistasi_logbook.updating.info_item import InfoItem
     from antistasi_logbook.parsing.parsing_context import LogParsingContext
@@ -68,26 +69,41 @@ class Updater:
 
     is_updating_event: Event = Event()
 
-    __slots__ = ("config", "parsing_context_factory", "database", "parser", "stop_event", "pause_event", "thread_pool", "_to_close_contexts", "signaler")
+    __slots__ = ("backend", "stop_event", "pause_event", "_to_close_contexts", "signaler")
 
     def __init__(self,
-                 config: "GidIniConfig",
-                 parsing_context_factory: Callable[["LogFile"], "LogParsingContext"],
-                 database: "GidSqliteApswDatabase",
-                 parser: object,
+                 backend: "Backend",
                  stop_event: Event,
                  pause_event: Event,
-                 thread_pool_class: type["ThreadPoolExecutor"] = None,
                  signaler: "UpdaterSignaler" = None) -> None:
-        self.config = config
-        self.parsing_context_factory = parsing_context_factory
-        self.database = database
-        self.parser = parser
+
+        self.backend = backend
+
         self.stop_event = stop_event
         self.pause_event = pause_event
-        self.thread_pool = ThreadPoolExecutor(self.max_threads, thread_name_prefix=self.thread_prefix) if thread_pool_class is None else thread_pool_class(self.max_threads, thread_name_prefix=self.thread_prefix)
+
         self._to_close_contexts = queue.Queue()
         self.signaler = signaler
+
+    @property
+    def config(self):
+        return self.backend.config
+
+    @property
+    def parsing_context_factory(self):
+        return self.backend.get_parsing_context
+
+    @property
+    def database(self) -> "GidSqliteApswDatabase":
+        return self.backend.database
+
+    @property
+    def parser(self):
+        return self.backend.parser
+
+    @property
+    def thread_pool(self) -> ThreadPoolExecutor:
+        return self.backend.thread_pool
 
     @property
     def max_threads(self) -> int:
@@ -238,17 +254,19 @@ class Updater:
 
     @profile
     def update_record_classes(self, server: Server = None, force: bool = False):
+
         def _find_record_class(_record: "LogRecord") -> tuple["LogRecord", "RecordClass"]:
             _record_class = self.database.record_processor.determine_record_class(_record)
             return _record, _record_class
 
         log.info("updating record classes")
-        batch_size = (32767 // 2) - 1
+        # batch_size = (32767 // 2) - 1
+        batch_size = 100_000
         tasks = []
         to_update = []
 
-        for record in self.database.iter_all_records(server=server, only_missing_record_class=not force):
-            record, record_class = _find_record_class(record)
+        for record, record_class in self.thread_pool.map(_find_record_class, self.database.iter_all_records(server=server, only_missing_record_class=not force)):
+
             if record.record_class_id == record_class.id:
                 continue
 
@@ -281,8 +299,9 @@ class Updater:
             return
         self.is_updating_event.set()
         self.before_updates()
+        tasks = []
         try:
-            tasks = []
+
             self.database.session_meta_data.last_update_started_at = datetime.now(tz=timezone.utc)
             for server in self.database.get_all_server():
                 if server.is_updatable() is False:
@@ -295,8 +314,10 @@ class Updater:
                     self.process(server=server)
                     tasks.append(self.thread_pool.submit(self.update_record_classes, server=server))
                     log.info("FINISHED updating server %r", server)
-            log.debug("Waiting for all %r record class update tasks to finish", len(tasks))
+
+            log.debug("waiting for %r tasks to finish", len(tasks))
             wait(tasks, return_when=ALL_COMPLETED)
+
             log.debug("All record class update tasks have finished")
             amount_deleted = 0
             for server in self.database.get_all_server():
@@ -321,7 +342,7 @@ class Updater:
         return self.update()
 
     def shutdown(self) -> None:
-        self.thread_pool.shutdown(wait=True, cancel_futures=False)
+        pass
 
 
 # region[Main_Exec]

@@ -379,9 +379,11 @@ class LogFileDetailWidget(BaseDetailWidget):
 
     def show_stats(self):
         all_stats = self.log_file.get_stats()
-
+        if len(all_stats) < 2:
+            log.debug("%r -> %r", len(all_stats), all_stats)
+            return
         self.temp_plot_widget = StatsWindow(all_stats, title=self.log_file.name.upper)
-
+        self.temp_plot_widget.add_marked_records(self.log_file.get_marked_records())
         self.temp_plot_widget.show()
 
     def open_mod_link(self, index):
@@ -469,7 +471,7 @@ class AbstractSyntaxHighlightRule(ABC):
     def apply(self, text: str, highlighter: "MessageHighlighter") -> Generator[tuple[int, int, QTextFormat], None, None]:
         for match in self.pattern.finditer(text):
             start, end = match.span()
-            log.debug("%r found match %r", self.name, match)
+
             yield start, end - start, self.style_format
 
 
@@ -496,9 +498,9 @@ class TitleHighlightRule(AbstractSyntaxHighlightRule):
         style_format = QTextCharFormat()
         style_format.setFontStyleHint(QFont.StyleHint.Monospace, QFont.StyleStrategy.PreferQuality)
         style_format.setFontWeight(QFont.Weight.Black)
-        log.debug("before multiplication by 2 style_format.fontPointSize()=%r", style_format.fontPointSize())
+
         style_format.setFontPointSize(style_format.font().pointSize() * 2)
-        log.debug("after multiplication by 2 style_format.fontPointSize()=%r", style_format.fontPointSize())
+
         style_format.setTextOutline(QColor(0, 0, 0, 255))
         style_format.setForeground(QColor(0, 175, 100, 250))
 
@@ -511,7 +513,6 @@ class TitleHighlightRule(AbstractSyntaxHighlightRule):
             current_block = highlighter.currentBlock()
             if current_block.firstLineNumber() == 0 and current_block.document().lineCount() > 1:
 
-                log.debug("%r found match %r", self.name, match)
                 yield start, end - start, self.style_format
 
 
@@ -596,8 +597,8 @@ class KVHighlightRule(AbstractSyntaxHighlightRule):
     def _make_style_format(self) -> QTextCharFormat:
         style_format = QTextCharFormat()
 
-        style_format.setBackground(QColor(25, 75, 25, 100))
-        style_format.setForeground(QColor(255, 255, 255, 255))
+        style_format.setBackground(QColor(25, 75, 25, 35))
+
         return style_format
 
 
@@ -696,10 +697,13 @@ class LogRecordDetailView(BaseDetailWidget):
     def get_stats(self):
         all_stats = self.record.log_file.get_stats()
         if len(all_stats) < 2:
+            log.debug("%r -> %r", len(all_stats), all_stats)
             return
-        temp_plot_widget = StatsWindow(all_stats, title=self.record.log_file.name.upper)
-        temp_plot_widget.add_line_at(self.record.recorded_at)
-        temp_plot_widget.show()
+        self.temp_plot_widget = StatsWindow(all_stats, title=self.record.log_file.name.upper)
+        self.temp_plot_widget.add_current_record(self.record)
+
+        self.temp_plot_widget.add_marked_records(self.record.log_file.get_marked_records())
+        self.temp_plot_widget.show()
 
 
 # region[Main_Exec]

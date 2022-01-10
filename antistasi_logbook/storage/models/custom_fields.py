@@ -24,7 +24,7 @@ from playhouse.fields import CompressedField
 from playhouse.apsw_ext import IntegerField, CharField, TextField, BigIntegerField, Field, BlobField, DateTimeField, BooleanField, DecimalField, FixedCharField, BareField, ForeignKeyField, ManyToManyField, TimestampField
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
-from antistasi_logbook.utilities.misc import Version
+from antistasi_logbook.utilities.misc import VersionItem
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from antistasi_logbook.utilities.path_utilities import RemotePath
 from gidapptools import get_logger
@@ -45,6 +45,15 @@ from gidapptools import get_logger
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
+
+
+class FakeField:
+    field_type = "FAKE"
+
+    def __init__(self, name: str, verbose_name: str) -> None:
+        self.name = name
+        self.verbose_name = verbose_name
+        self.help_text = None
 
 
 class CaselessTextField(TextField):
@@ -91,14 +100,14 @@ class PathField(Field):
 class VersionField(Field):
     field_type = "VERSION"
 
-    def db_value(self, value: Version):
+    def db_value(self, value: VersionItem):
         if value is not None:
             return str(value)
 
-    def python_value(self, value) -> Optional[Version]:
+    def python_value(self, value) -> Optional[VersionItem]:
         if value is None:
             return None
-        return Version.from_string(value)
+        return VersionItem.from_string(value)
 
 
 class URLField(Field):
@@ -186,6 +195,21 @@ class CompressedTextField(CompressedField):
             return value.decode(encoding='utf-8', errors='ignore')
 
 
+class MarkedField(BooleanField):
+
+    def __init__(self, **kwargs):
+        super().__init__(index=True, default=False, help_text="Mark items to find them easier", verbose_name="Marked", **kwargs)
+
+
+class CommentsField(CompressedTextField):
+
+    def __init__(self, compression_level=6, algorithm=CompressedField.ZLIB, **kwargs):
+        kwargs.pop("verbose_name", None)
+        kwargs.pop("help_text", None)
+        kwargs.pop("null", None)
+        super().__init__(compression_level=compression_level, algorithm=algorithm, verbose_name="Comments", help_text="Stored Comments", null=True, **kwargs)
+
+
 class CompressedImageField(CompressedField):
 
     def __init__(self, return_as: Union[Literal["pil_image"], Literal['bytes'], Literal['qt_image']] = "pil_image", **kwargs):
@@ -236,6 +260,7 @@ class CompressedImageField(CompressedField):
 
 
 class LoginField(BlobField):
+    field_type = 'BLOB'
 
     @property
     def key(self) -> bytes:
@@ -258,6 +283,7 @@ class LoginField(BlobField):
 
 
 class PasswordField(BlobField):
+    field_type = 'BLOB'
 
     @property
     def key(self) -> bytes:

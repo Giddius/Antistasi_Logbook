@@ -22,7 +22,7 @@ from antistasi_logbook.parsing.record_processor import RecordProcessor
 from gidapptools import get_logger
 
 if TYPE_CHECKING:
-
+    from antistasi_logbook.backend import Backend
     # * Third Party Imports --------------------------------------------------------------------------------->
     pass
 
@@ -56,12 +56,16 @@ class Parser:
     log_file_data_scan_chunk_increase = 27239
     log_file_data_scan_chunk_initial = (104997 // 2)
 
-    __slots__ = ("database", "regex_keeper", "record_processor", "stop_event")
+    __slots__ = ("backend", "regex_keeper", "stop_event")
 
-    def __init__(self, record_processor: "RecordProcessor", regex_keeper: "SimpleRegexKeeper", stop_event: Event) -> None:
-        self.record_processor = record_processor
+    def __init__(self, backend: "Backend", regex_keeper: "SimpleRegexKeeper", stop_event: Event) -> None:
+        self.backend = backend
         self.regex_keeper = regex_keeper
         self.stop_event = stop_event
+
+    @property
+    def record_processor(self) -> "RecordProcessor":
+        return self.backend.record_processor
 
     def _get_log_file_meta_data(self, context: LogParsingContext) -> "MetaFinder":
         with context.open(cleanup=False) as file:

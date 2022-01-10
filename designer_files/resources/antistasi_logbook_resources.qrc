@@ -10,5 +10,20 @@
     <file>close_black.svg</file>
     <file>app_icon.png</file>
     <file>check_mark_black.svg</file>
+    <file>server_tab_icon.svg</file>
+    <file>log_files_tab_icon.svg</file>
+    <file>log_records_tab_icon.svg</file>
+    <file>mark.svg</file>
+    <file>unmark.svg</file>
+    <file>log_file_filter_page_symbol.svg</file>
+    <file>visible_icon.svg</file>
+    <file>hidden_icon.svg</file>
+    <file>antistasi_logbook_splash_backup.png</file>
+    <file>antistasi_logbook_splash_preparing_backend.png</file>
+    <file>antistasi_logbook_splash_preparing_database.png</file>
+    <file>antistasi_logbook_splash_starting_backend.png</file>
+  </qresource>
+  <qresource prefix="gifs">
+  <file>spinner.gif</file>
   </qresource>
 </RCC>

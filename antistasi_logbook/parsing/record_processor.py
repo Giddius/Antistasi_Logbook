@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.parsing.parser import SimpleRegexKeeper, RecordClassManager
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
-
+    from antistasi_logbook.backend import Backend
     # * Gid Imports ----------------------------------------------------------------------------------------->
     from gidapptools.gid_config.interface import GidIniConfig
 
@@ -82,13 +82,18 @@ class ManyRecordsInsertResult:
 class RecordInserter:
     insert_records_phrase = """INSERT OR IGNORE INTO "LogRecord" ("start", "end", "message", "recorded_at", "called_by", "origin", "logged_from", "log_file", "log_level", "marked") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
     update_record_record_class_phrase = """UPDATE "LogRecord" SET "record_class" = ? WHERE "id" = ?"""
-    thread_prefix: str = "inserting_thread"
 
-    def __init__(self, config: "GidIniConfig", database: "GidSqliteApswDatabase", thread_pool_class: type["ThreadPoolExecutor"] = None) -> None:
+    def __init__(self, config: "GidIniConfig", backend: "Backend") -> None:
         self.config = config
-        self.database = database
+        self.backend = backend
 
-        self.thread_pool = ThreadPoolExecutor(self.max_threads, thread_name_prefix=self.thread_prefix) if thread_pool_class is None else thread_pool_class(self.max_threads, thread_name_prefix=self.thread_prefix)
+    @property
+    def thread_pool(self) -> ThreadPoolExecutor:
+        return self.backend.inserting_thread_pool
+
+    @property
+    def database(self) -> "GidSqliteApswDatabase":
+        return self.backend.database
 
     @property
     def write_lock(self) -> Lock:
@@ -190,19 +195,29 @@ class RecordInserter:
         return self.insert(records=records, context=context)
 
     def shutdown(self) -> None:
-        self.thread_pool.shutdown(wait=True, cancel_futures=False)
+        pass
 
 
 class RecordProcessor:
     _default_origin: "RecordOrigin" = None
     _antistasi_origin: "RecordOrigin" = None
-    __slots__ = ("regex_keeper", "record_class_manager", "database", "foreign_key_cache")
+    __slots__ = ("regex_keeper", "backend")
 
-    def __init__(self, database: "GidSqliteApswDatabase", regex_keeper: "SimpleRegexKeeper", foreign_key_cache: "ForeignKeyCache", record_class_manager: "RecordClassManager") -> None:
-        self.database = database
+    def __init__(self, backend: "Backend", regex_keeper: "SimpleRegexKeeper") -> None:
+        self.backend = backend
         self.regex_keeper = regex_keeper
-        self.record_class_manager = record_class_manager
-        self.foreign_key_cache = foreign_key_cache
+
+    @property
+    def record_class_manager(self) -> "RecordClassManager":
+        return self.backend.record_class_manager
+
+    @property
+    def foreign_key_cache(self) -> "ForeignKeyCache":
+        return self.backend.foreign_key_cache
+
+    @property
+    def database(self) -> "GidSqliteApswDatabase":
+        return self.backend.database
 
     @staticmethod
     def clean_antistasi_function_name(in_name: str) -> str:

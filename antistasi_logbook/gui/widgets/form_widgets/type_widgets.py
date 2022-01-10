@@ -30,6 +30,7 @@ from gidapptools.general_helper.typing_helper import implements_protocol
 from gidapptools.gid_config.conversion.extra_base_typus import NonTypeBaseTypus
 from antistasi_logbook.gui.models.style_sheets_model import StyleSheetsModel, StoredStyleSheet, MaterialStyleSheet
 
+
 import qt_material
 # endregion [Imports]
 
@@ -609,7 +610,7 @@ class StyleValueField(QComboBox):
         style = self.model.content_items[self.currentIndex()]
         app = QApplication.instance()
         if app is not None:
-            if style.___typus___ == "LOCAL":
+            if style.___typus___ in {"LOCAL"}:
 
                 app.setStyleSheet(style.content)
             elif style.___typus___ == "MATERIAL":

@@ -40,7 +40,8 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
@@ -56,6 +57,7 @@ class PerfProfilingRecord(BaseRecord):
     __slots__ = tuple(BASE_SLOTS)
 
     @classmethod
+    @profile
     def check(cls, log_record: "LogRecord") -> bool:
         if log_record.message.strip().startswith("[ASU] Perf-profiling"):
             return True
@@ -96,8 +98,10 @@ class TFEInfoSettings(BaseRecord):
             text = self.message[:self.message.find('[', 5) - 1] + '\n'
             text += pp.fmt(self.array_data).replace("'", '"')
             return text
+        return super().get_formated_message(msg_format=msg_format)
 
     @classmethod
+    @profile
     def check(cls, log_record: "LogRecord") -> bool:
         if log_record.message.startswith("[TFE] Info: Settings:"):
             return True

@@ -12,10 +12,14 @@ from typing import TYPE_CHECKING, Iterable
 from pathlib import Path
 from weakref import WeakSet
 from threading import Lock, Event
-from concurrent.futures import ALL_COMPLETED, wait
-
+from concurrent.futures import ALL_COMPLETED, wait, ThreadPoolExecutor, ProcessPoolExecutor
+from datetime import datetime, timezone, timedelta
+import shutil
+from multiprocessing import Process
+from functools import partial
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
+from concurrent.futures import ThreadPoolExecutor, Future, ALL_COMPLETED, FIRST_EXCEPTION
 from itertools import chain
 from antistasi_logbook.parsing.parser import Parser
 from antistasi_logbook.utilities.locks import FILE_LOCKS
@@ -30,10 +34,12 @@ from antistasi_logbook.parsing.record_processor import RecordInserter, RecordPro
 from antistasi_logbook.updating.remote_managers import remote_manager_registry
 from antistasi_logbook.records.record_class_manager import RECORD_CLASS_TYPE, RecordClassManager
 from antistasi_logbook.records import ALL_ANTISTASI_RECORD_CLASSES, ALL_GENERIC_RECORD_CLASSES
+from gidapptools.general_helper.compress import compress_file, compress_in_process
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
 from gidapptools.gid_signal.interface import get_signal
-
+from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
+from PySide6.QtWidgets import QApplication
 if TYPE_CHECKING:
     # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.gui.misc import UpdaterSignaler
@@ -41,7 +47,7 @@ if TYPE_CHECKING:
     # * Gid Imports ----------------------------------------------------------------------------------------->
     from gidapptools.gid_signal.signals import abstract_signal
     from gidapptools.gid_config.interface import GidIniConfig
-
+    from antistasi_logbook.gui.application import AntistasiLogbookApplication
 # endregion[Imports]
 
 # region [TODO]
@@ -127,25 +133,46 @@ class Backend:
     all_parsing_context: WeakSet["LogParsingContext"] = WeakSet()
 
     def __init__(self, database: "GidSqliteApswDatabase", config: "GidIniConfig", update_signaler: "UpdaterSignaler" = NoneSignaler()) -> None:
+        self._thread_pool: ThreadPoolExecutor = None
+        self._inserting_thread_pool: ThreadPoolExecutor = None
         self.events = Events()
         self.locks = Locks()
         self.signals = Signals()
         self.config = config
         self.database = database
         self.update_signaler = update_signaler
-        self.foreign_key_cache = self.database.foreign_key_cache
+        self.foreign_key_cache = ForeignKeyCache(self)
+
         self.record_class_manager = RecordClassManager(foreign_key_cache=self.foreign_key_cache)
 
         self.time_clock = TimeClock(config=self.config, stop_event=self.events.stop)
         self.remote_manager_registry = remote_manager_registry
-        self.record_processor = RecordProcessor(database=self.database, regex_keeper=SimpleRegexKeeper(), record_class_manager=self.record_class_manager, foreign_key_cache=self.foreign_key_cache)
-        self.parser = Parser(record_processor=self.record_processor, regex_keeper=SimpleRegexKeeper(), stop_event=self.events.stop)
-        self.updater = Updater(config=self.config, parsing_context_factory=self.get_parsing_context, parser=self.parser, stop_event=self.events.stop, pause_event=self.events.pause, database=self.database, signaler=self.update_signaler)
-        self.records_inserter = RecordInserter(config=self.config, database=self.database)
-        self.database.record_inserter = self.records_inserter
-        self.database.record_processor = self.record_processor
+        self.record_processor = RecordProcessor(backend=self, regex_keeper=SimpleRegexKeeper())
+        self.parser = Parser(backend=self, regex_keeper=SimpleRegexKeeper(), stop_event=self.events.stop)
+        self.updater = Updater(stop_event=self.events.stop, pause_event=self.events.pause, backend=self, signaler=self.update_signaler)
+        self.records_inserter = RecordInserter(config=self.config, backend=self)
+
+        # gui_dependent_on_backend
+        self.dependent_objects = set()
+
         # thread
         self.update_manager: UpdateManager = None
+
+    @property
+    def app(self) -> "AntistasiLogbookApplication":
+        return QApplication.instance()
+
+    @property
+    def thread_pool(self) -> ThreadPoolExecutor:
+        if self._thread_pool is None:
+            self._thread_pool = ThreadPoolExecutor(max_workers=max(1, self.config.get("general", "max_threads") // 2), thread_name_prefix="backend")
+        return self._thread_pool
+
+    @property
+    def inserting_thread_pool(self) -> ThreadPoolExecutor:
+        if self._inserting_thread_pool is None:
+            self._inserting_thread_pool = ThreadPoolExecutor(max_workers=max(1, self.config.get("general", "max_threads") // 2), thread_name_prefix="backend_inserting")
+        return self._inserting_thread_pool
 
     @property
     def session_meta_data(self) -> "DatabaseMetaData":
@@ -193,7 +220,10 @@ class Backend:
         Start up the database, populates the database with all necessary tables and default entries ("or_ignore"), registers all record_classes and connects basic signals.
 
         """
-
+        self.events.stop.clear()
+        self.events.pause.clear()
+        self.database.record_inserter = self.records_inserter
+        self.database.record_processor = self.record_processor
         self.database.start_up(overwrite=overwrite)
 
         self.database.connect(True)
@@ -210,6 +240,8 @@ class Backend:
         self.signals.new_log_record.connect(self.database.session_meta_data.increment_added_log_records)
         self.signals.new_log_file.connect(self.database.session_meta_data.increment_new_log_file)
         self.signals.updated_log_file.connect(self.database.session_meta_data.increment_updated_log_file)
+        for obj in self.dependent_objects:
+            obj.start()
         return self
 
     def shutdown(self) -> None:
@@ -219,6 +251,8 @@ class Backend:
 
 
         """
+        for obj in self.dependent_objects:
+            obj.shutdown()
         self.events.stop.set()
         all_futures = []
         log.debug("checking if all ctx are closed")
@@ -236,20 +270,46 @@ class Backend:
         self.updater.shutdown()
         self.records_inserter.shutdown()
         self.database.shutdown()
+        self.thread_pool.shutdown(cancel_futures=True, wait=True)
+        self.inserting_thread_pool.shutdown(cancel_futures=True, wait=True)
+        self._thread_pool = None
+        self._inserting_thread_pool = None
+        self.backup_db()
 
     def remove_and_reset_database(self) -> None:
         self.shutdown()
         self.events.stop.clear()
         FILE_LOCKS.reset()
 
-        self.parser = Parser(record_processor=self.record_processor, regex_keeper=SimpleRegexKeeper(), stop_event=self.events.stop)
+        self.parser = Parser(backend=self, regex_keeper=SimpleRegexKeeper(), stop_event=self.events.stop)
         self.updater = Updater(config=self.config, parsing_context_factory=self.get_parsing_context, parser=self.parser, stop_event=self.events.stop, pause_event=self.events.pause, database=self.database, signaler=self.update_signaler)
-        self.records_inserter = RecordInserter(config=self.config, database=self.database)
+        self.records_inserter = RecordInserter(config=self.config, backend=self)
         self.update_manager: UpdateManager = None
         self.foreign_key_cache.reset_all()
 
         self.start_up(True)
         self.record_class_manager.reset()
+
+    def backup_db(self, backup_folder: Path = None):
+        if self.config.get("database", "backup_database") is False:
+            return
+
+        def limit_backups(_folder: Path):
+            limit_amount = self.config.get("database", "backup_limit")
+            backups = [p for p in _folder.iterdir() if p.is_file() and f"{self.database.database_path.stem}_backup" in p.stem]
+            backups = sorted(backups, key=lambda x: x.stat().st_ctime)
+            while len(backups) > limit_amount:
+                to_delete = backups.pop(0)
+                to_delete.unlink(missing_ok=True)
+
+        if backup_folder is None:
+            backup_folder = self.database.backup_folder
+        backup_folder.mkdir(parents=True, exist_ok=True)
+        backup_path = backup_folder.joinpath(f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{self.database.database_path.stem}_backup{self.database.database_path.suffix}")
+        process: Process = compress_in_process(source=self.database.database_path, target=backup_path)
+        limit_backups(backup_folder)
+        while process.is_alive():
+            self.app.processEvents()
 
     def start_update_loop(self) -> "Backend":
         if self.update_manager is None:

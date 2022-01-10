@@ -26,6 +26,8 @@ import importlib
 import subprocess
 import inspect
 
+from functools import reduce
+from operator import and_
 from time import sleep, process_time, process_time_ns, perf_counter, perf_counter_ns
 from io import BytesIO, StringIO
 from abc import ABC, ABCMeta, abstractmethod
@@ -75,6 +77,11 @@ from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog
                                QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
 
 from gidapptools import get_logger
+from antistasi_logbook.gui.models.base_query_data_model import EmptyContentItem
+from antistasi_logbook.gui.models.server_model import ServerModel
+from antistasi_logbook.gui.models.version_model import VersionModel
+from antistasi_logbook.gui.models.game_map_model import GameMapModel
+from antistasi_logbook.storage.models.models import LogRecord, LogFile, Server, GameMap, AntstasiFunction
 if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
@@ -263,51 +270,106 @@ class TimeSpanFilterWidget(QGroupBox):
 class LogFileFilterPage(BaseDataToolPage):
     name: str = "Filter"
     icon_name: str = "log_file_filter_page_symbol_image"
-
-    filter_by_server_changed = Signal(int)
-    filter_by_game_map_changed = Signal(int)
+    query_filter_changed = Signal(object)
 
     def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
         super().__init__(parent=parent)
 
-        self.show_unparsable_check_box = QCheckBox()
-        self.show_unparsable_check_box.setLayoutDirection(Qt.RightToLeft)
-
-        self.layout.addRow("Show unparsable Log-Files", self.show_unparsable_check_box)
-
         self.filter_by_server_combo_box = QComboBox()
-        self.filter_by_server_combo_box.addItems([""] + [i.pretty_name for i in self.backend.database.get_all_server() if i.name != "NO_SERVER"])
+        server_model = ServerModel().refresh()
+        server_model.add_empty_item()
+        self.filter_by_server_combo_box.setModel(server_model)
+        self.filter_by_server_combo_box.setModelColumn(self.filter_by_server_combo_box.model().get_column_index("name"))
+        self.filter_by_server_combo_box.setCurrentIndex(-1)
         self.layout.addRow("Filter by Server", self.filter_by_server_combo_box)
-        self.filter_by_server_combo_box.currentTextChanged.connect(self.on_filter_by_server_changed)
 
         self.time_span_filter_box = TimeSpanFilterWidget()
         self.layout.addRow("Filter by Modified at", self.time_span_filter_box)
 
         self.filter_by_game_map_combo_box = QComboBox()
-        self.filter_by_game_map_combo_box.addItems([""] + [i.full_name for i in self.backend.database.get_all_game_maps()])
+        game_map_model = GameMapModel().refresh()
+        game_map_model.add_empty_item()
+        self.filter_by_game_map_combo_box.setModel(game_map_model)
+        self.filter_by_game_map_combo_box.setModelColumn(game_map_model.get_column_index("name"))
+        self.filter_by_game_map_combo_box.setCurrentIndex(-1)
         self.layout.addRow("Filter by Game Map", self.filter_by_game_map_combo_box)
-        self.filter_by_game_map_combo_box.currentTextChanged.connect(self.on_filter_by_game_map_changed)
+
+        self.filter_by_version_combo_box = QComboBox()
+        version_model = VersionModel().refresh()
+        version_model.add_empty_item()
+        self.filter_by_version_combo_box.setModel(version_model)
+        self.filter_by_version_combo_box.setModelColumn(version_model.get_column_index("full"))
+        self.filter_by_version_combo_box.setCurrentIndex(-1)
+        self.layout.addRow("Filter by Version", self.filter_by_version_combo_box)
 
         self.filter_by_new_campaign = QCheckBox()
-        self.filter_by_new_campaign.setLayoutDirection(Qt.RightToLeft)
 
         self.layout.addRow("Show only new campaigns", self.filter_by_new_campaign)
 
-    def on_filter_by_server_changed(self, name: str):
-        if name == "":
+        self.filter_by_marked = QCheckBox()
+        self.layout.addRow("Show only Marked", self.filter_by_marked)
 
-            self.filter_by_server_changed.emit(-1)
-        else:
-            server_id = {s.pretty_name: s.id for s in self.backend.database.get_all_server()}.get(name)
-            self.filter_by_server_changed.emit(server_id)
+    def setup(self) -> "LogFileFilterPage":
+        self.setup_signals()
 
-    def on_filter_by_game_map_changed(self, name: str):
-        if name == "":
-            log.debug("server_id present = ''")
-            self.filter_by_game_map_changed.emit(-1)
-        else:
-            game_map_id = {g.full_name: g.id for g in self.backend.database.get_all_game_maps()}.get(name)
-            self.filter_by_game_map_changed.emit(game_map_id)
+        return self
+
+    def setup_signals(self):
+        self.filter_by_server_combo_box.currentTextChanged.connect(self.on_change)
+        self.time_span_filter_box.use_newer_than_filter.toggled.connect(self.on_change)
+        self.time_span_filter_box.use_older_than_filter.toggled.connect(self.on_change)
+        self.time_span_filter_box.newer_than_selection.dateTimeChanged.connect(self.on_change)
+        self.time_span_filter_box.older_than_selection.dateTimeChanged.connect(self.on_change)
+        self.filter_by_game_map_combo_box.currentTextChanged.connect(self.on_change)
+        self.filter_by_new_campaign.toggled.connect(self.on_change)
+        self.filter_by_marked.toggled.connect(self.on_change)
+        self.filter_by_version_combo_box.currentIndexChanged.connect(self.on_change)
+
+    def collect_query_filters(self):
+        query_filter = []
+
+        server = self.filter_by_server_combo_box.model().content_items[self.filter_by_server_combo_box.currentIndex()]
+        if not isinstance(server, EmptyContentItem):
+            query_filter.append((LogFile.server_id == server.id))
+
+        if self.time_span_filter_box.use_newer_than_filter.isChecked():
+            date_time: datetime = self.time_span_filter_box.newer_than_selection.dateTime().toPython()
+            if self.time_span_filter_box.timezone_selector.currentText() == "UTC":
+                date_time = date_time.replace(tzinfo=timezone.utc)
+            elif self.time_span_filter_box.timezone_selector.currentText().casefold() == "local":
+                date_time = date_time.replace(tzinfo=get_localzone()).astimezone(timezone.utc)
+            query_filter.append((LogFile.modified_at > date_time))
+
+        if self.time_span_filter_box.use_older_than_filter.isChecked():
+            date_time: datetime = self.time_span_filter_box.older_than_selection.dateTime().toPython()
+            if self.time_span_filter_box.timezone_selector.currentText() == "UTC":
+                date_time = date_time.replace(tzinfo=timezone.utc)
+            elif self.time_span_filter_box.timezone_selector.currentText().casefold() == "local":
+                date_time = date_time.replace(tzinfo=get_localzone()).astimezone(timezone.utc)
+            query_filter.append((LogFile.modified_at < date_time))
+
+        if self.filter_by_marked.isChecked():
+            query_filter.append((LogFile.marked == True))
+
+        game_map = self.filter_by_game_map_combo_box.model().content_items[self.filter_by_game_map_combo_box.currentIndex()]
+        if not isinstance(game_map, EmptyContentItem):
+            query_filter.append((LogFile.game_map_id == game_map.id))
+
+        if self.filter_by_new_campaign.isChecked():
+            query_filter.append((LogFile.is_new_campaign == True))
+
+        version = self.filter_by_version_combo_box.model().content_items[self.filter_by_version_combo_box.currentIndex()]
+        if not isinstance(version, EmptyContentItem):
+            query_filter.append((LogFile.version_id == version.id))
+
+        if query_filter:
+            return reduce(and_, query_filter)
+        return None
+
+    def on_change(self, *args):
+        log.debug("on_change was triggered with %r", args)
+        query_filter = self.collect_query_filters()
+        self.query_filter_changed.emit(query_filter)
 
 
 class LogFileDataToolWidget(BaseDataToolWidget):
@@ -315,7 +377,7 @@ class LogFileDataToolWidget(BaseDataToolWidget):
     def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
         super().__init__(parent=parent)
 
-        self.add_page(LogFileFilterPage(self))
+        self.add_page(LogFileFilterPage(self).setup())
         self.add_page(LogFileSearchPage(self))
 
 # region[Main_Exec]

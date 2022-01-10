@@ -81,8 +81,7 @@ class LastUpdatedLabel(QLabel):
         self.min_unit = "second"
         self.last_triggered: datetime = None
         self.label_text: str = None
-        self.running_thread: QThread = None
-        self.setup()
+        self.is_running = False
 
     def set_refresh_interval(self, new_interval: int) -> None:
         if new_interval == self.refresh_interval:
@@ -94,12 +93,14 @@ class LastUpdatedLabel(QLabel):
     def last_update_finished_at(self) -> "datetime":
         return self.status_bar.backend.session_meta_data.get_absolute_last_update_finished_at()
 
-    def setup(self) -> None:
-        self.refresh_text()
-        self.start_timer()
+    def start(self) -> None:
+        if self.is_running is False:
+            self.refresh_text()
+            self.start_timer()
+            self.is_running = True
 
     def _thread_finished(self):
-        self.running_thread = None
+
         self.setText(self.label_text)
         self.update()
 
@@ -142,6 +143,7 @@ class LastUpdatedLabel(QLabel):
     def shutdown(self):
         if self.timer_id is not None:
             self.killTimer(self.timer_id)
+        self.is_running = False
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(status_bar={self.status_bar!r})"
@@ -172,13 +174,17 @@ class LogbookStatusBar(QStatusBar):
         self.update_progress.hide()
 
     def setup_labels(self) -> None:
-        self.update_running_label = QLabel()
-        self.update_running_label.setText("Updating...")
-        self.update_running_label.hide()
-        self.last_updated_label = LastUpdatedLabel(self)
+        if self.update_running_label is None:
+            self.update_running_label = QLabel()
+            self.update_running_label.setText("Updating...")
+            self.update_running_label.hide()
+            self.insertWidget(1, self.update_running_label, 1)
+
+        if self.last_updated_label is None:
+            self.last_updated_label = LastUpdatedLabel(self)
+            self.insertWidget(0, self.last_updated_label, 1)
+        self.last_updated_label.start()
         self.current_label = self.last_updated_label
-        self.insertWidget(0, self.last_updated_label, 1)
-        self.insertWidget(1, self.update_running_label, 1)
 
     def switch_labels(self, update_start: bool) -> None:
         if update_start is True:
@@ -198,6 +204,9 @@ class LogbookStatusBar(QStatusBar):
 
     def increment_progress_bar(self):
         self.update_progress.setValue(self.update_progress.value() + 1)
+
+    def shutdown(self):
+        self.last_updated_label.shutdown()
 
 
 # region[Main_Exec]

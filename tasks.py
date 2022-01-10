@@ -494,6 +494,7 @@ RESOURCE_HEADER_TEXT = """
 
 # region[Imports]
 
+import os
 from enum import Enum, auto, Flag
 from pathlib import Path
 from PySide6.QtGui import QPixmap, QIcon, QImage
@@ -502,7 +503,7 @@ from collections import defaultdict
 import atexit
 import pp
 from pprint import pprint, pformat
-from gidapptools.gidapptools_qt.resources_helper import ressource_item_factory, ResourceItem, AllResourceItemsMeta
+from gidapptools.gidapptools_qt.resources.resources_helper import ressource_item_factory, ResourceItem, AllResourceItemsMeta
 from gidapptools import get_meta_info, get_logger
 from . import antistasi_logbook_resources
 
@@ -544,8 +545,9 @@ def _write_resource_list_mapping(raw_text: str, tgt_file: Path, converted_file_p
     def _to_py():
 
         def _make_singular(word: str) -> str:
-            if word == "IMAGES":
+            if word in {"IMAGES", "GIFS"}:
                 return word.removesuffix("S")
+
             return word
         text_lines = [AUTO_GENERATED_HINT]
 

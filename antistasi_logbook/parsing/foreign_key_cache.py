@@ -13,15 +13,16 @@ from pathlib import Path
 # * Third Party Imports --------------------------------------------------------------------------------->
 from playhouse.signals import post_save
 from playhouse.shortcuts import model_to_dict
-from antistasi_logbook.storage.models.models import GameMap, LogLevel, AntstasiFunction, RecordOrigin
+from antistasi_logbook.storage.models.models import GameMap, LogLevel, AntstasiFunction, RecordOrigin, Version
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.concurrency.events import BlockingEvent
-
+from antistasi_logbook.utilities.misc import VersionItem
 if TYPE_CHECKING:
     # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
+    from antistasi_logbook.backend import Backend
 
 # endregion[Imports]
 
@@ -47,6 +48,8 @@ class ForeignKeyCache:
     game_map_model_blocker = BlockingEvent()
     antistasi_file_model_blocker = BlockingEvent()
     origin_blocker = BlockingEvent()
+    version_blocker = BlockingEvent()
+
     _all_log_levels: dict[str, LogLevel] = None
     _all_log_levels_by_id: dict[int, LogLevel] = None
 
@@ -59,14 +62,19 @@ class ForeignKeyCache:
     _all_origin_objects: dict[str, RecordOrigin] = None
     _all_origin_objects_by_id: dict[str, RecordOrigin] = None
 
-    __slots__ = ("update_map", "database")
+    _all_version_objects: dict[str, Version] = None
+    _all_version_objects_by_id: dict[str, Version]
 
-    def __init__(self, database: "GidSqliteApswDatabase") -> None:
-        self.database = database
+    __slots__ = ("update_map", "backend")
+
+    def __init__(self, backend: "Backend") -> None:
+        self.backend = backend
+        self.backend.database.foreign_key_cache = self
         self.update_map = {AntstasiFunction: (self.antistasi_file_model_blocker, ("_all_antistasi_file_objects", "_all_antistasi_file_objects_by_id")),
                            GameMap: (self.game_map_model_blocker, ("_all_game_map_objects", "_all_game_map_objects_by_id")),
                            LogLevel: (self.log_levels_blocker, ("_all_log_levels", "_all_log_levels_by_id")),
-                           RecordOrigin: (self.origin_blocker, ("_all_origin_objects", "_all_origin_objects_by_id"))}
+                           RecordOrigin: (self.origin_blocker, ("_all_origin_objects", "_all_origin_objects_by_id")),
+                           Version: (self.version_blocker, ("_all_version_objects", "_all_version_objects_by_id"))}
         self._register_signals()
 
     def _register_signals(self) -> None:
@@ -75,6 +83,10 @@ class ForeignKeyCache:
                 post_save.connect(self.on_save_handler, sender=model_class)
             except ValueError:
                 continue
+
+    @property
+    def database(self) -> "GidSqliteApswDatabase":
+        return self.backend.database
 
     @property
     def all_log_levels(self) -> dict[str, LogLevel]:
@@ -145,6 +157,20 @@ class ForeignKeyCache:
             self.__class__._all_origin_objects_by_id = {str(origin.id): origin for origin in self.database.get_all_origins()}
         return self.__class__._all_origin_objects_by_id
 
+    @property
+    def all_version_objects(self) -> dict[str, Version]:
+        if self.__class__._all_version_objects is None:
+            self.version_blocker.wait()
+            self.__class__._all_version_objects = {str(version): version for version in self.database.get_all_versions()}
+        return self.__class__._all_version_objects
+
+    @property
+    def all_version_objects_by_id(self) -> dict[str, Version]:
+        if self.__class__._all_version_objects_by_id is None:
+            self.version_blocker.wait()
+            self.__class__._all_version_objects_by_id = {str(version.id): Version for version in self.database.get_all_versions()}
+        return self.__class__._all_version_objects_by_id
+
     def get_log_level_by_id(self, model_id: int) -> Optional[LogLevel]:
 
         return self.all_log_levels_by_id.get(model_id)
@@ -160,6 +186,9 @@ class ForeignKeyCache:
     def get_origin_by_id(self, model_id: int) -> Optional[RecordOrigin]:
         return self.all_origin_objects_by_id.get(str(model_id))
 
+    def get_version_by_id(self, model_id: int) -> Optional[Version]:
+        return self.all_version_objects_by_id.get(str(model_id))
+
     def reset_all(self) -> None:
         self.__class__._all_log_levels = None
         self.__class__._all_antistasi_file_objects = None
@@ -169,6 +198,8 @@ class ForeignKeyCache:
         self.__class__._all_game_map_objects_by_id = None
         self.__class__._all_origin_objects = None
         self.__class__._all_origin_objects_by_id = None
+        self.__class__._all_version_objects = None
+        self.__class__._all_version_objects_by_id = None
         log.info("all cached foreign keys were reseted.")
 
     def on_save_handler(self, sender, instance, created):

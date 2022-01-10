@@ -13,7 +13,7 @@ from pathlib import Path
 # * Third Party Imports --------------------------------------------------------------------------------->
 from peewee import Query
 from antistasi_logbook.storage.models.models import Server, RemoteStorage
-from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel, INDEX_TYPE
+from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel, INDEX_TYPE, ModelContextMenuAction, BaseModel, Field
 
 # * PyQt5 Imports --------------------------------------------------------------------------------------->
 import PySide6
@@ -37,12 +37,13 @@ from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog
                                QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
                                QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
 
-from gidapptools import get_logger
+from gidapptools import get_logger, get_meta_config
 from antistasi_logbook.gui.misc import CustomRole
 if TYPE_CHECKING:
     # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.backend import Backend
     from peewee import ModelIndex
+    from antistasi_logbook.gui.views.base_query_tree_view import CustomContextMenu
 # endregion[Imports]
 
 # region [TODO]
@@ -59,6 +60,8 @@ if TYPE_CHECKING:
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
+
+
 # endregion[Constants]
 SERVER_COLOR_ALPHA = 50
 SERVER_COLORS = {"no_server": QColor(25, 25, 25, 100),
@@ -80,11 +83,19 @@ def get_int_from_name(name: str, default: int = -1) -> int:
 
 class ServerModel(BaseQueryDataModel):
     extra_columns = set()
+    color_config_name = "server"
 
     def __init__(self, parent: Optional[QtCore.QObject] = None, show_local_files_server: bool = False) -> None:
         self.show_local_files_server = show_local_files_server
         super().__init__(db_model=Server, parent=parent)
         self.ordered_by = (-Server.name, Server.id)
+        self.data_role_table = self.data_role_table | {Qt.BackgroundRole: self._get_background_data}
+
+    def _get_background_data(self, index: INDEX_TYPE):
+        item, colum = self.get(index)
+        _out = self.color_config.get(self.color_config_name, item.name, default=QColor(255, 255, 255, 0))
+
+        return _out
 
     def get_query(self) -> "Query":
         query = Server.select().join(RemoteStorage).switch(Server)
@@ -99,34 +110,36 @@ class ServerModel(BaseQueryDataModel):
             return is_main, -name_number
 
         with self.backend.database:
-            self.content_items = tuple(sorted(list(self.get_query().execute()), key=_sort_func, reverse=True))
+            self.content_items = sorted(list(self.get_query().execute()), key=_sort_func, reverse=True)
             self.original_sort_order = tuple(i.id for i in self.content_items)
         log.debug("sort order = %r", self.content_items)
         return self
 
-    def setData(self, index: "INDEX_TYPE", value: Any, role: int = ...) -> bool:
-        item = self.content_items[index.row()]
-        column = self.columns[index.column()]
-        _out = False
-        if role == Qt.DisplayRole:
-            if column.name == "comments":
-                with self.database.write_lock:
-                    with self.database:
-                        _out = bool(Server.update(comments=value).where(Server.id == item.id).execute())
-        if role == CustomRole.UPDATE_ENABLED_ROLE:
-            with self.database.write_lock:
-                with self.database:
-                    _out = bool(Server.update(update_enabled=value).where(Server.id == item.id).execute())
+    def add_context_menu_actions(self, menu: "CustomContextMenu", index: QModelIndex):
+        super().add_context_menu_actions(menu, index)
+        item, column = self.get(index)
+        if item is None or column is None:
+            return
+        update_enabled_text = f"Enable Updates for {item}" if item.update_enabled is False else f"Disable Updates for {item}"
+        update_enabled_action = ModelContextMenuAction(item, column, index, text=update_enabled_text, parent=menu)
+        update_enabled_action.clicked.connect(self.change_update_enabled)
+        menu.add_action(update_enabled_action, "Edit")
 
-        elif role == CustomRole.MARKED_ROLE:
-            with self.database.write_lock:
-                with self.database:
-                    _out = bool(Server.update(marked=value).where(Server.id == item.id).execute())
+        change_color_action = ModelContextMenuAction(item, column, index, text=f"change Color of {item.name!r}", parent=menu)
+        change_color_action.clicked.connect(self.change_color)
+        menu.add_action(change_color_action, "Edit")
 
-        else:
-            _out = super().setData(index, value, role=role)
-        self.refresh_item(index)
-        return _out
+    @Slot(object, object, QModelIndex)
+    def change_color(self, item: BaseModel, column: Field, index: QModelIndex):
+        opts = QColorDialog.ColorDialogOption.ShowAlphaChannel | QColorDialog.ColorDialogOption.DontUseNativeDialog
+        color = QColorDialog.getColor(self.color_config.get(self.color_config_name, item.name, default=QColor(255, 255, 255, 0)), title=str(item), options=opts)
+        if color:
+            self.color_config.set(self.color_config_name, item.name, color)
+
+    @Slot(object, object, QModelIndex)
+    def change_update_enabled(self, item: BaseModel, column: Field, index: QModelIndex):
+        update_enabled_index = self.index(index.row(), self.get_column_index("update_enabled"), index.parent())
+        self.setData(update_enabled_index, not item.update_enabled, role=Qt.DisplayRole)
 
 
 # region[Main_Exec]

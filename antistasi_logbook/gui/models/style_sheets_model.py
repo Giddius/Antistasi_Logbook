@@ -75,6 +75,7 @@ from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog
                                QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
 import pp
 from qt_material import list_themes
+
 # endregion[Imports]
 
 # region [TODO]
@@ -183,6 +184,7 @@ class MaterialStyleSheet(StoredStyleSheet):
         self.name = name.removesuffix(".xml")
         self.pretty_name = StringCaseConverter.convert_to(self.name, StringCase.TITLE)
         self.display_data = self.pretty_name
+        self.path = None
 
     def _get_tags(self) -> tuple[str]:
         return tuple()

@@ -105,21 +105,6 @@ log = get_logger(__name__)
 # endregion[Constants]
 
 
-class ServerContextMenuAction(QAction):
-    clicked = Signal(object, object, QModelIndex)
-
-    def __init__(self, item: Server, column: Field, index: QModelIndex, icon: QIcon = None, text: str = None, parent=None):
-        super().__init__(**{k: v for k, v in dict(icon=icon, text=text, parent=parent).items() if v is not None})
-        self.item = item
-        self.column = column
-        self.index = index
-        self.triggered.connect(self.on_triggered)
-
-    @Slot()
-    def on_triggered(self):
-        self.clicked.emit(self.item, self.column, self.index)
-
-
 class ServerQueryTreeView(BaseQueryTreeView):
     enable_icon = AllResourceItems.check_mark_black_image.get_as_icon()
     disable_icon = AllResourceItems.close_cancel_image.get_as_icon()
@@ -136,60 +121,6 @@ class ServerQueryTreeView(BaseQueryTreeView):
     def extra_setup(self):
         super().extra_setup()
 
-    def setup_context_menu(self, item: Server, column: Field, index: QModelIndex) -> QMenu:
-        menu = QMenu(self)
-        update_action = None
-        if item.update_enabled is True:
-            update_action = ServerContextMenuAction(item, column, index, self.disable_icon, f"DISABLE Update for {item.pretty_name!r}", self)
-        elif item.update_enabled is False and item.name.casefold() not in {"eventserver", "no_server"}:
-            update_action = ServerContextMenuAction(item, column, index, self.enable_icon, f"ENABLE Update for {item.pretty_name!r}", self)
-        else:
-            _forbidden_action = QAction(AllResourceItems.forbidden_image.get_as_icon(), f"Not possible for Server {item.pretty_name}", self)
-            _forbidden_action.setEnabled(False)
-            menu.addAction(_forbidden_action)
-        if update_action is not None:
-            update_action.clicked.connect(self.change_updates_enabled_option)
-            menu.addAction(update_action)
-
-        if item.marked is True:
-            marked_action = ServerContextMenuAction(item, column, index, self.unmark_icon, f"Remove Mark from {item.pretty_name!r}", self)
-        elif item.marked is False:
-            marked_action = ServerContextMenuAction(item, column, index, self.mark_icon, f"Mark {item.pretty_name!r}", self)
-
-        marked_action.clicked.connect(self.change_marked_option)
-        menu.addAction(marked_action)
-        set_comment_action = ServerContextMenuAction(item, column, index, text="Set Comment", parent=self)
-        set_comment_action.clicked.connect(self.open_comment_dialog)
-        menu.addAction(set_comment_action)
-        return menu
-
-    def contextMenuEvent(self, event: PySide6.QtGui.QContextMenuEvent) -> None:
-        index = self.indexAt(event.pos())
-        if index.isValid() is False or index.row() == -1 or index.column() == -1:
-            event.ignore()
-            return
-
-        item = self.model.content_items[index.row()]
-        column = self.model.columns[index.column()]
-
-        menu = self.setup_context_menu(item, column, index)
-        menu.exec(event.globalPos())
-
-    @Slot(object, object, QModelIndex)
-    def open_comment_dialog(self, item: Server, column: Field, index: QModelIndex):
-        def _update_comment(text: str):
-            self.model.setData(self.model.index(index.row(), self.model.get_column_index("comments"), QModelIndex()), text, Qt.DisplayRole)
-        self._temp_set_comment_dialog = MarkdownEditorDialog(text=item.comments, parent=self)
-        self._temp_set_comment_dialog.dialog_accepted.connect(_update_comment)
-        self._temp_set_comment_dialog.show()
-
-    @Slot(object, object, QModelIndex)
-    def change_updates_enabled_option(self, item: Server, column: Field, index: QModelIndex):
-        self.model.setData(index, not item.update_enabled, CustomRole.UPDATE_ENABLED_ROLE)
-
-    @Slot(object, object, QModelIndex)
-    def change_marked_option(self, item: Server, column: Field, index: QModelIndex):
-        self.model.setData(index, not item.marked, CustomRole.MARKED_ROLE)
         # region[Main_Exec]
 
 

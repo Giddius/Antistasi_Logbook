@@ -322,11 +322,26 @@ class MarkdownEditorDialog(QDialog):
         self.resize(1000, 750)
 
     def on_accepted(self, text: str):
+        log.debug("setting result of %r to %r", self, QDialog.Accepted)
+
         self.dialog_accepted.emit(text)
-        self.close()
+        self.done(QDialog.Accepted)
 
     def on_cancelled(self):
-        self.close()
+        log.debug("setting result of %r to %r", self, QDialog.Accepted)
+
+        self.dialog_cancelled.emit()
+        self.done(QDialog.Rejected)
+
+    @classmethod
+    def show_dialog(cls, text: str = None, parent=None) -> tuple[bool, Optional[str]]:
+        dialog = cls(text=text, parent=parent)
+        dialog.setModal(True)
+
+        if dialog.exec() == QDialog.Accepted:
+            return True, dialog.markdown_editor.input_widget.toMarkdown(QTextDocument.MarkdownDialectGitHub).strip()
+
+        return False, None
 
 
 # region[Main_Exec]

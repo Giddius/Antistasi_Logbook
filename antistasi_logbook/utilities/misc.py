@@ -94,21 +94,23 @@ def try_convert_int(data: Union[str, int, None]) -> Union[str, int, None]:
 
 @attr.s(slots=True, auto_attribs=True, auto_detect=True, frozen=True)
 @total_ordering
-class Version:
+class VersionItem:
     major: int = attr.ib(converter=int)
     minor: int = attr.ib(converter=int)
-    patch: int = attr.ib(converter=try_convert_int)
+    patch: int = attr.ib(default=None, converter=try_convert_int)
     extra: Union[str, int] = attr.ib(default=None, converter=try_convert_int)
     version_regex: ClassVar = re.compile(r"(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)\-?(?P<extra>.*)?")
 
     def __str__(self) -> str:
-        _out = f"{self.major}.{self.minor}.{self.patch}"
+        _out = f"{self.major}.{self.minor}"
+        if self.patch is not None:
+            _out += f".{self.patch}"
         if self.extra is not None:
             _out += f"-{self.extra}"
         return _out
 
     @classmethod
-    def from_string(cls, string: Optional[str]) -> Optional["Version"]:
+    def from_string(cls, string: Optional[str]) -> Optional["VersionItem"]:
         if string is None:
             return
         match = cls.version_regex.match(string.strip())

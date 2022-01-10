@@ -10,6 +10,7 @@ Soon.
 from typing import TYPE_CHECKING, Optional
 from pathlib import Path
 from threading import Event
+from concurrent.futures import Future
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 from antistasi_logbook.storage.models.models import LogRecord
@@ -34,9 +35,9 @@ from PySide6.QtCore import (QByteArray, QCoreApplication, QDate, QDateTime, QEve
                             QWaitCondition, Qt, QAbstractItemModel, QAbstractListModel, QAbstractTableModel, Signal, Slot)
 
 from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
-                           QKeySequence, QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform)
+                           QKeySequence, QLinearGradient, QMovie, QPainter, QPalette, QPixmap, QRadialGradient, QTransform)
 
-from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QLCDNumber, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QDialogButtonBox,
+from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QLCDNumber, QColorDialog, QDialog, QColumnView, QComboBox, QDateTimeEdit, QDialogButtonBox,
                                QDockWidget, QDoubleSpinBox, QFontComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
                                QLCDNumber, QLabel, QLayout, QLineEdit, QListView, QListWidget, QMainWindow, QMenu, QMenuBar, QMessageBox,
                                QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
@@ -46,7 +47,7 @@ from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QLCDNumber, 
 
 from io import BytesIO
 from threading import Thread
-
+from time import sleep
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from antistasi_logbook.gui.widgets.dock_widget import BaseDockWidget, QueryWidget
@@ -57,6 +58,7 @@ from antistasi_logbook.gui.widgets.data_tool_widget import LogFileDataToolWidget
 if TYPE_CHECKING:
     # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow
+    from antistasi_logbook.gui.application import AntistasiLogbookApplication
 
 # endregion[Imports]
 
@@ -77,8 +79,45 @@ log = get_logger(__name__)
 # endregion[Constants]
 
 
+class SpinnerWidget(QDialog):
+
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent, Qt.WindowStaysOnTopHint)
+        self.setLayout(QVBoxLayout(self))
+        self.setModal(True)
+
+    def setup_movie(self):
+        self.spinner_screen = QLabel()
+        self.spinner_movie = QMovie(AllResourceItems.spinner_gif.qt_path, QByteArray(), self)
+        self.spinner_movie.setCacheMode(QMovie.CacheAll)
+        self.spinner_movie.setSpeed(100)
+        self.spinner_screen.setAlignment(Qt.AlignCenter)
+        self.spinner_screen.setMovie(self.spinner_movie)
+        self.layout().addWidget(self.spinner_screen)
+        self.spinner_movie.start()
+
+    def close(self) -> bool:
+        self.spinner_movie.stop()
+        return super().close()
+
+
+class Spinner(QThread):
+
+    def __init__(self, parent: Optional[PySide6.QtCore.QObject] = None) -> None:
+        super().__init__(parent=parent)
+        self.term_requested = False
+
+    def run(self) -> None:
+        while self.term_requested is False:
+            self.sleep(5)
+
+    def request_term(self):
+        self.term_requested = True
+
+
 class MainWidget(QWidget):
     query_result_finished = Event()
+    stop_spinner = Signal()
 
     def __init__(self, main_window: "AntistasiLogbookMainWindow") -> None:
         super().__init__(parent=main_window)
@@ -94,8 +133,13 @@ class MainWidget(QWidget):
         self.temp_runnable = None
         self.setup()
 
+    @property
+    def app(self) -> "AntistasiLogbookApplication":
+        return QApplication.instance()
+
     def setup(self) -> None:
         self.main_layout = QGridLayout(self)
+
         self.setLayout(self.main_layout)
 
         self.setup_info_widget()
@@ -113,12 +157,12 @@ class MainWidget(QWidget):
         self.main_layout.addWidget(self.info_widget, 0, 0, 1, 3)
 
     def setup_query_widget(self) -> None:
-        self.query_widget = QueryWidget(parent=self.parent())
+        self.query_widget = QueryWidget(parent=self.parent(), add_to_menu=self.main_window.menubar.windows_menu)
 
         self.main_window.addDockWidget(Qt.LeftDockWidgetArea, self.query_widget, Qt.Vertical)
 
     def setup_detail_widget(self) -> None:
-        self.detail_widget = BaseDockWidget(title="Details", parent=self.parent(), start_floating=False, add_menu_bar_action=True)
+        self.detail_widget = BaseDockWidget(title="Details", parent=self.parent(), start_floating=False, add_to_menu=self.main_window.menubar.windows_menu)
 
         self.detail_widget.dockLocationChanged.connect(self.detail_widget_resize_on_undock)
 
@@ -135,7 +179,9 @@ class MainWidget(QWidget):
         self.server_tab = ServerQueryTreeView().setup()
 
         self.main_tabs_widget.addTab(self.server_tab, self.server_tab.icon, self.server_tab.name)
-
+        old_icon_size = self.main_tabs_widget.iconSize()
+        new_icon_size = QSize(old_icon_size.width() * 1.25, old_icon_size.height() * 1.25)
+        self.main_tabs_widget.setIconSize(new_icon_size)
         self.log_files_tab = LogFilesQueryTreeView().setup()
         self.log_files_tab.doubleClicked.connect(self.query_log_file)
         self.main_tabs_widget.addTab(self.log_files_tab, self.log_files_tab.icon, self.log_files_tab.name)
@@ -156,12 +202,7 @@ class MainWidget(QWidget):
             widget = LogFileDataToolWidget()
             self.query_widget.add_page(widget, name="log_file")
             self.log_files_tab.model.data_tool = widget
-            widget.get_page_by_name("filter").show_unparsable_check_box.toggled.connect(self.log_files_tab.model.change_show_unparsable)
-            widget.get_page_by_name("filter").filter_by_server_changed.connect(self.log_files_tab.model.filter_by_server)
-            widget.get_page_by_name("filter").time_span_filter_box.older_than_changed.connect(self.log_files_tab.model.on_filter_older_than)
-            widget.get_page_by_name("filter").time_span_filter_box.newer_than_changed.connect(self.log_files_tab.model.on_filter_newer_than)
-            widget.get_page_by_name("filter").filter_by_game_map_changed.connect(self.log_files_tab.model.filter_by_game_map)
-            widget.get_page_by_name("filter").filter_by_new_campaign.toggled.connect(self.log_files_tab.model.on_filter_by_new_campaign)
+            widget.pages["filter"].query_filter_changed.connect(self.log_files_tab.model.on_query_filter_changed)
 
     def setup_views(self) -> None:
         server_model = ServerModel().get_content()
@@ -217,10 +258,10 @@ class MainWidget(QWidget):
         log_file = self.log_files_tab.model.content_items[index.row()]
         log_record_model = LogRecordsModel(parent=self.query_result_tab, filter_data={"log_files": (LogRecord.log_file_id == log_file.id)})
 
-        log_record_model.refresh()
         self.query_result_tab.setModel(log_record_model)
-        self.query_result_tab.repaint()
+
         self.main_tabs_widget.setCurrentWidget(self.query_result_tab)
+
         self.query_result_tab.clicked.connect(self.show_log_record_detail)
 
 

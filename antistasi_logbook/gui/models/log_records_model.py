@@ -18,7 +18,7 @@ from collections import namedtuple
 # * Third Party Imports --------------------------------------------------------------------------------->
 from peewee import Field, Query
 from antistasi_logbook.storage.models.models import LogRecord, RecordClass, LogFile
-from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel
+from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel, ModelContextMenuAction
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 
 # * PyQt5 Imports --------------------------------------------------------------------------------------->
@@ -55,7 +55,7 @@ if TYPE_CHECKING:
     from antistasi_logbook.records.abstract_record import AbstractRecord
     from antistasi_logbook.records.base_record import BaseRecord
     from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE
-
+    from antistasi_logbook.gui.views.base_query_tree_view import CustomContextMenu
 # endregion[Imports]
 
 # region [TODO]
@@ -79,20 +79,6 @@ log = get_logger(__name__)
 def get_qsize_from_font(font: QFont, text: str) -> QSize:
     fm = QFontMetrics(font)
     return fm.boundingRect(text=text).size()
-
-
-class RefreshWorker(QThread):
-    finished = Signal()
-
-    def __init__(self, model: "LogRecordsModel", **kwargs):
-        self.model = model
-        self.kwargs = kwargs
-        super().__init__()
-
-    def run(self):
-        self.model._generator_refresh(**self.kwargs)
-        self.finished.emit()
-        log.debug("finished refreshing %r", self.model)
 
 
 @attr.s(slots=True, auto_attribs=True, auto_detect=True, weakref_slot=True)
@@ -121,6 +107,17 @@ class LogRecordsModel(BaseQueryDataModel):
 
         return query.order_by(*self.ordered_by)
 
+    def add_context_menu_actions(self, menu: "CustomContextMenu", index: QModelIndex):
+        super().add_context_menu_actions(menu, index)
+        item, column = self.get(index)
+
+        if item is None or column is None:
+            return
+        if self.app.is_dev is True:
+            reset_all_colors_action = QAction("Reset all Colors")
+            reset_all_colors_action.triggered.connect(item.reset_colors)
+            menu.add_action(reset_all_colors_action, "debug")
+
     @profile
     def _get_display_data(self, index: "INDEX_TYPE") -> Any:
         item = self.content_items[index.row()]
@@ -144,30 +141,45 @@ class LogRecordsModel(BaseQueryDataModel):
             return Color(225, 25, 23, 0.5, "error_red").qcolor
         elif item.log_level.name == "WARNING":
             return Color(255, 103, 0, 0.5, "warning_orange").qcolor
-        return item.background_color
+
+        if column.name == "log_level":
+            return getattr(item, column.name).background_color
+
+        if hasattr(item, "background_color"):
+            return item.background_color
+        return super()._get_background_data(index)
 
     @profile
     def _get_font_data(self, index: "INDEX_TYPE") -> Any:
         pass
 
     @profile
-    def get_content(self) -> None:
+    def _get_record(self, _item_data, _all_log_files):
+        record_class = self.backend.record_class_manager.get_by_id(_item_data.get('record_class'))
+        log_file = _all_log_files[_item_data.get('log_file')]
+        record_item = record_class.from_model_dict(_item_data, log_file=log_file)
 
-        @profile
-        def _get_record(_item_data, _all_log_files):
-            record_class = self.backend.record_class_manager.get_by_id(_item_data.get('record_class'))
-            log_file = _all_log_files[_item_data.get('log_file')]
-            record_item = record_class.from_model_dict(_item_data, log_file=log_file)
+        return record_item
 
-            return record_item
+    @profile
+    def get_content(self) -> "LogRecordsModel":
 
         log.debug("starting getting content for %r", self)
         all_log_files = {log_file.id: log_file for log_file in self.backend.database.get_log_files()}
         # with self.backend.database:
-        with ThreadPoolExecutor() as pool:
-            self.content_items = list(pool.map(lambda x: _get_record(_item_data=x, _all_log_files=all_log_files), self.get_query().dicts().iterator()))
+        self.content_items = []
+        for record_item in self.app.backend.thread_pool.map(lambda x: self._get_record(_item_data=x, _all_log_files=all_log_files), self.get_query().dicts().iterator()):
+            self.beginInsertRows(QModelIndex(), self.rowCount() - 1, self.rowCount() - 1)
+            self.content_items.append(record_item)
+            self.endInsertRows()
 
         log.debug("finished getting content for %r", self)
+        return self
+
+    def refresh_item(self, index: "INDEX_TYPE"):
+        item, column = self.get(index)
+        with self.database:
+            setattr(item, column.name, getattr(self.db_model.get_by_id(item.id), column.name))
 
 
 # region[Main_Exec]

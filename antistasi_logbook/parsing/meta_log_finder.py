@@ -13,7 +13,7 @@ from datetime import datetime
 from collections import namedtuple
 # * Third Party Imports --------------------------------------------------------------------------------->
 from dateutil.tz import UTC
-from antistasi_logbook.utilities.misc import ModItem, Version
+from antistasi_logbook.utilities.misc import ModItem, VersionItem
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -54,7 +54,7 @@ class MetaFinder:
         self.regex_keeper = regex_keeper
         self.game_map: str = MiscEnum.NOT_FOUND if not context._log_file.has_game_map() else MiscEnum.DEFAULT
         self.full_datetime: FullDateTimes = MiscEnum.NOT_FOUND if not context._log_file.utc_offset else MiscEnum.DEFAULT
-        self.version: Version = MiscEnum.NOT_FOUND if not context._log_file.version else MiscEnum.DEFAULT
+        self.version: VersionItem = MiscEnum.NOT_FOUND if not context._log_file.version else MiscEnum.DEFAULT
         self.mods: list[ModItem] = MiscEnum.NOT_FOUND if not context._log_file.has_mods() else MiscEnum.DEFAULT
         self.campaign_id: int = MiscEnum.NOT_FOUND if context._log_file.campaign_id is None else MiscEnum.DEFAULT
         self.is_new_campaign: bool = MiscEnum.NOT_FOUND if context._log_file.is_new_campaign is None else MiscEnum.DEFAULT
@@ -76,7 +76,7 @@ class MetaFinder:
             if version_args:
                 while len(version_args) < 3:
                     version_args.append('MISSING')
-                version = Version(*version_args)
+                version = VersionItem(*version_args)
                 self.version = version
             else:
                 log.debug("incomplete version from line: %r", match.group('game_file'))

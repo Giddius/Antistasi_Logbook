@@ -73,6 +73,35 @@ class HeaderContextMenuAction(QAction):
         self.clicked.emit(self.section)
 
 
+class CustomContextMenu(QMenu):
+
+    def __init__(self, title: str = None, parent=None):
+        super().__init__(*[i for i in [title, parent] if i is not None])
+        self.sub_menus: dict[str, "CustomContextMenu"] = {}
+
+    def get_sub_menu(self, name: str, default=None):
+        default = default or self
+        return self.sub_menus.get(name.casefold(), default)
+
+    def add_menu(self, name: str, add_to: "CustomContextMenu" = None):
+        add_to = add_to or self
+        sub_menu = self.__class__(name, add_to)
+        self.sub_menus[name.casefold()] = sub_menu
+        self.addMenu(sub_menu)
+        log.debug("added menu %r to context-menu %r of %r", sub_menu, self, self.parent())
+
+    def add_action(self, action: QAction, sub_menu: Union[str, "CustomContextMenu", QMenu] = None):
+        if sub_menu is None:
+            sub_menu = self
+
+        elif isinstance(sub_menu, str):
+            sub_menu = self.get_sub_menu(sub_menu)
+        if not action.parent():
+            action.setParent(sub_menu)
+        sub_menu.addAction(action)
+        log.debug("added action %r to menu %r of context-menu %r of %r", action, sub_menu, self, self.parent())
+
+
 class BaseQueryTreeView(QTreeView):
     initially_hidden_columns: set[str] = set()
 
@@ -110,12 +139,34 @@ class BaseQueryTreeView(QTreeView):
 
     def setup(self) -> "BaseQueryTreeView":
         # self.setRootIsDecorated(False)
+        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.handle_custom_context_menu)
         self.setSortingEnabled(True)
         self.header_view.setSortIndicatorClearable(True)
         self.setUniformRowHeights(True)
         self.setup_scrollbars()
         self.extra_setup()
         return self
+
+    def add_free_context_menu_options(self, menu: QMenu):
+
+        return menu
+
+    @Slot(QPoint)
+    def handle_custom_context_menu(self, pos: QPoint):
+        index = self.indexAt(pos)
+        menu = CustomContextMenu(self)
+        menu.add_menu("Edit", None)
+        if self.app.is_dev is True:
+            menu.add_menu("DEBUG")
+            force_refresh_view_action = QAction(f"Force Refresh View {self.name!r}")
+            force_refresh_view_action.triggered.connect(self.force_refresh)
+            menu.add_action(force_refresh_view_action, "debug")
+        self.add_free_context_menu_options(menu)
+        if self.model is not None:
+            self.model.add_context_menu_actions(menu=menu, index=index)
+        log.debug("actions of menu %r : %r", menu, menu.actions())
+        menu.exec_(self.mapToGlobal(pos))
 
     def setup_headers(self):
         for column_name in self.initially_hidden_columns:
@@ -158,6 +209,14 @@ class BaseQueryTreeView(QTreeView):
             menu.addAction(change_visibility_action)
         menu.exec(self.header_view.mapToGlobal(pos))
 
+    def force_refresh(self):
+        log.debug("starting force refreshing %r", self)
+        log.debug("repainting %r", self)
+        self.repaint()
+        log.debug("doing items layout of %r", self)
+        self.doItemsLayout()
+        log.debug("finished force refreshing %r", self)
+
     def toggle_header_section_hidden(self, section: int):
         is_hidden = self.header_view.isSectionHidden(section)
         if is_hidden:
@@ -189,9 +248,13 @@ class BaseQueryTreeView(QTreeView):
     def setModel(self, model: PySide6.QtCore.QAbstractItemModel) -> None:
         try:
             self.pre_set_model()
-            self.reset()
+
             super().setModel(model)
+            model.setParent(self)
+            self.app.gui_thread_pool.submit(model.refresh)
+            log.debug("after set model, parent of model: %r", model.parent())
             self.setup_headers()
+            self.reset()
         finally:
             self.post_set_model()
 

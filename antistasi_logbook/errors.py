@@ -9,10 +9,11 @@ Soon.
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import logging
+import sys
 from typing import TYPE_CHECKING, Callable, Optional
 from pathlib import Path
 from datetime import timezone
-
+import threading
 if TYPE_CHECKING:
     # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.storage.models.models import RemoteStorage
@@ -27,7 +28,6 @@ if TYPE_CHECKING:
 
 # region [Logging]
 
-log = logging.getLogger(__name__)
 
 # endregion[Logging]
 
@@ -81,23 +81,49 @@ class DurationTimezoneError(BaseAntistasiLogBookError):
 EXCEPTION_HANDLER_TYPE = Callable[[BaseException], None]
 
 
-class UpdateExceptionHandler:
+original_threading_except_hook = threading.excepthook
+
+
+class DefaultExceptionHandler:
+
+    def handle_exception(self, exception: BaseException):
+        raise exception
+
+    def handle_thread_except_hook(self, args):
+        original_threading_except_hook(args)
+
+    def handle_except_hook(self, type_, value, traceback):
+        sys.__excepthook__(type_=type_, value=value, traceback=traceback)
+
+
+class _ExceptionHandlerManager:
 
     def __init__(self) -> None:
+        self.default_exception_handler = DefaultExceptionHandler()
         self.exception_handler_registry: dict[type[BaseException]:Optional[EXCEPTION_HANDLER_TYPE]] = {}
 
     def register_handler(self, exception_class: type[BaseException], handler: EXCEPTION_HANDLER_TYPE) -> None:
         self.exception_handler_registry[exception_class] = handler
 
-    def default_handler(self, exception: BaseException) -> None:
-        print(f"This was handled by {self.__class__.__name__!r}")
-        raise exception
-
     def handle_exception(self, exception: BaseException) -> None:
-        handler = self.exception_handler_registry.get(type(exception), self.default_handler)
-        handler(exception)
+        handler = self.exception_handler_registry.get(type(exception), self.default_exception_handler)
+        handler.handle_exception(exception)
 
-    # region[Main_Exec]
+    def thread_except_hook(self, args):
+        handler = self.exception_handler_registry.get(args.exc_type, self.default_exception_handler)
+
+        handler.handle_thread_except_hook(args=args)
+
+    def except_hook(self, type_, value, traceback):
+        handler = self.exception_handler_registry.get(type_, self.default_exception_handler)
+        handler.handle_except_hook(type_=type_, value=value, traceback=traceback)
+
+
+ExceptionHandlerManager = _ExceptionHandlerManager()
+
+threading.excepthook = ExceptionHandlerManager.thread_except_hook
+sys.excepthook = ExceptionHandlerManager.except_hook
+# region[Main_Exec]
 if __name__ == '__main__':
     pass
 

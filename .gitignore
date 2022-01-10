@@ -170,3 +170,4 @@ antistasi_logbook/raised_errors.txt
 /antistasi_logbook/dev_temp/config
 !apsw.*
 /tools/quick_scripts
+/antistasi_logbook/storage/backups

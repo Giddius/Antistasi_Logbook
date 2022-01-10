@@ -378,14 +378,16 @@ class DebugContentWidget(QWidget):
 
 class DebugDockWidget(BaseDockWidget):
 
-    def __init__(self, parent: QMainWindow):
+    def __init__(self, parent: QMainWindow, add_to_menu: QMenu = None):
         super().__init__(parent=parent,
                          title="DEBUG",
                          start_floating=True,
                          start_hidden=True,
-                         add_menu_bar_action=True,
+                         add_to_menu=add_to_menu,
                          allowed_areas=Qt.NoDockWidgetArea)
         self.setWidget(DebugContentWidget(self))
+        if self.app.is_dev is True:
+            self.setVisible(True)
 
     @property
     def widget(self) -> DebugContentWidget:

@@ -107,7 +107,7 @@ class BaseDockWidget(QDockWidget):
                  start_hidden: bool = False,
                  allowed_areas: Qt.DockWidgetArea = Qt.AllDockWidgetAreas,
                  features: QDockWidget.DockWidgetFeature = QDockWidget.DockWidgetMovable | QDockWidget.DockWidgetClosable | QDockWidget.DockWidgetFloatable,
-                 add_menu_bar_action: bool = False):
+                 add_to_menu: QMenu = None):
         super().__init__(parent)
         self.title = title
         self.setWindowTitle(title)
@@ -116,13 +116,13 @@ class BaseDockWidget(QDockWidget):
         self.setFloating(start_floating)
         self.setAllowedAreas(allowed_areas)
         self.setFeatures(features)
-        if add_menu_bar_action is True:
-            self._add_to_menu_bar()
+        if add_to_menu is not None:
+            self._add_to_menu_bar(add_to_menu)
 
-    def _add_to_menu_bar(self):
+    def _add_to_menu_bar(self, add_to_menu: QMenu):
         view_action = self.toggleViewAction()
         view_action.setText(f"{self.title} Window")
-        self.main_window.menubar.windows_menu.addAction(view_action)
+        add_to_menu.addAction(view_action)
 
     @property
     def app(self) -> "AntistasiLogbookApplication":
@@ -152,8 +152,8 @@ class BaseDockWidget(QDockWidget):
 
 class QueryWidget(BaseDockWidget):
 
-    def __init__(self, parent: QMainWindow):
-        super().__init__(parent, title="Query", start_floating=False, add_menu_bar_action=True)
+    def __init__(self, parent: QMainWindow, add_to_menu: QMenu = None):
+        super().__init__(parent, title="Query", start_floating=False, add_to_menu=add_to_menu)
         self.setWidget(QStackedWidget(self))
         self.widget.setHidden(True)
         self.pages: dict[str, QWidget] = {}

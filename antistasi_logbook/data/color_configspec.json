@@ -1,0 +1,4 @@
+{
+    "server": { "__default__": { "converter": "qcolor" } },
+    "log_level": { "__default__": { "converter": "qcolor" } }
+}

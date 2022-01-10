@@ -1,5 +1,6 @@
 """Antistasi Logbook"""
 
+import antistasi_logbook.errors
 from pyqtgraph.Qt import QT_LIB
 __version__ = '0.2.3'
 import sys
@@ -22,7 +23,8 @@ import sys
 
 
 os.environ["PYQTGRAPH_QT_LIB"] = "PySide6"
-
+os.environ["PYTHONDEVMODE"] = "1"
+# os.environ["ANALYZE_EVENTS"] = "true"
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 # _extra_logger = ["peewee"]
@@ -36,8 +38,8 @@ def setup():
     if IS_SETUP is True:
         return
     setup_meta_data(__file__,
-                    configs_to_create=[THIS_FILE_DIR.joinpath("data", "general_config.ini")],
-                    spec_to_create=[THIS_FILE_DIR.joinpath("data", "general_configspec.json")],
+                    configs_to_create=[THIS_FILE_DIR.joinpath("data", "general_config.ini"), THIS_FILE_DIR.joinpath("data", "color_config.ini")],
+                    spec_to_create=[THIS_FILE_DIR.joinpath("data", "general_configspec.json"), THIS_FILE_DIR.joinpath("data", "color_configspec.json")],
                     file_changed_parameter="changed_time")
     META_PATHS = get_meta_paths()
     # log = get_main_logger("__main__", Path(__file__).resolve(), extra_logger=_extra_logger)

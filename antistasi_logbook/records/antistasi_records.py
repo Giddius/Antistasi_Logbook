@@ -40,7 +40,8 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
@@ -59,6 +60,7 @@ class BaseAntistasiRecord(BaseRecord):
         return Color.get_color_by_name("White").with_alpha(0.01).qcolor
 
     @classmethod
+    @profile
     def check(cls, log_record: "LogRecord") -> bool:
         return True
 
@@ -104,9 +106,10 @@ class PerformanceRecord(BaseAntistasiRecord):
                     _after_comma = ""
                 _out.append(f"{k:<25}{_full_num:>25}{_comma}{_after_comma}")
             return '\n'.join(_out).strip()
-        return super().get_formated_message(msg_format=format)
+        return super().get_formated_message(msg_format=msg_format)
 
     @classmethod
+    @profile
     def check(cls, log_record: "LogRecord") -> bool:
         logged_from = log_record.logged_from
 
@@ -133,6 +136,7 @@ class IsNewCampaignRecord(BaseAntistasiRecord):
         return Color.get_color_by_name("LightGreen").with_alpha(0.5).qcolor
 
     @classmethod
+    @profile
     def check(cls, log_record: "LogRecord") -> bool:
         logged_from = log_record.logged_from
 
@@ -168,6 +172,7 @@ class FFPunishmentRecord(BaseAntistasiRecord):
         return self._punishment_type
 
     @classmethod
+    @profile
     def check(cls, log_record: "LogRecord") -> bool:
         logged_from = log_record.logged_from
 
@@ -206,6 +211,7 @@ class UpdatePreferenceRecord(BaseAntistasiRecord):
         return self._array_data
 
     @classmethod
+    @profile
     def check(cls, log_record: "LogRecord") -> bool:
         logged_from = log_record.logged_from
 
@@ -218,7 +224,7 @@ class UpdatePreferenceRecord(BaseAntistasiRecord):
     def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
         if msg_format is MessageFormat.PRETTY:
             return f"{self.category}_preference\n" + pp.fmt(self.array_data).replace("'", '"')
-        return super().get_formated_message(msg_format=format)
+        return super().get_formated_message(msg_format=msg_format)
 
 
 ALL_ANTISTASI_RECORD_CLASSES.add(UpdatePreferenceRecord)
@@ -246,6 +252,7 @@ class CreateConvoyInputRecord(BaseAntistasiRecord):
         return self._array_data
 
     @classmethod
+    @profile
     def check(cls, log_record: "LogRecord") -> bool:
         logged_from = log_record.logged_from
 
@@ -264,7 +271,7 @@ class CreateConvoyInputRecord(BaseAntistasiRecord):
             for line in array_data_text_lines[1:]:
                 txt += ' ' * txt_len + line + '\n'
             return txt
-        return super().get_formated_message(format=format)
+        return super().get_formated_message(msg_format=msg_format)
 
 
 ALL_ANTISTASI_RECORD_CLASSES.add(CreateConvoyInputRecord)
@@ -295,6 +302,7 @@ class SaveParametersRecord(BaseAntistasiRecord):
         return self._kv_data
 
     @classmethod
+    @profile
     def check(cls, log_record: "LogRecord") -> bool:
         logged_from = log_record.logged_from
 
@@ -317,7 +325,7 @@ class SaveParametersRecord(BaseAntistasiRecord):
                 new_line = f"◘ {key:<40}{value:>10}"
                 txt_lines += [new_line, '┄' * int(len(new_line) * 0.9)]
             return '\n'.join(txt_lines)
-        return super().get_formated_message(format=format)
+        return super().get_formated_message(msg_format=msg_format)
 
 
 ALL_ANTISTASI_RECORD_CLASSES.add(SaveParametersRecord)
@@ -357,6 +365,7 @@ class ResourceCheckRecord(BaseAntistasiRecord):
         return self._array_data
 
     @classmethod
+    @profile
     def check(cls, log_record: "LogRecord") -> bool:
         logged_from = log_record.logged_from
 
@@ -379,7 +388,7 @@ class ResourceCheckRecord(BaseAntistasiRecord):
                     _after_comma = ""
                 _out.append(f"{k:<50}{_full_num:>25}{_comma}{_after_comma}")
             return '\n'.join(_out).strip()
-        return super().get_formated_message(msg_format=format)
+        return super().get_formated_message(msg_format=msg_format)
 
 
 ALL_ANTISTASI_RECORD_CLASSES.add(ResourceCheckRecord)
@@ -418,9 +427,10 @@ class FreeSpawnPositionsRecord(BaseAntistasiRecord):
             for line in array_data_text_lines[1:]:
                 txt += ' ' * txt_len + line + '\n'
             return txt
-        return super().get_formated_message(format=format)
+        return super().get_formated_message(msg_format=msg_format)
 
     @classmethod
+    @profile
     def check(cls, log_record: "LogRecord") -> bool:
         logged_from = log_record.logged_from
 
@@ -469,9 +479,10 @@ class SelectReinfUnitsRecord(BaseAntistasiRecord):
             crew_text = pp.fmt(self.crew_array_data).replace("'", '"')
             cargo_text = pp.fmt(self.cargo_array_data).replace("'", '"')
             return f"units selected vehicle is\n\"{self.unit}\"\n\ncrew is\n{crew_text}\n\ncargo is\n{cargo_text}"
-        return super().get_formated_message(format=format)
+        return super().get_formated_message(msg_format=msg_format)
 
     @classmethod
+    @profile
     def check(cls, log_record: "LogRecord") -> bool:
         logged_from = log_record.logged_from
 

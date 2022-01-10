@@ -8,16 +8,39 @@ Soon.
 # region [Imports]
 
 # * Third Party Imports --------------------------------------------------------------------------------->
+from gidapptools.gidapptools_qt.debug.event_analyzer import EventAnalyzer, JsonOutputter
+from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel, EmptyContentItem
+from antistasi_logbook.storage.models.custom_fields import FakeField
+from antistasi_logbook.gui.views.base_query_tree_view import BaseQueryTreeView
 import atexit
 import inspect
+from datetime import datetime
 from antistasi_logbook.utilities.html_generation import dict_to_html
 from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
 from antistasi_logbook.gui.application import AntistasiLogbookApplication
 from gidapptools.general_helper.string_helper import StringCaseConverter
 from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
-from PySide6.QtWidgets import QWidget, QStyle, QMenuBar, QMainWindow, QMessageBox, QApplication, QStyleFactory, QLabel, QTextEdit, QTextBrowser, QPushButton, QDialog
-from PySide6.QtCore import Slot, QEvent, Signal, QSettings, QByteArray, Qt
-from PySide6.QtGui import QCloseEvent, QFont, QFontDatabase, QFontInfo
+import PySide6
+from PySide6 import (QtCore, QtGui, QtWidgets, Qt3DAnimation, Qt3DCore, Qt3DExtras, Qt3DInput, Qt3DLogic, Qt3DRender, QtAxContainer, QtBluetooth,
+                     QtCharts, QtConcurrent, QtDataVisualization, QtDesigner, QtHelp, QtMultimedia, QtMultimediaWidgets, QtNetwork, QtNetworkAuth,
+                     QtOpenGL, QtOpenGLWidgets, QtPositioning, QtPrintSupport, QtQml, QtQuick, QtQuickControls2, QtQuickWidgets, QtRemoteObjects,
+                     QtScxml, QtSensors, QtSerialPort, QtSql, QtStateMachine, QtSvg, QtSvgWidgets, QtTest, QtUiTools, QtWebChannel, QtWebEngineCore,
+                     QtWebEngineQuick, QtWebEngineWidgets, QtWebSockets, QtXml)
+
+from PySide6.QtCore import (QByteArray, QCoreApplication, QDate, QDateTime, QEvent, QLocale, QMetaObject, QModelIndex, QModelRoleData, QMutex,
+                            QMutexLocker, QObject, QPoint, QRect, QRecursiveMutex, QRunnable, QSettings, QSize, QThread, QThreadPool, QTime, QUrl,
+                            QWaitCondition, Qt, QAbstractItemModel, QAbstractListModel, QAbstractTableModel, Signal, Slot)
+
+from PySide6.QtGui import (QAction, QBrush, QCloseEvent, QPaintEvent, QResizeEvent, QMouseEvent, QStatusTipEvent, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
+                           QKeySequence, QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform)
+
+from PySide6.QtWidgets import (QApplication, QSplashScreen, QBoxLayout, QCheckBox, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QDialogButtonBox,
+                               QDockWidget, QDoubleSpinBox, QFontComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
+                               QLCDNumber, QLabel, QLayout, QLineEdit, QListView, QListWidget, QMainWindow, QMenu, QMenuBar, QMessageBox,
+                               QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
+                               QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
+                               QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
+
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 from antistasi_logbook.gui.resources.style_sheets import get_style_sheet_data
 from antistasi_logbook.storage.models.models import RemoteStorage
@@ -39,17 +62,22 @@ from antistasi_logbook.gui.widgets.markdown_editor import MarkdownEditorDialog
 from antistasi_logbook.gui.widgets.debug_widgets import DebugDockWidget
 from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
 from antistasi_logbook import setup
+from antistasi_logbook.gui.models.antistasi_function_model import AntistasiFunctionModel
+from antistasi_logbook.gui.models.game_map_model import GameMapModel
+from antistasi_logbook.gui.models.mods_model import ModsModel
+from antistasi_logbook.gui.models.version_model import VersionModel
+
 import qt_material
 setup()
 # * Standard Library Imports ---------------------------------------------------------------------------->
 
 # * Third Party Imports --------------------------------------------------------------------------------->
-
 # * PyQt5 Imports --------------------------------------------------------------------------------------->
 # * Gid Imports ----------------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     # * Gid Imports ----------------------------------------------------------------------------------------->
     from gidapptools.gid_config.interface import GidIniConfig
+    from antistasi_logbook.storage.models.models import BaseModel
 
 # endregion[Imports]
 
@@ -74,27 +102,13 @@ META_INFO = get_meta_info()
 # endregion[Constants]
 
 
-class SignalCollectingThreadPool(ThreadPoolExecutor):
-
-    def __init__(self, max_workers: int = None, thread_name_prefix: str = None, initializer: Callable = None, initargs: tuple[Any] = None) -> None:
-        super().__init__(max_workers=max_workers, thread_name_prefix=thread_name_prefix, initializer=initializer, initargs=initargs)
-        self.abort_signals: WeakSet[Event] = WeakSet()
-
-    def add_abort_signal(self, signal: Event) -> None:
-        self.abort_signals.add(signal)
-
-    def shutdown(self, wait: bool = None, *, cancel_futures: bool = None) -> None:
-        for abort_signal in self.abort_signals:
-            abort_signal.set()
-        return super().shutdown(wait=wait, cancel_futures=cancel_futures)
-
-
 class AntistasiLogbookMainWindow(QMainWindow):
     update_started = Signal()
     update_finished = Signal()
 
-    def __init__(self, config: "GidIniConfig") -> None:
+    def __init__(self, app: "AntistasiLogbookApplication", config: "GidIniConfig") -> None:
         self.config = config
+        self.app = app
         self.main_widget: MainWidget = None
         self.menubar: LogbookMenuBar = None
         self.statusbar: LogbookStatusBar = None
@@ -106,14 +120,11 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.sys_tray: "LogbookSystemTray" = None
         self.name: str = None
         self.title: str = None
+        self.update_thread: Thread = None
 
         super().__init__()
 
         self.setup()
-
-    @property
-    def app(self) -> AntistasiLogbookApplication:
-        return AntistasiLogbookApplication.instance()
 
     @property
     def backend(self):
@@ -144,6 +155,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.set_menubar(LogbookMenuBar(self))
         self.menubar.folder_action.triggered.connect(self.show_folder_window)
         self.menubar.open_credentials_managment_action.triggered.connect(self.show_credentials_managment_window)
+
         self.setWindowIcon(self.app.icon)
         geometry = settings.value('geometry', QByteArray())
         if geometry.size():
@@ -168,12 +180,15 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.backend.updater.signaler.update_finished.connect(self.main_widget.log_files_tab.model.refresh)
         self.backend.updater.signaler.update_finished.connect(self.statusbar.last_updated_label.refresh_text)
         self.menubar.open_settings_window_action.triggered.connect(self.open_settings_window)
+
+        self.menubar.data_menu_actions_group.triggered.connect(self.show_secondary_model_data)
         self.development_setup()
 
     def development_setup(self):
-        if os.getenv("IS_DEV", "false") == "false":
+        if self.app.is_dev is False:
             return
-        self.debug_dock_widget = DebugDockWidget(parent=self)
+
+        self.debug_dock_widget = DebugDockWidget(parent=self, add_to_menu=self.menubar.windows_menu)
         self.addDockWidget(Qt.NoDockWidgetArea, self.debug_dock_widget)
 
         for attr_name in ["desktopFileName",
@@ -192,18 +207,17 @@ class AntistasiLogbookMainWindow(QMainWindow):
                           "libraryPaths",
                           "available_font_families"]:
             self.debug_dock_widget.add_show_attr_button(attr_name=attr_name, obj=self.app)
+        self.shutdown_backend_backend_button = QPushButton("Shutdown Backend")
+        self.shutdown_backend_backend_button.pressed.connect(self.shutdown_backend)
+        self.debug_dock_widget.add_widget("Shutdown Backend", "database", self.shutdown_backend_backend_button)
 
-        self.debug_dock_widget.add_show_attr_button(attr_name="missing_items", obj=AllResourceItems)
-        self.debug_dock_widget.add_show_attr_button(attr_name="standardSizes", obj=QFontDatabase)
+        self.delete_db_button = QPushButton("Delete DB")
+        self.delete_db_button.pressed.connect(self.delete_db)
+        self.debug_dock_widget.add_widget("Delete DB", "database", self.delete_db_button)
 
-        self.markdown_editor_button = QPushButton("Markdown Editor")
-        self.markdown_editor_button.pressed.connect(self.show_markdown_editor)
-        self.debug_dock_widget.add_widget("markdown_editor", "experimental", self.markdown_editor_button)
-
-    def show_markdown_editor(self):
-        self.markdown_editor = MarkdownEditorDialog('# blah\n\n---', self)
-        self.markdown_editor.dialog_accepted.connect(log.debug)
-        self.markdown_editor.show()
+        self.start_backend_button = QPushButton("Start Backend")
+        self.start_backend_button.pressed.connect(self.start_backend)
+        self.debug_dock_widget.add_widget("Start Backend", "database", self.start_backend_button)
 
     def setup_backend(self) -> None:
         self.menubar.single_update_action.triggered.connect(self._single_update)
@@ -219,6 +233,53 @@ class AntistasiLogbookMainWindow(QMainWindow):
     def set_main_widget(self, main_widget: QWidget) -> None:
         self.main_widget = main_widget
         self.setCentralWidget(main_widget)
+
+    def shutdown_backend(self):
+        self.statusbar.shutdown()
+        self.backend.shutdown()
+
+    def delete_db(self):
+        path = self.backend.database.database_path
+        log.debug("deleting DB at %r", path.as_posix())
+        try:
+            path.unlink(missing_ok=True)
+
+        except Exception as e:
+            log.error(e, True)
+            log.critical("Unable to delete DB at %r", path.as_posix())
+
+    def start_backend(self):
+        config = META_CONFIG.get_config('general')
+        db_path = config.get('database', "database_path", default=THIS_FILE_DIR.parent.joinpath("storage"))
+
+        database = GidSqliteApswDatabase(db_path, config=config, thread_safe=True, autoconnect=True)
+        backend = Backend(database=database, config=config, update_signaler=UpdaterSignaler())
+        backend.start_up()
+        self.app.backend = backend
+        self.statusbar.setup()
+
+    def show_secondary_model_data(self, db_model: "BaseModel"):
+        models = {"AntstasiFunction": AntistasiFunctionModel,
+                  "GameMap": GameMapModel,
+                  "Version": VersionModel,
+                  "Mod": ModsModel}
+        window = QWidget()
+        window.setLayout(QGridLayout())
+        view = BaseQueryTreeView(db_model.get_meta().table_name)
+        model_class = models.get(db_model.get_meta().table_name, None)
+        if model_class is None:
+            model = BaseQueryDataModel(db_model=db_model).refresh()
+        else:
+            model = model_class().refresh()
+
+        with self.backend.database:
+            model.content_items = list(db_model.select())
+        view.setModel(model)
+        window.layout().addWidget(view)
+        view.setup()
+
+        self.secondary_model_data_window = window
+        self.secondary_model_data_window.show()
 
     def show_folder_window(self):
         self._temp_folder_window = DataView(title="Folder")
@@ -237,8 +298,8 @@ class AntistasiLogbookMainWindow(QMainWindow):
                 self.update_finished.emit()
                 self.menubar.single_update_action.setEnabled(True)
 
-        x = Thread(target=_run_update)
-        x.start()
+        self.update_thread = Thread(target=_run_update)
+        self.update_thread.start()
 
     def close(self) -> bool:
         log.debug("%r executing 'close'", self)
@@ -254,18 +315,32 @@ class AntistasiLogbookMainWindow(QMainWindow):
             except AttributeError:
                 pass
             log.info("closing %r", self)
+            splash = QSplashScreen(AllResourceItems.app_icon_image.get_as_pixmap(), Qt.WindowStaysOnTopHint)
+            self.setVisible(False)
+            if self.config.get("database", "backup_database") is True:
+                splash.show()
+            splash.setPixmap(AllResourceItems.antistasi_logbook_splash_backup_image.get_as_pixmap())
+
             log.debug("Starting shutting down %r", self.backend)
             self.backend.shutdown()
             log.debug("Finished shutting down %r", self.backend)
-            log.debug('%r accepting event %r', self, event.type().name)
+            splash.close()
+
             settings = QSettings(f"{META_INFO.app_name}_settings", "main_window")
             settings.setValue('geometry', self.saveGeometry())
-            event.accept()
+
+            log.debug('%r accepting event %r', self, event.type().name)
+            log.debug("shutting down %r", self.statusbar)
+            self.statusbar.shutdown()
+            if self.update_thread is not None:
+                self.update_thread.join(10)
             self.app.closeAllWindows()
+            event.accept()
+
         else:
             event.ignore()
 
-    @Slot()
+    @ Slot()
     def open_settings_window(self):
         self._temp_settings_window = SettingsWindow(general_config=self.config, main_window=self).setup()
         self._temp_settings_window.show()
@@ -279,18 +354,33 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
 
 def start_gui(nextcloud_username: str = None, nextcloud_password: str = None):
+    qApp = AntistasiLogbookApplication.instance()
+    if qApp is None:
+        qApp = AntistasiLogbookApplication.with_high_dpi_scaling(argvs=sys.argv)
+    start_splash = QSplashScreen(AllResourceItems.app_icon_image.get_as_pixmap(), Qt.WindowStaysOnTopHint)
+
+    start_splash.setPixmap(AllResourceItems.antistasi_logbook_splash_preparing_database_image.get_as_pixmap())
+
+    qApp.processEvents()
+    start_splash.show()
     config = META_CONFIG.get_config('general')
     db_path = config.get('database', "database_path", default=None)
     database = GidSqliteApswDatabase(db_path, config=config, thread_safe=True, autoconnect=True)
+    start_splash.setPixmap(AllResourceItems.antistasi_logbook_splash_preparing_backend_image.get_as_pixmap())
     backend = Backend(database=database, config=config, update_signaler=UpdaterSignaler())
-    _app = AntistasiLogbookApplication.with_high_dpi_scaling(backend=backend, icon=AllResourceItems.app_icon_image, argvs=sys.argv)
-    m = AntistasiLogbookMainWindow(META_CONFIG.get_config('general'))
-    _app.main_window = m
+
+    start_splash.setPixmap(AllResourceItems.antistasi_logbook_splash_starting_backend_image.get_as_pixmap())
+    qApp.setup(backend=backend, icon=AllResourceItems.app_icon_image)
     if nextcloud_username is not None and nextcloud_password is not None:
         RemoteStorage.get(name="community_webdav").set_login_and_password(login=nextcloud_username, password=nextcloud_password, store_in_db=False)
 
-    m.show()
-    return _app.exec()
+    _main_window = AntistasiLogbookMainWindow(qApp, META_CONFIG.get_config('general'))
+    qApp.main_window = _main_window
+
+    _main_window.show()
+    _main_window.setWindowState(Qt.WindowActive)
+    start_splash.finish(_main_window)
+    sys.exit(qApp.exec())
 
 
 # region[Main_Exec]
@@ -298,7 +388,7 @@ if __name__ == '__main__':
 
     import dotenv
     dotenv.load_dotenv(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\antistasi_logbook\nextcloud.env")
-    sys.exit(start_gui(os.getenv("NEXTCLOUD_USERNAME", None), os.getenv("NEXTCLOUD_PASSWORD", None)))
+    start_gui(os.getenv("NEXTCLOUD_USERNAME", None), os.getenv("NEXTCLOUD_PASSWORD", None))
 
 
 # endregion[Main_Exec]

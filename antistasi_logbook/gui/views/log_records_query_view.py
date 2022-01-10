@@ -81,7 +81,7 @@ class LogRecordsQueryView(BaseQueryTreeView):
         super().pre_set_model()
 
     def post_set_model(self):
-        return super().post_set_model()
+        super().post_set_model()
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}"

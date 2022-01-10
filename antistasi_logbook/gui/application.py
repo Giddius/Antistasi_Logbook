@@ -73,11 +73,12 @@ from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog
                                QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
 from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
 from jinja2 import Environment, BaseLoader
+from gidapptools.gid_config.interface import EntryTypus
 if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend
     from gidapptools.gid_config.interface import GidIniConfig
     from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow, LogbookSystemTray
-    from gidapptools.gidapptools_qt.resources_helper import PixmapResourceItem
+    from gidapptools.gidapptools_qt.resources.resources_helper import PixmapResourceItem
 # endregion[Imports]
 
 # region [TODO]
@@ -96,6 +97,7 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 META_INFO = get_meta_info()
 META_PATHS = get_meta_paths()
+COLOR_CONFIG = get_meta_config().get_config("color")
 # endregion[Constants]
 
 
@@ -108,22 +110,57 @@ ABOUT_TEMPLATE = """
 </dl>"""
 
 
+def _qcolor(value: str, mode: str = 'decode', **named_arguments) -> float:
+    if mode == "decode":
+        if value:
+            r, g, b, a = (int(i.strip()) for i in value.split(',') if i.strip())
+            return QColor(r, g, b, a)
+
+    elif mode == "encode":
+        if value:
+            return ', '.join(str(i) for i in value.getRgb())
+
+
+def _handle_qcolor(value: Any, sub_arguments: dict[str, str]) -> EntryTypus:
+    return EntryTypus(original_value=value, base_typus=QColor)
+
+
+COLOR_CONFIG.add_spec_value_handler("qcolor", _handle_qcolor)
+COLOR_CONFIG.add_converter_function(QColor, _qcolor)
+
+COLOR_CONFIG.reload()
+
+
 class AntistasiLogbookApplication(QApplication):
 
-    def __init__(self, backend: "Backend", icon: "PixmapResourceItem" = None, argvs: Iterable[str] = None):
+    def __init__(self, argvs: Iterable[str] = None):
         super().__init__(argvs)
+        self.backend: "Backend" = None
+        self.icon: QIcon = None
+        self.meta_info = None
+        self.meta_paths = None
+        self.available_font_families = None
+        self.jinja_environment = None
+        self.main_window: "AntistasiLogbookMainWindow" = None
+        self.sys_tray: "LogbookSystemTray" = None
+        self.extra_windows = WeakSet()
+        self.gui_thread_pool: ThreadPoolExecutor = None
+        self.is_setup: bool = False
+
+    def setup(self, backend: "Backend", icon: "PixmapResourceItem") -> None:
+        if self.is_setup is True:
+            return
+
+        self.gui_thread_pool = ThreadPoolExecutor(5, thread_name_prefix="gui")
         self.backend = backend
         self.icon = icon.get_as_icon() if icon is not None else icon
         self.meta_info = get_meta_info()
         self.meta_paths = get_meta_paths()
+
         self.available_font_families = set(QFontDatabase().families())
         self.jinja_environment = Environment(loader=BaseLoader)
-        self.main_window: "AntistasiLogbookMainWindow" = None
-        self.sys_tray: "LogbookSystemTray" = None
-        self.extra_windows = WeakSet()
-        self.setup()
 
-    def setup(self) -> None:
+        self.color_config = COLOR_CONFIG
         self.backend.start_up()
         self.setApplicationName(self.meta_info.app_name)
         self.setApplicationDisplayName(self.meta_info.pretty_app_name)
@@ -136,18 +173,24 @@ class AntistasiLogbookApplication(QApplication):
         font.setPointSize(10)
 
         self.setFont(font)
+        self.is_setup = True
 
     @ classmethod
-    def with_high_dpi_scaling(cls, backend: "Backend", icon: "PixmapResourceItem" = None, argvs: Iterable[str] = None):
+    def with_high_dpi_scaling(cls, argvs: Iterable[str] = None):
         cls.setAttribute(Qt.AA_EnableHighDpiScaling, True)
         cls.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
         # cls.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.Round)
         QGuiApplication.setDesktopSettingsAware(True)
-        return cls(backend=backend, icon=icon, argvs=argvs)
+        return cls(argvs=argvs)
 
     @property
     def config(self) -> "GidIniConfig":
         return self.backend.config
+
+    @property
+    def is_dev(self) -> bool:
+        dev_mode = self.config.get("debug", "dev_mode")
+        return any(value is True for value in [dev_mode, self.meta_info.is_dev])
 
     def format_datetime(self, date_time: datetime) -> str:
         if self.config.get("time", "use_local_timezone", default=False) is True:

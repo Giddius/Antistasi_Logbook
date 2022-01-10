@@ -31,10 +31,11 @@ except ImportError:
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools.general_helper.enums import MiscEnum
 from antistasi_logbook.records.enums import MessageTypus
+from gidapptools.general_helper.string_helper import StringCase, StringCaseConverter, shorten_string
 if TYPE_CHECKING:
     # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.parsing.parser import RawRecord
-
+    from antistasi_logbook.storage.database import GidSqliteApswDatabase
     from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
     from antistasi_logbook.storage.models.models import LogFile, LogLevel, AntstasiFunction, LogRecord, RecordOrigin
 
@@ -156,11 +157,34 @@ class BaseRecord(AbstractRecord):
         return Color.get_color_by_name("Gray").with_alpha(0.1).qcolor
 
     def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
+        if msg_format is MessageFormat.SHORT:
+            return shorten_string(self.message, max_length=30)
         return self.message
 
+    def get_db_item(self, database: "GidSqliteApswDatabase") -> "LogRecord":
+        from antistasi_logbook.storage.models.models import LogRecord
+        with database:
+            return LogRecord.get_by_id(self.record_id)
+
     @classmethod
+    @profile
     def check(cls, log_record: "LogRecord") -> bool:
         return True
+
+    @classmethod
+    @profile
+    def from_db_item(cls, item: "LogRecord") -> "BaseRecord":
+        return cls(record_id=item.id,
+                   log_file=item.log_file,
+                   origin=item.origin,
+                   start=item.start,
+                   end=item.end,
+                   message=item.message,
+                   recorded_at=item.recorded_at,
+                   log_level=item.log_level,
+                   marked=item.marked,
+                   called_by=item.called_by,
+                   logged_from=item.logged_from)
 
     @classmethod
     @profile
@@ -184,7 +208,18 @@ class BaseRecord(AbstractRecord):
     def __getattr__(self, name: str):
         if name == "id":
             return self.record_id
+        if name == "record_class":
+            return self.__class__
         raise AttributeError(f"{self!r} does not have an attribute {name!r}")
+
+    def __str__(self) -> str:
+        return f"{self.origin}-Record at {self.pretty_recorded_at}"
+
+    @classmethod
+    def reset_colors(cls) -> None:
+        BaseRecord._background_qcolor = MiscEnum.NOTHING
+        for sub_class in BaseRecord.__subclasses__():
+            sub_class._background_qcolor = MiscEnum.NOTHING
 
 
 # region[Main_Exec]

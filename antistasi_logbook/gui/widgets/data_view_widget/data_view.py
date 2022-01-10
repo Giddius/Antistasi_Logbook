@@ -219,7 +219,7 @@ class DataView(QWidget):
     def determine_type_widget(self, value: Any) -> Optional["TypeFieldProtocol"]:
         typus = type(value)
         type_widget = TYPE_FIELD_TABLE.get(typus)
-        log.debug("type_widget for %r is %r", value, type_widget)
+
         return type_widget
 
     def clear(self):

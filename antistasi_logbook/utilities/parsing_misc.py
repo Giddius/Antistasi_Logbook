@@ -38,7 +38,6 @@ log = get_logger(__name__)
 # endregion[Constants]
 
 
-@profile
 def _maybe_join(parts):
     if parts is None:
         return ""
@@ -61,7 +60,7 @@ def get_array_grammar():
     items = pp.Forward()
     content = pp.Group(pp.ZeroOrMore(items + pp.Optional(colon)))
     array = sqb_open + content + sqb_close
-    string = quote + pp.OneOrMore(pp.Word(pp.printables.replace('"', ''))).set_parse_action(_maybe_join) + quote
+    string = quote + pp.OneOrMore(pp.Word(pp.printables.replace('"', ''))).set_parse_action(' '.join) + quote
     empty_string = quote + quote
     number = ppc.number
     items <<= string | empty_string | keywords | array | number

@@ -13,6 +13,7 @@ from pathlib import Path
 # * Third Party Imports --------------------------------------------------------------------------------->
 from peewee import Field, Query
 from antistasi_logbook.storage.models.models import Server, GameMap, LogFile
+from antistasi_logbook.storage.models.custom_fields import FakeField
 from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel, INDEX_TYPE
 from functools import reduce
 from operator import or_, and_
@@ -41,6 +42,7 @@ from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog
 from datetime import datetime, timedelta, timezone
 from dateutil.tz import UTC
 from tzlocal import get_localzone
+from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from peewee import JOIN
@@ -68,23 +70,19 @@ log = get_logger(__name__)
 # endregion[Constants]
 
 
-class FakeField:
-
-    def __init__(self, name: str, verbose_name: str) -> None:
-        self.name = name
-        self.verbose_name = verbose_name
-        self.help_text = None
-
-
 class LogFilesModel(BaseQueryDataModel):
-    extra_columns = {FakeField(name="amount_log_records", verbose_name="Amount Log Records")}
+    extra_columns = {FakeField(name="amount_log_records", verbose_name="Amount Log Records"), FakeField("time_frame", "Time Frame")}
     strict_exclude_columns = {"startup_text", "header_text"}
 
     def __init__(self, parent: Optional[QtCore.QObject] = None, show_unparsable: bool = False) -> None:
         self.show_unparsable = show_unparsable
         super().__init__(LogFile, parent=parent)
         self.ordered_by = (-LogFile.modified_at, LogFile.server)
-        self.filters = {}
+        self.filter_item = None
+
+    def on_query_filter_changed(self, query_filter):
+        self.filter_item = query_filter
+        self.refresh()
 
     def on_filter_newer_than(self, dt: datetime):
         if not isinstance(dt, datetime):
@@ -115,6 +113,14 @@ class LogFilesModel(BaseQueryDataModel):
 
         if dt is not None:
             self.filters["older_than"] = (LogFile.modified_at <= dt)
+            self.refresh()
+
+    def on_filter_by_marked(self, checked):
+        if not checked and "marked" in self.filters:
+            del self.filters["marked"]
+            self.refresh()
+        elif checked:
+            self.filters["marked"] = (LogFile.marked == True)
             self.refresh()
 
     def filter_by_server(self, server_id: int):
@@ -162,8 +168,8 @@ class LogFilesModel(BaseQueryDataModel):
         query = LogFile.select().join(GameMap, join_type=JOIN.LEFT_OUTER).switch(LogFile).join(Server).switch(LogFile)
         if self.show_unparsable is False:
             query = query.where(LogFile.unparsable == False)
-        if len(self.filters.values()) != 0:
-            query = query.where(reduce(and_, self.filters.values()))
+        if self.filter_item is not None:
+            query = query.where(self.filter_item)
         return query.order_by(*self.ordered_by)
 
     def get_content(self) -> "BaseQueryDataModel":
