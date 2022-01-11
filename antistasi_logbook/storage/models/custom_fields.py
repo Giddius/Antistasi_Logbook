@@ -6,63 +6,28 @@ Soon.
 
 # region [Imports]
 
+# * Standard Library Imports ---------------------------------------------------------------------------->
 import os
-import re
-import sys
-import json
-import queue
-import math
 import base64
-import pickle
-import random
-import shelve
-import dataclasses
-import shutil
-import asyncio
-import logging
-import sqlite3
-import platform
-import importlib
-import subprocess
-import inspect
-
-from time import sleep, process_time, process_time_ns, perf_counter, perf_counter_ns
-from io import BytesIO, StringIO
-from abc import ABC, ABCMeta, abstractmethod
-from copy import copy, deepcopy
-from enum import Enum, Flag, auto, unique
-from time import time, sleep
-from pprint import pprint, pformat
+from io import BytesIO
+from typing import Union, Literal, Optional
 from pathlib import Path
-from string import Formatter, digits, printable, whitespace, punctuation, ascii_letters, ascii_lowercase, ascii_uppercase
-from timeit import Timer
-from typing import TYPE_CHECKING, Union, Callable, Iterable, Optional, Mapping, Any, IO, TextIO, BinaryIO, Hashable, Generator, Literal, TypeVar, TypedDict, AnyStr, ClassVar
-from zipfile import ZipFile, ZIP_LZMA
 from datetime import datetime, timezone, timedelta
-from tempfile import TemporaryDirectory
-from textwrap import TextWrapper, fill, wrap, dedent, indent, shorten
-from functools import wraps, partial, lru_cache, singledispatch, total_ordering, cached_property
-from importlib import import_module, invalidate_caches
-from contextlib import contextmanager, asynccontextmanager, nullcontext, closing, ExitStack, suppress
-from statistics import mean, mode, stdev, median, variance, pvariance, harmonic_mean, median_grouped
-from collections import Counter, ChainMap, deque, namedtuple, defaultdict
-from urllib.parse import urlparse
-from importlib.util import find_spec, module_from_spec, spec_from_file_location
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
-from importlib.machinery import SourceFileLoader
-from peewee import Model, TextField, IntegerField, BooleanField, AutoField, DateTimeField, ForeignKeyField, SQL, BareField, SqliteDatabase, Field, BlobField
-from antistasi_logbook.utilities.path_utilities import RemotePath
-from playhouse.fields import CompressedField
-import httpx
+
+# * Third Party Imports --------------------------------------------------------------------------------->
 import yarl
-from antistasi_logbook.utilities.misc import Version
-from dateutil.tz import tzoffset
-from hashlib import blake2b
+import httpx
 from PIL import Image
+# from peewee import Field, BlobField
+from dateutil.tz import UTC, tzoffset
+from playhouse.fields import CompressedField
+from playhouse.apsw_ext import IntegerField, CharField, TextField, BigIntegerField, Field, BlobField, DateTimeField, BooleanField, DecimalField, FixedCharField, BareField, ForeignKeyField, ManyToManyField, TimestampField
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
-import base64
+from antistasi_logbook.utilities.misc import VersionItem
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from antistasi_logbook.utilities.path_utilities import RemotePath
+from gidapptools import get_logger
 # endregion[Imports]
 
 # region [TODO]
@@ -78,8 +43,30 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
-
+log = get_logger(__name__)
 # endregion[Constants]
+
+
+class FakeField:
+    field_type = "FAKE"
+
+    def __init__(self, name: str, verbose_name: str) -> None:
+        self.name = name
+        self.verbose_name = verbose_name
+        self.help_text = None
+
+
+class CaselessTextField(TextField):
+
+    def db_value(self, value):
+        if value is not None:
+            value = str(value).casefold()
+        return super().db_value(value)
+
+    def python_value(self, value):
+        if value is not None:
+            value = value.casefold()
+        return super().python_value(value)
 
 
 class RemotePathField(Field):
@@ -113,14 +100,14 @@ class PathField(Field):
 class VersionField(Field):
     field_type = "VERSION"
 
-    def db_value(self, value: Version):
+    def db_value(self, value: VersionItem):
         if value is not None:
             return str(value)
 
-    def python_value(self, value) -> Optional[Version]:
+    def python_value(self, value) -> Optional[VersionItem]:
         if value is None:
             return None
-        return Version.from_string(value)
+        return VersionItem.from_string(value)
 
 
 class URLField(Field):
@@ -140,16 +127,45 @@ class URLField(Field):
             return yarl.URL(value)
 
 
-class BetterDateTimeField(Field):
-    field_type = 'DATETIME'
+class AwareTimeStampField(BigIntegerField):
+    field_type = 'TIMESTAMP'
+    mult_factor = 1000000
 
-    def db_value(self, value: Optional[datetime]):
-        if value is not None:
-            return value.isoformat()
+    def __init__(self, *args, **kwargs):
+
+        self.utc = kwargs.pop('utc', False) or False
+        if kwargs.get("null", False) is False:
+
+            kwargs.setdefault('default', self._get_default)
+        super().__init__(*args, **kwargs)
+
+    def _get_default(self):
+        if self.utc is True:
+            return datetime.now(tz=UTC)
+        return datetime.now()
+
+    def db_value(self, value: datetime):
+        if value is None:
+            return
+        if value.tzinfo is None:
+            raise ValueError(f"tzinfo of {value} can not be non!")
+        if value.tzinfo is not UTC and value.tzinfo is not timezone.utc:
+            # value = value.astimezone(UTC)
+            raise TypeError(f"tzinfo needs to be utc not {value.tzinfo!r}")
+        raw_value = value.timestamp()
+        return int(raw_value * self.mult_factor)
 
     def python_value(self, value):
-        if value is not None:
-            return datetime.fromisoformat(value)
+
+        if value is None:
+            return
+
+        reduced_value = value / self.mult_factor
+        dt = datetime.fromtimestamp(reduced_value)
+        if self.utc and dt.tzinfo is None:
+            dt = dt.astimezone(tz=UTC)
+
+        return dt
 
 
 class TzOffsetField(Field):
@@ -179,9 +195,24 @@ class CompressedTextField(CompressedField):
             return value.decode(encoding='utf-8', errors='ignore')
 
 
+class MarkedField(BooleanField):
+
+    def __init__(self, **kwargs):
+        super().__init__(index=True, default=False, help_text="Mark items to find them easier", verbose_name="Marked", **kwargs)
+
+
+class CommentsField(CompressedTextField):
+
+    def __init__(self, compression_level=6, algorithm=CompressedField.ZLIB, **kwargs):
+        kwargs.pop("verbose_name", None)
+        kwargs.pop("help_text", None)
+        kwargs.pop("null", None)
+        super().__init__(compression_level=compression_level, algorithm=algorithm, verbose_name="Comments", help_text="Stored Comments", null=True, **kwargs)
+
+
 class CompressedImageField(CompressedField):
 
-    def __init__(self, return_as: Union[Literal["pil_image"], Literal['bytes'], Literal['qt_image']] = "pil_image", **kwargs):
+    def __init__(self, return_as: Union[Literal["pil_image"], Literal['bytes'], Literal['qt_image']] = "bytes", **kwargs):
         super().__init__(**kwargs)
         return_func_table = {"pil_image": self.return_as_pil_image,
                              "bytes": self.return_as_bytes,
@@ -229,6 +260,7 @@ class CompressedImageField(CompressedField):
 
 
 class LoginField(BlobField):
+    field_type = 'BLOB'
 
     @property
     def key(self) -> bytes:
@@ -251,6 +283,7 @@ class LoginField(BlobField):
 
 
 class PasswordField(BlobField):
+    field_type = 'BLOB'
 
     @property
     def key(self) -> bytes:

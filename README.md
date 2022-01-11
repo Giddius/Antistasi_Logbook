@@ -22,7 +22,7 @@
 - gidapptools>=0.1.9
 - PySide6>=6.2.1
 
-Also [APSW](https://github.com/rogerbinns/apsw)s
+Also [APSW](https://github.com/rogerbinns/apsw)
 
 ### Database
 

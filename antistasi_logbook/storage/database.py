@@ -5,75 +5,39 @@ Soon.
 """
 
 # region [Imports]
-
-import os
-import re
-import sys
-import json
-import queue
-import math
-import base64
-import pickle
-import random
-import shelve
-import dataclasses
-import shutil
-import asyncio
-import logging
-import sqlite3
-import platform
-import importlib
-import subprocess
-import inspect
-from antistasi_logbook import setup
-setup()
-from time import sleep, process_time, process_time_ns, perf_counter, perf_counter_ns
-from io import BytesIO, StringIO
-from abc import ABC, ABCMeta, abstractmethod
-from copy import copy, deepcopy
-from enum import Enum, Flag, auto, unique
-from time import time, sleep
-from pprint import pprint, pformat
-from pathlib import Path
-from string import Formatter, digits, printable, whitespace, punctuation, ascii_letters, ascii_lowercase, ascii_uppercase
-from timeit import Timer
-from typing import TYPE_CHECKING, Union, Callable, Iterable, Optional, Mapping, Any, IO, TextIO, BinaryIO, Hashable, Generator, Literal, TypeVar, TypedDict, AnyStr, Protocol, runtime_checkable
-from zipfile import ZipFile, ZIP_LZMA
-from datetime import datetime, timezone, timedelta
-from tempfile import TemporaryDirectory
-from textwrap import TextWrapper, fill, wrap, dedent, indent, shorten
-from functools import wraps, partial, lru_cache, singledispatch, total_ordering, cached_property
-from importlib import import_module, invalidate_caches
-from contextlib import contextmanager, asynccontextmanager, nullcontext, closing, ExitStack, suppress
-from statistics import mean, mode, stdev, median, variance, pvariance, harmonic_mean, median_grouped
-from collections import Counter, ChainMap, deque, namedtuple, defaultdict
-from urllib.parse import urlparse
-from importlib.util import find_spec, module_from_spec, spec_from_file_location
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
-from importlib.machinery import SourceFileLoader
-from peewee import Model, TextField, IntegerField, BooleanField, AutoField, DateTimeField, ForeignKeyField, SQL, BareField, SqliteDatabase, Field, DatabaseProxy
-from playhouse.sqlite_ext import SqliteExtDatabase
-from playhouse.sqliteq import SqliteQueueDatabase
-from playhouse.pool import PooledSqliteExtDatabase
-import yarl
-from gidapptools.general_helper.timing import time_execution
-from gidapptools.gid_signal.interface import get_signal
-from gidapptools.meta_data.interface import get_meta_paths, MetaPaths, get_meta_config, get_meta_info
+from contextlib import contextmanager
+# * Standard Library Imports ---------------------------------------------------------------------------->
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 from gidapptools.general_helper.conversion import human2bytes
-from antistasi_logbook.utilities.locks import UPDATE_LOCK
-from antistasi_logbook.storage.models.models import Server, RemoteStorage, LogFile, RecordClass, LogRecord, AntstasiFunction, setup_db, DatabaseMetaData, GameMap, LogLevel
-from antistasi_logbook.updating.remote_managers import AbstractRemoteStorageManager, LocalManager, WebdavManager, FakeWebdavManager
-from antistasi_logbook.utilities.misc import NoThreadPoolExecutor, Version
-from rich.console import Console as RichConsole
-import threading
+from gidapptools.meta_data.interface import MetaPaths, get_meta_info, get_meta_paths, get_meta_config
+from gidapptools import get_logger
+from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
+from antistasi_logbook.storage.models.models import Server, GameMap, LogFile, LogLevel, RecordClass, RemoteStorage, AntstasiFunction, DatabaseMetaData, setup_db, LogRecord, RecordOrigin, Version
 from playhouse.apsw_ext import APSWDatabase
-from rich import inspect as rinspect
-from dateutil.tz import UTC
+from peewee import DatabaseProxy, JOIN
+from apsw import Connection
+from threading import Lock, Thread, Event, Condition, Barrier, Semaphore
+from functools import cached_property
+from pathlib import Path
+from typing import TYPE_CHECKING, Union, Protocol, Iterable, Generator, Any, Optional
+import os
+from weakref import WeakSet
 
+# * Third Party Imports --------------------------------------------------------------------------------->
+from antistasi_logbook import setup
 
-from gidapptools import get_main_logger, get_logger
+setup()
+# * Standard Library Imports ---------------------------------------------------------------------------->
+
+# * Third Party Imports --------------------------------------------------------------------------------->
+
+# * Gid Imports ----------------------------------------------------------------------------------------->
+
 if TYPE_CHECKING:
+    # * Gid Imports ----------------------------------------------------------------------------------------->
     from gidapptools.gid_config.interface import GidIniConfig
+    from antistasi_logbook.parsing.record_processor import RecordProcessor, RecordInserter
+
 # endregion[Imports]
 
 # region [TODO]
@@ -87,7 +51,6 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 META_PATHS: MetaPaths = get_meta_paths()
@@ -106,8 +69,7 @@ DEFAULT_PRAGMAS = {
     "ignore_check_constraints": 0,
     "foreign_keys": 1,
     "temp_store": "MEMORY",
-    "threads": 5,
-    "mmap_size": human2bytes("1 gb")
+    "mmap_size": human2bytes("500 mb")
 }
 
 
@@ -138,8 +100,11 @@ class GidSqliteDatabase(Protocol):
     def backup(self, backup_path: Union[str, os.PathLike, Path] = None) -> "GidSqliteDatabase":
         ...
 
+# pylint: disable=abstract-method
+
 
 class GidSqliteApswDatabase(APSWDatabase):
+    all_connections: WeakSet[Connection] = WeakSet()
     default_extensions = {"json_contains": True,
                           "regexp_function": False}
 
@@ -153,7 +118,15 @@ class GidSqliteApswDatabase(APSWDatabase):
                  autoconnect=True,
                  pragmas=None,
                  extensions=None):
-        self.database_path = self.default_db_path.joinpath(DEFAULT_DB_NAME) if database_path is None else Path(database_path)
+        self.database_path = self.default_db_path.joinpath(DEFAULT_DB_NAME)
+        if database_path is not None:
+            in_path = Path(database_path)
+            if in_path.suffix == "":
+                in_path.mkdir(parents=True, exist_ok=True)
+                self.database_path = in_path.joinpath(DEFAULT_DB_NAME)
+            else:
+                in_path.parent.mkdir(exist_ok=True, parents=True)
+                self.database_path = in_path
         self.database_name = self.database_path.name
         self.config = CONFIG if config is None else config
         self.auto_backup = auto_backup
@@ -162,10 +135,22 @@ class GidSqliteApswDatabase(APSWDatabase):
         extensions = self.default_extensions.copy() | (extensions or {})
         pragmas = DEFAULT_PRAGMAS.copy() | (pragmas or {})
         super().__init__(make_db_path(self.database_path), thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, timeout=30, **extensions)
+        self.foreign_key_cache = None
+        self.write_lock = Lock()
+        self.record_processor: "RecordProcessor" = None
+        self.record_inserter: "RecordInserter" = None
 
     @property
-    def default_backup_folder(self) -> Path:
+    def backup_folder(self) -> Path:
         return self.database_path.parent.joinpath("backups")
+
+    @cached_property
+    def base_record_id(self) -> int:
+        return RecordClass.select().where(RecordClass.name == "BaseRecord").scalar()
+
+    # def _add_conn_hooks(self, conn):
+    #     super()._add_conn_hooks(conn)
+    #     self.all_connections.add(conn)
 
     def _pre_start_up(self, overwrite: bool = False) -> None:
         self.database_path.parent.mkdir(exist_ok=True, parents=True)
@@ -175,64 +160,130 @@ class GidSqliteApswDatabase(APSWDatabase):
     def _post_start_up(self, **kwargs) -> None:
         self.session_meta_data = DatabaseMetaData.new_session()
 
+    @profile
     def start_up(self,
                  overwrite: bool = False,
                  force: bool = False) -> "GidSqliteApswDatabase":
+
         if self.started_up is True and force is False:
             return
         log.info("starting up %r", self)
         self._pre_start_up(overwrite=overwrite)
-
-        setup_db(self)
         self.connect(reuse_if_open=True)
+        with self.write_lock:
+            setup_db(self)
+
         self._post_start_up()
         self.started_up = True
+        self.foreign_key_cache.reset_all()
         log.info("finished starting up %r", self)
         return self
 
     def optimize(self) -> "GidSqliteApswDatabase":
         log.info("optimizing %r", self)
-        self.pragma("OPTIMIZE")
+        with self.write_lock:
+            self.pragma("OPTIMIZE")
         return self
 
     def vacuum(self) -> "GidSqliteApswDatabase":
         log.info("vacuuming %r", self)
-        self.execute_sql("VACUUM;")
+        with self.write_lock:
+            self.execute_sql("VACUUM;")
         return self
 
-    def shutdown(self,
-                 error: BaseException = None,
-                 backup_folder: Union[str, os.PathLike, Path] = None) -> None:
+    @profile
+    def close(self):
+        return super().close()
+
+    @profile
+    def shutdown(self, error: BaseException = None) -> None:
         log.debug("shutting down %r", self)
-        self.session_meta_data.save()
+        with self.write_lock:
+            self.session_meta_data.save()
 
-        self.close()
-        if self.auto_backup is True and error is None:
-            # self.backup(backup_folder=backup_folder)
-            log.warning("'backup-method' is not written!")
+        is_closed = self.close()
+        for conn in self.all_connections:
+            conn.close()
+
         log.debug("finished shutting down %r", self)
+        self.started_up = False
 
+    @profile
     def get_all_server(self, ordered_by=Server.id) -> tuple[Server]:
-        with self:
-            return tuple(Server.select().join(RemoteStorage).order_by(ordered_by))
+        with self.connection_context() as ctx:
+            result = tuple(Server.select().join(RemoteStorage, on=Server.remote_storage).order_by(ordered_by))
 
+        return result
+
+    @profile
     def get_log_files(self, server: Server = None, ordered_by=LogFile.id) -> tuple[LogFile]:
         with self:
+            query = LogFile.select(LogFile, Server, GameMap, Version)
+            query = query.join(Server, on=LogFile.server).join(RemoteStorage, on=Server.remote_storage).switch(LogFile)
+            query = query.join(GameMap, on=LogFile.game_map, join_type=JOIN.LEFT_OUTER).switch(LogFile)
+            query = query.join(Version, on=LogFile.version, join_type=JOIN.LEFT_OUTER).switch(LogFile)
             if server is None:
-                return tuple(LogFile.select().join(GameMap).switch(LogFile).join(Server).order_by(ordered_by))
-            return tuple(LogFile.select().join(GameMap).switch(LogFile).join(Server).where(LogFile.server == Server).order_by(ordered_by))
+                return tuple(query.order_by(ordered_by))
+            return tuple(query.where(LogFile.server_id == server.id).order_by(ordered_by))
 
+    @profile
     def get_all_log_levels(self, ordered_by=LogLevel.id) -> tuple[LogLevel]:
-        with self:
-            return tuple(LogLevel.select().order_by(ordered_by))
+        with self.connection_context() as ctx:
+            result = tuple(LogLevel.select().order_by(ordered_by))
 
+        return result
+
+    @profile
     def get_all_antistasi_functions(self, ordered_by=AntstasiFunction.id) -> tuple[AntstasiFunction]:
-        with self:
-            return tuple(AntstasiFunction.select().order_by(ordered_by))
+        with self.connection_context() as ctx:
+            result = tuple(AntstasiFunction.select().order_by(ordered_by))
 
+        return result
+
+    @profile
     def get_all_game_maps(self, ordered_by=GameMap.id) -> tuple[GameMap]:
+        with self.connection_context() as ctx:
+            result = tuple(GameMap.select().order_by(ordered_by))
+
+        return result
+
+    @profile
+    def get_all_origins(self, ordered_by=RecordOrigin.id) -> tuple[RecordOrigin]:
+        with self.connection_context() as ctx:
+            result = tuple(RecordOrigin.select().order_by(ordered_by))
+        return result
+
+    @profile
+    def get_all_versions(self, ordered_by=Version) -> tuple[Version]:
+        with self.connection_context() as ctx:
+            result = tuple(Version.select().order_by(ordered_by))
+        return result
+
+    @profile
+    def iter_all_records(self, server: Server = None, only_missing_record_class: bool = False) -> Generator[LogRecord, None, None]:
         with self:
-            return tuple(GameMap.select().order_by(ordered_by))
+
+            query = LogRecord.select().join(RecordClass, join_type=JOIN.LEFT_OUTER)
+            if server is not None:
+                nested = LogFile.select().where(LogFile.server_id == server.id)
+                query = query.where((LogRecord.log_file << nested))
+            if only_missing_record_class is True:
+                query = query.where((LogRecord.record_class >> None))
+            for record in query.objects().iterator():
+                record.logged_from = self.foreign_key_cache.get_antistasi_file_by_id(record.logged_from_id)
+                record.origin = self.foreign_key_cache.get_origin_by_id(record.origin_id)
+                yield record
+
+    def get_unique_server_ips(self) -> tuple[str]:
+        with self:
+            _out = tuple(set(s.ip for s in Server.select() if s.ip is not None))
+
+            return _out
+
+    def get_unique_campaign_ids(self) -> tuple[int]:
+        with self:
+            _out = set(l.campaign_id for l in LogFile.select().where(LogFile.unparsable == False).objects() if l.campaign_id is not None)
+            return tuple(sorted(_out))
 
     def __repr__(self) -> str:
         repr_attrs = ("database_name", "config", "auto_backup", "thread_safe", "autoconnect")

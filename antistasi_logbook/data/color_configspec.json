@@ -1,0 +1,6 @@
+{
+    "server": { "__default__": { "converter": "qcolor" } },
+    "log_level": { "__default__": { "converter": "qcolor" } },
+    "stats": { "__default__": { "converter": "qcolor" } },
+    "record_origin": { "__default__": { "converter": "qcolor" } }
+}

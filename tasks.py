@@ -1,14 +1,17 @@
 from invoke import task, Result, Context
 import sqlite3
 import os
+import logging
+
 import shutil
 from tomlkit.toml_file import TOMLFile
 from tomlkit.toml_document import TOMLDocument
 from tomlkit.api import loads as toml_loads, dumps as toml_dumps, parse, document
 import json
+from collections import defaultdict
 from dotenv import load_dotenv, find_dotenv, dotenv_values
 from webdav4.client import Client as WebdavClient
-
+from tabulate import tabulate
 from datetime import datetime, timedelta
 import sys
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, wait
@@ -23,12 +26,13 @@ from tempfile import TemporaryDirectory, gettempdir
 from time import sleep, time
 from itertools import repeat
 import re
-
+from rich.rule import Rule
 from zipfile import ZipFile, ZIP_LZMA
-
+from gidapptools.general_helper.string_helper import make_attribute_name
 import subprocess
 from typing import Union, Optional, Iterable, Hashable, Generator, Mapping, MutableMapping, Any
 import logging
+import xml.etree.ElementTree as et
 from pathlib import Path
 from pprint import pprint
 import attr
@@ -37,6 +41,8 @@ loggers = list(logging.Logger.manager.loggerDict)
 
 PATH_TYPE = Union[str, os.PathLike, Path]
 CONSOLE = RichConsole(soft_wrap=True)
+RULE_CHARS = "▴▾"
+RULE = Rule(characters=RULE_CHARS)
 
 
 def rprint(*args, **kwargs):
@@ -45,11 +51,14 @@ def rprint(*args, **kwargs):
             return dict(in_item)
         return in_item
     args = [_handle_mappings(item) for item in args]
+    CONSOLE.print()
     CONSOLE.print(*args, **kwargs)
-    CONSOLE.rule()
+    CONSOLE.print()
+    CONSOLE.print(RULE)
 
 
 print = rprint
+CONSOLE.print(RULE)
 
 
 class PyprojectTomlFile:
@@ -172,7 +181,8 @@ IMPORTANT_FOLDER = [TEMP_FOLDER, MISC_FOLDER, DOCS_FOLDER, MAIN_MODULE_FOLDER]
 VENV_ACTIVATOR_PATH = SCRIPTS_FOLDER.joinpath("activate.bat")
 PWIZ_FILE = SITE_PACKAGES_FOLDER.joinpath("pwiz.py")
 DESIGNER_FILES_FOLDER = THIS_FILE_DIR.joinpath("designer_files")
-RESSOURCES_FILE_FOLDER = DESIGNER_FILES_FOLDER.joinpath("ressources")
+RESOURCES_FILE_FOLDER = DESIGNER_FILES_FOLDER.joinpath("resources")
+RESOURCES_FILE = RESOURCES_FILE_FOLDER.joinpath("antistasi_logbook_resources.qrc")
 RAW_WIDGETS_FOLDER = MAIN_MODULE_FOLDER.joinpath("gui", "raw_widgets")
 # endregion[Constants]
 
@@ -439,21 +449,209 @@ def create_models(c, db_file=None):
 
 
 @task(name="convert-designer-files")
-def convert_designer_files(c):
+def convert_designer_files(c, target_folder=None):
+    target_folder = DESIGNER_FILES_FOLDER if target_folder is None else Path(target_folder)
     to_convert: dict[Path:Path] = {}
     for file in DESIGNER_FILES_FOLDER.iterdir():
         if file.is_file() and file.suffix == '.ui':
-            to_convert[file] = RAW_WIDGETS_FOLDER.joinpath(file.name).with_suffix('.py')
+            to_convert[file] = target_folder.joinpath(file.name).with_suffix('.py')
 
     exe = "pyside6-uic.exe"
     for src, tgt in to_convert.items():
         print(f"converting file {src!s} to {tgt!s}")
         args = []
-        args.append(f"-o {str(tgt)}")
         args.append("-g python")
         args.append("-a")
         args.append("--from-imports")
         args.append(str(src))
         cmd = exe + ' ' + ' '.join(args)
-        activator_run(c, cmd)
+        result = activator_run(c, cmd, echo=False, hide=True)
+        raw_lines = result.stdout.splitlines()
+        while raw_lines[0].startswith('#') or raw_lines[0] == '':
+            _ = raw_lines.pop(0)
+
+        raw_text = '\n'.join(raw_lines)
+        raw_text = re.sub(r"self\.retranslateUi\(\w+\).*\#\s*retranslateUi", "", raw_text, flags=re.DOTALL)
+        raw_text = re.sub(r"from\s+\.\s+import\s\w+", "", raw_text)
+        tgt.write_text(raw_text, encoding='utf-8', errors='ignore')
+
         print(f"FINISHED converting file {src!s} to {tgt!s}")
+
+
+def _rcc(c, src: Path, tgt: Path):
+
+    command = f"pyside6-rcc.exe --threshold 50 --compress 9 -g python -o {tgt!s} {src!s}"
+    print(f"Converting resource file {src.name!r}")
+    activator_run(c, command=command, echo=False, hide=True)
+
+
+def _rcc_list_mapping(c, src: Path):
+    command = f"pyside6-rcc.exe --list-mapping {src!s}"
+    result = activator_run(c, command=command, echo=False, hide=True)
+
+    return result.stdout
+
+
+RESOURCE_HEADER_TEXT = """
+
+# region[Imports]
+
+import os
+from enum import Enum, auto, Flag
+from pathlib import Path
+from PySide6.QtGui import QPixmap, QIcon, QImage
+from typing import Union, Optional, Iterable, TYPE_CHECKING
+from collections import defaultdict
+import atexit
+import pp
+from pprint import pprint, pformat
+from gidapptools.gidapptools_qt.resources.resources_helper import ressource_item_factory, ResourceItem, AllResourceItemsMeta
+from gidapptools import get_meta_info, get_logger
+from . import antistasi_logbook_resources
+
+# endregion[Imports]
+
+log = get_logger(__name__)
+
+"""
+
+RESOURCE_ITEM_COLLECTION_TEXT = """
+class AllResourceItems(metaclass=AllResourceItemsMeta):
+    categories = {category_names}
+    missing_items = defaultdict(set)
+"""
+RESSOURCE_ITEM_COLLECTION_ATTRIBUTE_TEMPLATE = "    {att_name}_{cat_name_lower} = {obj_name}_{cat_name}"
+
+
+AUTO_GENERATED_HINT = '"""\nThis File was auto-generated\n"""\n\n\n'
+
+RESOURCE_ITEM_COLLECTION_POST_TEXT = r"""
+
+    @classmethod
+    def dump_missing(cls):
+        missing_items = {k: [i.rsplit('_', 1)[0] for i in v] for k, v in cls.missing_items.items()}
+
+        log.info("Missing Ressource Items:\n%s", pp.fmt(missing_items).replace("'", '"'))
+
+
+if get_meta_info().is_dev is True:
+    atexit.register(AllResourceItems.dump_missing)
+"""
+
+
+def _write_resource_list_mapping(raw_text: str, tgt_file: Path, converted_file_path: Path):
+
+    def _to_txt():
+        tgt_file.write_text(raw_text, encoding='utf-8', errors='ignore')
+
+    def _to_py():
+
+        def _make_singular(word: str) -> str:
+            if word in {"IMAGES", "GIFS"}:
+                return word.removesuffix("S")
+
+            return word
+        text_lines = [AUTO_GENERATED_HINT]
+
+        try:
+            module_path = tgt_file.relative_to(converted_file_path).with_suffix("").as_posix().replace('/', ".")
+        except ValueError:
+            module_path = f"{converted_file_path.stem}"
+
+        text_lines.append(RESOURCE_HEADER_TEXT.format(converted_module_path=module_path))
+
+        items = [line.split('\t') for line in raw_text.splitlines() if line]
+        all_obj_names = defaultdict(list)
+        for qt_path, file_path in items:
+            _file_path = Path(file_path)
+            obj_name = make_attribute_name(_file_path.stem).upper()
+            cat_name = make_attribute_name(qt_path.removeprefix(":/").split("/")[0]).upper()
+            cat_name = _make_singular(cat_name)
+            all_obj_names[cat_name].append(obj_name)
+            text_lines.append(f"{obj_name}_{cat_name} = ressource_item_factory(file_path={_file_path.as_posix()!r}, qt_path={qt_path!r})\n")
+
+        text_lines.append(RESOURCE_ITEM_COLLECTION_TEXT.format(category_names="{" + ', '.join(f'{cat!r}'.casefold() for cat in all_obj_names.keys()) + '}'))
+        for cat_name, obj_names in all_obj_names.items():
+            for obj_name in obj_names:
+                text_lines.append(RESSOURCE_ITEM_COLLECTION_ATTRIBUTE_TEMPLATE.format(att_name=obj_name.casefold(), obj_name=obj_name, cat_name=cat_name, cat_name_lower=cat_name.casefold()))
+        text_lines.append(RESOURCE_ITEM_COLLECTION_POST_TEXT)
+        tgt_file.write_text('\n'.join(text_lines), encoding='utf-8', errors='ignore')
+
+    def _to_md():
+        text_lines = []
+        rel_conv_path = Path(THIS_FILE_DIR.name).joinpath(converted_file_path.relative_to(THIS_FILE_DIR))
+        text_lines.append(f'# {rel_conv_path.name.title()} Items\n')
+        text_lines.append(f"## Resource File\n\n`{rel_conv_path.as_posix()}`\n\n")
+        text_lines.append("## Items\n\n")
+        headers = ["name", "Qt Path", "File path"]
+        sorted_items = defaultdict(list)
+
+        def _make_sub_items(_qt_path: str, _file_path: str) -> tuple[str, str, str]:
+
+            _file_path = Path(THIS_FILE_DIR.name).joinpath(Path(_file_path).relative_to(THIS_FILE_DIR))
+            _qt_path = Path(_qt_path)
+            name = _qt_path.stem
+            prefix = '/'.join(_qt_path.parts[1:-1])
+            sorted_items[prefix].append((name, _qt_path.as_posix(), _file_path.as_posix()))
+
+        items = [_make_sub_items(*line.split('\t')) for line in raw_text.splitlines() if line]
+        for k, v in sorted_items.items():
+            text_lines.append(f'### {k.title()}\n\n')
+            text_lines.append(tabulate(v, headers=headers, tablefmt="github"))
+
+        tgt_file.write_text('\n'.join(text_lines), encoding='utf-8', errors='ignore')
+    typus_map = {'.py': _to_py, '.txt': _to_txt, '.md': _to_md}
+    typus_map[tgt_file.suffix.casefold()]()
+
+
+def collect_resources(folder: Path, target_file: Path):
+    def _qresource_section(parent, prefix: str):
+        sect = et.Element("qresource")
+        sect.set("prefix", prefix)
+        parent.append(sect)
+        return sect
+
+    def _file_sub_element(parent, in_file: Path):
+        file_sub = et.SubElement(parent, "file")
+        file_sub.text = in_file.name
+
+    def _collect_files() -> dict[str, Path]:
+        _all_files = defaultdict(list)
+        for fi in folder.iterdir():
+            if fi.is_file() and fi.suffix != ".qrc":
+                _all_files[fi.suffix.casefold()].append(fi)
+        return _all_files
+    all_files = _collect_files()
+
+    root = et.Element("RCC")
+
+    images_sect = _qresource_section(root, "images")
+    for ext in [".png", ".svg", ".ico", ".jpg"]:
+        for file in sorted(all_files.get(ext, []), key=lambda x: x.stem.casefold()):
+            _file_sub_element(images_sect, file)
+
+    gifs_sect = _qresource_section(root, "gifs")
+    for ext in [".gif"]:
+        for file in sorted(all_files.get(ext, []), key=lambda x: x.stem.casefold()):
+            _file_sub_element(gifs_sect, file)
+
+    tree = et.ElementTree(root)
+    et.indent(tree, space="\t")
+    with target_file.open("wb") as f:
+        tree.write(f)
+
+
+@task(name="convert-resources")
+def convert_resources(c):
+    target_folder = MAIN_MODULE_FOLDER.joinpath("gui", "resources")
+    target_folder.mkdir(exist_ok=True, parents=True)
+
+    resource_lists_folder = MISC_FOLDER.joinpath("qt_resource_lists")
+    resource_lists_folder.mkdir(exist_ok=True, parents=True)
+    collect_resources(RESOURCES_FILE_FOLDER, RESOURCES_FILE)
+    target_name = RESOURCES_FILE.with_suffix('.py').name
+    target = target_folder.joinpath(target_name)
+    _rcc(c, RESOURCES_FILE, target)
+    mapping_text = _rcc_list_mapping(c, RESOURCES_FILE)
+    _write_resource_list_mapping(mapping_text, resource_lists_folder.joinpath(target.stem + '.md'), converted_file_path=target)
+    _write_resource_list_mapping(mapping_text, target.with_name(target.stem + '_accessor.py'), converted_file_path=target)

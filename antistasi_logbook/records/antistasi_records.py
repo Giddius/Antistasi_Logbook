@@ -6,55 +6,27 @@ Soon.
 
 # region [Imports]
 
-import os
+# * Standard Library Imports ---------------------------------------------------------------------------->
 import re
-import sys
-import json
-import queue
-import math
-import base64
-import pickle
-import random
-import shelve
-import dataclasses
-import shutil
-import asyncio
-import logging
-import sqlite3
-import platform
-import importlib
-import subprocess
-import inspect
-
-from time import sleep, process_time, process_time_ns, perf_counter, perf_counter_ns
-from io import BytesIO, StringIO
-from abc import ABC, ABCMeta, abstractmethod
-from copy import copy, deepcopy
-from enum import Enum, Flag, auto, unique
-from time import time, sleep
-from pprint import pprint, pformat
+from typing import TYPE_CHECKING, Any, Union, Optional
 from pathlib import Path
-from string import Formatter, digits, printable, whitespace, punctuation, ascii_letters, ascii_lowercase, ascii_uppercase
-from timeit import Timer
-from typing import TYPE_CHECKING, Union, Callable, Iterable, Optional, Mapping, Any, IO, TextIO, BinaryIO, Hashable, Generator, Literal, TypeVar, TypedDict, AnyStr
-from zipfile import ZipFile, ZIP_LZMA
-from datetime import datetime, timezone, timedelta
-from tempfile import TemporaryDirectory
-from textwrap import TextWrapper, fill, wrap, dedent, indent, shorten
-from functools import wraps, partial, lru_cache, singledispatch, total_ordering, cached_property
-from importlib import import_module, invalidate_caches
-from contextlib import contextmanager, asynccontextmanager, nullcontext, closing, ExitStack, suppress
-from statistics import mean, mode, stdev, median, variance, pvariance, harmonic_mean, median_grouped
-from collections import Counter, ChainMap, deque, namedtuple, defaultdict
-from urllib.parse import urlparse
-from importlib.util import find_spec, module_from_spec, spec_from_file_location
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
-from importlib.machinery import SourceFileLoader
 
-from antistasi_logbook.records.base_record import BaseRecord, RecordFamily
+# * Third Party Imports --------------------------------------------------------------------------------->
+import pp
+from antistasi_logbook.records.base_record import BASE_SLOTS, BaseRecord, RecordFamily, MessageTypus
+from antistasi_logbook.utilities.parsing_misc import parse_text_array
+from antistasi_logbook.records.abstract_record import RecordFamily, MessageFormat
+# * Gid Imports ----------------------------------------------------------------------------------------->
+from gidapptools import get_logger
+from gidapptools.general_helper.enums import MiscEnum
+from gidapptools.general_helper.color.color_item import Color, RGBColor
+
 if TYPE_CHECKING:
+    # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.parsing.parser import RawRecord
-    from antistasi_logbook.storage.models.models import LogRecord
+    from PySide6.QtGui import QColor
+    from antistasi_logbook.storage.models.models import LogFile, LogLevel, AntstasiFunction, LogRecord, RecordOrigin
+
 # endregion[Imports]
 
 # region [TODO]
@@ -68,23 +40,57 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
-
+log = get_logger(__name__)
 # endregion[Constants]
 
 ALL_ANTISTASI_RECORD_CLASSES: set[type[BaseRecord]] = set()
 
 
-class PerformanceRecord(BaseRecord):
+class BaseAntistasiRecord(BaseRecord):
+    ___record_family___ = RecordFamily.ANTISTASI
+    ___specificity___ = 1
+    ___has_multiline_message___ = False
+    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
+    __slots__ = tuple(BASE_SLOTS)
+
+    def get_background_color(self):
+        return Color.get_color_by_name("White").with_alpha(0.01).qcolor
+
+    @classmethod
+    @profile
+    def check(cls, log_record: "LogRecord") -> bool:
+        return True
+
+    def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
+        if msg_format is MessageFormat.ORIGINAL:
+            text = f"{self.pretty_recorded_at} | Antistasi | {self.pretty_log_level} | File: {self.logged_from.function_name} | {self.message}"
+            if self.called_by is not None:
+                text += f" | Called By: {self.called_by.function_name}"
+            return text
+
+        return super().get_formated_message(msg_format=msg_format)
+
+
+ALL_ANTISTASI_RECORD_CLASSES.add(BaseAntistasiRecord)
+
+
+class PerformanceRecord(BaseAntistasiRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 10
+    ___has_multiline_message___ = True
     performance_regex = re.compile(r"(?P<name>\w+\s?\w*)(?:\:\s?)(?P<value>\d[\d\.]*)")
-    __slots__ = ("log_record", "_stats")
+    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
+    __slots__ = tuple(BASE_SLOTS + ["_stats"])
 
-    def __init__(self, log_record: "LogRecord") -> None:
-        super().__init__(log_record)
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self._stats: dict[str, Union[float, int]] = None
+
+    def get_background_color(self):
+        return Color.get_color_by_name("LightSteelBlue").with_alpha(0.5).qcolor
 
     @property
     def stats(self) -> dict[str, Union[int, float]]:
@@ -94,16 +100,32 @@ class PerformanceRecord(BaseRecord):
 
     def _get_stats(self) -> dict[str, Union[int, float]]:
         data = {item.group('name'): item.group('value') for item in self.performance_regex.finditer(self.message)}
-        return {k: float(v) if '.' in v else int(v) for k, v in data.items()}
+        return {k: float(v) if '.' in v else int(v) for k, v in data.items()} | {"timestamp": self.recorded_at}
+
+    def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
+        if msg_format is MessageFormat.PRETTY:
+            _out = ["Performance Stats", "-" * 10]
+            for k, v in self.stats.items():
+                try:
+                    _full_num, _after_comma = str(v).split('.')
+                    _comma = "."
+                except ValueError:
+                    _full_num = str(v)
+                    _comma = ""
+                    _after_comma = ""
+                _out.append(f"{k:<25}{_full_num:>25}{_comma}{_after_comma}")
+            return '\n'.join(_out).strip()
+        return super().get_formated_message(msg_format=msg_format)
 
     @classmethod
-    def check(cls, raw_record: "RawRecord") -> bool:
-        logged_from = raw_record.parsed_data.get("logged_from")
+    @profile
+    def check(cls, log_record: "LogRecord") -> bool:
+        logged_from = log_record.logged_from
 
         if logged_from is None:
             return False
 
-        if logged_from == "logPerformance":
+        if logged_from.name == "logPerformance":
 
             return True
 
@@ -113,18 +135,23 @@ class PerformanceRecord(BaseRecord):
 ALL_ANTISTASI_RECORD_CLASSES.add(PerformanceRecord)
 
 
-class IsNewCampaignRecord(BaseRecord):
+class IsNewCampaignRecord(BaseAntistasiRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 20
-    __slots__ = ("log_record",)
+    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
+    __slots__ = tuple(BASE_SLOTS)
+
+    def get_background_color(self):
+        return Color.get_color_by_name("LightGreen").with_alpha(0.5).qcolor
 
     @classmethod
-    def check(cls, raw_record: "RawRecord") -> bool:
-        logged_from = raw_record.parsed_data.get("logged_from")
+    @profile
+    def check(cls, log_record: "LogRecord") -> bool:
+        logged_from = log_record.logged_from
 
         if logged_from is None:
             return False
-        if logged_from == "initServer" and "Creating new campaign with ID" in raw_record.parsed_data.get("message"):
+        if logged_from.name == "initServer" and "Creating new campaign with ID" in log_record.message:
             return True
 
         return False
@@ -133,15 +160,19 @@ class IsNewCampaignRecord(BaseRecord):
 ALL_ANTISTASI_RECORD_CLASSES.add(IsNewCampaignRecord)
 
 
-class FFPunishmentRecord(BaseRecord):
+class FFPunishmentRecord(BaseAntistasiRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 10
     punishment_type_regex = re.compile(r"(?P<punishment_type>[A-Z]+)")
-    __slots__ = ("log_record", "_punishment_type")
+    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
+    __slots__ = tuple(BASE_SLOTS + ["_punishment_type"])
 
-    def __init__(self, log_record: "LogRecord") -> None:
-        super().__init__(log_record)
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self._punishment_type: str = None
+
+    def get_background_color(self):
+        return Color.get_color_by_name("OliveDrab").with_alpha(0.5).qcolor
 
     @property
     def punishment_type(self) -> str:
@@ -150,12 +181,13 @@ class FFPunishmentRecord(BaseRecord):
         return self._punishment_type
 
     @classmethod
-    def check(cls, raw_record: "RawRecord") -> bool:
-        logged_from = raw_record.parsed_data.get("logged_from")
+    @profile
+    def check(cls, log_record: "LogRecord") -> bool:
+        logged_from = log_record.logged_from
 
         if logged_from is None:
             return False
-        if logged_from in {"punishment_FF", "punishment"}:
+        if logged_from.name in {"punishment_FF", "punishment"}:
             return True
 
         return False
@@ -163,6 +195,314 @@ class FFPunishmentRecord(BaseRecord):
 
 ALL_ANTISTASI_RECORD_CLASSES.add(FFPunishmentRecord)
 
+
+class UpdatePreferenceRecord(BaseAntistasiRecord):
+    ___record_family___ = RecordFamily.ANTISTASI
+    ___specificity___ = 20
+    ___has_multiline_message___ = True
+    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
+    msg_start_regex = re.compile(r"(?P<category>[a-zA-Z]+)\_preference")
+
+    __slots__ = tuple(BASE_SLOTS + ["category", "_array_data"])
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.category = self.msg_start_regex.match(self.message.lstrip()).group("category")
+        self._array_data: list[list[Any]] = None
+
+    def get_background_color(self):
+        return Color.get_color_by_name("Peru").with_alpha(0.5).qcolor
+
+    @property
+    def array_data(self) -> list[list[Any]]:
+        if self._array_data is None:
+            self._array_data = parse_text_array(self.msg_start_regex.sub('', self.message).strip())
+        return self._array_data
+
+    @classmethod
+    @profile
+    def check(cls, log_record: "LogRecord") -> bool:
+        logged_from = log_record.logged_from
+
+        if logged_from is None:
+            return False
+        if logged_from.name in {"updatePreference"} and cls.msg_start_regex.match(log_record.message.lstrip()):
+            return True
+        return False
+
+    def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
+        if msg_format is MessageFormat.PRETTY:
+            return f"{self.category}_preference\n" + pp.fmt(self.array_data).replace("'", '"')
+        return super().get_formated_message(msg_format=msg_format)
+
+
+ALL_ANTISTASI_RECORD_CLASSES.add(UpdatePreferenceRecord)
+
+
+class CreateConvoyInputRecord(BaseAntistasiRecord):
+    ___record_family___ = RecordFamily.ANTISTASI
+    ___specificity___ = 20
+    ___has_multiline_message___ = True
+    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
+    __slots__ = tuple(BASE_SLOTS + ["_array_data"])
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._array_data: list[list[Any]] = None
+
+    def get_background_color(self):
+        return Color.get_color_by_name("Wheat").with_alpha(0.5).qcolor
+
+    @property
+    def array_data(self) -> list[list[Any]]:
+        if self._array_data is None:
+            array_txt = self.message[self.message.find('['):]
+            self._array_data = parse_text_array(array_txt)
+        return self._array_data
+
+    @classmethod
+    @profile
+    def check(cls, log_record: "LogRecord") -> bool:
+        logged_from = log_record.logged_from
+
+        if logged_from is None:
+            return
+        if logged_from.name in {"createConvoy"} and log_record.message.casefold().startswith("input"):
+            return True
+        return False
+
+    def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
+        if msg_format is MessageFormat.PRETTY:
+            txt = "Input is "
+            array_data_text_lines = pp.fmt(self.array_data).replace("'", '"').replace('"WEST"', 'WEST').replace('"EAST"', 'EAST').splitlines()
+            txt_len = len(txt)
+            txt += array_data_text_lines[0] + '\n'
+            for line in array_data_text_lines[1:]:
+                txt += ' ' * txt_len + line + '\n'
+            return txt
+        return super().get_formated_message(msg_format=msg_format)
+
+
+ALL_ANTISTASI_RECORD_CLASSES.add(CreateConvoyInputRecord)
+
+
+class SaveParametersRecord(BaseAntistasiRecord):
+    ___specificity___ = 20
+    ___has_multiline_message___ = True
+    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
+    __slots__ = tuple(BASE_SLOTS + ["_kv_data"])
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._kv_data: dict[str, Any] = None
+
+    def get_background_color(self):
+        return Color.get_color_by_name("PeachPuff").with_alpha(0.5).qcolor
+
+    @property
+    def kv_data(self) -> dict[str, Any]:
+        if self._kv_data is None:
+            array_txt = self.message[self.message.find('['):]
+            self._kv_data = parse_text_array(array_txt)
+            if self._kv_data == "ERROR":
+                self._kv_data = {self.message: "PARSING ERROR"}
+            else:
+                self._kv_data = {k: v for k, v in self._kv_data}
+        return self._kv_data
+
+    @classmethod
+    @profile
+    def check(cls, log_record: "LogRecord") -> bool:
+        logged_from = log_record.logged_from
+
+        if logged_from is None:
+            return
+        if logged_from.name in {"saveLoop"} and '[' in log_record.message and ']' in log_record.message:
+            return True
+        return False
+
+    def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
+        if msg_format is MessageFormat.PRETTY:
+            txt_lines = ["Saving Params: ", '-' * 10]
+            for k, v in self.kv_data.items():
+                key = k.strip('"').strip("'")
+                value = v
+                if v == "true":
+                    value = "Yes"
+                elif v == "false":
+                    value = "No"
+                new_line = f"◘ {key:<40}{value:>10}"
+                txt_lines += [new_line, '┄' * int(len(new_line) * 0.9)]
+            return '\n'.join(txt_lines)
+        return super().get_formated_message(msg_format=msg_format)
+
+
+ALL_ANTISTASI_RECORD_CLASSES.add(SaveParametersRecord)
+
+
+class ResourceCheckRecord(BaseAntistasiRecord):
+    ___specificity___ = 20
+    ___has_multiline_message___ = True
+    side_regex = re.compile(r"(?P<side>\w+)\sarsenal")
+    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
+    __slots__ = tuple(BASE_SLOTS + ["_array_data", "_stats", "side"])
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._array_data: list[list[Any]] = None
+        self._stats: dict[str, float] = None
+        self.side = self.side_regex.match(self.message).group("side")
+
+    def get_background_color(self):
+        return Color.get_color_by_name("DarkSalmon").with_alpha(0.5).qcolor
+
+    @property
+    def stats(self) -> dict[str, float]:
+        if self._stats is None:
+            _ = self.array_data
+        return self._stats
+
+    @property
+    def array_data(self) -> list[list[Any]]:
+        if self._array_data is None:
+            array_txt = self.message[self.message.find('['):]
+            self._array_data = parse_text_array(array_txt)
+            self._stats = {}
+
+            for key, value in self._array_data:
+                self._stats[key] = value
+        return self._array_data
+
+    @classmethod
+    @profile
+    def check(cls, log_record: "LogRecord") -> bool:
+        logged_from = log_record.logged_from
+
+        if logged_from is None:
+            return
+        if logged_from.name in {"economicsAI"} and '[' in log_record.message and ']' in log_record.message:
+            return True
+        return False
+
+    def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
+        if msg_format is MessageFormat.PRETTY:
+            _out = [f"{self.side} arsenal", "-" * 10]
+            for k, v in self.stats.items():
+                try:
+                    _full_num, _after_comma = str(v).split('.')
+                    _comma = "."
+                except ValueError:
+                    _full_num = str(v)
+                    _comma = ""
+                    _after_comma = ""
+                _out.append(f"{k:<50}{_full_num:>25}{_comma}{_after_comma}")
+            return '\n'.join(_out).strip()
+        return super().get_formated_message(msg_format=msg_format)
+
+
+ALL_ANTISTASI_RECORD_CLASSES.add(ResourceCheckRecord)
+
+
+class FreeSpawnPositionsRecord(BaseAntistasiRecord):
+    ___specificity___ = 20
+    ___has_multiline_message___ = True
+    place_regex = re.compile(r"Spawn places for (?P<place>\w+)", re.IGNORECASE)
+    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
+    __slots__ = tuple(BASE_SLOTS + ["_array_data", "_stats", "place"])
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._array_data: list[list[Any]] = None
+        self.place = self.place_regex.search(self.message).group("place")
+
+    def get_background_color(self):
+        return Color.get_color_by_name("pink").with_alpha(0.5).qcolor
+
+    @property
+    def array_data(self) -> list[list[Any]]:
+        if self._array_data is None:
+            array_txt = self.message[self.message.find('['):]
+            self._array_data = parse_text_array(array_txt)
+            if self._array_data == "ERROR":
+                self._array_data = [self.message]
+        return self._array_data
+
+    def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
+        if msg_format is MessageFormat.PRETTY:
+            txt = f"Spawn places for {self.place}"
+            array_data_text_lines = pp.fmt(self.array_data).replace("'", '"').replace('"false"', 'false').replace('"true"', 'true').splitlines()
+            txt_len = len(txt)
+            txt += array_data_text_lines[0] + '\n'
+            for line in array_data_text_lines[1:]:
+                txt += ' ' * txt_len + line + '\n'
+            return txt
+        return super().get_formated_message(msg_format=msg_format)
+
+    @classmethod
+    @profile
+    def check(cls, log_record: "LogRecord") -> bool:
+        logged_from = log_record.logged_from
+
+        if logged_from is None:
+            return
+        if logged_from.name in {"freeSpawnPositions"} and log_record.message.startswith("spawn places for") and '[' in log_record.message and ']' in log_record.message:
+            return True
+        return False
+
+
+ALL_ANTISTASI_RECORD_CLASSES.add(FreeSpawnPositionsRecord)
+
+
+class SelectReinfUnitsRecord(BaseAntistasiRecord):
+    ___specificity___ = 20
+    ___has_multiline_message___ = True
+    parse_regex = re.compile(r"units selected vehicle is (?P<unit>\w+) crew is (?P<crew>.*(?= cargo is)) cargo is (?P<cargo>.*)", re.IGNORECASE)
+    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
+    __slots__ = tuple(BASE_SLOTS + ["crew_array_data", "cargo_array_data", "unit", "crew_raw_text", "cargo_raw_text"])
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.unit: str = None
+        self.crew_raw_text: str = None
+        self.cargo_raw_text: str = None
+        self.crew_array_data: list[list[Any]] = None
+        self.cargo_array_data: list[list[Any]] = None
+        self.parse_it()
+
+    def get_background_color(self):
+        return Color.get_color_by_name("Gold").with_alpha(0.5).qcolor
+
+    def parse_it(self):
+        match = self.parse_regex.search(self.message)
+        if match:
+            self.unit = match.group("unit")
+            self.crew_raw_text = match.group("crew")
+            self.cargo_raw_text = match.group("cargo")
+            self.crew_array_data = parse_text_array(self.crew_raw_text)
+            self.cargo_array_data = parse_text_array(self.cargo_raw_text)
+        else:
+            log.critical(self.message)
+
+    def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
+        if msg_format is MessageFormat.PRETTY:
+            crew_text = pp.fmt(self.crew_array_data).replace("'", '"')
+            cargo_text = pp.fmt(self.cargo_array_data).replace("'", '"')
+            return f"units selected vehicle is\n\"{self.unit}\"\n\ncrew is\n{crew_text}\n\ncargo is\n{cargo_text}"
+        return super().get_formated_message(msg_format=msg_format)
+
+    @classmethod
+    @profile
+    def check(cls, log_record: "LogRecord") -> bool:
+        logged_from = log_record.logged_from
+
+        if logged_from is None:
+            return
+        if logged_from.name in {"selectReinfUnits"} and '[' in log_record.message and ']' in log_record.message:
+            return True
+        return False
+
+
+ALL_ANTISTASI_RECORD_CLASSES.add(SelectReinfUnitsRecord)
 # region[Main_Exec]
 
 

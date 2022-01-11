@@ -6,60 +6,24 @@ Soon.
 
 # region [Imports]
 
-import os
-import re
-import sys
-import json
-import queue
-import math
-import base64
-import pickle
-import random
-import shelve
-import dataclasses
-import shutil
-import asyncio
-import logging
-import sqlite3
-import platform
-import importlib
-import subprocess
-import inspect
-
-from time import sleep, process_time, process_time_ns, perf_counter, perf_counter_ns
-from io import BytesIO, StringIO
-from abc import ABC, ABCMeta, abstractmethod
-from copy import copy, deepcopy
-from enum import Enum, Flag, auto, unique
-from time import time, sleep
-from pprint import pprint, pformat
+# * Standard Library Imports ---------------------------------------------------------------------------->
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+from typing import Any, ClassVar
 from pathlib import Path
-from string import Formatter, digits, printable, whitespace, punctuation, ascii_letters, ascii_lowercase, ascii_uppercase
-from timeit import Timer
-from typing import TYPE_CHECKING, Union, Callable, Iterable, Optional, Mapping, Any, IO, TextIO, BinaryIO, Hashable, Generator, Literal, TypeVar, TypedDict, AnyStr, ClassVar
-from zipfile import ZipFile, ZIP_LZMA
-from datetime import datetime, timezone, timedelta
-from tempfile import TemporaryDirectory
-from textwrap import TextWrapper, fill, wrap, dedent, indent, shorten
-from functools import wraps, partial, lru_cache, singledispatch, total_ordering, cached_property
-from importlib import import_module, invalidate_caches
-from contextlib import contextmanager, asynccontextmanager, nullcontext, closing, ExitStack, suppress
-from statistics import mean, mode, stdev, median, variance, pvariance, harmonic_mean, median_grouped
-from collections import Counter, ChainMap, deque, namedtuple, defaultdict
-from urllib.parse import urlparse
-from importlib.util import find_spec, module_from_spec, spec_from_file_location
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
-from importlib.machinery import SourceFileLoader
-from gidapptools.general_helper.timing import time_func
-from antistasi_logbook.data.misc import LOG_FILE_DATE_REGEX
+from datetime import datetime
+
+# * Third Party Imports --------------------------------------------------------------------------------->
 import attr
+from dateutil.tz import UTC
+
 from antistasi_logbook.utilities.enums import RemoteItemType
 from antistasi_logbook.data.content_types import ContentType
 from antistasi_logbook.utilities.path_utilities import RemotePath
-from gidapptools.general_helper.dict_helper import replace_dict_keys
-from marshmallow import Schema, fields, pre_load
-from dateutil.tz import UTC
+
+# * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
+from gidapptools.general_helper.dict_helper import replace_dict_keys
+
 # endregion[Imports]
 
 # region [TODO]
@@ -76,7 +40,6 @@ from gidapptools import get_logger
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 get_dummy_profile_decorator_in_globals()
 log = get_logger(__name__)
 # endregion[Constants]
@@ -91,29 +54,6 @@ log = get_logger(__name__)
 #  'modified': datetime.datetime(2021, 1, 27, 8, 16, 50, tzinfo=datetime.timezone.utc),
 #  'name': 'E-Books',
 # 'type': 'directory'}
-
-
-class InfoItemSchema(Schema):
-    """
-    Used for Testing.
-    """
-    type = fields.String()
-    remote_path = fields.String()
-    name = fields.String()
-    etag = fields.String()
-    raw_created_at = fields.AwareDateTime(load_default=None, default_timezone=UTC)
-    modified_at = fields.AwareDateTime(default_timezone=UTC)
-    content_type = fields.String(load_default=None)
-    display_name = fields.String(load_default=None)
-    size = fields.Integer()
-    content_language = fields.String(load_default=None)
-    raw_info = fields.Dict()
-
-    @pre_load
-    def handle_enums(self, in_data, **kwargs):
-        in_data['type'] = in_data['type'].split('.')[-1]
-        in_data["content_type"] = in_data['content_type'].split('.')[-1]
-        return in_data
 
 
 @attr.s(slots=True, auto_attribs=True, auto_detect=True, kw_only=True, frozen=True)
@@ -134,7 +74,6 @@ class InfoItem:
     size: int = attr.ib(default=None)
     content_language: str = attr.ib(default=None)
     raw_info: dict[str, Any] = attr.ib()
-    schema: ClassVar = InfoItemSchema()
 
     @name.default
     def _name_from_remote_path(self) -> str:
@@ -162,12 +101,6 @@ class InfoItem:
 
         """
         return attr.asdict(self)
-
-    def dump(self) -> dict:
-        """
-        Used for Testing.
-        """
-        return self.schema.dump(self)
 
 
 # region[Main_Exec]

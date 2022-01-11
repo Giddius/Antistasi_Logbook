@@ -1,20 +1,54 @@
 {
+    "general": { "max_threads": { "converter": "integer", "default": "5" } },
+    "database": {
+        "database_path": { "converter": "path", "default": null },
+        "backup_database": { "converter": "boolean", "default": "False" },
+        "backup_limit": { "converter": "integer", "default": "0" }
+    },
     "updating": {
-        "updates_enabled": { "converter": "boolean" },
-        "update_interval": { "converter": "timedelta" },
-        "max_updating_threads": { "converter": "integer" },
-        "max_inserting_threads": { "converter": "integer" },
+        "updates_enabled": { "converter": "boolean", "default": "True" },
+        "update_interval": { "converter": "timedelta", "default": "5 min" },
         "max_update_time_frame": {
-            "converter": "timedelta"
+            "converter": "timedelta",
+            "default": null
         },
         "remove_items_older_than_max_update_time_frame": {
-            "converter": "boolean"
+            "converter": "boolean",
+            "default": "True"
         }
     },
-    "folder": { "local_storage_folder": { "converter": "path" } },
-    "downloading": {
-        "keep_downloaded_files": { "converter": "boolean" },
-        "chunk_size": { "converter": "file_size" }
+    "folder": {
+        "local_storage_folder": { "converter": "path", "default": null }
     },
-    "parsing": { "record_insert_batch_size": { "converter": "integer" } }
+    "downloading": {
+        "keep_downloaded_files": { "converter": "boolean", "default": "False" },
+        "chunk_size": { "converter": "file_size", "default": null }
+    },
+    "webdav": {
+        "max_concurrent_connections": { "converter": "integer" },
+        "delay_between_downloads": {
+            "converter": "timedelta",
+            "default": null
+        },
+        "minimum_download_duration": {
+            "converter": "timedelta",
+            "default": null
+        }
+    },
+    "parsing": {
+        "record_insert_batch_size": {
+            "converter": "integer",
+            "default": "32767"
+        }
+    },
+    "time": {
+        "use_local_timezone": { "converter": "boolean", "default": "False" },
+        "time_format": { "converter": "string", "default": "%Y-%m-%d %H:%M:%S" }
+    },
+    "gui": {
+        "style": { "converter": "string", "default": "base" }
+    },
+    "debug": {
+        "dev_mode": { "converter": "boolean", "default": "False" }
+    }
 }

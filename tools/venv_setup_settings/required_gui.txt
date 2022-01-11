@@ -1,1 +1,2 @@
-PySide6==6.2.1
+pyqtgraph>=0.12.3
+PySide6>=6.2.2

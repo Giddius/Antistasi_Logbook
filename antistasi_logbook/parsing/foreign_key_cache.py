@@ -6,57 +6,24 @@ Soon.
 
 # region [Imports]
 
-import os
-import re
-import sys
-import json
-import queue
-import math
-import base64
-import pickle
-import random
-import shelve
-import dataclasses
-import shutil
-import asyncio
-import logging
-import sqlite3
-import platform
-import importlib
-import subprocess
-import inspect
-
-from time import sleep, process_time, process_time_ns, perf_counter, perf_counter_ns
-from io import BytesIO, StringIO
-from abc import ABC, ABCMeta, abstractmethod
-from copy import copy, deepcopy
-from enum import Enum, Flag, auto, unique
-from time import time, sleep
-from pprint import pprint, pformat
+# * Standard Library Imports ---------------------------------------------------------------------------->
+from typing import TYPE_CHECKING, Optional
 from pathlib import Path
-from string import Formatter, digits, printable, whitespace, punctuation, ascii_letters, ascii_lowercase, ascii_uppercase
-from timeit import Timer
-from typing import TYPE_CHECKING, Union, Callable, Iterable, Optional, Mapping, Any, IO, TextIO, BinaryIO, Hashable, Generator, Literal, TypeVar, TypedDict, AnyStr
-from zipfile import ZipFile, ZIP_LZMA
-from datetime import datetime, timezone, timedelta
-from tempfile import TemporaryDirectory
-from textwrap import TextWrapper, fill, wrap, dedent, indent, shorten
-from functools import wraps, partial, lru_cache, singledispatch, total_ordering, cached_property
-from importlib import import_module, invalidate_caches
-from contextlib import contextmanager, asynccontextmanager, nullcontext, closing, ExitStack, suppress
-from statistics import mean, mode, stdev, median, variance, pvariance, harmonic_mean, median_grouped
-from collections import Counter, ChainMap, deque, namedtuple, defaultdict
-from urllib.parse import urlparse
-from importlib.util import find_spec, module_from_spec, spec_from_file_location
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
-from importlib.machinery import SourceFileLoader
-from gidapptools.general_helper.concurrency.events import BlockingEvent
-from playhouse.signals import post_save, pre_save, pre_delete, pre_init
-from antistasi_logbook.storage.models.models import GameMap, LogFile, LogRecord, LogLevel, AntstasiFunction, Server
-from playhouse.shortcuts import model_to_dict, dict_to_model
+
+# * Third Party Imports --------------------------------------------------------------------------------->
+from playhouse.signals import post_save
+from playhouse.shortcuts import model_to_dict
+from antistasi_logbook.storage.models.models import GameMap, LogLevel, AntstasiFunction, RecordOrigin, Version
+
+# * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
+from gidapptools.general_helper.concurrency.events import BlockingEvent
+from antistasi_logbook.utilities.misc import VersionItem
 if TYPE_CHECKING:
+    # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
+    from antistasi_logbook.backend import Backend
+
 # endregion[Imports]
 
 # region [TODO]
@@ -80,17 +47,34 @@ class ForeignKeyCache:
     log_levels_blocker = BlockingEvent()
     game_map_model_blocker = BlockingEvent()
     antistasi_file_model_blocker = BlockingEvent()
+    origin_blocker = BlockingEvent()
+    version_blocker = BlockingEvent()
+
     _all_log_levels: dict[str, LogLevel] = None
+    _all_log_levels_by_id: dict[int, LogLevel] = None
+
     _all_antistasi_file_objects: dict[str, AntstasiFunction] = None
+    _all_antistasi_file_objects_by_id: dict[str, AntstasiFunction] = None
+
     _all_game_map_objects: dict[str, GameMap] = None
+    _all_game_map_objects_by_id: dict[str, GameMap] = None
 
-    __slots__ = ("update_map", "database")
+    _all_origin_objects: dict[str, RecordOrigin] = None
+    _all_origin_objects_by_id: dict[str, RecordOrigin] = None
 
-    def __init__(self, database: "GidSqliteApswDatabase") -> None:
-        self.database = database
-        self.update_map = {AntstasiFunction: (self.antistasi_file_model_blocker, "_all_antistasi_file_objects"),
-                           GameMap: (self.game_map_model_blocker, "_all_game_map_objects"),
-                           LogLevel: (self.log_levels_blocker, "_all_log_levels")}
+    _all_version_objects: dict[str, Version] = None
+    _all_version_objects_by_id: dict[str, Version]
+
+    __slots__ = ("update_map", "backend")
+
+    def __init__(self, backend: "Backend") -> None:
+        self.backend = backend
+        self.backend.database.foreign_key_cache = self
+        self.update_map = {AntstasiFunction: (self.antistasi_file_model_blocker, ("_all_antistasi_file_objects", "_all_antistasi_file_objects_by_id")),
+                           GameMap: (self.game_map_model_blocker, ("_all_game_map_objects", "_all_game_map_objects_by_id")),
+                           LogLevel: (self.log_levels_blocker, ("_all_log_levels", "_all_log_levels_by_id")),
+                           RecordOrigin: (self.origin_blocker, ("_all_origin_objects", "_all_origin_objects_by_id")),
+                           Version: (self.version_blocker, ("_all_version_objects", "_all_version_objects_by_id"))}
         self._register_signals()
 
     def _register_signals(self) -> None:
@@ -99,6 +83,10 @@ class ForeignKeyCache:
                 post_save.connect(self.on_save_handler, sender=model_class)
             except ValueError:
                 continue
+
+    @property
+    def database(self) -> "GidSqliteApswDatabase":
+        return self.backend.database
 
     @property
     def all_log_levels(self) -> dict[str, LogLevel]:
@@ -127,14 +115,104 @@ class ForeignKeyCache:
 
         return self.__class__._all_game_map_objects
 
+    @property
+    def all_log_levels_by_id(self) -> dict[str, LogLevel]:
+
+        if self.__class__._all_log_levels_by_id is None:
+            self.log_levels_blocker.wait()
+            self.__class__._all_log_levels_by_id = {log_level.id: log_level for log_level in self.database.get_all_log_levels()}
+
+        return self.__class__._all_log_levels_by_id
+
+    @property
+    def all_antistasi_file_objects_by_id(self) -> dict[str, AntstasiFunction]:
+
+        if self.__class__._all_antistasi_file_objects_by_id is None:
+            self.antistasi_file_model_blocker.wait()
+            self.__class__._all_antistasi_file_objects_by_id = {str(antistasi_file.id): antistasi_file for antistasi_file in self.database.get_all_antistasi_functions()}
+
+        return self.__class__._all_antistasi_file_objects_by_id
+
+    @property
+    def all_game_map_objects_by_id(self) -> dict[str, GameMap]:
+
+        if self.__class__._all_game_map_objects_by_id is None:
+            self.game_map_model_blocker.wait()
+            self.__class__._all_game_map_objects_by_id = {str(game_map.id): game_map for game_map in self.database.get_all_game_maps()}
+
+        return self.__class__._all_game_map_objects_by_id
+
+    @property
+    def all_origin_objects(self) -> dict[str, RecordOrigin]:
+        if self.__class__._all_origin_objects is None:
+            self.origin_blocker.wait()
+            self.__class__._all_origin_objects = {origin.identifier: origin for origin in self.database.get_all_origins()}
+
+        return self.__class__._all_origin_objects
+
+    @property
+    def all_origin_objects_by_id(self) -> dict[str, RecordOrigin]:
+        if self.__class__._all_origin_objects_by_id is None:
+            self.origin_blocker.wait()
+            self.__class__._all_origin_objects_by_id = {str(origin.id): origin for origin in self.database.get_all_origins()}
+        return self.__class__._all_origin_objects_by_id
+
+    @property
+    def all_version_objects(self) -> dict[str, Version]:
+        if self.__class__._all_version_objects is None:
+            self.version_blocker.wait()
+            self.__class__._all_version_objects = {str(version): version for version in self.database.get_all_versions()}
+        return self.__class__._all_version_objects
+
+    @property
+    def all_version_objects_by_id(self) -> dict[str, Version]:
+        if self.__class__._all_version_objects_by_id is None:
+            self.version_blocker.wait()
+            self.__class__._all_version_objects_by_id = {str(version.id): Version for version in self.database.get_all_versions()}
+        return self.__class__._all_version_objects_by_id
+
+    def get_log_level_by_id(self, model_id: int) -> Optional[LogLevel]:
+
+        return self.all_log_levels_by_id.get(model_id)
+
+    def get_antistasi_file_by_id(self, model_id: int) -> Optional[AntstasiFunction]:
+
+        return self.all_antistasi_file_objects_by_id.get(str(model_id))
+
+    def get_game_map_by_id(self, model_id: int) -> Optional[GameMap]:
+
+        return self.all_game_map_objects_by_id.get(str(model_id))
+
+    def get_origin_by_id(self, model_id: int) -> Optional[RecordOrigin]:
+        return self.all_origin_objects_by_id.get(str(model_id))
+
+    def get_version_by_id(self, model_id: int) -> Optional[Version]:
+        return self.all_version_objects_by_id.get(str(model_id))
+
+    def reset_all(self) -> None:
+        self.__class__._all_log_levels = None
+        self.__class__._all_antistasi_file_objects = None
+        self.__class__._all_game_map_objects = None
+        self.__class__._all_log_levels_by_id = None
+        self.__class__._all_antistasi_file_objects_by_id = None
+        self.__class__._all_game_map_objects_by_id = None
+        self.__class__._all_origin_objects = None
+        self.__class__._all_origin_objects_by_id = None
+        self.__class__._all_version_objects = None
+        self.__class__._all_version_objects_by_id = None
+        log.info("all cached foreign keys were reseted.")
+
     def on_save_handler(self, sender, instance, created):
         if created:
-            event, class_attr_name = self.update_map.get(sender, (None, None))
+            event, class_attr_names = self.update_map.get(sender, (None, None))
             if event is None:
                 return
             with event:
-                setattr(self.__class__, class_attr_name, None)
-            log.warning(" reseted %r, because %r of %r was created: %r", class_attr_name, model_to_dict(instance, recurse=False), sender.__name__, created)
+                for attr_name in class_attr_names:
+                    setattr(self.__class__, attr_name, None)
+            log.warning(" reseted %r, because %r of %r was created: %r", class_attr_names, model_to_dict(instance, recurse=False), sender.__name__, created)
+        else:
+            log.debug(" reseted, because %r of %r was created: %r", model_to_dict(instance, recurse=False), sender.__name__, created)
 
 
 # region[Main_Exec]

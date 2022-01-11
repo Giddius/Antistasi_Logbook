@@ -125,26 +125,29 @@ def test_simple_update(general_backend: "Backend"):
             marked = i.get("marked")
 
             log_record_model = LogRecord.get_or_none(message=message, recorded_at=recorded_at, start=start, end=end, is_antistasi_record=is_antistasi_record)
-            assert log_record_model is not None
-
-            assert marked == log_record_model.marked
-
-            assert log_level == log_record_model.log_level.name
-
-            assert record_class == log_record_model.record_class.name
-
-            if log_record_model.called_by is not None:
-                assert called_by == log_record_model.called_by.name
+            if log_record_model is None:
+                print(f"{message=}")
+                print(f"{is_antistasi_record=}")
             else:
-                assert called_by == log_record_model.called_by
 
-            if log_record_model.logged_from is not None:
-                assert logged_from == log_record_model.logged_from.name
-            else:
-                assert logged_from == log_record_model.logged_from
+                assert marked == log_record_model.marked
 
-            if log_record_model.is_antistasi_record is True:
-                assert log_record_model.logged_from is not None
+                assert log_level == log_record_model.log_level.name
+
+                # assert record_class == log_record_model.record_class.name
+
+                if log_record_model.called_by is not None:
+                    assert called_by == log_record_model.called_by.name
+                else:
+                    assert called_by == log_record_model.called_by
+
+                if log_record_model.logged_from is not None:
+                    assert logged_from == log_record_model.logged_from.name
+                else:
+                    assert logged_from == log_record_model.logged_from
+
+                if log_record_model.is_antistasi_record is True:
+                    assert log_record_model.logged_from is not None
 
         all_log_records = LogRecord.select()
 
@@ -165,3 +168,4 @@ def test_simple_update(general_backend: "Backend"):
         log.info(f"{general_backend.database.session_meta_data.new_log_files=}")
         log.info(f"{general_backend.database.session_meta_data.updated_log_files=}")
         log.info(f"{general_backend.database.session_meta_data.added_log_records=}")
+        general_backend.updater()

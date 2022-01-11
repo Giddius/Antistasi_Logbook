@@ -1,5 +1,6 @@
 import pytest
-from antistasi_logbook.parsing.parser import Parser, SimpleRegexKeeper, RawRecord, RecordLine, Version, ModItem
+from antistasi_logbook.parsing.parser import Parser, SimpleRegexKeeper, RawRecord, RecordLine
+from antistasi_logbook.utilities.misc import Version, ModItem
 from antistasi_logbook.parsing.record_processor import RecordProcessor
 from pathlib import Path
 from typing import Union, Optional, Mapping, Iterable, Hashable

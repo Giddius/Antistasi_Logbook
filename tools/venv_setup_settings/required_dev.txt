@@ -1,3 +1,4 @@
+autoflake==1.4
 autopep8
 cairosvg
 grip
@@ -9,14 +10,19 @@ isort
 line_profiler
 matplotlib
 memory-profiler
+mypy
 objectgraph
 paramiko[all]
 peewee-erd==0.1.3
 pep517
 pipdeptree
 pipreqs
+pp-ez==0.2.0
+pprintpp
 pydeps
 pylint
 pympler
 tomlkit
-autoflake==1.4
+tabulate
+dateparser
+lxml

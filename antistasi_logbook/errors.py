@@ -7,61 +7,18 @@ Soon.
 
 # region [Imports]
 
-import gc
-import os
-import re
+# * Standard Library Imports ---------------------------------------------------------------------------->
+import logging
 import sys
-import json
-import queue
-import math
-import base64
-import pickle
-import random
-import shelve
-import dataclasses
-import shutil
-import asyncio
-import logging
-import sqlite3
-import platform
-import importlib
-import subprocess
-import unicodedata
-import inspect
-
-from time import sleep, process_time, process_time_ns, perf_counter, perf_counter_ns
-from io import BytesIO, StringIO
-from abc import ABC, ABCMeta, abstractmethod
-from copy import copy, deepcopy
-from enum import Enum, Flag, auto
-from time import time, sleep
-from pprint import pprint, pformat
+from typing import TYPE_CHECKING, Callable, Optional
 from pathlib import Path
-from string import Formatter, digits, printable, whitespace, punctuation, ascii_letters, ascii_lowercase, ascii_uppercase
-from timeit import Timer
-from typing import TYPE_CHECKING, Union, Callable, Iterable, Optional, Mapping, Any, IO, TextIO, BinaryIO
-from zipfile import ZipFile, ZIP_LZMA
-from datetime import datetime, timezone, timedelta
-from tempfile import TemporaryDirectory
-from textwrap import TextWrapper, fill, wrap, dedent, indent, shorten
-from functools import wraps, partial, lru_cache, singledispatch, total_ordering, cached_property
-from importlib import import_module, invalidate_caches
-from contextlib import contextmanager, asynccontextmanager
-from statistics import mean, mode, stdev, median, variance, pvariance, harmonic_mean, median_grouped
-from collections import Counter, ChainMap, deque, namedtuple, defaultdict
-from urllib.parse import urlparse
-from importlib.util import find_spec, module_from_spec, spec_from_file_location
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
-from importlib.machinery import SourceFileLoader
-import yarl
-from datetime import datetime, timedelta, timezone
-from typing import Optional, Union, TYPE_CHECKING
-import logging
-from threading import excepthook
-from types import TracebackType
+from datetime import timezone
+import threading
 if TYPE_CHECKING:
-    from antistasi_logbook.utilities.date_time_utilities import DatetimeDuration
+    # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.storage.models.models import RemoteStorage
+    from antistasi_logbook.utilities.date_time_utilities import DatetimeDuration
+
 # endregion[Imports]
 
 # region [TODO]
@@ -71,7 +28,6 @@ if TYPE_CHECKING:
 
 # region [Logging]
 
-log = logging.getLogger(__name__)
 
 # endregion[Logging]
 
@@ -125,23 +81,49 @@ class DurationTimezoneError(BaseAntistasiLogBookError):
 EXCEPTION_HANDLER_TYPE = Callable[[BaseException], None]
 
 
-class UpdateExceptionHandler:
+original_threading_except_hook = threading.excepthook
+
+
+class DefaultExceptionHandler:
+
+    def handle_exception(self, exception: BaseException):
+        raise exception
+
+    def handle_thread_except_hook(self, args):
+        original_threading_except_hook(args)
+
+    def handle_except_hook(self, type_, value, traceback):
+        sys.__excepthook__(type_=type_, value=value, traceback=traceback)
+
+
+class _ExceptionHandlerManager:
 
     def __init__(self) -> None:
+        self.default_exception_handler = DefaultExceptionHandler()
         self.exception_handler_registry: dict[type[BaseException]:Optional[EXCEPTION_HANDLER_TYPE]] = {}
 
     def register_handler(self, exception_class: type[BaseException], handler: EXCEPTION_HANDLER_TYPE) -> None:
         self.exception_handler_registry[exception_class] = handler
 
-    def default_handler(self, exception: BaseException) -> None:
-        print(f"This was handled by {self.__class__.__name__!r}")
-        raise exception
-
     def handle_exception(self, exception: BaseException) -> None:
-        handler = self.exception_handler_registry.get(type(exception), self.default_handler)
-        handler(exception)
+        handler = self.exception_handler_registry.get(type(exception), self.default_exception_handler)
+        handler.handle_exception(exception)
 
-    # region[Main_Exec]
+    def thread_except_hook(self, args):
+        handler = self.exception_handler_registry.get(args.exc_type, self.default_exception_handler)
+
+        handler.handle_thread_except_hook(args=args)
+
+    def except_hook(self, type_, value, traceback):
+        handler = self.exception_handler_registry.get(type_, self.default_exception_handler)
+        handler.handle_except_hook(type_=type_, value=value, traceback=traceback)
+
+
+ExceptionHandlerManager = _ExceptionHandlerManager()
+
+threading.excepthook = ExceptionHandlerManager.thread_except_hook
+sys.excepthook = ExceptionHandlerManager.except_hook
+# region[Main_Exec]
 if __name__ == '__main__':
     pass
 

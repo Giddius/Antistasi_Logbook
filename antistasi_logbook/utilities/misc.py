@@ -1,15 +1,26 @@
-from json import JSONDecoder, JSONEncoder
-from typing import Any, Callable, Union, Optional, Generator
-from datetime import datetime, timezone, timedelta
-import attr
-from typing import Union, Optional, ClassVar, Iterable
+# * Standard Library Imports ---------------------------------------------------------------------------->
 import re
-from gidapptools.general_helper.conversion import str_to_bool
+from json import JSONEncoder
+from typing import Any, Union, Literal, Callable, ClassVar, Optional, Generator
 from pathlib import Path
-from dateutil.parser import parse as dateutil_parse
+from datetime import datetime, timedelta
+from functools import total_ordering
+
+# * Third Party Imports --------------------------------------------------------------------------------->
+import attr
+from rich import inspect as rinspect
+from yarl import URL
+from peewee import Field
 from dateutil.tz import UTC
+from rich.console import Console as RichConsole
+from dateutil.parser import parse as dateutil_parse
+from antistasi_logbook.utilities.path_utilities import RemotePath
+
+# * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+from gidapptools.general_helper.conversion import str_to_bool
+
 get_dummy_profile_decorator_in_globals()
 log = get_logger(__name__)
 
@@ -82,26 +93,52 @@ def try_convert_int(data: Union[str, int, None]) -> Union[str, int, None]:
 
 
 @attr.s(slots=True, auto_attribs=True, auto_detect=True, frozen=True)
-class Version:
+@total_ordering
+class VersionItem:
     major: int = attr.ib(converter=int)
     minor: int = attr.ib(converter=int)
-    patch: int = attr.ib(converter=try_convert_int)
+    patch: int = attr.ib(default=None, converter=try_convert_int)
     extra: Union[str, int] = attr.ib(default=None, converter=try_convert_int)
     version_regex: ClassVar = re.compile(r"(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)\-?(?P<extra>.*)?")
 
     def __str__(self) -> str:
-        _out = f"{self.major}.{self.minor}.{self.patch}"
+        _out = f"{self.major}.{self.minor}"
+        if self.patch is not None:
+            _out += f".{self.patch}"
         if self.extra is not None:
             _out += f"-{self.extra}"
         return _out
 
     @classmethod
-    def from_string(cls, string: Optional[str]) -> Optional["Version"]:
+    def from_string(cls, string: Optional[str]) -> Optional["VersionItem"]:
         if string is None:
             return
         match = cls.version_regex.match(string.strip())
         if match is not None:
             return cls(**match.groupdict())
+
+    def as_tuple(self, include_extra: bool = True) -> tuple[Union[str, int]]:
+        if include_extra is False:
+            return (self.major, self.minor, self.patch)
+        return (self.major, self.minor, self.patch, self.extra)
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, self.__class__):
+            return self.as_tuple() == other.as_tuple()
+        return NotImplemented
+
+    def __lt__(self, other: object) -> bool:
+        if other is None:
+            return False
+        if isinstance(other, self.__class__):
+            if (self.major, self.minor, self.patch) == (other.major, other.minor, other.patch):
+                if self.extra is None and other.extra is not None:
+                    return True
+                return False
+            if sorted([self, other], key=lambda x: x.as_tuple(False))[0] is self:
+                return True
+            return False
+        return NotImplemented
 
 
 def strip_converter(data: Optional[str] = None, extra_strip_chars: str = None) -> Optional[str]:
@@ -120,7 +157,7 @@ def strip_to_path(data):
     return Path(data)
 
 
-@attr.s(slots=True, auto_attribs=True, auto_detect=True, frozen=True)
+@ attr.s(slots=True, auto_attribs=True, auto_detect=True, frozen=True)
 class ModItem:
     name: str = attr.ib(converter=strip_converter)
     default: bool = attr.ib(converter=str_to_bool)
@@ -129,9 +166,8 @@ class ModItem:
     full_path: Path = attr.ib(default=None, converter=strip_to_path)
     mod_hash: str = attr.ib(default=None, converter=strip_converter)
     mod_hash_short: str = attr.ib(default=None, converter=strip_converter)
-    link: str = attr.ib(default=None, converter=strip_converter)
 
-    @classmethod
+    @ classmethod
     def from_text_line(cls, line: str) -> "ModItem":
         parts = line.split('|')
         name, mod_dir, default, official, origin = parts[:5]
@@ -159,5 +195,48 @@ def frozen_time_giver(utc_date_time: Union[str, datetime]):
     return _inner
 
 
+def obj_inspection(obj: object, out_dir: Path = None, out_type: Literal["txt", "html"] = 'html') -> None:
+    console = RichConsole(soft_wrap=True, record=True)
+    rinspect(obj=obj, methods=True, help=True, console=console)
+    out_dir = Path.cwd() if out_dir is None else Path(out_dir)
+    try:
+        name = obj.__class__.__name__
+    except AttributeError:
+
+        name = obj.__name__
+    out_file = out_dir.joinpath(f"{name.casefold()}.{out_type}")
+    if out_type == "html":
+        console.save_html(out_file)
+    elif out_type == "txt":
+        console.save_text(out_file)
+
+
+def column_sort_default_factory(in_colum: "Field"):
+    typus = in_colum.field_type
+    if typus == "BOOL":
+        return False
+
+    if typus in {"CHAR", "VARCHAR", "TEXT"}:
+        return ""
+
+    if typus == "DATETIME":
+        return datetime.now(tz=UTC) - timedelta(weeks=99999999999)
+
+    if typus == "PATH":
+        return Path('')
+
+    if typus == "REMOTEPATH":
+        return RemotePath("")
+
+    if typus in {"SMALLINT", "INT", "BIGINT"}:
+        return 0
+
+    if typus == "URL":
+        return URL("")
+
+
 if __name__ == '__main__':
-    pass
+    def get_all_sub_classes(sub_cl):
+        for sub_sub_cl in sub_cl.__subclasses__():
+            yield sub_sub_cl
+            yield from get_all_sub_classes(sub_sub_cl)

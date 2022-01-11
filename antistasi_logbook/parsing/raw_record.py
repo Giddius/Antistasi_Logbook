@@ -6,53 +6,19 @@ Soon.
 
 # region [Imports]
 
-import os
-import re
-import sys
-import json
-import queue
-import math
-import base64
-import pickle
-import random
-import shelve
-import dataclasses
-import shutil
-import asyncio
-import logging
-import sqlite3
-import platform
-import importlib
-import subprocess
-import inspect
-
-from time import sleep, process_time, process_time_ns, perf_counter, perf_counter_ns
-from io import BytesIO, StringIO
-from abc import ABC, ABCMeta, abstractmethod
-from copy import copy, deepcopy
-from enum import Enum, Flag, auto, unique
-from time import time, sleep
-from pprint import pprint, pformat
+# * Standard Library Imports ---------------------------------------------------------------------------->
+from typing import TYPE_CHECKING, Any, Iterable, Optional
 from pathlib import Path
-from string import Formatter, digits, printable, whitespace, punctuation, ascii_letters, ascii_lowercase, ascii_uppercase
-from timeit import Timer
-from typing import TYPE_CHECKING, Union, Callable, Iterable, Optional, Mapping, Any, IO, TextIO, BinaryIO, Hashable, Generator, Literal, TypeVar, TypedDict, AnyStr
-from zipfile import ZipFile, ZIP_LZMA
-from datetime import datetime, timezone, timedelta
-from tempfile import TemporaryDirectory
-from textwrap import TextWrapper, fill, wrap, dedent, indent, shorten
-from functools import wraps, partial, lru_cache, singledispatch, total_ordering, cached_property
-from importlib import import_module, invalidate_caches
-from contextlib import contextmanager, asynccontextmanager, nullcontext, closing, ExitStack, suppress
-from statistics import mean, mode, stdev, median, variance, pvariance, harmonic_mean, median_grouped
-from collections import Counter, ChainMap, deque, namedtuple, defaultdict
-from urllib.parse import urlparse
-from importlib.util import find_spec, module_from_spec, spec_from_file_location
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
-from importlib.machinery import SourceFileLoader
-from antistasi_logbook.storage.models.models import LogFile
+from datetime import datetime, timezone
+
+# * Third Party Imports --------------------------------------------------------------------------------->
+from antistasi_logbook.storage.models.models import LogFile, LogRecord, RecordOrigin
+from dateutil.tz import UTC
+from gidapptools import get_logger
 if TYPE_CHECKING:
+    # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.parsing.parser import RecordLine, RecordClass
+
 # endregion[Imports]
 
 # region [TODO]
@@ -69,13 +35,13 @@ if TYPE_CHECKING:
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
-
+log = get_logger(__name__)
 # endregion[Constants]
 
 
 class RawRecord:
 
-    __slots__ = ("lines", "_is_antistasi_record", "start", "end", "_content", "parsed_data", "record_class")
+    __slots__ = ("lines", "_is_antistasi_record", "start", "end", "_content", "parsed_data", "record_class", "record_origin")
 
     def __init__(self, lines: Iterable["RecordLine"]) -> None:
         self.lines = tuple(lines)
@@ -85,18 +51,13 @@ class RawRecord:
         self.end: int = self.lines[-1].start
         self.parsed_data: dict[str, Any] = None
         self.record_class: "RecordClass" = None
+        self.record_origin: "RecordOrigin" = None
 
     @property
     def content(self) -> str:
         if self._content is None:
             self._content = ' '.join(line.content.lstrip(" >>>").rstrip() for line in self.lines if line.content)
         return self._content
-
-    @property
-    def is_antistasi_record(self) -> bool:
-        if self._is_antistasi_record is None:
-            self._is_antistasi_record = "| antistasi |" in self.content.casefold()
-        return self._is_antistasi_record
 
     @property
     def recorded_at(self) -> Optional[datetime]:
@@ -108,7 +69,7 @@ class RawRecord:
 
     def to_log_record_dict(self, log_file: "LogFile") -> dict[str, Any]:
         return {"start": self.start, "end": self.end, 'message': self.parsed_data.get("message"), 'recorded_at': self.parsed_data.get("recorded_at"),
-                'called_by': self.parsed_data.get("called_by"), "is_antistasi_record": self.is_antistasi_record, 'logged_from': self.parsed_data.get("logged_from"),
+                'called_by': self.parsed_data.get("called_by"), "record_origin": self.record_origin, 'logged_from': self.parsed_data.get("logged_from"),
                 "log_file": log_file.id, 'log_level': self.parsed_data.get("log_level"), "record_class": self.record_class.id, "marked": False}
 
     def to_sql_params(self, log_file: "LogFile") -> tuple:
@@ -119,14 +80,14 @@ class RawRecord:
         if logged_from is not None:
             logged_from = logged_from.id
 
-        return (self.start, self.end, self.parsed_data.get("message"), self.parsed_data.get("recorded_at").isoformat(), called_by, int(self.is_antistasi_record), logged_from, log_file.id, self.parsed_data.get("log_level").id, self.record_class.id, 0)
+        return (self.start, self.end, self.parsed_data.get("message"), LogRecord.recorded_at.db_value(self.parsed_data.get("recorded_at")), called_by, self.record_origin.id, logged_from, log_file.id, self.parsed_data.get("log_level").id, 0)
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(start={self.start!r}, end={self.end!r}, content={self.content!r}, is_antistasi_record={self.is_antistasi_record!r}, lines={self.lines!r})"
+        return f"{self.__class__.__name__}(start={self.start!r}, end={self.end!r}, content={self.content!r}, origin={self.record_origin!r}, lines={self.lines!r})"
 
     def __eq__(self, o: object) -> bool:
         if isinstance(o, self.__class__):
-            return self.lines == o.lines and self.content == o.content and self.is_antistasi_record == o.is_antistasi_record and self.start == o.start and self.end == o.end
+            return self.lines == o.lines and self.content == o.content and self.record_origin == o.record_origin and self.start == o.start and self.end == o.end
 
 
 # region[Main_Exec]

@@ -6,57 +6,24 @@ Soon.
 
 # region [Imports]
 
-import os
-import re
-import sys
-import json
-import queue
-import math
-import base64
-import pickle
-import random
-import shelve
-import dataclasses
-import shutil
-import asyncio
-import logging
-import sqlite3
-import platform
-import importlib
-import subprocess
-import inspect
-
-from time import sleep, process_time, process_time_ns, perf_counter, perf_counter_ns
-from io import BytesIO, StringIO
-from abc import ABC, ABCMeta, abstractmethod
-from copy import copy, deepcopy
-from enum import Enum, Flag, auto, unique
-from time import time, sleep
-from pprint import pprint, pformat
+# * Standard Library Imports ---------------------------------------------------------------------------->
+from typing import TYPE_CHECKING
 from pathlib import Path
-from string import Formatter, digits, printable, whitespace, punctuation, ascii_letters, ascii_lowercase, ascii_uppercase
-from timeit import Timer
-from typing import TYPE_CHECKING, Union, Callable, Iterable, Optional, Mapping, Any, IO, TextIO, BinaryIO, Hashable, Generator, Literal, TypeVar, TypedDict, AnyStr
-from zipfile import ZipFile, ZIP_LZMA
-from datetime import datetime, timezone, timedelta
-from tempfile import TemporaryDirectory
-from textwrap import TextWrapper, fill, wrap, dedent, indent, shorten
-from functools import wraps, partial, lru_cache, singledispatch, total_ordering, cached_property
-from importlib import import_module, invalidate_caches
-from contextlib import contextmanager, asynccontextmanager, nullcontext, closing, ExitStack, suppress
-from statistics import mean, mode, stdev, median, variance, pvariance, harmonic_mean, median_grouped
-from collections import Counter, ChainMap, deque, namedtuple, defaultdict
-from urllib.parse import urlparse
-from importlib.util import find_spec, module_from_spec, spec_from_file_location
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
-from importlib.machinery import SourceFileLoader
-from antistasi_logbook.utilities.misc import Version, ModItem
-from gidapptools.general_helper.enums import MiscEnum
+from datetime import datetime
+from collections import namedtuple
+# * Third Party Imports --------------------------------------------------------------------------------->
 from dateutil.tz import UTC
+from antistasi_logbook.utilities.misc import ModItem, VersionItem
+
+# * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
+from gidapptools.general_helper.enums import MiscEnum
+
 if TYPE_CHECKING:
-    from antistasi_logbook.parsing.parsing_context import ParsingContext
+    # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.regex.regex_keeper import SimpleRegexKeeper
+    from antistasi_logbook.parsing.parsing_context import ParsingContext
+
 # endregion[Imports]
 
 # region [TODO]
@@ -76,6 +43,9 @@ log = get_logger(__name__)
 # endregion[Constants]
 
 
+FullDateTimes = namedtuple("FullDateTimes", ["local_datetime", "utc_datetime"])
+
+
 class MetaFinder:
 
     __slots__ = ("game_map", "full_datetime", "version", "mods", "campaign_id", "is_new_campaign", "regex_keeper")
@@ -83,8 +53,8 @@ class MetaFinder:
     def __init__(self, regex_keeper: "SimpleRegexKeeper", context: "ParsingContext") -> None:
         self.regex_keeper = regex_keeper
         self.game_map: str = MiscEnum.NOT_FOUND if not context._log_file.has_game_map() else MiscEnum.DEFAULT
-        self.full_datetime: tuple[datetime, datetime] = MiscEnum.NOT_FOUND if not context._log_file.utc_offset else MiscEnum.DEFAULT
-        self.version: Version = MiscEnum.NOT_FOUND if not context._log_file.version else MiscEnum.DEFAULT
+        self.full_datetime: FullDateTimes = MiscEnum.NOT_FOUND if not context._log_file.utc_offset else MiscEnum.DEFAULT
+        self.version: VersionItem = MiscEnum.NOT_FOUND if not context._log_file.version else MiscEnum.DEFAULT
         self.mods: list[ModItem] = MiscEnum.NOT_FOUND if not context._log_file.has_mods() else MiscEnum.DEFAULT
         self.campaign_id: int = MiscEnum.NOT_FOUND if context._log_file.campaign_id is None else MiscEnum.DEFAULT
         self.is_new_campaign: bool = MiscEnum.NOT_FOUND if context._log_file.is_new_campaign is None else MiscEnum.DEFAULT
@@ -97,7 +67,7 @@ class MetaFinder:
         if match := self.regex_keeper.first_full_datetime.search(text):
             utc_datetime_kwargs = {k: int(v) for k, v in match.groupdict().items() if not k.startswith('local_')}
             local_datetime_kwargs = {k.removeprefix('local_'): int(v) for k, v in match.groupdict().items() if k.startswith('local_')}
-            self.full_datetime = (datetime(tzinfo=UTC, **utc_datetime_kwargs), datetime(tzinfo=UTC, **local_datetime_kwargs))
+            self.full_datetime = FullDateTimes(utc_datetime=datetime(tzinfo=UTC, **utc_datetime_kwargs), local_datetime=datetime(tzinfo=UTC, **local_datetime_kwargs))
 
     def _resolve_version(self, text: str) -> None:
         if match := self.regex_keeper.game_file.search(text):
@@ -106,7 +76,7 @@ class MetaFinder:
             if version_args:
                 while len(version_args) < 3:
                     version_args.append('MISSING')
-                version = Version(*version_args)
+                version = VersionItem(*version_args)
                 self.version = version
             else:
                 log.debug("incomplete version from line: %r", match.group('game_file'))

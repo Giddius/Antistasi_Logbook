@@ -60,7 +60,7 @@ cover/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
-
+*.db
 # Flask stuff:
 instance/
 .webassets-cache
@@ -168,3 +168,6 @@ record_parsing_errors.txt
 antistasi_logbook/raised_errors.txt
 /tests/data/fake_log_files
 /antistasi_logbook/dev_temp/config
+!apsw.*
+/tools/quick_scripts
+/antistasi_logbook/storage/backups

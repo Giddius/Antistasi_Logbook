@@ -901,7 +901,7 @@
         },
         "record_class": {
             "id": 4,
-            "name": "BaseRecord"
+            "name": "CreateConvoyInputRecord"
         },
         "marked": false
     },
@@ -3912,7 +3912,7 @@
         },
         "record_class": {
             "id": 4,
-            "name": "BaseRecord"
+            "name": "CreateConvoyInputRecord"
         },
         "marked": false
     },
@@ -14330,7 +14330,7 @@
         },
         "record_class": {
             "id": 4,
-            "name": "BaseRecord"
+            "name": "CreateConvoyInputRecord"
         },
         "marked": false
     },
@@ -17710,7 +17710,7 @@
         },
         "record_class": {
             "id": 4,
-            "name": "BaseRecord"
+            "name": "CreateConvoyInputRecord"
         },
         "marked": false
     },
@@ -27085,7 +27085,7 @@
         },
         "record_class": {
             "id": 4,
-            "name": "BaseRecord"
+            "name": "CreateConvoyInputRecord"
         },
         "marked": false
     },

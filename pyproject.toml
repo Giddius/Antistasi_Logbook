@@ -23,16 +23,26 @@ dependencies = [
     "attrs>=21.2.0",
     "rich>=10.12.0",
     "sortedcontainers>=2.4.0",
-    "marshmallow>=3.14.0",
-    "gidapptools>=0.1.9",
-    "PySide6>=6.2.1"
+    "gidapptools>=0.1.12",
+    "pyqtgraph>=0.12.3",
+    "colorhash==1.0.4",
+    "qdarkstyle",
+    "pyparsing>=3.0.6",
+    "python-dotenv",
+    "pprintpp",
+    "pp-ez",
+    "jinja2==2.11.3",
+    "PySide6>=6.2.2",
+    "qt_material",
+    "matplotlib",
+    "natsort",
+    "qtawesome",
 ]
 
 [project.urls]
 Source = "https://github.com/Giddius/Antistasi_Logbook"
 
 [project.scripts]
-antistasi-logbook = "antistasi_logbook.__main__:cli"
 
 [project.optional-dependencies]
 
@@ -49,11 +59,14 @@ exclude = [
     ".editorconfig",
     "planning.todo",
     "tasks.py",
+    "designer_files",
+    ".vscode",
+    ".favorites.json"
 ]
 
 [tool.autopep8]
-ignore = ["E402", "E501"]
-max-line-length = 250
+ignore = ["E402", "E501", "E731"]
+max_line_length = 250
 
 [tool.isort]
 balanced_wrapping = true
@@ -61,17 +74,11 @@ ensure_newline_before_comments = true
 group_by_package = true
 import_heading_firstparty = "* Local Imports --------------------------------------------------------------------------------------->"
 import_heading_gid = "* Gid Imports ----------------------------------------------------------------------------------------->"
-import_heading_pyqt = "* PyQt5 Imports --------------------------------------------------------------------------------------->"
+import_heading_qt = "* Qt Imports --------------------------------------------------------------------------------------->"
 import_heading_stdlib = "* Standard Library Imports ---------------------------------------------------------------------------->"
 import_heading_thirdparty = "* Third Party Imports --------------------------------------------------------------------------------->"
-known_gid = [
-    "gidtools",
-    "gidlogger",
-    "gidqtutils",
-    "gidviewmodels",
-    "gidapptools"
-]
-known_pyqt = ["PyQt5", "PySide6"]
+known_gid = ["gid*"]
+known_qt = ["PyQt5", "PyQt6", "PySide6", "pyqtgraph"]
 length_sort = true
 line_length = 200
 lines_after_imports = 1
@@ -79,11 +86,20 @@ sections = [
     "FUTURE",
     "STDLIB",
     "THIRDPARTY",
-    "PYQT",
+    "QT",
     "GID",
     "FIRSTPARTY",
     "LOCALFOLDER",
 ]
+indented_import_headings = false
 
 [tool.pytest.ini_options]
 addopts = "-rA -vv --durations=0 --capture=tee-sys --show-capture=all --color=auto --code-highlight=yes"
+
+[tool.autoflake]
+# additional_imports=None
+expand_star_imports = true
+remove_all_unused_imports = true
+remove_duplicate_keys = false
+remove_unused_variables = false
+ignore_init_module_imports = false

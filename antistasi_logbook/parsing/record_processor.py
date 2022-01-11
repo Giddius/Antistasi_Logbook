@@ -6,66 +6,35 @@ Soon.
 
 # region [Imports]
 
-import os
-import re
-import sys
-import json
-from queue import Queue, Empty, Full
-import math
-import base64
-import pickle
-import random
-import shelve
-import dataclasses
-import shutil
-import asyncio
-import logging
-import sqlite3
-import platform
-import importlib
-import subprocess
-import inspect
-
-from time import sleep, process_time, process_time_ns, perf_counter, perf_counter_ns
-from io import BytesIO, StringIO
-from abc import ABC, ABCMeta, abstractmethod
-from copy import copy, deepcopy
-from enum import Enum, Flag, auto, unique
-from time import time, sleep
-from pprint import pprint, pformat
+# * Standard Library Imports ---------------------------------------------------------------------------->
+from queue import Queue
+from typing import TYPE_CHECKING, Any, Iterable, Optional
 from pathlib import Path
-from string import Formatter, digits, printable, whitespace, punctuation, ascii_letters, ascii_lowercase, ascii_uppercase
-from timeit import Timer
-from typing import TYPE_CHECKING, Union, Callable, Iterable, Optional, Mapping, Any, IO, TextIO, BinaryIO, Hashable, Generator, Literal, TypeVar, TypedDict, AnyStr
-from zipfile import ZipFile, ZIP_LZMA
-from datetime import datetime, timezone, timedelta
-from tempfile import TemporaryDirectory
-from textwrap import TextWrapper, fill, wrap, dedent, indent, shorten
-from functools import wraps, partial, lru_cache, singledispatch, total_ordering, cached_property
-from importlib import import_module, invalidate_caches
-from contextlib import contextmanager, asynccontextmanager, nullcontext, closing, ExitStack, suppress
-from statistics import mean, mode, stdev, median, variance, pvariance, harmonic_mean, median_grouped
-from collections import Counter, ChainMap, deque, namedtuple, defaultdict
-from urllib.parse import urlparse
-from importlib.util import find_spec, module_from_spec, spec_from_file_location
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, Future, wait, ALL_COMPLETED, as_completed
-from importlib.machinery import SourceFileLoader
-from threading import Thread, Lock, RLock, Condition, Event
-from peewee import fn
-from playhouse.shortcuts import update_model_from_dict
-from dateutil.tz import UTC, tzoffset
-from antistasi_logbook.parsing.raw_record import RawRecord
-from antistasi_logbook.storage.models.models import LogRecord, LogLevel, AntstasiFunction, GameMap, LogFile, Mod, LogFileAndModJoin
-from playhouse.shortcuts import model_to_dict
-from gidapptools import get_logger
-from playhouse.signals import post_save
-from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
-from antistasi_logbook.parsing.parsing_context import LogParsingContext
+from datetime import datetime, timezone
+from threading import Lock, RLock
+from concurrent.futures import Future, ThreadPoolExecutor
+from time import sleep
+# * Third Party Imports --------------------------------------------------------------------------------->
 import attr
+from functools import cached_property
+from dateutil.tz import UTC, tzoffset
+from playhouse.shortcuts import update_model_from_dict
+from antistasi_logbook.parsing.raw_record import RawRecord
+from antistasi_logbook.storage.models.models import Mod, GameMap, LogFile, AntstasiFunction, LogFileAndModJoin, RecordOrigin, LogRecord, RecordClass
+from antistasi_logbook.parsing.parsing_context import LogParsingContext
+from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
+
+# * Gid Imports ----------------------------------------------------------------------------------------->
+from gidapptools import get_logger
+
 if TYPE_CHECKING:
-    from antistasi_logbook.parsing.parser import SimpleRegexKeeper, RecordClassManager, RecordClass
-    from gidapptools.gid_config.interface import GidIniConfig
+    # * Third Party Imports --------------------------------------------------------------------------------->
+    from antistasi_logbook.parsing.parser import SimpleRegexKeeper, RecordClassManager
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
+    from antistasi_logbook.backend import Backend
+    # * Gid Imports ----------------------------------------------------------------------------------------->
+    from gidapptools.gid_config.interface import GidIniConfig
+
 # endregion[Imports]
 
 # region [TODO]
@@ -111,22 +80,29 @@ class ManyRecordsInsertResult:
 
 
 class RecordInserter:
-    insert_phrase = """INSERT INTO "LogRecord" ("start", "end", "message", "recorded_at", "called_by", "is_antistasi_record", "logged_from", "log_file", "log_level", "record_class", "marked") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
+    insert_records_phrase = """INSERT OR IGNORE INTO "LogRecord" ("start", "end", "message", "recorded_at", "called_by", "origin", "logged_from", "log_file", "log_level", "marked") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
+    update_record_record_class_phrase = """UPDATE "LogRecord" SET "record_class" = ? WHERE "id" = ?"""
 
-    thread_prefix: str = "inserting_thread"
-
-    def __init__(self, config: "GidIniConfig", database: "GidSqliteApswDatabase", thread_pool_class: type["ThreadPoolExecutor"] = None) -> None:
+    def __init__(self, config: "GidIniConfig", backend: "Backend") -> None:
         self.config = config
-        self.database = database
+        self.backend = backend
 
-        self.thread_pool = ThreadPoolExecutor(self.max_threads, thread_name_prefix=self.thread_prefix) if thread_pool_class is None else thread_pool_class(self.max_threads, thread_name_prefix=self.thread_prefix)
-        self.write_lock = Lock()
+    @property
+    def thread_pool(self) -> ThreadPoolExecutor:
+        return self.backend.inserting_thread_pool
+
+    @property
+    def database(self) -> "GidSqliteApswDatabase":
+        return self.backend.database
+
+    @property
+    def write_lock(self) -> Lock:
+        return self.database.write_lock
 
     @property
     def max_threads(self) -> int:
         return self.config.get("updating", "max_inserting_threads", default=5)
 
-    @profile
     def _insert_func(self, records: Iterable["RawRecord"], context: "LogParsingContext") -> ManyRecordsInsertResult:
 
         # LogRecord.insert_many(i.to_log_record_dict(log_file=context._log_file) for i in records).execute()
@@ -135,7 +111,7 @@ class RecordInserter:
             with self.database:
                 cur = self.database.cursor(True)
 
-                cur.executemany(self.insert_phrase, params)
+                cur.executemany(self.insert_records_phrase, params)
 
         # for record in records:
         #     params = record.to_sql_params(log_file=context._log_file)
@@ -153,6 +129,28 @@ class RecordInserter:
         future = self.thread_pool.submit(self._insert_func, records=records, context=context)
         future.add_done_callback(_callback(_context=context))
         return future
+
+    def _execute_update_record_class(self, log_record: LogRecord, record_class: RecordClass) -> None:
+        with self.database.write_lock:
+            with self.database:
+                LogRecord.update(record_class=record_class).where(LogRecord.id == log_record.id).execute()
+
+    def _execute_many_update_record_class(self, pairs: list[tuple[int, int]]) -> int:
+
+        with self.write_lock:
+            with self.database:
+                cur = self.database.cursor(True)
+                cur.executemany(self.update_record_record_class_phrase, pairs)
+
+        return len(pairs)
+
+    @profile
+    def update_record_class(self, log_record: LogRecord, record_class: RecordClass) -> Future:
+        return self.thread_pool.submit(self._execute_update_record_class, log_record=log_record, record_class=record_class)
+
+    @profile
+    def many_update_record_class(self, pairs: list[tuple[int, int]]) -> Future:
+        return self.thread_pool.submit(self._execute_many_update_record_class, pairs=pairs)
 
     @profile
     def _execute_insert_mods(self, mod_items: Iterable[Mod], log_file: LogFile) -> None:
@@ -197,42 +195,70 @@ class RecordInserter:
         return self.insert(records=records, context=context)
 
     def shutdown(self) -> None:
-        self.thread_pool.shutdown(wait=True, cancel_futures=False)
+        pass
 
 
 class RecordProcessor:
-    __slots__ = ("regex_keeper", "record_class_manager", "foreign_key_cache")
+    _default_origin: "RecordOrigin" = None
+    _antistasi_origin: "RecordOrigin" = None
+    __slots__ = ("regex_keeper", "backend")
 
-    def __init__(self, regex_keeper: "SimpleRegexKeeper", foreign_key_cache: "ForeignKeyCache", record_class_manager: "RecordClassManager") -> None:
+    def __init__(self, backend: "Backend", regex_keeper: "SimpleRegexKeeper") -> None:
+        self.backend = backend
         self.regex_keeper = regex_keeper
-        self.record_class_manager = record_class_manager
-        self.foreign_key_cache = foreign_key_cache
+
+    @property
+    def record_class_manager(self) -> "RecordClassManager":
+        return self.backend.record_class_manager
+
+    @property
+    def foreign_key_cache(self) -> "ForeignKeyCache":
+        return self.backend.foreign_key_cache
+
+    @property
+    def database(self) -> "GidSqliteApswDatabase":
+        return self.backend.database
 
     @staticmethod
     def clean_antistasi_function_name(in_name: str) -> str:
         return in_name.strip().removeprefix("A3A_fnc_").removeprefix("fn_").removesuffix('.sqf')
 
-    @profile
+    @property
+    def default_origin(self) -> RecordOrigin:
+        if self.__class__._default_origin is None:
+            self.__class__._default_origin = [origin for origin in self.foreign_key_cache.all_origin_objects.values() if origin.is_default is True][0]
+        return self.__class__._default_origin
+
+    @property
+    def antistasi_origin(self) -> RecordOrigin:
+        if self.__class__._antistasi_origin is None:
+            self.__class__._antistasi_origin = [origin for origin in self.foreign_key_cache.all_origin_objects.values() if origin.name.casefold() == "antistasi"][0]
+        return self.__class__._antistasi_origin
+
     def _process_generic_record(self, raw_record: "RawRecord") -> "RawRecord":
         match = self.regex_keeper.generic_record.match(raw_record.content.strip())
         if not match:
             return None
-
-        _out = {"message": match.group("message")}
+        msg = match.group("message").lstrip()
+        if msg.startswith('"') and msg.endswith('"'):
+            msg = msg.strip('"').strip()
+        _out = {"message": msg}
 
         _out["local_recorded_at"] = datetime(year=int(match.group("year")),
                                              month=int(match.group("month")),
                                              day=int(match.group("day")),
                                              hour=int(match.group("hour")),
                                              minute=int(match.group("minute")),
-                                             second=int(match.group("second")))
+                                             second=int(match.group("second")),
+                                             microsecond=0)
         if "error in expression" in raw_record.content.casefold():
             _out['log_level'] = "ERROR"
+        elif "warning message:" in raw_record.content.casefold():
+            _out["log_level"] = "WARNING"
         raw_record.parsed_data = _out
 
         return raw_record
 
-    @profile
     def _process_antistasi_record(self, raw_record: "RawRecord") -> "RawRecord":
         datetime_part, antistasi_indicator_part, log_level_part, file_part, rest = raw_record.content.split('|', maxsplit=4)
 
@@ -257,26 +283,27 @@ class RecordProcessor:
             _out["called_by"] = self.clean_antistasi_function_name(called_by)
             _out["message"] = (_rest + _other_rest).lstrip()
         else:
-            _out["message"] = rest.lstrip()
+            _out["message"] = rest.strip()
+        if _out["message"].startswith('"') and _out["message"].endswith('"'):
+            _out["message"] = _out["message"].strip('"').strip()
         raw_record.parsed_data = _out
         if raw_record.parsed_data.get('logged_from') is None:
             log.info(_out)
         return raw_record
 
-    @profile
-    def _determine_record_class(self, raw_record: "RawRecord") -> "RecordClass":
+    def determine_record_class(self, raw_record: "RawRecord") -> "RecordClass":
         record_class = self.record_class_manager.determine_record_class(raw_record)
         return record_class
 
-    @profile
     def _convert_raw_record_foreign_keys(self, parsed_data: Optional[dict[str, Any]], utc_offset: tzoffset) -> Optional[dict[str, Any]]:
 
         def _get_or_create_antistasi_file(raw_name: str) -> AntstasiFunction:
             try:
                 return self.foreign_key_cache.all_antistasi_file_objects[raw_name]
             except KeyError:
-                AntstasiFunction.insert(name=raw_name).on_conflict_ignore().execute()
-                return AntstasiFunction.get(name=raw_name)
+                with self.database.write_lock:
+                    AntstasiFunction.insert(name=raw_name).on_conflict_ignore().execute()
+                    return AntstasiFunction.get(name=raw_name)
 
         if parsed_data is None:
             return parsed_data
@@ -293,22 +320,28 @@ class RecordProcessor:
             parsed_data["called_by"] = _get_or_create_antistasi_file(parsed_data["called_by"])
 
         if parsed_data.get("local_recorded_at"):
-            parsed_data["recorded_at"] = parsed_data["local_recorded_at"].replace(tzinfo=utc_offset).astimezone(UTC)
-            del parsed_data["local_recorded_at"]
-
+            local_recorded_at = parsed_data.pop("local_recorded_at")
+            utc_recorded_at = (local_recorded_at + utc_offset._offset).replace(tzinfo=UTC)
+            parsed_data["recorded_at"] = utc_recorded_at
         return parsed_data
 
     @profile
-    def __call__(self, raw_record: "RawRecord", utc_offset: timezone) -> "RawRecord":
+    def determine_origin(self, raw_record: "RawRecord") -> RecordOrigin:
+        for origin in self.foreign_key_cache.all_origin_objects.values():
+            if origin.is_default is False:
+                if origin.check(raw_record) is True:
+                    return origin
+        return self.default_origin
 
-        if raw_record.is_antistasi_record is True:
+    def __call__(self, raw_record: "RawRecord", utc_offset: timezone) -> "RawRecord":
+        raw_record.record_origin = self.determine_origin(raw_record)
+        if raw_record.record_origin == self.antistasi_origin:
             raw_record = self._process_antistasi_record(raw_record)
         else:
             raw_record = self._process_generic_record(raw_record)
         if raw_record is None:
             return
-        record_class = self._determine_record_class(raw_record)
-        raw_record.record_class = record_class
+
         raw_record.parsed_data = self._convert_raw_record_foreign_keys(parsed_data=raw_record.parsed_data, utc_offset=utc_offset)
 
         return raw_record

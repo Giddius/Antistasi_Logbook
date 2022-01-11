@@ -6,54 +6,19 @@ Soon.
 
 # region [Imports]
 
-import os
-import re
-import sys
-import json
-import queue
-import math
-import base64
-import pickle
-import random
-import shelve
-import dataclasses
-import shutil
-import asyncio
-import logging
-import sqlite3
-import platform
-import importlib
-import subprocess
-import inspect
-
-from time import sleep, process_time, process_time_ns, perf_counter, perf_counter_ns
-from io import BytesIO, StringIO
-from abc import ABC, ABCMeta, abstractmethod
-from copy import copy, deepcopy
-from enum import Enum, Flag, auto, unique
-from time import time, sleep
-from pprint import pprint, pformat
+# * Standard Library Imports ---------------------------------------------------------------------------->
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 from pathlib import Path
-from string import Formatter, digits, printable, whitespace, punctuation, ascii_letters, ascii_lowercase, ascii_uppercase
-from timeit import Timer
-from typing import TYPE_CHECKING, Union, Callable, Iterable, Optional, Mapping, Any, IO, TextIO, BinaryIO, Hashable, Generator, Literal, TypeVar, TypedDict, AnyStr
-from zipfile import ZipFile, ZIP_LZMA
-from datetime import datetime, timezone, timedelta
-from tempfile import TemporaryDirectory
-from textwrap import TextWrapper, fill, wrap, dedent, indent, shorten
-from functools import wraps, partial, lru_cache, singledispatch, total_ordering, cached_property
-from importlib import import_module, invalidate_caches
-from contextlib import contextmanager, asynccontextmanager, nullcontext, closing, ExitStack, suppress
-from statistics import mean, mode, stdev, median, variance, pvariance, harmonic_mean, median_grouped
-from collections import Counter, ChainMap, deque, namedtuple, defaultdict
-from urllib.parse import urlparse
-from importlib.util import find_spec, module_from_spec, spec_from_file_location
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
-from importlib.machinery import SourceFileLoader
-from antistasi_logbook.records.enums import RecordFamily, MessageFormat
+from functools import cached_property
+
+# * Third Party Imports --------------------------------------------------------------------------------->
+from antistasi_logbook.records.enums import RecordFamily, MessageFormat, MessageTypus
+from gidapptools.general_helper.enums import MiscEnum
 if TYPE_CHECKING:
+    # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.parsing.parser import RawRecord
-    from antistasi_logbook.storage.models.models import LogRecord
+    from antistasi_logbook.storage.models.models import LogRecord, RecordOrigin
 # endregion[Imports]
 
 # region [TODO]
@@ -76,15 +41,34 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 class AbstractRecord(ABC):
     ___record_family___: RecordFamily = ...
     ___specificity___: int = ...
+    ___has_multiline_message___: bool = False
 
     @classmethod
     @abstractmethod
-    def check(cls, raw_record: "RawRecord") -> bool:
+    def check(cls, log_record: "LogRecord") -> bool:
         ...
 
+    # @classmethod
+    # @abstractmethod
+    # def check_from_raw_record(cls, raw_record:"RawRecord")->bool:
+    #     ...
+
+    # @classmethod
+    # @abstractmethod
+    # def check_from_log_record(cls, log_record:"LogRecord")->bool:
+    #     ...
+
     @abstractmethod
-    def get_formated_message(self, format: "MessageFormat") -> str:
-        ...
+    def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
+        return self.message
+
+    @cached_property
+    def single_line_message(self) -> str:
+        pretty_message_lines = self.get_formated_message(MessageFormat.PRETTY).splitlines()
+        if len(pretty_message_lines) > 1:
+            return pretty_message_lines[0] + '...'
+        else:
+            return pretty_message_lines[0]
 
 
 # region[Main_Exec]

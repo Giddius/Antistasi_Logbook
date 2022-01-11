@@ -6,61 +6,36 @@ Soon.
 
 # region [Imports]
 
-import os
-import re
-import sys
-import json
+# * Standard Library Imports ---------------------------------------------------------------------------->
 import queue
-import math
-import base64
-import pickle
 import random
-import shelve
-import dataclasses
-import shutil
-import asyncio
-import logging
-import sqlite3
-import platform
-import importlib
-import subprocess
-import inspect
-
-from time import sleep, process_time, process_time_ns, perf_counter, perf_counter_ns
-from io import BytesIO, StringIO
-from abc import ABC, ABCMeta, abstractmethod
-from copy import copy, deepcopy
-from enum import Enum, Flag, auto, unique
-from time import time, sleep
-from pprint import pprint, pformat
+from time import sleep
+from typing import TYPE_CHECKING, Any, Callable, Optional
 from pathlib import Path
-from string import Formatter, digits, printable, whitespace, punctuation, ascii_letters, ascii_lowercase, ascii_uppercase
-from timeit import Timer
-from typing import TYPE_CHECKING, Union, Callable, Iterable, Optional, Mapping, Any, IO, TextIO, BinaryIO, Hashable, Generator, Literal, TypeVar, TypedDict, AnyStr
-from zipfile import ZipFile, ZIP_LZMA
-from datetime import datetime, timezone, timedelta
-from tempfile import TemporaryDirectory
-from textwrap import TextWrapper, fill, wrap, dedent, indent, shorten
-from functools import wraps, partial, lru_cache, singledispatch, total_ordering, cached_property
-from importlib import import_module, invalidate_caches
-from contextlib import contextmanager, asynccontextmanager, nullcontext, closing, ExitStack, suppress
-from statistics import mean, mode, stdev, median, variance, pvariance, harmonic_mean, median_grouped
-from collections import Counter, ChainMap, deque, namedtuple, defaultdict
-from urllib.parse import urlparse
-from importlib.util import find_spec, module_from_spec, spec_from_file_location
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, wait, ALL_COMPLETED, Future
-from importlib.machinery import SourceFileLoader
-from gidapptools import get_logger, get_meta_config, get_meta_paths, get_meta_info
-from dateutil.tz import UTC
-from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord
+from datetime import datetime, timezone
 from threading import Event
-from antistasi_logbook.utilities.locks import WRITE_LOCK
+from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor, wait
+
+# * Third Party Imports --------------------------------------------------------------------------------->
+from dateutil.tz import UTC
+from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord, RecordClass
+from antistasi_logbook.updating.remote_managers import remote_manager_registry
+
+# * Gid Imports ----------------------------------------------------------------------------------------->
+from gidapptools import get_logger
 from gidapptools.gid_signal.interface import get_signal
+
 if TYPE_CHECKING:
-    from gidapptools.gid_config.interface import GidIniConfig
+    # * Third Party Imports --------------------------------------------------------------------------------->
+    from antistasi_logbook.gui.misc import UpdaterSignaler
+    from antistasi_logbook.backend import Backend
+    from antistasi_logbook.storage.database import GidSqliteApswDatabase
     from antistasi_logbook.updating.info_item import InfoItem
     from antistasi_logbook.parsing.parsing_context import LogParsingContext
-    from antistasi_logbook.storage.database import GidSqliteDatabase, GidSqliteApswDatabase
+
+    # * Gid Imports ----------------------------------------------------------------------------------------->
+    from gidapptools.gid_config.interface import GidIniConfig
+
 # endregion[Imports]
 
 # region [TODO]
@@ -92,24 +67,43 @@ class Updater:
     new_log_file_signal = get_signal("new_log_file")
     updated_log_file_signal = get_signal("updated_log_file")
 
-    __slots__ = ("config", "parsing_context_factory", "database", "parser", "stop_event", "pause_event", "thread_pool", "_to_close_contexts")
+    is_updating_event: Event = Event()
+
+    __slots__ = ("backend", "stop_event", "pause_event", "_to_close_contexts", "signaler")
 
     def __init__(self,
-                 config: "GidIniConfig",
-                 parsing_context_factory: Callable[["LogFile"], "LogParsingContext"],
-                 database: "GidSqliteApswDatabase",
-                 parser: object,
+                 backend: "Backend",
                  stop_event: Event,
                  pause_event: Event,
-                 thread_pool_class: type["ThreadPoolExecutor"] = None) -> None:
-        self.config = config
-        self.parsing_context_factory = parsing_context_factory
-        self.database = database
-        self.parser = parser
+                 signaler: "UpdaterSignaler" = None) -> None:
+
+        self.backend = backend
+
         self.stop_event = stop_event
         self.pause_event = pause_event
-        self.thread_pool = ThreadPoolExecutor(self.max_threads, thread_name_prefix=self.thread_prefix) if thread_pool_class is None else thread_pool_class(self.max_threads, thread_name_prefix=self.thread_prefix)
+
         self._to_close_contexts = queue.Queue()
+        self.signaler = signaler
+
+    @property
+    def config(self):
+        return self.backend.config
+
+    @property
+    def parsing_context_factory(self):
+        return self.backend.get_parsing_context
+
+    @property
+    def database(self) -> "GidSqliteApswDatabase":
+        return self.backend.database
+
+    @property
+    def parser(self):
+        return self.backend.parser
+
+    @property
+    def thread_pool(self) -> ThreadPoolExecutor:
+        return self.backend.thread_pool
 
     @property
     def max_threads(self) -> int:
@@ -212,9 +206,9 @@ class Updater:
             elif stored_file.modified_at < remote_info.modified_at or stored_file.size < remote_info.size:
                 to_update_files.append(self._update_log_file(log_file=stored_file, remote_info=remote_info))
 
-            for unfinished_log_file in [i for i in current_log_files.values() if cutoff_datetime is not None and i.last_parsed_datetime != i.modified_at and i.modified_at > cutoff_datetime]:
-                if unfinished_log_file not in to_update_files:
-                    to_update_files.append(unfinished_log_file)
+            elif stored_file.last_parsed_datetime != stored_file.modified_at and stored_file.unparsable is False:
+                to_update_files.append(stored_file)
+
         return sorted(to_update_files, key=lambda x: x.modified_at, reverse=True)
 
     def _handle_old_log_files(self, server: "Server") -> None:
@@ -235,54 +229,120 @@ class Updater:
 
         def _do(_log_file: "LogFile"):
             sleep(random.uniform(0.1, 2.0))
+            self.signaler.send_update_increment()
             if self.stop_event.is_set() is False:
                 context = self.parsing_context_factory(log_file=_log_file)
-                context.__enter__()
-                log.debug("starting to parse %s", _log_file)
-                for processed_record in self.parser(context=context):
-                    context.insert_record(processed_record)
-                context._dump_rest()
-                return context
-        tasks = []
+                context.done_signal = self.signaler.send_update_increment
+                with context:
 
-        self.database.connect(True)
-        for log_file in self._get_updated_log_files(server=server):
+                    log.debug("starting to parse %s", _log_file)
+                    for processed_record in self.parser(context=context):
+                        if self.stop_event.is_set() is True:
+                            break
+                        context.insert_record(processed_record)
+                    context._dump_rest()
+
+        tasks = []
+        to_update_log_files = self._get_updated_log_files(server=server)
+        self.signaler.send_update_info(len(to_update_log_files) * 3, server.name)
+        for log_file in to_update_log_files:
             if self.stop_event.is_set() is False:
                 sub_task = self.thread_pool.submit(_do, _log_file=log_file)
-                sub_task.add_done_callback(lambda x: self._to_close_contexts.put(x.result()))
                 tasks.append(sub_task)
+
         wait(tasks, return_when=ALL_COMPLETED, timeout=None)
-        while self._to_close_contexts.empty() is False:
-            ctx = self._to_close_contexts.get()
-            log.debug("waiting on %r to close", ctx)
-            ctx.__exit__()
-            self._to_close_contexts.task_done()
+
+    @profile
+    def update_record_classes(self, server: Server = None, force: bool = False):
+
+        def _find_record_class(_record: "LogRecord") -> tuple["LogRecord", "RecordClass"]:
+            _record_class = self.database.record_processor.determine_record_class(_record)
+            return _record, _record_class
+
+        log.info("updating record classes")
+        # batch_size = (32767 // 2) - 1
+        batch_size = 100_000
+        tasks = []
+        to_update = []
+
+        for record, record_class in self.thread_pool.map(_find_record_class, self.database.iter_all_records(server=server, only_missing_record_class=not force)):
+
+            if record.record_class_id == record_class.id:
+                continue
+
+            to_update.append((record_class.id, record.id))
+            if len(to_update) == batch_size:
+                log.debug("updating %r records with their record class", len(to_update))
+                task = self.database.record_inserter.many_update_record_class(list(to_update))
+                tasks.append(task)
+
+                to_update.clear()
+        if len(to_update) > 0:
+            log.debug("updating %r records with their record class", len(to_update))
+            task = self.database.record_inserter.many_update_record_class(list(to_update))
+            tasks.append(task)
+            to_update.clear()
+        wait(tasks, return_when=ALL_COMPLETED)
+
+    def before_updates(self):
+        log.debug("emiting before_updates_signal")
+        self.signaler.send_update_started()
+
+    def after_updates(self):
+        log.debug("emiting after_updates_signal")
+        self.signaler.send_update_finished()
+        remote_manager_registry.close()
+
+    def update(self) -> None:
+
+        if self.is_updating_event.is_set() is True:
+            return
+        self.is_updating_event.set()
+        self.before_updates()
+        tasks = []
+        try:
+
+            self.database.session_meta_data.last_update_started_at = datetime.now(tz=timezone.utc)
+            for server in self.database.get_all_server():
+                if server.is_updatable() is False:
+                    continue
+                if self.stop_event.is_set() is False:
+
+                    while self.pause_event.is_set() is True:
+                        sleep(0.25)
+                    log.info("STARTED updating %r", server)
+                    self.process(server=server)
+                    tasks.append(self.thread_pool.submit(self.update_record_classes, server=server))
+                    log.info("FINISHED updating server %r", server)
+
+            log.debug("waiting for %r tasks to finish", len(tasks))
+            wait(tasks, return_when=ALL_COMPLETED)
+
+            log.debug("All record class update tasks have finished")
+            amount_deleted = 0
+            for server in self.database.get_all_server():
+                if server.is_updatable() is False:
+                    continue
+                if self.stop_event.is_set() is False:
+                    log.info("checking old log_files to delete for server %r", server)
+                    amount_deleted += self._handle_old_log_files(server=server)
+
+            if amount_deleted > 0:
+                if self.stop_event.is_set() is False:
+                    self.database.vacuum()
+                    self.database.optimize()
+
+            self.database.session_meta_data.last_update_finished_at = datetime.now(tz=timezone.utc)
+
+        finally:
+            self.is_updating_event.clear()
+            self.after_updates()
 
     def __call__(self) -> Any:
-
-        for server in self.database.get_all_server():
-            if server.is_updatable() is False:
-                continue
-            if self.stop_event.is_set() is True:
-                return
-            while self.pause_event.is_set() is True:
-                sleep(0.25)
-            log.info("STARTED updating %r", server)
-            self.process(server=server)
-            log.info("FINISHED updating server %r", server)
-
-        amount_deleted = 0
-        for server in self.database.get_all_server():
-            if self.stop_event.is_set() is False:
-                amount_deleted += self._handle_old_log_files(server=server)
-
-        if amount_deleted > 0:
-            if self.stop_event.is_set() is False:
-                self.database.vacuum()
-                self.database.optimize()
+        return self.update()
 
     def shutdown(self) -> None:
-        self.thread_pool.shutdown(wait=True, cancel_futures=False)
+        pass
 
 
 # region[Main_Exec]

@@ -1,40 +1,57 @@
 """Antistasi Logbook"""
 
-__version__ = '0.1.2'
+import antistasi_logbook.errors
+from pyqtgraph.Qt import QT_LIB
+__version__ = '0.3.0'
+import sys
 
+if "apsw" not in sys.modules:
+    try:
+        from . import apsw
+
+        sys.modules["apsw"] = apsw
+    except ImportError:
+        print("Unable to import 'apsw' from included file")
 from gidapptools.meta_data import setup_meta_data
-from gidapptools import get_main_logger
+from gidapptools import get_main_logger, get_main_logger_with_file_logging, get_meta_paths
 from pathlib import Path
 import rich.traceback
 from rich.console import Console as RichConsole
 import atexit
 import os
+import sys
 
-log = get_main_logger("__main__", Path(__file__).resolve())
 
-ERROR_CONSOLE = RichConsole(soft_wrap=True, record=True, width=150)
-
-rich.traceback.install(console=ERROR_CONSOLE, width=150)
-
+os.environ["PYQTGRAPH_QT_LIB"] = "PySide6"
+os.environ["PYTHONDEVMODE"] = "1"
+# os.environ["ANALYZE_EVENTS"] = "true"
 THIS_FILE_DIR = Path(__file__).parent.absolute()
+
+# _extra_logger = ["peewee"]
+_extra_logger = []
+
+IS_SETUP: bool = False
 
 
 def setup():
-    setup_meta_data(__file__,
-                    configs_to_create=[THIS_FILE_DIR.joinpath("data", "general_config.ini")],
-                    spec_to_create=[THIS_FILE_DIR.joinpath("data", "general_configspec.json")],
-                    file_changed_parameter="changed_time")
-
-
-# os.environ["ERRORS_TO_FILE"] = "1"
-
-
-@atexit.register
-def errors_to_file():
-    if os.getenv("ERRORS_TO_FILE", "0") != "1":
+    global IS_SETUP
+    if IS_SETUP is True:
         return
-    file = THIS_FILE_DIR.joinpath('raised_errors')
-    txt_file = file.with_suffix('.txt')
-    html_file = file.with_suffix('.html')
-    ERROR_CONSOLE.save_text(txt_file, clear=False)
-    ERROR_CONSOLE.save_html(html_file, clear=True)
+    setup_meta_data(__file__,
+                    configs_to_create=[THIS_FILE_DIR.joinpath("data", "general_config.ini"), THIS_FILE_DIR.joinpath("data", "color_config.ini")],
+                    spec_to_create=[THIS_FILE_DIR.joinpath("data", "general_configspec.json"), THIS_FILE_DIR.joinpath("data", "color_configspec.json")],
+                    file_changed_parameter="changed_time")
+    META_PATHS = get_meta_paths()
+    # log = get_main_logger("__main__", Path(__file__).resolve(), extra_logger=_extra_logger)
+    log = get_main_logger_with_file_logging("__main__",
+                                            log_file_base_name=Path(__file__).resolve().parent.stem,
+                                            path=Path(__file__).resolve(),
+                                            extra_logger=_extra_logger,
+                                            log_folder=META_PATHS.log_dir)
+
+    ERROR_CONSOLE = RichConsole(soft_wrap=True, record=False, width=150)
+    rich.traceback.install(console=ERROR_CONSOLE, width=150)
+    IS_SETUP = True
+
+
+setup()

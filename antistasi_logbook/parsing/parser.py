@@ -6,77 +6,26 @@ Soon.
 
 # region [Imports]
 
-import os
-
-import sys
-import json
-import queue
-import math
-import base64
-import pickle
-import random
-import shelve
-import dataclasses
-import shutil
-import asyncio
-import logging
-import sqlite3
-import platform
-import importlib
-import subprocess
-import inspect
-
-from time import sleep, process_time, process_time_ns, perf_counter, perf_counter_ns
-from io import BytesIO, StringIO
-from abc import ABC, ABCMeta, abstractmethod
-from copy import copy, deepcopy
-from enum import Enum, Flag, auto, unique
-from time import time, sleep
-from io import TextIOWrapper
-from pprint import pprint, pformat
+# * Standard Library Imports ---------------------------------------------------------------------------->
+from typing import TYPE_CHECKING, Any
 from pathlib import Path
-from string import Formatter, digits, printable, whitespace, punctuation, ascii_letters, ascii_lowercase, ascii_uppercase
-from timeit import Timer
-from typing import TYPE_CHECKING, Union, Callable, Iterable, Optional, Mapping, Any, IO, TextIO, BinaryIO, Hashable, Generator, Literal, TypeVar, TypedDict, AnyStr
-from zipfile import ZipFile, ZIP_LZMA
-from datetime import datetime, timezone, timedelta
-from tempfile import TemporaryDirectory
-from textwrap import TextWrapper, fill, wrap, dedent, indent, shorten
-from functools import wraps, partial, lru_cache, singledispatch, total_ordering, cached_property
-from importlib import import_module, invalidate_caches
-from contextlib import contextmanager, asynccontextmanager, nullcontext, closing, ExitStack, suppress
-from statistics import mean, mode, stdev, median, variance, pvariance, harmonic_mean, median_grouped
-from collections import Counter, ChainMap, deque, namedtuple, defaultdict
-from urllib.parse import urlparse
-from importlib.util import find_spec, module_from_spec, spec_from_file_location
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
-from importlib.machinery import SourceFileLoader
-from antistasi_logbook.regex.regex_keeper import SimpleRegexKeeper
-from gidapptools.general_helper.timing import time_func, time_execution
-from antistasi_logbook.parsing.parsing_context import LogParsingContext, RecordLine
-from antistasi_logbook.utilities.misc import Version, ModItem
-from dateutil.tz import UTC
-from gidapptools.general_helper.timing import time_func
-from gidapptools.general_helper.enums import MiscEnum
-from rich.console import Console as RichConsole
-from antistasi_logbook.records.record_class_manager import RecordClassManager
-from antistasi_logbook.storage.models.models import LogFile, RecordClass, LogRecord, LogLevel, AntstasiFunction
-from antistasi_logbook.records.enums import PunishmentActionEnum
-from dateutil.tz import UTC
+from threading import Event
 
-import peewee
-from playhouse.signals import Model, post_save
-import re
-from gidapptools import get_logger
-from threading import RLock, Semaphore, Event
+# * Third Party Imports --------------------------------------------------------------------------------->
 from antistasi_logbook.parsing.raw_record import RawRecord
-from antistasi_logbook.parsing.record_processor import RecordProcessor, RecordInserter
-from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
+from antistasi_logbook.regex.regex_keeper import SimpleRegexKeeper
 from antistasi_logbook.parsing.meta_log_finder import MetaFinder
-if TYPE_CHECKING:
+from antistasi_logbook.parsing.parsing_context import RecordLine, LogParsingContext
+from antistasi_logbook.parsing.record_processor import RecordProcessor
 
-    from antistasi_logbook.records.abstract_record import AbstractRecord
-    from antistasi_logbook.storage.database import GidSqliteQueueDatabase
+# * Gid Imports ----------------------------------------------------------------------------------------->
+from gidapptools import get_logger
+
+if TYPE_CHECKING:
+    from antistasi_logbook.backend import Backend
+    # * Third Party Imports --------------------------------------------------------------------------------->
+    pass
+
 # endregion[Imports]
 
 # region [TODO]
@@ -107,12 +56,16 @@ class Parser:
     log_file_data_scan_chunk_increase = 27239
     log_file_data_scan_chunk_initial = (104997 // 2)
 
-    __slots__ = ("database", "regex_keeper", "record_processor", "stop_event")
+    __slots__ = ("backend", "regex_keeper", "stop_event")
 
-    def __init__(self, record_processor: "RecordProcessor", regex_keeper: "SimpleRegexKeeper", stop_event: Event) -> None:
-        self.record_processor = record_processor
+    def __init__(self, backend: "Backend", regex_keeper: "SimpleRegexKeeper", stop_event: Event) -> None:
+        self.backend = backend
         self.regex_keeper = regex_keeper
         self.stop_event = stop_event
+
+    @property
+    def record_processor(self) -> "RecordProcessor":
+        return self.backend.record_processor
 
     def _get_log_file_meta_data(self, context: LogParsingContext) -> "MetaFinder":
         with context.open(cleanup=False) as file:
