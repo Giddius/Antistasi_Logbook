@@ -2,7 +2,7 @@
 
 import antistasi_logbook.errors
 from pyqtgraph.Qt import QT_LIB
-__version__ = '0.3.0'
+__version__ = '0.3.1'
 import sys
 
 if "apsw" not in sys.modules:
