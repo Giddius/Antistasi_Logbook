@@ -82,6 +82,7 @@ class PunishmentActionEnum(Enum):
 class MessageFormat(Enum):
     PRETTY = auto()
     SHORT = auto()
+    ORIGINAL = auto()
 
 
 class RecordFamily(Flag):

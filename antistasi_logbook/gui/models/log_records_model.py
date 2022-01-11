@@ -33,7 +33,7 @@ from PySide6.QtCore import (QByteArray, QCoreApplication, QDate, QDateTime, QEve
                             QMutexLocker, QObject, QPoint, QRect, QRecursiveMutex, QRunnable, QSettings, QSize, QThread, QThreadPool, QTime, QUrl,
                             QWaitCondition, Qt, QAbstractItemModel, QAbstractListModel, QAbstractTableModel, Signal, Slot)
 
-from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
+from PySide6.QtGui import (QAction, QBrush, QClipboard, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
                            QKeySequence, QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform)
 
 from PySide6.QtWidgets import (QApplication, QDataWidgetMapper, QBoxLayout, QCheckBox, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QDialogButtonBox,
@@ -44,6 +44,7 @@ from PySide6.QtWidgets import (QApplication, QDataWidgetMapper, QBoxLayout, QChe
                                QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
 
 import pp
+from antistasi_logbook.records.enums import MessageFormat
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.color.color_item import Color
@@ -127,6 +128,15 @@ class LogRecordsModel(BaseQueryDataModel):
             menu.add_action(reset_all_colors_action, "debug")
 
         menu.add_menu("Copy as")
+        copy_action = ModelContextMenuAction(item=item, column=column, index=index, text="Copy", parent=menu)
+        copy_action.clicked.connect(self.on_copy)
+        menu.add_action(copy_action)
+
+    @Slot(object, object, QModelIndex)
+    def on_copy(self, item: "BaseRecord", column: Field, index: QModelIndex):
+        text = item.get_formated_message(msg_format=MessageFormat.ORIGINAL)
+        clipboard = self.app.clipboard()
+        clipboard.setText(text)
 
     @profile
     def _get_display_data(self, index: "INDEX_TYPE") -> Any:

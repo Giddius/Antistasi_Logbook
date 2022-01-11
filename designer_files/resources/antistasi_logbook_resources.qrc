@@ -19,13 +19,17 @@
 		<file>folder_settings.svg</file>
 		<file>general_settings.svg</file>
 		<file>gui_settings.svg</file>
+		<file>hidden.svg</file>
 		<file>hidden_icon.svg</file>
 		<file>log_files_tab_icon.svg</file>
 		<file>log_records_tab_icon.svg</file>
 		<file>mark.svg</file>
 		<file>open_eye.svg</file>
 		<file>parsing_settings.svg</file>
+		<file>search_page_symbol.svg</file>
+		<file>select_path_symbol.svg</file>
 		<file>server_tab_icon.svg</file>
+		<file>settings_window_symbol.svg</file>
 		<file>stats_icon.svg</file>
 		<file>stats_icon_2.svg</file>
 		<file>time_settings.svg</file>

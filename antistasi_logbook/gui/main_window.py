@@ -368,7 +368,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
         return f"{self.__class__.__name__}"
 
 
-def start_gui(nextcloud_username: str = None, nextcloud_password: str = None):
+def start_gui():
     qApp = AntistasiLogbookApplication.instance()
     if qApp is None:
         qApp = AntistasiLogbookApplication.with_high_dpi_scaling(argvs=sys.argv)
@@ -386,8 +386,6 @@ def start_gui(nextcloud_username: str = None, nextcloud_password: str = None):
 
     start_splash.setPixmap(AllResourceItems.antistasi_logbook_splash_starting_backend_image.get_as_pixmap())
     qApp.setup(backend=backend, icon=AllResourceItems.app_icon_image)
-    if nextcloud_username is not None and nextcloud_password is not None:
-        RemoteStorage.get(name="community_webdav").set_login_and_password(login=nextcloud_username, password=nextcloud_password, store_in_db=True)
 
     _main_window = AntistasiLogbookMainWindow(qApp, META_CONFIG.get_config('general'))
     qApp.main_window = _main_window
@@ -403,7 +401,7 @@ if __name__ == '__main__':
 
     import dotenv
     dotenv.load_dotenv(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\antistasi_logbook\nextcloud.env")
-    start_gui(os.getenv("NEXTCLOUD_USERNAME", None), os.getenv("NEXTCLOUD_PASSWORD", None))
+    start_gui()
 
 
 # endregion[Main_Exec]

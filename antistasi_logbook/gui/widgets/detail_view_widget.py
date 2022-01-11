@@ -320,6 +320,7 @@ class ServerDetailWidget(BaseDetailWidget):
 
         self.amount_log_files_label = QLabel(text="Amount Log-Files")
         self.amount_log_files_value = QLCDNumber(3, self)
+        self.amount_log_files_value.setSegmentStyle(QLCDNumber.Flat)
         self.amount_log_files_value.display(LogFile.select().where(LogFile.server == self.server).count())
         self.layout.addRow(self.amount_log_files_label, self.amount_log_files_value)
 
@@ -717,7 +718,7 @@ class LogRecordDetailView(BaseDetailWidget):
         self.message_value = MessageValue(self.record)
         self.layout.addRow("Message", self.message_value)
 
-        self.get_stats_button = QPushButton(AllResourceItems.stats_icon_2_image.get_as_icon(), text="Stats for this Record")
+        self.get_stats_button = QPushButton(AllResourceItems.stats_icon_2_image.get_as_icon(), "Stats for this Record")
         self.layout.addWidget(self.get_stats_button)
         self.get_stats_button.pressed.connect(self.get_stats)
 

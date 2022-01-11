@@ -159,6 +159,9 @@ class BaseRecord(AbstractRecord):
     def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
         if msg_format is MessageFormat.SHORT:
             return shorten_string(self.message, max_length=30)
+
+        if msg_format is MessageFormat.ORIGINAL:
+            return f"{self.pretty_recorded_at} {self.message}"
         return self.message
 
     def get_db_item(self, database: "GidSqliteApswDatabase") -> "LogRecord":

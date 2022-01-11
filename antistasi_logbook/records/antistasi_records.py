@@ -64,6 +64,15 @@ class BaseAntistasiRecord(BaseRecord):
     def check(cls, log_record: "LogRecord") -> bool:
         return True
 
+    def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
+        if msg_format is MessageFormat.ORIGINAL:
+            text = f"{self.pretty_recorded_at} | Antistasi | {self.pretty_log_level} | File: {self.logged_from.function_name} | {self.message}"
+            if self.called_by is not None:
+                text += f" | Called By: {self.called_by.function_name}"
+            return text
+
+        return super().get_formated_message(msg_format=msg_format)
+
 
 ALL_ANTISTASI_RECORD_CLASSES.add(BaseAntistasiRecord)
 

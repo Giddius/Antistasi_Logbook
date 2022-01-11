@@ -54,6 +54,8 @@ WARNING_SIGN_TRIANGLE_RED_IMAGE = ressource_item_factory(file_path='D:/Dropbox/h
 
 CHECK_MARK_GREEN_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/check_mark_green.svg', qt_path=':/images/check_mark_green.svg')
 
+SETTINGS_WINDOW_SYMBOL_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/settings_window_symbol.svg', qt_path=':/images/settings_window_symbol.svg')
+
 CLOSE_BLACK_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/close_black.svg', qt_path=':/images/close_black.svg')
 
 PLACEHOLDER_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/placeholder.png', qt_path=':/images/placeholder.png')
@@ -74,6 +76,8 @@ STATS_ICON_2_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/
 
 HIDDEN_ICON_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/hidden_icon.svg', qt_path=':/images/hidden_icon.svg')
 
+SELECT_PATH_SYMBOL_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/select_path_symbol.svg', qt_path=':/images/select_path_symbol.svg')
+
 UNMARK_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/unmark.svg', qt_path=':/images/unmark.svg')
 
 VISIBLE_ICON_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/visible_icon.svg', qt_path=':/images/visible_icon.svg')
@@ -83,6 +87,10 @@ GENERAL_SETTINGS_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modd
 WEBDAV_SETTINGS_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/webdav_settings.svg', qt_path=':/images/webdav_settings.svg')
 
 DEBUG_SETTINGS_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/debug_settings.svg', qt_path=':/images/debug_settings.svg')
+
+SEARCH_PAGE_SYMBOL_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/search_page_symbol.svg', qt_path=':/images/search_page_symbol.svg')
+
+HIDDEN_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/hidden.svg', qt_path=':/images/hidden.svg')
 
 UPDATING_SETTINGS_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/updating_settings.svg', qt_path=':/images/updating_settings.svg')
 
@@ -115,6 +123,7 @@ class AllResourceItems(metaclass=AllResourceItemsMeta):
     log_records_tab_icon_image = LOG_RECORDS_TAB_ICON_IMAGE
     warning_sign_triangle_red_image = WARNING_SIGN_TRIANGLE_RED_IMAGE
     check_mark_green_image = CHECK_MARK_GREEN_IMAGE
+    settings_window_symbol_image = SETTINGS_WINDOW_SYMBOL_IMAGE
     close_black_image = CLOSE_BLACK_IMAGE
     placeholder_image = PLACEHOLDER_IMAGE
     antistasi_logbook_splash_backup_image = ANTISTASI_LOGBOOK_SPLASH_BACKUP_IMAGE
@@ -124,11 +133,14 @@ class AllResourceItems(metaclass=AllResourceItemsMeta):
     database_settings_image = DATABASE_SETTINGS_IMAGE
     stats_icon_2_image = STATS_ICON_2_IMAGE
     hidden_icon_image = HIDDEN_ICON_IMAGE
+    select_path_symbol_image = SELECT_PATH_SYMBOL_IMAGE
     unmark_image = UNMARK_IMAGE
     visible_icon_image = VISIBLE_ICON_IMAGE
     general_settings_image = GENERAL_SETTINGS_IMAGE
     webdav_settings_image = WEBDAV_SETTINGS_IMAGE
     debug_settings_image = DEBUG_SETTINGS_IMAGE
+    search_page_symbol_image = SEARCH_PAGE_SYMBOL_IMAGE
+    hidden_image = HIDDEN_IMAGE
     updating_settings_image = UPDATING_SETTINGS_IMAGE
     mark_image = MARK_IMAGE
     antistasi_logbook_splash_preparing_backend_image = ANTISTASI_LOGBOOK_SPLASH_PREPARING_BACKEND_IMAGE
