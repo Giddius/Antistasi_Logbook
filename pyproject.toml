@@ -23,7 +23,7 @@ dependencies = [
     "attrs>=21.2.0",
     "rich>=10.12.0",
     "sortedcontainers>=2.4.0",
-    "gidapptools>=0.1.12",
+    "gidapptools>=0.1.13",
     "pyqtgraph>=0.12.3",
     "colorhash==1.0.4",
     "qdarkstyle",
@@ -43,6 +43,7 @@ dependencies = [
 Source = "https://github.com/Giddius/Antistasi_Logbook"
 
 [project.scripts]
+antistasi-logbook = "antistasi_logbook.__main__:main"
 
 [project.optional-dependencies]
 
