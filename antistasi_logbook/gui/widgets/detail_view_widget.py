@@ -7,61 +7,43 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from typing import TYPE_CHECKING, Union, Optional, Iterable, Any, Generator
+import re
+from abc import ABC
+from typing import TYPE_CHECKING, Any, Union, Optional, Generator
 from pathlib import Path
-from datetime import datetime
+
 # * Third Party Imports --------------------------------------------------------------------------------->
-import json
-import random
-from abc import ABC, ABCMeta, abstractmethod
+from peewee import Field, DoesNotExist, IntegrityError
+
+# * Qt Imports --------------------------------------------------------------------------------------->
+import PySide6
+from PySide6.QtGui import Qt, QFont, QColor, QAction, QPixmap, QTextFormat, QTextOption, QFontMetrics, QTextDocument, QTextCharFormat, QDesktopServices, QSyntaxHighlighter
+from PySide6.QtCore import Qt, QUrl, QAbstractTableModel
+from PySide6.QtWidgets import (QMenu, QLabel, QWidget, QGroupBox, QLineEdit, QListView, QTextEdit, QLCDNumber, QFormLayout,
+                               QHBoxLayout, QMessageBox, QPushButton, QVBoxLayout, QApplication, QInputDialog, QTextBrowser)
+
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
-import PySide6
-from PySide6 import (QtCore, QtGui, QtWidgets, Qt3DAnimation, Qt3DCore, Qt3DExtras, Qt3DInput, Qt3DLogic, Qt3DRender, QtAxContainer, QtBluetooth,
-                     QtCharts, QtConcurrent, QtDataVisualization, QtDesigner, QtHelp, QtMultimedia, QtMultimediaWidgets, QtNetwork, QtNetworkAuth,
-                     QtOpenGL, QtOpenGLWidgets, QtPositioning, QtPrintSupport, QtQml, QtQuick, QtQuickControls2, QtQuickWidgets, QtRemoteObjects,
-                     QtScxml, QtSensors, QtSerialPort, QtSql, QtStateMachine, QtSvg, QtSvgWidgets, QtTest, QtUiTools, QtWebChannel, QtWebEngineCore,
-                     QtWebEngineQuick, QtWebEngineWidgets, QtWebSockets, QtXml)
-
-from PySide6.QtCore import (QByteArray, QSize, QCoreApplication, QDate, QDateTime, QEvent, QLocale, QMetaObject, QModelIndex, QModelRoleData, QMutex,
-                            QMutexLocker, QObject, QPoint, QRect, QRecursiveMutex, QRunnable, QSettings, QSize, QThread, QThreadPool, QTime, QUrl,
-                            QWaitCondition, Qt, QUrl, QAbstractItemModel, QAbstractListModel, QAbstractTableModel, Signal, Slot)
-
-from PySide6.QtGui import (QAction, QTextDocument, QTextCursor, QBrush, QTextOption, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
-                           QKeySequence, QSyntaxHighlighter, QTextCharFormat, QTextFormat, QTextBlockFormat, QTextListFormat, QTextTableFormat, QTextTable,
-                           QTextTableCellFormat, QDesktopServices, QLinearGradient, QPainter, QFontInfo, QPalette, QPixmap, QRadialGradient, QTransform, Qt)
-
-from PySide6.QtWidgets import (QApplication, QTextBrowser, QGraphicsView, QBoxLayout, QCheckBox, QDialog, QDialogButtonBox, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QDialogButtonBox,
-                               QDockWidget, QDoubleSpinBox, QFontComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
-                               QLCDNumber, QLabel, QLayout, QLineEdit, QListView, QListWidget, QMainWindow, QMenu, QMenuBar, QMessageBox,
-                               QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
-                               QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
-                               QVBoxLayout, QWidget, QAbstractItemDelegate, QInputDialog, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QListView, QButtonGroup)
-
-from antistasi_logbook.storage.models.models import RecordClass, LogFile, ModLink, Server, LogRecord, LogLevel, GameMap, RemoteStorage, Mod, LogFileAndModJoin
-from peewee import Field, IntegrityError
-from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-import pyqtgraph as pg
-from gidapptools.general_helper.string_helper import StringCase, StringCaseConverter
-import re
-from dateutil.tz import UTC
-import attr
-from peewee import DoesNotExist
-from antistasi_logbook.gui.widgets.collapsible_widget import CollapsibleGroupBox
-from antistasi_logbook.records.enums import MessageTypus
-from antistasi_logbook.data.sqf_syntax_data import SQF_BUILTINS_REGEX
+from gidapptools.general_helper.string_helper import StringCaseConverter
 from gidapptools.general_helper.color.color_item import Color
-from matplotlib.colors import get_named_colors_mapping
-from antistasi_logbook.gui.widgets.stats_viewer import StatsWindow
-from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
-if TYPE_CHECKING:
 
-    # * Third Party Imports --------------------------------------------------------------------------------->
-    from antistasi_logbook.records.abstract_record import AbstractRecord
-    from antistasi_logbook.records.base_record import BaseRecord
-    from antistasi_logbook.gui.application import AntistasiLogbookApplication
-    from antistasi_logbook.backend import Backend
+# * Local Imports --------------------------------------------------------------------------------------->
+from antistasi_logbook.data.sqf_syntax_data import SQF_BUILTINS_REGEX
+from antistasi_logbook.storage.models.models import Mod, Server, GameMap, LogFile, ModLink, LogRecord, RecordClass
+from antistasi_logbook.gui.widgets.stats_viewer import StatsWindow
+from antistasi_logbook.gui.widgets.collapsible_widget import CollapsibleGroupBox
+from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
+from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
+
+# * Type-Checking Imports --------------------------------------------------------------------------------->
+if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
+
+    from antistasi_logbook.backend import Backend
+    from antistasi_logbook.gui.application import AntistasiLogbookApplication
+    from antistasi_logbook.records.base_record import BaseRecord
+    from antistasi_logbook.records.abstract_record import AbstractRecord
+
 # endregion[Imports]
 
 # region [TODO]

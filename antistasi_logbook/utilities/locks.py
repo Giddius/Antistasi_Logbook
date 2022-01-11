@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 from datetime import timedelta
 from threading import Lock, Event, RLock, Semaphore, get_ident
 
+# * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.storage.models.models import LogFile
 

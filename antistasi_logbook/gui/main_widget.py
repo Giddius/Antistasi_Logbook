@@ -10,55 +10,33 @@ Soon.
 from typing import TYPE_CHECKING, Optional
 from pathlib import Path
 from threading import Event
-from concurrent.futures import Future
 
-# * Third Party Imports --------------------------------------------------------------------------------->
+# * Qt Imports --------------------------------------------------------------------------------------->
+import PySide6
+from PySide6.QtGui import QMovie
+from PySide6.QtCore import Qt, QSize, Signal, QThread, QByteArray, QModelIndex
+from PySide6.QtWidgets import QLabel, QDialog, QWidget, QGroupBox, QTabWidget, QGridLayout, QSizePolicy, QVBoxLayout, QApplication
+
+# * Gid Imports ----------------------------------------------------------------------------------------->
+from gidapptools import get_logger
+
+# * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.storage.models.models import LogRecord
 from antistasi_logbook.gui.models.server_model import ServerModel
+from antistasi_logbook.gui.widgets.dock_widget import QueryWidget, BaseDockWidget
 from antistasi_logbook.gui.models.log_files_model import LogFilesModel
-from antistasi_logbook.gui.models.log_records_model import LogRecordsModel
-from antistasi_logbook.gui.views.base_query_tree_view import LogFilesQueryTreeView
 from antistasi_logbook.gui.views.server_query_view import ServerQueryTreeView
+from antistasi_logbook.gui.models.log_records_model import LogRecordsModel
+from antistasi_logbook.gui.widgets.data_tool_widget import ServerDataToolWidget, LogFileDataToolWidget, LogRecordDataToolWidget
+from antistasi_logbook.gui.views.base_query_tree_view import LogFilesQueryTreeView
+from antistasi_logbook.gui.widgets.detail_view_widget import ServerDetailWidget, LogFileDetailWidget, LogRecordDetailView
 from antistasi_logbook.gui.views.log_records_query_view import LogRecordsQueryView
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 
-# * PyQt5 Imports --------------------------------------------------------------------------------------->
-import PySide6
-from PySide6 import (QtCore, QtGui, QtWidgets, Qt3DAnimation, Qt3DCore, Qt3DExtras, Qt3DInput, Qt3DLogic, Qt3DRender, QtAxContainer, QtBluetooth,
-                     QtCharts, QtConcurrent, QtDataVisualization, QtDesigner, QtHelp, QtMultimedia, QtMultimediaWidgets, QtNetwork, QtNetworkAuth,
-                     QtOpenGL, QtOpenGLWidgets, QtPositioning, QtPrintSupport, QtQml, QtQuick, QtQuickControls2, QtQuickWidgets, QtRemoteObjects,
-                     QtScxml, QtSensors, QtSerialPort, QtSql, QtStateMachine, QtSvg, QtSvgWidgets, QtTest, QtUiTools, QtWebChannel, QtWebEngineCore,
-                     QtWebEngineQuick, QtWebEngineWidgets, QtWebSockets, QtXml)
-
-from PySide6.QtCore import (QByteArray, QCoreApplication, QDate, QDateTime, QEvent, QLocale, QMetaObject, QModelIndex, QModelRoleData, QMutex,
-                            QMutexLocker, QObject, QPoint, QRect, QRecursiveMutex, QRunnable, QSettings, QSize, QThread, QThreadPool, QTime, QUrl,
-                            QWaitCondition, Qt, QAbstractItemModel, QAbstractListModel, QAbstractTableModel, Signal, Slot)
-
-from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
-                           QKeySequence, QLinearGradient, QMovie, QPainter, QPalette, QPixmap, QRadialGradient, QTransform)
-
-from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QLCDNumber, QColorDialog, QDialog, QColumnView, QComboBox, QDateTimeEdit, QDialogButtonBox,
-                               QDockWidget, QDoubleSpinBox, QFontComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
-                               QLCDNumber, QLabel, QLayout, QLineEdit, QListView, QListWidget, QMainWindow, QMenu, QMenuBar, QMessageBox,
-                               QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
-                               QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
-                               QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
-
-
-from io import BytesIO
-from threading import Thread
-from time import sleep
-# * Gid Imports ----------------------------------------------------------------------------------------->
-from gidapptools import get_logger
-from antistasi_logbook.gui.widgets.dock_widget import BaseDockWidget, QueryWidget
-from antistasi_logbook.storage.models.models import Server, LogFile, RecordClass
-import pyqtgraph as pg
-from antistasi_logbook.gui.widgets.detail_view_widget import ServerDetailWidget, LogFileDetailWidget, LogRecordDetailView
-from antistasi_logbook.gui.widgets.data_tool_widget import LogFileDataToolWidget, ServerDataToolWidget, LogRecordDataToolWidget
+# * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-    # * Third Party Imports --------------------------------------------------------------------------------->
-    from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
+    from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow
 
 # endregion[Imports]
 

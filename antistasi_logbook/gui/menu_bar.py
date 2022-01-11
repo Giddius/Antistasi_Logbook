@@ -7,42 +7,29 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from typing import Optional, TYPE_CHECKING, Any, Union, Callable
+from typing import TYPE_CHECKING, Optional
 from pathlib import Path
+from weakref import WeakSet
 
-# * Third Party Imports --------------------------------------------------------------------------------->
+# * Qt Imports --------------------------------------------------------------------------------------->
+import PySide6
+from PySide6.QtGui import QAction
+from PySide6.QtCore import Signal, QObject
+from PySide6.QtWidgets import QWidget, QApplication
+
+# * Gid Imports ----------------------------------------------------------------------------------------->
+from gidapptools import get_logger
+from gidapptools.general_helper.string_helper import StringCase, StringCaseConverter
+from gidapptools.gidapptools_qt.basics.menu_bar import BaseMenuBar
+
+# * Local Imports --------------------------------------------------------------------------------------->
+from antistasi_logbook.storage.models.models import Mod, GameMap, Version, LogLevel, BaseModel, RecordClass, RecordOrigin, RemoteStorage, AntstasiFunction
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 
-# * PyQt5 Imports --------------------------------------------------------------------------------------->
-import PySide6
-from PySide6 import (QtCore, QtGui, QtWidgets, Qt3DAnimation, Qt3DCore, Qt3DExtras, Qt3DInput, Qt3DLogic, Qt3DRender, QtAxContainer, QtBluetooth,
-                     QtCharts, QtConcurrent, QtDataVisualization, QtDesigner, QtHelp, QtMultimedia, QtMultimediaWidgets, QtNetwork, QtNetworkAuth,
-                     QtOpenGL, QtOpenGLWidgets, QtPositioning, QtPrintSupport, QtQml, QtQuick, QtQuickControls2, QtQuickWidgets, QtRemoteObjects,
-                     QtScxml, QtSensors, QtSerialPort, QtSql, QtStateMachine, QtSvg, QtSvgWidgets, QtTest, QtUiTools, QtWebChannel, QtWebEngineCore,
-                     QtWebEngineQuick, QtWebEngineWidgets, QtWebSockets, QtXml)
-
-from PySide6.QtCore import (QByteArray, QEvent, QCoreApplication, QDate, QDateTime, QEvent, QLocale, QMetaObject, QModelIndex, QModelRoleData, QMutex,
-                            QMutexLocker, QObject, QPoint, QRect, QRecursiveMutex, QRunnable, QSettings, QSize, QThread, QThreadPool, QTime, QUrl,
-                            QWaitCondition, Qt, QAbstractItemModel, QAbstractListModel, QAbstractTableModel, Signal, Slot)
-
-from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
-                           QKeySequence, QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform)
-
-from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QDialogButtonBox,
-                               QDockWidget, QDoubleSpinBox, QFontComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
-                               QLCDNumber, QLabel, QLayout, QLineEdit, QListView, QListWidget, QMainWindow, QMenu, QMenuBar, QMessageBox,
-                               QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
-                               QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
-                               QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
-from collections import defaultdict
-from weakref import WeakSet
-# * Gid Imports ----------------------------------------------------------------------------------------->
-from gidapptools.gidapptools_qt.basics.menu_bar import BaseMenuBar
-from gidapptools.general_helper.string_helper import StringCase, StringCaseConverter
-from gidapptools import get_logger
-from antistasi_logbook.storage.models.models import BaseModel, GameMap, AntstasiFunction, RecordOrigin, RecordClass, Mod, Version, LogLevel, RemoteStorage
+# * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
+
 # endregion[Imports]
 
 # region [TODO]

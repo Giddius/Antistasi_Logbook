@@ -1,41 +1,44 @@
-# * Third Party Imports --------------------------------------------------------------------------------->
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
-from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
-from tzlocal import get_localzone
-import json
-from gidapptools.general_helper.conversion import bytes2human
-from peewee import DatabaseProxy, fn, IntegrityError
-from antistasi_logbook.storage.models.custom_fields import (URLField, PathField, LoginField, VersionField, PasswordField, TzOffsetField,
-                                                            RemotePathField, CompressedTextField, CompressedImageField, AwareTimeStampField, CaselessTextField, CommentsField, MarkedField)
-from antistasi_logbook.updating.remote_managers import remote_manager_registry
-from antistasi_logbook.records.abstract_record import MessageFormat
-from antistasi_logbook.utilities.locks import FILE_LOCKS
-
-from antistasi_logbook.data.misc import LOG_FILE_DATE_REGEX
-from playhouse.sqlite_ext import JSONField
-from playhouse.apsw_ext import BooleanField, IntegerField, CharField, ForeignKeyField, DeferredForeignKey, TextField, FixedCharField, BlobField, BareField, DecimalField
-from playhouse.signals import Model
-from dateutil.tz import UTC
-
-from yarl import URL
-from statistics import mean
-import re
-from contextlib import contextmanager
-from playhouse.shortcuts import model_to_dict, update_model_from_dict
-from threading import Lock, RLock
-from functools import cached_property
-from datetime import datetime
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, Optional, Generator
-from time import sleep
-from io import TextIOWrapper
+# * Standard Library Imports ---------------------------------------------------------------------------->
 import os
+import re
+import json
+from io import TextIOWrapper
+from time import sleep
+from typing import TYPE_CHECKING, Any, Literal, Optional, Generator
+from pathlib import Path
+from datetime import datetime
+from functools import cached_property
+from threading import Lock, RLock
+from contextlib import contextmanager
 
+# * Third Party Imports --------------------------------------------------------------------------------->
+from yarl import URL
+from peewee import DatabaseProxy, IntegrityError, fn
+from tzlocal import get_localzone
+from dateutil.tz import UTC
+from playhouse.signals import Model
+from playhouse.apsw_ext import TextField, BooleanField, IntegerField, ForeignKeyField
+from playhouse.sqlite_ext import JSONField
+
+# * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QColor
 
+# * Gid Imports ----------------------------------------------------------------------------------------->
+from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+from gidapptools.general_helper.conversion import bytes2human
+
+# * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook import setup
-from antistasi_logbook.utilities.date_time_utilities import DateTimeFrame
+from antistasi_logbook.data.misc import LOG_FILE_DATE_REGEX
 from antistasi_logbook.utilities.misc import VersionItem
+from antistasi_logbook.utilities.locks import FILE_LOCKS
+from antistasi_logbook.records.abstract_record import MessageFormat
+from antistasi_logbook.updating.remote_managers import remote_manager_registry
+from antistasi_logbook.storage.models.custom_fields import (URLField, PathField, LoginField, MarkedField, VersionField, CommentsField, PasswordField, TzOffsetField,
+                                                            RemotePathField, CaselessTextField, AwareTimeStampField, CompressedTextField, CompressedImageField)
+from antistasi_logbook.utilities.date_time_utilities import DateTimeFrame
+
 setup()
 # * Standard Library Imports ---------------------------------------------------------------------------->
 
@@ -50,10 +53,6 @@ if TYPE_CHECKING:
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
     from antistasi_logbook.parsing.raw_record import RawRecord
 
-
-# * Third Party Imports --------------------------------------------------------------------------------->
-
-# * Gid Imports ----------------------------------------------------------------------------------------->
 
 get_dummy_profile_decorator_in_globals()
 

@@ -13,16 +13,18 @@ from pathlib import Path
 # * Third Party Imports --------------------------------------------------------------------------------->
 from playhouse.signals import post_save
 from playhouse.shortcuts import model_to_dict
-from antistasi_logbook.storage.models.models import GameMap, LogLevel, AntstasiFunction, RecordOrigin, Version
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.concurrency.events import BlockingEvent
-from antistasi_logbook.utilities.misc import VersionItem
+
+# * Local Imports --------------------------------------------------------------------------------------->
+from antistasi_logbook.storage.models.models import GameMap, Version, LogLevel, RecordOrigin, AntstasiFunction
+
+# * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-    # * Third Party Imports --------------------------------------------------------------------------------->
-    from antistasi_logbook.storage.database import GidSqliteApswDatabase
     from antistasi_logbook.backend import Backend
+    from antistasi_logbook.storage.database import GidSqliteApswDatabase
 
 # endregion[Imports]
 

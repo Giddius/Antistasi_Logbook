@@ -11,8 +11,8 @@ import re
 from typing import TYPE_CHECKING
 from pathlib import Path
 
+# * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-    # * Third Party Imports --------------------------------------------------------------------------------->
     pass
 
 # endregion[Imports]

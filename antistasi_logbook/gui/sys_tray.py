@@ -9,17 +9,20 @@ Soon.
 # * Standard Library Imports ---------------------------------------------------------------------------->
 from typing import TYPE_CHECKING, Callable
 from pathlib import Path
-from weakref import WeakSet
-# * Third Party Imports --------------------------------------------------------------------------------->
-from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 
-# * PyQt5 Imports --------------------------------------------------------------------------------------->
+# * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QIcon, QAction
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QMenu, QLabel, QApplication, QWidgetAction, QSystemTrayIcon
+from PySide6.QtWidgets import QMenu, QLabel, QWidgetAction, QSystemTrayIcon
+
+# * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
+
+# * Local Imports --------------------------------------------------------------------------------------->
+from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
+
+# * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-    # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow, AntistasiLogbookApplication
 
 # endregion[Imports]

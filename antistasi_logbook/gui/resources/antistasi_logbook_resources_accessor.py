@@ -8,18 +8,16 @@ This File was auto-generated
 
 # region[Imports]
 
-import os
-from enum import Enum, auto, Flag
-from pathlib import Path
-from PySide6.QtGui import QPixmap, QIcon, QImage
-from typing import Union, Optional, Iterable, TYPE_CHECKING
-from collections import defaultdict
+# * Standard Library Imports ---------------------------------------------------------------------------->
 import atexit
+from collections import defaultdict
+
+# * Third Party Imports --------------------------------------------------------------------------------->
 import pp
-from pprint import pprint, pformat
-from gidapptools.gidapptools_qt.resources.resources_helper import ressource_item_factory, ResourceItem, AllResourceItemsMeta
-from gidapptools import get_meta_info, get_logger
-from . import antistasi_logbook_resources
+
+# * Gid Imports ----------------------------------------------------------------------------------------->
+from gidapptools import get_logger, get_meta_info
+from gidapptools.gidapptools_qt.resources.resources_helper import AllResourceItemsMeta, ressource_item_factory
 
 # endregion[Imports]
 

@@ -17,11 +17,13 @@ from functools import total_ordering
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
 import tzlocal
-from antistasi_logbook.errors import DurationTimezoneError
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.string_helper import extract_by_map, replace_by_dict
+
+# * Local Imports --------------------------------------------------------------------------------------->
+from antistasi_logbook.errors import DurationTimezoneError
 
 # endregion[Imports]
 

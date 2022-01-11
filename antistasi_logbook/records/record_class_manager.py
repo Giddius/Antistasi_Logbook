@@ -13,12 +13,13 @@ from pathlib import Path
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
 from sortedcontainers import SortedSet
-from antistasi_logbook.records.base_record import BaseRecord, RecordFamily
-from antistasi_logbook.storage.models.models import RecordClass, LogRecord, RecordOrigin
 
+# * Local Imports --------------------------------------------------------------------------------------->
+from antistasi_logbook.records.base_record import BaseRecord, RecordFamily
+from antistasi_logbook.storage.models.models import LogRecord, RecordClass
+
+# * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-    # * Third Party Imports --------------------------------------------------------------------------------->
-    from antistasi_logbook.parsing.parser import RawRecord
     from antistasi_logbook.records.abstract_record import AbstractRecord
     from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 

@@ -7,11 +7,12 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
+from enum import Enum, auto, unique
 from pathlib import Path
 
-# * PyQt5 Imports --------------------------------------------------------------------------------------->
-from PySide6.QtCore import Signal, QObject, Qt
-from enum import Enum, Flag, auto, unique
+# * Qt Imports --------------------------------------------------------------------------------------->
+from PySide6.QtCore import Qt, Signal, QObject
+
 # endregion[Imports]
 
 # region [TODO]

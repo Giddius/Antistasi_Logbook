@@ -15,13 +15,12 @@ from threading import Event, Thread
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 
+# * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-    # * Third Party Imports --------------------------------------------------------------------------------->
+    from gidapptools.gid_config.interface import GidIniConfig
+
     from antistasi_logbook.updating.updater import Updater
     from antistasi_logbook.updating.time_handling import TimeClock
-
-    # * Gid Imports ----------------------------------------------------------------------------------------->
-    from gidapptools.gid_config.interface import GidIniConfig
 
 # endregion[Imports]
 

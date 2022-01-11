@@ -14,12 +14,14 @@ from peewee import Field
 from dateutil.tz import UTC
 from rich.console import Console as RichConsole
 from dateutil.parser import parse as dateutil_parse
-from antistasi_logbook.utilities.path_utilities import RemotePath
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 from gidapptools.general_helper.conversion import str_to_bool
+
+# * Local Imports --------------------------------------------------------------------------------------->
+from antistasi_logbook.utilities.path_utilities import RemotePath
 
 get_dummy_profile_decorator_in_globals()
 log = get_logger(__name__)

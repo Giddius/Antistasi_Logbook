@@ -5,33 +5,23 @@ Soon.
 """
 
 # region [Imports]
-import os
+
+# * Standard Library Imports ---------------------------------------------------------------------------->
 from typing import TYPE_CHECKING
 from pathlib import Path
-import click
-from dotenv import load_dotenv
-from antistasi_logbook.backend import Backend, GidSqliteApswDatabase
-from antistasi_logbook.gui.main_window import start_gui
-from antistasi_logbook.storage.models.models import RemoteStorage
-from antistasi_logbook.storage.models.models import database_proxy
+
+# * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.meta_data import get_meta_info, get_meta_paths
 from gidapptools.meta_data.interface import get_meta_config
-import antistasi_logbook
+
+# * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook import setup
+from antistasi_logbook.gui.main_window import start_gui
 
 setup()
-# * Third Party Imports --------------------------------------------------------------------------------->
-
-
-# * Standard Library Imports ---------------------------------------------------------------------------->
-
-# * Third Party Imports --------------------------------------------------------------------------------->
-
-# * Gid Imports ----------------------------------------------------------------------------------------->
-
+# * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-    # * Gid Imports ----------------------------------------------------------------------------------------->
     from gidapptools.gid_config.interface import GidIniConfig
 
 # endregion[Imports]

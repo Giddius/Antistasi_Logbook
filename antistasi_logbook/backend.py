@@ -11,16 +11,25 @@ from time import sleep
 from typing import TYPE_CHECKING, Iterable
 from pathlib import Path
 from weakref import WeakSet
+from datetime import datetime
+from itertools import chain
 from threading import Lock, Event
-from concurrent.futures import ALL_COMPLETED, wait, ThreadPoolExecutor, ProcessPoolExecutor
-from datetime import datetime, timezone, timedelta
-import shutil
 from multiprocessing import Process
-from functools import partial
+from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor, wait
+
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
-from concurrent.futures import ThreadPoolExecutor, Future, ALL_COMPLETED, FIRST_EXCEPTION
-from itertools import chain
+
+# * Qt Imports --------------------------------------------------------------------------------------->
+from PySide6.QtWidgets import QApplication
+
+# * Gid Imports ----------------------------------------------------------------------------------------->
+from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
+from gidapptools.gid_signal.interface import get_signal
+from gidapptools.general_helper.compress import compress_in_process
+
+# * Local Imports --------------------------------------------------------------------------------------->
+from antistasi_logbook.records import ALL_GENERIC_RECORD_CLASSES, ALL_ANTISTASI_RECORD_CLASSES
 from antistasi_logbook.parsing.parser import Parser
 from antistasi_logbook.utilities.locks import FILE_LOCKS
 from antistasi_logbook.storage.database import GidSqliteApswDatabase
@@ -32,22 +41,17 @@ from antistasi_logbook.parsing.parsing_context import LogParsingContext
 from antistasi_logbook.updating.update_manager import UpdateManager
 from antistasi_logbook.parsing.record_processor import RecordInserter, RecordProcessor
 from antistasi_logbook.updating.remote_managers import remote_manager_registry
-from antistasi_logbook.records.record_class_manager import RECORD_CLASS_TYPE, RecordClassManager
-from antistasi_logbook.records import ALL_ANTISTASI_RECORD_CLASSES, ALL_GENERIC_RECORD_CLASSES
-from gidapptools.general_helper.compress import compress_file, compress_in_process
-# * Gid Imports ----------------------------------------------------------------------------------------->
-from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
-from gidapptools.gid_signal.interface import get_signal
 from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
-from PySide6.QtWidgets import QApplication
-if TYPE_CHECKING:
-    # * Third Party Imports --------------------------------------------------------------------------------->
-    from antistasi_logbook.gui.misc import UpdaterSignaler
+from antistasi_logbook.records.record_class_manager import RECORD_CLASS_TYPE, RecordClassManager
 
-    # * Gid Imports ----------------------------------------------------------------------------------------->
+# * Type-Checking Imports --------------------------------------------------------------------------------->
+if TYPE_CHECKING:
     from gidapptools.gid_signal.signals import abstract_signal
     from gidapptools.gid_config.interface import GidIniConfig
+
+    from antistasi_logbook.gui.misc import UpdaterSignaler
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
+
 # endregion[Imports]
 
 # region [TODO]

@@ -10,7 +10,7 @@ Soon.
 import queue
 import random
 from time import sleep
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Optional
 from pathlib import Path
 from datetime import datetime, timezone
 from threading import Event
@@ -18,23 +18,21 @@ from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor, wait
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 from dateutil.tz import UTC
-from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord, RecordClass
-from antistasi_logbook.updating.remote_managers import remote_manager_registry
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.gid_signal.interface import get_signal
 
+# * Local Imports --------------------------------------------------------------------------------------->
+from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord, RecordClass
+from antistasi_logbook.updating.remote_managers import remote_manager_registry
+
+# * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-    # * Third Party Imports --------------------------------------------------------------------------------->
-    from antistasi_logbook.gui.misc import UpdaterSignaler
     from antistasi_logbook.backend import Backend
+    from antistasi_logbook.gui.misc import UpdaterSignaler
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
     from antistasi_logbook.updating.info_item import InfoItem
-    from antistasi_logbook.parsing.parsing_context import LogParsingContext
-
-    # * Gid Imports ----------------------------------------------------------------------------------------->
-    from gidapptools.gid_config.interface import GidIniConfig
 
 # endregion[Imports]
 

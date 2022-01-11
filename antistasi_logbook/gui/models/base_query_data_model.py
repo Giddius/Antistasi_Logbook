@@ -7,55 +7,40 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-import queue
 from typing import TYPE_CHECKING, Any, Union, Callable, Optional
 from pathlib import Path
-from functools import partial
-from threading import Event
-import inspect
+
 # * Third Party Imports --------------------------------------------------------------------------------->
-from peewee import Field, Query
 from apsw import SQLError
+from peewee import Field, Query, IntegerField
+from natsort import natsorted
+
+# * Qt Imports --------------------------------------------------------------------------------------->
+import PySide6
+from PySide6 import QtCore
+from PySide6.QtGui import QIcon, QColor, QAction
+from PySide6.QtCore import Qt, Slot, Signal, QModelIndex, QAbstractTableModel, QPersistentModelIndex
+from PySide6.QtWidgets import QApplication, QColorDialog
+
+# * Gid Imports ----------------------------------------------------------------------------------------->
+from gidapptools import get_logger, get_meta_config
+
+# * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.storage.models.models import BaseModel
+from antistasi_logbook.gui.widgets.markdown_editor import MarkdownEditorDialog
+from antistasi_logbook.storage.models.custom_fields import URLField, PathField
+from antistasi_logbook.gui.widgets.better_color_dialog import BetterColorDialog
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 
-# * PyQt5 Imports --------------------------------------------------------------------------------------->
-import PySide6
-from PySide6 import (QtCore, QtGui, QtWidgets, Qt3DAnimation, Qt3DCore, Qt3DExtras, Qt3DInput, Qt3DLogic, Qt3DRender, QtAxContainer, QtBluetooth,
-                     QtCharts, QtConcurrent, QtDataVisualization, QtDesigner, QtHelp, QtMultimedia, QtMultimediaWidgets, QtNetwork, QtNetworkAuth,
-                     QtOpenGL, QtOpenGLWidgets, QtPositioning, QtPrintSupport, QtQml, QtQuick, QtQuickControls2, QtQuickWidgets, QtRemoteObjects,
-                     QtScxml, QtSensors, QtSerialPort, QtSql, QtStateMachine, QtSvg, QtSvgWidgets, QtTest, QtUiTools, QtWebChannel, QtWebEngineCore,
-                     QtWebEngineQuick, QtWebEngineWidgets, QtWebSockets, QtXml)
-
-from PySide6.QtCore import (QByteArray, QCoreApplication, QDate, QDateTime, QEvent, QLocale, QMetaObject, QModelIndex, QModelRoleData, QMutex,
-                            QMutexLocker, QObject, QPoint, QRect, QRecursiveMutex, QRunnable, QSettings, QSize, QThread, QThreadPool, QTime, QUrl,
-                            QWaitCondition, Qt, QAbstractItemModel, QAbstractListModel, QAbstractTableModel, Signal, QPersistentModelIndex, Slot)
-
-from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
-                           QKeySequence, QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform)
-
-from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QDialogButtonBox,
-                               QDockWidget, QDoubleSpinBox, QFontComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
-                               QLCDNumber, QLabel, QLayout, QLineEdit, QListView, QListWidget, QMainWindow, QMenu, QMenuBar, QMessageBox,
-                               QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
-                               QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
-                               QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
-from antistasi_logbook.storage.models.custom_fields import PathField, URLField
-from natsort import natsorted
-from gidapptools.general_helper.enums import MiscEnum
-from gidapptools import get_logger, get_meta_config
-from antistasi_logbook.gui.widgets.markdown_editor import MarkdownEditorDialog
-from peewee import IntegerField
-from antistasi_logbook.gui.widgets.better_color_dialog import BetterColorDialog
+# * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-    # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.backend import Backend
-    from antistasi_logbook.records.abstract_record import AbstractRecord
-    from antistasi_logbook.gui.widgets.data_tool_widget import BaseDataToolWidget, BaseDataToolPage
-
-    from antistasi_logbook.storage.database import GidSqliteApswDatabase
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
+    from antistasi_logbook.storage.database import GidSqliteApswDatabase
+    from antistasi_logbook.records.abstract_record import AbstractRecord
+    from antistasi_logbook.gui.widgets.data_tool_widget import BaseDataToolWidget
     from antistasi_logbook.gui.views.base_query_tree_view import CustomContextMenu
+
 # endregion[Imports]
 
 # region [TODO]

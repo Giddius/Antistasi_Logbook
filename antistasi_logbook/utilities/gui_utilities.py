@@ -10,7 +10,7 @@ Soon.
 from typing import Literal
 from pathlib import Path
 
-# * PyQt5 Imports --------------------------------------------------------------------------------------->
+# * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtWidgets import QFrame
 
 # endregion[Imports]

@@ -6,80 +6,54 @@ Soon.
 """
 
 # region [Imports]
+# * Qt Imports --------------------------------------------------------------------------------------->
+from PySide6.QtGui import QColor, QCloseEvent
+from PySide6.QtCore import Qt, Slot, Signal, QSettings, QByteArray
+from PySide6.QtWidgets import QWidget, QMenuBar, QGridLayout, QHeaderView, QMainWindow, QMessageBox, QPushButton, QSizePolicy, QSplashScreen
+
+# * Standard Library Imports ---------------------------------------------------------------------------->
+import sys
+from typing import TYPE_CHECKING
+from pathlib import Path
+from threading import Thread
 
 # * Third Party Imports --------------------------------------------------------------------------------->
-from gidapptools.gidapptools_qt.debug.event_analyzer import EventAnalyzer, JsonOutputter
-from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel, EmptyContentItem
-from antistasi_logbook.storage.models.custom_fields import FakeField
-from antistasi_logbook.gui.views.base_query_tree_view import BaseQueryTreeView
-import atexit
-import inspect
-from datetime import datetime
-from antistasi_logbook.utilities.html_generation import dict_to_html
-from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
-from antistasi_logbook.gui.application import AntistasiLogbookApplication
-from gidapptools.general_helper.string_helper import StringCaseConverter
+import qt_material
+
+
+# * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
-import PySide6
-from PySide6 import (QtCore, QtGui, QtWidgets, Qt3DAnimation, Qt3DCore, Qt3DExtras, Qt3DInput, Qt3DLogic, Qt3DRender, QtAxContainer, QtBluetooth,
-                     QtCharts, QtConcurrent, QtDataVisualization, QtDesigner, QtHelp, QtMultimedia, QtMultimediaWidgets, QtNetwork, QtNetworkAuth,
-                     QtOpenGL, QtOpenGLWidgets, QtPositioning, QtPrintSupport, QtQml, QtQuick, QtQuickControls2, QtQuickWidgets, QtRemoteObjects,
-                     QtScxml, QtSensors, QtSerialPort, QtSql, QtStateMachine, QtSvg, QtSvgWidgets, QtTest, QtUiTools, QtWebChannel, QtWebEngineCore,
-                     QtWebEngineQuick, QtWebEngineWidgets, QtWebSockets, QtXml)
+from gidapptools.general_helper.string_helper import StringCaseConverter
 
-from PySide6.QtCore import (QByteArray, QCoreApplication, QDate, QDateTime, QEvent, QLocale, QMetaObject, QModelIndex, QModelRoleData, QMutex,
-                            QMutexLocker, QObject, QPoint, QRect, QRecursiveMutex, QRunnable, QSettings, QSize, QThread, QThreadPool, QTime, QUrl,
-                            QWaitCondition, Qt, QAbstractItemModel, QAbstractListModel, QAbstractTableModel, Signal, Slot)
-
-from PySide6.QtGui import (QAction, QBrush, QCloseEvent, QPaintEvent, QResizeEvent, QMouseEvent, QStatusTipEvent, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
-                           QKeySequence, QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform)
-
-from PySide6.QtWidgets import (QApplication, QSplashScreen, QBoxLayout, QCheckBox, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QDialogButtonBox,
-                               QDockWidget, QDoubleSpinBox, QFontComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
-                               QLCDNumber, QLabel, QLayout, QLineEdit, QListView, QListWidget, QMainWindow, QMenu, QMenuBar, QMessageBox,
-                               QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
-                               QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
-                               QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
-
-from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-from antistasi_logbook.gui.resources.style_sheets import get_style_sheet_data
-from antistasi_logbook.storage.models.models import RemoteStorage
-from antistasi_logbook.gui.settings_window import SettingsWindow, CredentialsManagmentWindow
-from antistasi_logbook.gui.main_widget import MainWidget
-from antistasi_logbook.gui.status_bar import LogbookStatusBar
-from antistasi_logbook.gui.sys_tray import LogbookSystemTray
-from antistasi_logbook.gui.menu_bar import LogbookMenuBar
-from antistasi_logbook.gui.misc import UpdaterSignaler
-from antistasi_logbook.backend import Backend, GidSqliteApswDatabase
-from concurrent.futures import ThreadPoolExecutor
-from threading import Event, Thread
-from weakref import WeakSet
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
-import sys
-import os
-from antistasi_logbook.gui.widgets.markdown_editor import MarkdownEditorDialog
-from antistasi_logbook.gui.widgets.debug_widgets import DebugDockWidget
-from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
+# * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook import setup
-from antistasi_logbook.gui.models.antistasi_function_model import AntistasiFunctionModel
-from antistasi_logbook.gui.models.remote_storages_model import RemoteStoragesModel
-from antistasi_logbook.gui.models.game_map_model import GameMapModel
-from antistasi_logbook.gui.models.record_classes_model import RecordClassesModel
+from antistasi_logbook.backend import Backend, GidSqliteApswDatabase
+from antistasi_logbook.gui.misc import UpdaterSignaler
+from antistasi_logbook.gui.models import LogLevelsModel, RecordOriginsModel
+from antistasi_logbook.gui.menu_bar import LogbookMenuBar
+from antistasi_logbook.gui.sys_tray import LogbookSystemTray
+from antistasi_logbook.gui.status_bar import LogbookStatusBar
+from antistasi_logbook.gui.application import AntistasiLogbookApplication
+from antistasi_logbook.gui.main_widget import MainWidget
+from antistasi_logbook.gui.settings_window import SettingsWindow, CredentialsManagmentWindow
 from antistasi_logbook.gui.models.mods_model import ModsModel
 from antistasi_logbook.gui.models.version_model import VersionModel
-from antistasi_logbook.gui.models import LogLevelsModel, RecordOriginsModel
+from antistasi_logbook.gui.models.game_map_model import GameMapModel
+from antistasi_logbook.gui.widgets.debug_widgets import DebugDockWidget
+from antistasi_logbook.gui.resources.style_sheets import get_style_sheet_data
+from antistasi_logbook.gui.views.base_query_tree_view import BaseQueryTreeView
+from antistasi_logbook.gui.models.record_classes_model import RecordClassesModel
+from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel
+from antistasi_logbook.gui.models.remote_storages_model import RemoteStoragesModel
+from antistasi_logbook.gui.models.antistasi_function_model import AntistasiFunctionModel
+from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
+from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 
-import qt_material
 setup()
-# * Standard Library Imports ---------------------------------------------------------------------------->
-
-# * Third Party Imports --------------------------------------------------------------------------------->
-# * PyQt5 Imports --------------------------------------------------------------------------------------->
-# * Gid Imports ----------------------------------------------------------------------------------------->
+# * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-    # * Gid Imports ----------------------------------------------------------------------------------------->
     from gidapptools.gid_config.interface import GidIniConfig
+
     from antistasi_logbook.storage.models.models import BaseModel
 
 # endregion[Imports]

@@ -10,30 +10,29 @@ Soon.
 from typing import TYPE_CHECKING, Any, Union, Mapping, Callable, Optional
 from pathlib import Path
 
-# * Third Party Imports --------------------------------------------------------------------------------->
-from antistasi_logbook.gui.resources.style_sheets import ALL_STYLE_SHEETS
-from antistasi_logbook.gui.widgets.form_widgets.type_widgets import ALL_VALUE_FIELDS, StringValueField, StringChoicesValueField, StyleValueField, UpdateTimeFrameValueField
-from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-
-# * PyQt5 Imports --------------------------------------------------------------------------------------->
+# * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
-from PySide6 import QtGui, QtCore, QtWidgets
-from PySide6.QtGui import QPixmap, QIcon
-from PySide6.QtCore import Qt, Signal, QSize, Slot, QTimer
-from PySide6.QtWidgets import (QFrame, QLabel, QWidget, QSpinBox, QCheckBox, QComboBox, QGroupBox, QTextEdit, QTimeEdit, QFormLayout, QGridLayout, QLineEdit, QPushButton,
-                               QSizePolicy, QVBoxLayout, QDateTimeEdit, QFontComboBox, QListWidgetItem, QAbstractItemView, QDoubleSpinBox, QStackedWidget, QDialogButtonBox, QListWidget)
+from PySide6 import QtGui
+from PySide6.QtGui import QIcon, QPixmap
+from PySide6.QtCore import Qt, Slot, QSize, QTimer, Signal
+from PySide6.QtWidgets import (QFrame, QLabel, QWidget, QSpinBox, QCheckBox, QComboBox, QGroupBox, QLineEdit, QTextEdit, QTimeEdit, QFormLayout, QGridLayout, QListWidget, QPushButton,
+                               QSizePolicy, QVBoxLayout, QDateTimeEdit, QFontComboBox, QDoubleSpinBox, QStackedWidget, QListWidgetItem, QDialogButtonBox, QAbstractItemView)
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.string_helper import StringCase, StringCaseConverter
-from antistasi_logbook.storage.models.models import RemoteStorage
-from antistasi_logbook.gui.application import AntistasiLogbookApplication
-if TYPE_CHECKING:
-    # * Third Party Imports --------------------------------------------------------------------------------->
-    from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow
 
-    # * Gid Imports ----------------------------------------------------------------------------------------->
+# * Local Imports --------------------------------------------------------------------------------------->
+from antistasi_logbook.gui.application import AntistasiLogbookApplication
+from antistasi_logbook.storage.models.models import RemoteStorage
+from antistasi_logbook.gui.widgets.form_widgets.type_widgets import ALL_VALUE_FIELDS, StyleValueField, StringValueField, UpdateTimeFrameValueField
+from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
+
+# * Type-Checking Imports --------------------------------------------------------------------------------->
+if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
+
+    from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow
 
 # endregion[Imports]
 

@@ -19,22 +19,22 @@ from concurrent.futures import FIRST_EXCEPTION, Future, wait
 import attr
 from dateutil.tz import UTC, tzoffset
 from playhouse.shortcuts import model_to_dict
-from antistasi_logbook.storage.models.models import GameMap, LogFile, LogRecord, Version
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.enums import MiscEnum
 from gidapptools.gid_signal.interface import get_signal
 
-if TYPE_CHECKING:
+# * Local Imports --------------------------------------------------------------------------------------->
+from antistasi_logbook.storage.models.models import GameMap, LogFile, Version, LogRecord
 
-    # * Third Party Imports --------------------------------------------------------------------------------->
+# * Type-Checking Imports --------------------------------------------------------------------------------->
+if TYPE_CHECKING:
+    from gidapptools.gid_config.interface import GidIniConfig
+
     from antistasi_logbook.parsing.parser import RawRecord, MetaFinder, ForeignKeyCache
     from antistasi_logbook.parsing.record_processor import RecordInserter, ManyRecordsInsertResult
     from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
-
-    # * Gid Imports ----------------------------------------------------------------------------------------->
-    from gidapptools.gid_config.interface import GidIniConfig
 
 # endregion[Imports]
 

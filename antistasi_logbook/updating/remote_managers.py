@@ -7,47 +7,43 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
-from gidapptools import get_logger, get_meta_paths, get_meta_config
-from antistasi_logbook.utilities.path_utilities import RemotePath, url_to_path
-from antistasi_logbook.utilities.nextcloud import Retrier, exponential_timeout
-from antistasi_logbook.updating.info_item import InfoItem
-from antistasi_logbook.utilities.locks import MinDurationSemaphore
-from antistasi_logbook.utilities.enums import RemoteItemType
-from antistasi_logbook.errors import MissingLoginAndPasswordError
-from webdav4.client import Client as WebdavClient
-from dateutil.tz import UTC
-from httpx import Limits
-import httpx
-import yarl
-from threading import Lock, RLock
-from datetime import datetime, timedelta
-from zipfile import ZipFile
-from pathlib import Path
-from typing import TYPE_CHECKING, Iterable, Optional, Generator
-from abc import ABC, abstractmethod
 import os
 import json
 import shutil
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Iterable, Optional, Generator
+from pathlib import Path
+from zipfile import ZipFile
+from datetime import datetime, timedelta
+from threading import Lock, RLock
 
 # * Third Party Imports --------------------------------------------------------------------------------->
-from antistasi_logbook import setup
-
-setup()
-# * Standard Library Imports ---------------------------------------------------------------------------->
-
-# * Third Party Imports --------------------------------------------------------------------------------->
+import yarl
+import httpx
+from httpx import Limits
+from dateutil.tz import UTC
+from webdav4.client import Client as WebdavClient
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
+from gidapptools import get_logger, get_meta_paths, get_meta_config
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 
+# * Local Imports --------------------------------------------------------------------------------------->
+from antistasi_logbook import setup
+from antistasi_logbook.errors import MissingLoginAndPasswordError
+from antistasi_logbook.utilities.enums import RemoteItemType
+from antistasi_logbook.utilities.locks import MinDurationSemaphore
+from antistasi_logbook.updating.info_item import InfoItem
+from antistasi_logbook.utilities.nextcloud import Retrier, exponential_timeout
+from antistasi_logbook.utilities.path_utilities import RemotePath, url_to_path
+
+setup()
+# * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-
-    # * Third Party Imports --------------------------------------------------------------------------------->
-    from antistasi_logbook.storage.models.models import LogFile, RemoteStorage
-
-    # * Gid Imports ----------------------------------------------------------------------------------------->
     from gidapptools.meta_data.interface import MetaPaths
     from gidapptools.gid_config.meta_factory import GidIniConfig
+
+    from antistasi_logbook.storage.models.models import LogFile, RemoteStorage
 
 # endregion[Imports]
 

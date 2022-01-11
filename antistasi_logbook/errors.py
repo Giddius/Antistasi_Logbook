@@ -8,14 +8,14 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-import logging
 import sys
+import threading
 from typing import TYPE_CHECKING, Callable, Optional
 from pathlib import Path
 from datetime import timezone
-import threading
+
+# * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-    # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.storage.models.models import RemoteStorage
     from antistasi_logbook.utilities.date_time_utilities import DatetimeDuration
 

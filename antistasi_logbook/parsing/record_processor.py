@@ -13,27 +13,28 @@ from pathlib import Path
 from datetime import datetime, timezone
 from threading import Lock, RLock
 from concurrent.futures import Future, ThreadPoolExecutor
-from time import sleep
+
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
-from functools import cached_property
 from dateutil.tz import UTC, tzoffset
 from playhouse.shortcuts import update_model_from_dict
-from antistasi_logbook.parsing.raw_record import RawRecord
-from antistasi_logbook.storage.models.models import Mod, GameMap, LogFile, AntstasiFunction, LogFileAndModJoin, RecordOrigin, LogRecord, RecordClass
-from antistasi_logbook.parsing.parsing_context import LogParsingContext
-from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 
+# * Local Imports --------------------------------------------------------------------------------------->
+from antistasi_logbook.parsing.raw_record import RawRecord
+from antistasi_logbook.storage.models.models import Mod, GameMap, LogFile, LogRecord, RecordClass, RecordOrigin, AntstasiFunction, LogFileAndModJoin
+from antistasi_logbook.parsing.parsing_context import LogParsingContext
+from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
+
+# * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-    # * Third Party Imports --------------------------------------------------------------------------------->
+    from gidapptools.gid_config.interface import GidIniConfig
+
+    from antistasi_logbook.backend import Backend
     from antistasi_logbook.parsing.parser import SimpleRegexKeeper, RecordClassManager
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
-    from antistasi_logbook.backend import Backend
-    # * Gid Imports ----------------------------------------------------------------------------------------->
-    from gidapptools.gid_config.interface import GidIniConfig
 
 # endregion[Imports]
 

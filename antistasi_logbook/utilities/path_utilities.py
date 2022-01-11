@@ -17,11 +17,13 @@ from collections import UserString
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 from rich.panel import Panel
-from antistasi_logbook.utilities.nextcloud import get_username
-from antistasi_logbook.utilities.rich_styles import PANEL_STYLE, PANEL_BORDER_STYLE
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
+
+# * Local Imports --------------------------------------------------------------------------------------->
+from antistasi_logbook.utilities.nextcloud import get_username
+from antistasi_logbook.utilities.rich_styles import PANEL_STYLE, PANEL_BORDER_STYLE
 
 # endregion[Imports]
 

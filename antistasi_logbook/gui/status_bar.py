@@ -15,17 +15,17 @@ from threading import Thread
 # * Third Party Imports --------------------------------------------------------------------------------->
 from dateutil.tz import UTC
 
-# * PyQt5 Imports --------------------------------------------------------------------------------------->
+# * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
-from PySide6.QtCore import Qt, Slot, Signal, QObject, QThread
+from PySide6.QtCore import Qt, Slot, Signal, QObject
 from PySide6.QtWidgets import QLabel, QStatusBar, QProgressBar
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.conversion import seconds2human
 
+# * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-    # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.gui.main_window import Backend, AntistasiLogbookMainWindow
 
 # endregion[Imports]

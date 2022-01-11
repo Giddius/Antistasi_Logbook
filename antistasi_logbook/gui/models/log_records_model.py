@@ -8,55 +8,35 @@ Soon.
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 from time import sleep
-from typing import TYPE_CHECKING, Any, Union, Iterable, Callable, Optional, Mapping
+from typing import TYPE_CHECKING, Any
 from pathlib import Path
-from operator import or_
-from functools import reduce, cache, partial
-from threading import Lock, Event
-from collections import namedtuple
+from functools import partial
 
 # * Third Party Imports --------------------------------------------------------------------------------->
+import attr
 from peewee import Field, Query
-from antistasi_logbook.storage.models.models import LogRecord, RecordClass, LogFile
-from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel, ModelContextMenuAction
-from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 
-# * PyQt5 Imports --------------------------------------------------------------------------------------->
-import PySide6
-from PySide6 import (QtCore, QtGui, QtWidgets, Qt3DAnimation, Qt3DCore, Qt3DExtras, Qt3DInput, Qt3DLogic, Qt3DRender, QtAxContainer, QtBluetooth,
-                     QtCharts, QtConcurrent, QtDataVisualization, QtDesigner, QtHelp, QtMultimedia, QtMultimediaWidgets, QtNetwork, QtNetworkAuth,
-                     QtOpenGL, QtOpenGLWidgets, QtPositioning, QtPrintSupport, QtQml, QtQuick, QtQuickControls2, QtQuickWidgets, QtRemoteObjects,
-                     QtScxml, QtSensors, QtSerialPort, QtSql, QtStateMachine, QtSvg, QtSvgWidgets, QtTest, QtUiTools, QtWebChannel, QtWebEngineCore,
-                     QtWebEngineQuick, QtWebEngineWidgets, QtWebSockets, QtXml)
+# * Qt Imports --------------------------------------------------------------------------------------->
+from PySide6.QtGui import QFont, QAction, QFontMetrics
+from PySide6.QtCore import Qt, Slot, QSize, Signal, QModelIndex
 
-from PySide6.QtCore import (QByteArray, QCoreApplication, QDate, QDateTime, QEvent, QLocale, QMetaObject, QModelIndex, QModelRoleData, QMutex,
-                            QMutexLocker, QObject, QPoint, QRect, QRecursiveMutex, QRunnable, QSettings, QSize, QThread, QThreadPool, QTime, QUrl,
-                            QWaitCondition, Qt, QAbstractItemModel, QAbstractListModel, QAbstractTableModel, Signal, Slot)
-
-from PySide6.QtGui import (QAction, QBrush, QClipboard, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
-                           QKeySequence, QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform)
-
-from PySide6.QtWidgets import (QApplication, QDataWidgetMapper, QBoxLayout, QCheckBox, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QDialogButtonBox,
-                               QDockWidget, QDoubleSpinBox, QFontComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
-                               QLCDNumber, QLabel, QLayout, QLineEdit, QListView, QListWidget, QMainWindow, QMenu, QMenuBar, QMessageBox,
-                               QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
-                               QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
-                               QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
-
-import pp
-from antistasi_logbook.records.enums import MessageFormat
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.color.color_item import Color
-from concurrent.futures import ThreadPoolExecutor, wait, ALL_COMPLETED
-import attr
+
+# * Local Imports --------------------------------------------------------------------------------------->
+from antistasi_logbook.records.enums import MessageFormat
+from antistasi_logbook.storage.models.models import LogRecord, RecordClass
+from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel, ModelContextMenuAction
+from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
+
+# * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-    # * Third Party Imports --------------------------------------------------------------------------------->
-    from antistasi_logbook.backend import Backend
-    from antistasi_logbook.records.abstract_record import AbstractRecord
     from antistasi_logbook.records.base_record import BaseRecord
-    from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE
+    from antistasi_logbook.records.abstract_record import AbstractRecord
     from antistasi_logbook.gui.views.base_query_tree_view import CustomContextMenu
+    from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE
+
 # endregion[Imports]
 
 # region [TODO]

@@ -11,20 +11,19 @@ from typing import TYPE_CHECKING, Any
 from pathlib import Path
 from threading import Event
 
-# * Third Party Imports --------------------------------------------------------------------------------->
+# * Gid Imports ----------------------------------------------------------------------------------------->
+from gidapptools import get_logger
+
+# * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.parsing.raw_record import RawRecord
 from antistasi_logbook.regex.regex_keeper import SimpleRegexKeeper
 from antistasi_logbook.parsing.meta_log_finder import MetaFinder
 from antistasi_logbook.parsing.parsing_context import RecordLine, LogParsingContext
 from antistasi_logbook.parsing.record_processor import RecordProcessor
 
-# * Gid Imports ----------------------------------------------------------------------------------------->
-from gidapptools import get_logger
-
+# * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend
-    # * Third Party Imports --------------------------------------------------------------------------------->
-    pass
 
 # endregion[Imports]
 

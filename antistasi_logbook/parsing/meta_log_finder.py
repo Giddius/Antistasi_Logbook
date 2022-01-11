@@ -11,16 +11,19 @@ from typing import TYPE_CHECKING
 from pathlib import Path
 from datetime import datetime
 from collections import namedtuple
+
 # * Third Party Imports --------------------------------------------------------------------------------->
 from dateutil.tz import UTC
-from antistasi_logbook.utilities.misc import ModItem, VersionItem
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.enums import MiscEnum
 
+# * Local Imports --------------------------------------------------------------------------------------->
+from antistasi_logbook.utilities.misc import ModItem, VersionItem
+
+# * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-    # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.regex.regex_keeper import SimpleRegexKeeper
     from antistasi_logbook.parsing.parsing_context import ParsingContext
 

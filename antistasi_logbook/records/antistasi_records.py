@@ -8,24 +8,27 @@ Soon.
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import re
-from typing import TYPE_CHECKING, Any, Union, Optional
+from typing import TYPE_CHECKING, Any, Union
 from pathlib import Path
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 import pp
-from antistasi_logbook.records.base_record import BASE_SLOTS, BaseRecord, RecordFamily, MessageTypus
-from antistasi_logbook.utilities.parsing_misc import parse_text_array
-from antistasi_logbook.records.abstract_record import RecordFamily, MessageFormat
+
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.enums import MiscEnum
-from gidapptools.general_helper.color.color_item import Color, RGBColor
+from gidapptools.general_helper.color.color_item import Color
 
+# * Local Imports --------------------------------------------------------------------------------------->
+from antistasi_logbook.records.base_record import BASE_SLOTS, BaseRecord, RecordFamily
+from antistasi_logbook.utilities.parsing_misc import parse_text_array
+from antistasi_logbook.records.abstract_record import RecordFamily, MessageFormat
+
+# * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-    # * Third Party Imports --------------------------------------------------------------------------------->
-    from antistasi_logbook.parsing.parser import RawRecord
     from PySide6.QtGui import QColor
-    from antistasi_logbook.storage.models.models import LogFile, LogLevel, AntstasiFunction, LogRecord, RecordOrigin
+
+    from antistasi_logbook.storage.models.models import LogRecord
 
 # endregion[Imports]
 

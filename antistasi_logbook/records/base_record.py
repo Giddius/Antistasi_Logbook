@@ -7,37 +7,35 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Union, Optional
 from pathlib import Path
 from datetime import datetime
-from functools import cached_property
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
-from antistasi_logbook.records.abstract_record import RecordFamily, MessageFormat, AbstractRecord
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
-from gidapptools.general_helper.color.color_item import Color, RGBColor
-from collections import defaultdict
-try:
-    # * PyQt5 Imports --------------------------------------------------------------------------------------->
-    from PySide6.QtGui import QColor
-    from PySide6.QtCore import QSize, Qt
+from gidapptools.general_helper.color.color_item import Color
 
+# * Local Imports --------------------------------------------------------------------------------------->
+from antistasi_logbook.records.abstract_record import RecordFamily, MessageFormat, AbstractRecord
+
+try:
+    from PySide6.QtGui import QColor
+    from PySide6.QtCore import QSize
     PYSIDE6_AVAILABLE = True
 except ImportError:
     PYSIDE6_AVAILABLE = False
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools.general_helper.enums import MiscEnum
-from antistasi_logbook.records.enums import MessageTypus
-from gidapptools.general_helper.string_helper import StringCase, StringCaseConverter, shorten_string
+from gidapptools.general_helper.string_helper import shorten_string
+
+# * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-    # * Third Party Imports --------------------------------------------------------------------------------->
-    from antistasi_logbook.parsing.parser import RawRecord
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
+    from antistasi_logbook.storage.models.models import LogFile, LogLevel, LogRecord, RecordOrigin, AntstasiFunction
     from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
-    from antistasi_logbook.storage.models.models import LogFile, LogLevel, AntstasiFunction, LogRecord, RecordOrigin
 
 # endregion[Imports]
 
