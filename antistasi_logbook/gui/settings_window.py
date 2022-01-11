@@ -260,7 +260,7 @@ class SettingsWindow(QWidget):
         self.setup_content_widget()
         self.setup_selection_box()
         for cat, sub_data in self.general_config.as_dict(with_typus=True).items():
-            self.add_category(cat, sub_data, getattr(AllResourceItems, f"{cat}_icon_image").get_as_pixmap())
+            self.add_category(cat, sub_data, getattr(AllResourceItems, f"{cat}_settings_image").get_as_pixmap())
         return self
 
     def setup_buttons(self) -> None:

@@ -54,7 +54,7 @@ from antistasi_logbook.gui.widgets.dock_widget import BaseDockWidget, QueryWidge
 from antistasi_logbook.storage.models.models import Server, LogFile, RecordClass
 import pyqtgraph as pg
 from antistasi_logbook.gui.widgets.detail_view_widget import ServerDetailWidget, LogFileDetailWidget, LogRecordDetailView
-from antistasi_logbook.gui.widgets.data_tool_widget import LogFileDataToolWidget
+from antistasi_logbook.gui.widgets.data_tool_widget import LogFileDataToolWidget, ServerDataToolWidget, LogRecordDataToolWidget
 if TYPE_CHECKING:
     # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow
@@ -196,20 +196,41 @@ class MainWidget(QWidget):
 
     def on_tab_changed(self, index: int):
         if index == self.main_tabs_widget.indexOf(self.log_files_tab):
-            if self.log_files_tab.model.data_tool is not None:
-                self.query_widget.set_current_index(self.log_files_tab.model.data_tool)
-                return
-            widget = LogFileDataToolWidget()
-            self.query_widget.add_page(widget, name="log_file")
-            self.log_files_tab.model.data_tool = widget
-            widget.pages["filter"].query_filter_changed.connect(self.log_files_tab.model.on_query_filter_changed)
+            if self.log_files_tab.model.data_tool is None:
+
+                widget = LogFileDataToolWidget()
+                self.query_widget.add_page(widget, name="log_file")
+                self.log_files_tab.model.data_tool = widget
+                widget.pages["filter"].query_filter_changed.connect(self.log_files_tab.model.on_query_filter_changed)
+            self.query_widget.set_current_index(self.log_files_tab.model.data_tool)
+
+        elif index == self.main_tabs_widget.indexOf(self.server_tab):
+            if self.server_tab.model.data_tool is None:
+
+                widget = ServerDataToolWidget()
+                self.query_widget.add_page(widget, name="server")
+                self.server_tab.model.data_tool = widget
+                widget.pages["filter"].query_filter_changed.connect(self.server_tab.model.on_query_filter_changed)
+            self.query_widget.set_current_index(self.server_tab.model.data_tool)
+
+        elif index == self.main_tabs_widget.indexOf(self.query_result_tab):
+            if self.query_result_tab.model.data_tool is None:
+                widget = LogRecordDataToolWidget()
+                self.query_widget.add_page(widget, name="log_record")
+                self.query_result_tab.model.data_tool = widget
+                for page in widget.pages.values():
+
+                    self.query_result_tab.model.request_view_change_visibility.connect(page.setEnabled)
+
+                widget.pages["filter"].query_filter_changed.connect(self.query_result_tab.model.on_query_filter_changed)
+            self.query_widget.set_current_index(self.query_result_tab.model.data_tool)
 
     def setup_views(self) -> None:
         server_model = ServerModel().get_content()
 
         self.server_tab.setModel(server_model)
         self.server_tab.clicked.connect(self.show_server_detail)
-
+        self.on_tab_changed(0)
         log_file_model = LogFilesModel().get_content()
 
         self.log_files_tab.setModel(log_file_model)
@@ -256,12 +277,13 @@ class MainWidget(QWidget):
     def query_log_file(self, index: QModelIndex):
 
         log_file = self.log_files_tab.model.content_items[index.row()]
-        log_record_model = LogRecordsModel(parent=self.query_result_tab, filter_data={"log_files": (LogRecord.log_file_id == log_file.id)})
+        log_record_model = LogRecordsModel(parent=self.query_result_tab)
+        log_record_model._base_filter_item = log_record_model._base_filter_item & (LogRecord.log_file_id == log_file.id)
+        log_record_model.request_view_change_visibility.connect(self.query_result_tab.setEnabled)
+        log_record_model.request_view_change_visibility.connect(self.query_result_tab.setVisible)
 
         self.query_result_tab.setModel(log_record_model)
-
         self.main_tabs_widget.setCurrentWidget(self.query_result_tab)
-
         self.query_result_tab.clicked.connect(self.show_log_record_detail)
 
 

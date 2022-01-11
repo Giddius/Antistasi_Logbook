@@ -72,17 +72,13 @@ log = get_logger(__name__)
 
 class LogFilesModel(BaseQueryDataModel):
     extra_columns = {FakeField(name="amount_log_records", verbose_name="Amount Log Records"), FakeField("time_frame", "Time Frame")}
-    strict_exclude_columns = {"startup_text", "header_text"}
+    strict_exclude_columns = {"startup_text", "header_text", "remote_path"}
 
     def __init__(self, parent: Optional[QtCore.QObject] = None, show_unparsable: bool = False) -> None:
         self.show_unparsable = show_unparsable
         super().__init__(LogFile, parent=parent)
         self.ordered_by = (-LogFile.modified_at, LogFile.server)
         self.filter_item = None
-
-    def on_query_filter_changed(self, query_filter):
-        self.filter_item = query_filter
-        self.refresh()
 
     def on_filter_newer_than(self, dt: datetime):
         if not isinstance(dt, datetime):
@@ -186,9 +182,7 @@ class LogFilesModel(BaseQueryDataModel):
                 return "This Log-File is marked"
             else:
                 return "This Log-File is not marked"
-        elif column.name == "game_map":
-            if item.game_map.map_image_low_resolution is not None:
-                return f'<b>{item.game_map.map_image_low_resolution.stem.removesuffix("_thumbnail").replace("_"," ").title()}</b><br><img src="{item.game_map.map_image_low_resolution.as_posix()}">'
+
         return super()._get_tool_tip_data(index)
 # region[Main_Exec]
 

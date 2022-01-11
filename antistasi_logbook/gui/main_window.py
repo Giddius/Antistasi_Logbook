@@ -63,9 +63,12 @@ from antistasi_logbook.gui.widgets.debug_widgets import DebugDockWidget
 from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
 from antistasi_logbook import setup
 from antistasi_logbook.gui.models.antistasi_function_model import AntistasiFunctionModel
+from antistasi_logbook.gui.models.remote_storages_model import RemoteStoragesModel
 from antistasi_logbook.gui.models.game_map_model import GameMapModel
+from antistasi_logbook.gui.models.record_classes_model import RecordClassesModel
 from antistasi_logbook.gui.models.mods_model import ModsModel
 from antistasi_logbook.gui.models.version_model import VersionModel
+from antistasi_logbook.gui.models import LogLevelsModel, RecordOriginsModel
 
 import qt_material
 setup()
@@ -207,6 +210,9 @@ class AntistasiLogbookMainWindow(QMainWindow):
                           "libraryPaths",
                           "available_font_families"]:
             self.debug_dock_widget.add_show_attr_button(attr_name=attr_name, obj=self.app)
+
+        self.debug_dock_widget.add_show_attr_button(attr_name="colorNames", obj=QColor)
+
         self.shutdown_backend_backend_button = QPushButton("Shutdown Backend")
         self.shutdown_backend_backend_button.pressed.connect(self.shutdown_backend)
         self.debug_dock_widget.add_widget("Shutdown Backend", "database", self.shutdown_backend_backend_button)
@@ -262,7 +268,11 @@ class AntistasiLogbookMainWindow(QMainWindow):
         models = {"AntstasiFunction": AntistasiFunctionModel,
                   "GameMap": GameMapModel,
                   "Version": VersionModel,
-                  "Mod": ModsModel}
+                  "Mod": ModsModel,
+                  "RemoteStorage": RemoteStoragesModel,
+                  "RecordClass": RecordClassesModel,
+                  "LogLevel": LogLevelsModel,
+                  "RecordOrigin": RecordOriginsModel}
         window = QWidget()
         window.setLayout(QGridLayout())
         view = BaseQueryTreeView(db_model.get_meta().table_name)
@@ -272,13 +282,18 @@ class AntistasiLogbookMainWindow(QMainWindow):
         else:
             model = model_class().refresh()
 
-        with self.backend.database:
-            model.content_items = list(db_model.select())
         view.setModel(model)
+        if not isinstance(model, GameMapModel):
+            view.header_view.setSectionResizeMode(QHeaderView.ResizeToContents)
         window.layout().addWidget(view)
         view.setup()
+        width = 150 * (view.header_view.count() - view.header_view.hiddenSectionCount())
+
+        height = min(800, 50 * model.rowCount())
 
         self.secondary_model_data_window = window
+        self.secondary_model_data_window.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
+        self.secondary_model_data_window.resize(width, height)
         self.secondary_model_data_window.show()
 
     def show_folder_window(self):
@@ -372,7 +387,7 @@ def start_gui(nextcloud_username: str = None, nextcloud_password: str = None):
     start_splash.setPixmap(AllResourceItems.antistasi_logbook_splash_starting_backend_image.get_as_pixmap())
     qApp.setup(backend=backend, icon=AllResourceItems.app_icon_image)
     if nextcloud_username is not None and nextcloud_password is not None:
-        RemoteStorage.get(name="community_webdav").set_login_and_password(login=nextcloud_username, password=nextcloud_password, store_in_db=False)
+        RemoteStorage.get(name="community_webdav").set_login_and_password(login=nextcloud_username, password=nextcloud_password, store_in_db=True)
 
     _main_window = AntistasiLogbookMainWindow(qApp, META_CONFIG.get_config('general'))
     qApp.main_window = _main_window

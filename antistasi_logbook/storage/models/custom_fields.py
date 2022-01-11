@@ -212,7 +212,7 @@ class CommentsField(CompressedTextField):
 
 class CompressedImageField(CompressedField):
 
-    def __init__(self, return_as: Union[Literal["pil_image"], Literal['bytes'], Literal['qt_image']] = "pil_image", **kwargs):
+    def __init__(self, return_as: Union[Literal["pil_image"], Literal['bytes'], Literal['qt_image']] = "bytes", **kwargs):
         super().__init__(**kwargs)
         return_func_table = {"pil_image": self.return_as_pil_image,
                              "bytes": self.return_as_bytes,

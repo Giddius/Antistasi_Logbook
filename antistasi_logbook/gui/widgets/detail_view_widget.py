@@ -31,7 +31,7 @@ from PySide6.QtGui import (QAction, QTextDocument, QTextCursor, QBrush, QTextOpt
                            QKeySequence, QSyntaxHighlighter, QTextCharFormat, QTextFormat, QTextBlockFormat, QTextListFormat, QTextTableFormat, QTextTable,
                            QTextTableCellFormat, QDesktopServices, QLinearGradient, QPainter, QFontInfo, QPalette, QPixmap, QRadialGradient, QTransform, Qt)
 
-from PySide6.QtWidgets import (QApplication, QTextBrowser, QGraphicsView, QBoxLayout, QCheckBox, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QDialogButtonBox,
+from PySide6.QtWidgets import (QApplication, QTextBrowser, QGraphicsView, QBoxLayout, QCheckBox, QDialog, QDialogButtonBox, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QDialogButtonBox,
                                QDockWidget, QDoubleSpinBox, QFontComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
                                QLCDNumber, QLabel, QLayout, QLineEdit, QListView, QListWidget, QMainWindow, QMenu, QMenuBar, QMessageBox,
                                QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
@@ -47,6 +47,7 @@ import re
 from dateutil.tz import UTC
 import attr
 from peewee import DoesNotExist
+from antistasi_logbook.gui.widgets.collapsible_widget import CollapsibleGroupBox
 from antistasi_logbook.records.enums import MessageTypus
 from antistasi_logbook.data.sqf_syntax_data import SQF_BUILTINS_REGEX
 from gidapptools.general_helper.color.color_item import Color
@@ -255,6 +256,34 @@ class ValueLineEdit(QLineEdit):
         self.setStyleSheet(self.style_sheet_data)
 
 
+class GameMapValue(QWidget):
+
+    def __init__(self, game_map=GameMap, parent=None):
+        super().__init__(parent=parent)
+        self.setLayout(QVBoxLayout())
+        self.game_map = game_map
+        self.game_map_label = ValueLineEdit(self.game_map.full_name)
+        self.layout.addWidget(self.game_map_label)
+        self.game_map_thumbnail = QLabel()
+        self.game_map_pixmap = self._get_game_map_pixmap()
+        if self.game_map_pixmap is not None:
+            self.game_map_thumbnail.setPixmap(self.game_map_pixmap)
+            self.collapsible_box = CollapsibleGroupBox(text="Thumbnail", content=self.game_map_thumbnail, parent=self)
+            self.layout.addWidget(self.collapsible_box)
+
+    def _get_game_map_pixmap(self) -> Optional[QPixmap]:
+        game_map_bytes = self.game_map.map_image_low_resolution
+        if game_map_bytes is None:
+            return
+        pixmap = QPixmap()
+        pixmap.loadFromData(game_map_bytes)
+        return pixmap
+
+    @ property
+    def layout(self) -> QVBoxLayout:
+        return super().layout()
+
+
 class BaseDetailWidget(QWidget):
 
     def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
@@ -346,10 +375,7 @@ class LogFileDetailWidget(BaseDetailWidget):
         self.layout.addRow(self.server_label, self.server_value)
 
         self.game_map_label = QLabel("Game Map", parent=self)
-        self.game_map_value = ValueLineEdit(text=self.log_file.game_map.full_name, parent=self)
-        if self.log_file.game_map.map_image_low_resolution is not None:
-            self.game_map_value.setToolTip(f'<b>{self.log_file.game_map.map_image_low_resolution.stem.removesuffix("_thumbnail").replace("_"," ").title()}</b><br><img src="{self.log_file.game_map.map_image_low_resolution.as_posix()}">')
-
+        self.game_map_value = GameMapValue(self.log_file.game_map, self)
         self.layout.addRow(self.game_map_label, self.game_map_value)
 
         self.version_label = QLabel("Version", parent=self)
@@ -372,7 +398,7 @@ class LogFileDetailWidget(BaseDetailWidget):
         self.layout.addRow(self.mods_label, self.mods_value)
         self.mods_value.doubleClicked.connect(self.open_mod_link)
 
-        self.get_stats_button = QPushButton("Get Stats")
+        self.get_stats_button = QPushButton(AllResourceItems.stats_icon_2_image.get_as_icon(), "Get Stats")
         self.layout.addWidget(self.get_stats_button)
         self.get_stats_button.pressed.connect(self.show_stats)
         self.temp_plot_widget = None
@@ -381,6 +407,7 @@ class LogFileDetailWidget(BaseDetailWidget):
         all_stats = self.log_file.get_stats()
         if len(all_stats) < 2:
             log.debug("%r -> %r", len(all_stats), all_stats)
+            QMessageBox.warning(self, "Insufficient Data-Points", f"<center>The requested Log-File <b>{self.log_file.name}</b> has <b>&lt; 2</b> Data-Points. Unable to Plot!</center>")
             return
         self.temp_plot_widget = StatsWindow(all_stats, title=self.log_file.name.upper)
         self.temp_plot_widget.add_marked_records(self.log_file.get_marked_records())
@@ -690,7 +717,7 @@ class LogRecordDetailView(BaseDetailWidget):
         self.message_value = MessageValue(self.record)
         self.layout.addRow("Message", self.message_value)
 
-        self.get_stats_button = QPushButton(text="Stats for this Record")
+        self.get_stats_button = QPushButton(AllResourceItems.stats_icon_2_image.get_as_icon(), text="Stats for this Record")
         self.layout.addWidget(self.get_stats_button)
         self.get_stats_button.pressed.connect(self.get_stats)
 
@@ -698,6 +725,7 @@ class LogRecordDetailView(BaseDetailWidget):
         all_stats = self.record.log_file.get_stats()
         if len(all_stats) < 2:
             log.debug("%r -> %r", len(all_stats), all_stats)
+            QMessageBox.warning(self, "Insufficient Data-Points", f"<center>The requested Log-File <b>{self.record.log_file.name}</b> has <b>&lt; 2</b> Data-Points.\nUnable to Plot!</center>")
             return
         self.temp_plot_widget = StatsWindow(all_stats, title=self.record.log_file.name.upper)
         self.temp_plot_widget.add_current_record(self.record)

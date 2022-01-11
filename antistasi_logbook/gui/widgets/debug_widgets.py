@@ -384,7 +384,7 @@ class DebugDockWidget(BaseDockWidget):
                          start_floating=True,
                          start_hidden=True,
                          add_to_menu=add_to_menu,
-                         allowed_areas=Qt.NoDockWidgetArea)
+                         allowed_areas=Qt.BottomDockWidgetArea)
         self.setWidget(DebugContentWidget(self))
         if self.app.is_dev is True:
             self.setVisible(True)

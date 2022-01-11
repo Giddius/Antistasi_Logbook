@@ -32,6 +32,7 @@ from gidapptools.general_helper.string_helper import make_attribute_name
 import subprocess
 from typing import Union, Optional, Iterable, Hashable, Generator, Mapping, MutableMapping, Any
 import logging
+import xml.etree.ElementTree as et
 from pathlib import Path
 from pprint import pprint
 import attr
@@ -181,6 +182,7 @@ VENV_ACTIVATOR_PATH = SCRIPTS_FOLDER.joinpath("activate.bat")
 PWIZ_FILE = SITE_PACKAGES_FOLDER.joinpath("pwiz.py")
 DESIGNER_FILES_FOLDER = THIS_FILE_DIR.joinpath("designer_files")
 RESOURCES_FILE_FOLDER = DESIGNER_FILES_FOLDER.joinpath("resources")
+RESOURCES_FILE = RESOURCES_FILE_FOLDER.joinpath("antistasi_logbook_resources.qrc")
 RAW_WIDGETS_FOLDER = MAIN_MODULE_FOLDER.joinpath("gui", "raw_widgets")
 # endregion[Constants]
 
@@ -602,17 +604,54 @@ def _write_resource_list_mapping(raw_text: str, tgt_file: Path, converted_file_p
     typus_map[tgt_file.suffix.casefold()]()
 
 
+def collect_resources(folder: Path, target_file: Path):
+    def _qresource_section(parent, prefix: str):
+        sect = et.Element("qresource")
+        sect.set("prefix", prefix)
+        parent.append(sect)
+        return sect
+
+    def _file_sub_element(parent, in_file: Path):
+        file_sub = et.SubElement(parent, "file")
+        file_sub.text = in_file.name
+
+    def _collect_files() -> dict[str, Path]:
+        _all_files = defaultdict(list)
+        for fi in folder.iterdir():
+            if fi.is_file() and fi.suffix != ".qrc":
+                _all_files[fi.suffix.casefold()].append(fi)
+        return _all_files
+    all_files = _collect_files()
+
+    root = et.Element("RCC")
+
+    images_sect = _qresource_section(root, "images")
+    for ext in [".png", ".svg", ".ico", ".jpg"]:
+        for file in sorted(all_files.get(ext, []), key=lambda x: x.stem.casefold()):
+            _file_sub_element(images_sect, file)
+
+    gifs_sect = _qresource_section(root, "gifs")
+    for ext in [".gif"]:
+        for file in sorted(all_files.get(ext, []), key=lambda x: x.stem.casefold()):
+            _file_sub_element(gifs_sect, file)
+
+    tree = et.ElementTree(root)
+    et.indent(tree, space="\t")
+    with target_file.open("wb") as f:
+        tree.write(f)
+
+
 @task(name="convert-resources")
 def convert_resources(c):
     target_folder = MAIN_MODULE_FOLDER.joinpath("gui", "resources")
     target_folder.mkdir(exist_ok=True, parents=True)
-    resource_files = (file for file in RESOURCES_FILE_FOLDER.iterdir() if file.is_file() and file.suffix.casefold() == ".qrc")
+
     resource_lists_folder = MISC_FOLDER.joinpath("qt_resource_lists")
     resource_lists_folder.mkdir(exist_ok=True, parents=True)
-    for res_file in resource_files:
-        target_name = res_file.with_suffix('.py').name
-        target = target_folder.joinpath(target_name)
-        _rcc(c, res_file, target)
-        mapping_text = _rcc_list_mapping(c, res_file)
-        _write_resource_list_mapping(mapping_text, resource_lists_folder.joinpath(target.stem + '.md'), converted_file_path=target)
-        _write_resource_list_mapping(mapping_text, target.with_name(target.stem + '_accessor.py'), converted_file_path=target)
+    collect_resources(RESOURCES_FILE_FOLDER, RESOURCES_FILE)
+    target_name = RESOURCES_FILE.with_suffix('.py').name
+    target = target_folder.joinpath(target_name)
+    _rcc(c, RESOURCES_FILE, target)
+    mapping_text = _rcc_list_mapping(c, RESOURCES_FILE)
+    _write_resource_list_mapping(mapping_text, resource_lists_folder.joinpath(target.stem + '.md'), converted_file_path=target)
+    _write_resource_list_mapping(mapping_text, target.with_name(target.stem + '_accessor.py'), converted_file_path=target)

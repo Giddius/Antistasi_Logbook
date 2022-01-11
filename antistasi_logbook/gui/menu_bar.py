@@ -40,7 +40,7 @@ from weakref import WeakSet
 from gidapptools.gidapptools_qt.basics.menu_bar import BaseMenuBar
 from gidapptools.general_helper.string_helper import StringCase, StringCaseConverter
 from gidapptools import get_logger
-from antistasi_logbook.storage.models.models import BaseModel, GameMap, AntstasiFunction, RecordOrigin, RecordClass, Mod, Version, LogLevel
+from antistasi_logbook.storage.models.models import BaseModel, GameMap, AntstasiFunction, RecordOrigin, RecordClass, Mod, Version, LogLevel, RemoteStorage
 if TYPE_CHECKING:
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
 # endregion[Imports]
@@ -76,7 +76,10 @@ class DataMenuAction(QAction):
         name = self.db_model.get_meta().table_name
         log.debug(name)
         formated_name = StringCaseConverter.convert_to(name, StringCase.TITLE)
-        text = f"{formated_name}s"
+        if formated_name.endswith("s"):
+            text = f"{formated_name}es"
+        else:
+            text = f"{formated_name}s"
         self.setText(text)
         self.triggered.connect(self.on_triggered)
 
@@ -107,6 +110,7 @@ class LogbookMenuBar(BaseMenuBar):
 
     def setup_menus(self) -> None:
         super().setup_menus()
+
         self.database_menu = self.add_new_menu("Database", add_before=self.help_menu.menuAction())
         self.single_update_action = self.add_new_action(self.database_menu, "Update Once")
         self.database_menu.addSeparator()
@@ -128,6 +132,8 @@ class LogbookMenuBar(BaseMenuBar):
         self.show_origins_action = self.add_action(self.data_menu, DataMenuAction(RecordOrigin, self.data_menu))
         self.show_versions_action = self.add_action(self.data_menu, DataMenuAction(Version, self.data_menu))
         self.show_log_level_action = self.add_action(self.data_menu, DataMenuAction(LogLevel, self.data_menu))
+        self.show_remote_storage_action = self.add_action(self.data_menu, DataMenuAction(RemoteStorage, self.data_menu))
+        self.show_record_classes_action = self.add_action(self.data_menu, DataMenuAction(RecordClass, self.data_menu))
 
         self.data_menu_actions_group = DataMenuActionGroup(self.data_menu)
         self.data_menu_actions_group.add_action(self.show_game_maps_action)
@@ -136,6 +142,8 @@ class LogbookMenuBar(BaseMenuBar):
         self.data_menu_actions_group.add_action(self.show_origins_action)
         self.data_menu_actions_group.add_action(self.show_versions_action)
         self.data_menu_actions_group.add_action(self.show_log_level_action)
+        self.data_menu_actions_group.add_action(self.show_remote_storage_action)
+        self.data_menu_actions_group.add_action(self.show_record_classes_action)
 # region[Main_Exec]
 
 

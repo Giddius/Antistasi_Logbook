@@ -25,3 +25,4 @@ pympler
 tomlkit
 tabulate
 dateparser
+lxml

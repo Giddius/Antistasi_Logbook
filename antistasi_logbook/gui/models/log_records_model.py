@@ -11,7 +11,7 @@ from time import sleep
 from typing import TYPE_CHECKING, Any, Union, Iterable, Callable, Optional, Mapping
 from pathlib import Path
 from operator import or_
-from functools import reduce, cache
+from functools import reduce, cache, partial
 from threading import Lock, Event
 from collections import namedtuple
 
@@ -88,22 +88,30 @@ class RefreshItem:
 
 
 class LogRecordsModel(BaseQueryDataModel):
+    request_view_change_visibility = Signal(bool)
+
     extra_columns = set()
     strict_exclude_columns = {"record_class"}
     bool_images = {True: AllResourceItems.check_mark_green_image.get_as_icon(),
                    False: AllResourceItems.close_black_image.get_as_icon()}
 
-    def __init__(self, filter_data: dict[str, Any], parent=None) -> None:
+    def __init__(self, parent=None) -> None:
         super().__init__(LogRecord, parent=parent)
         self.data_role_table = self.data_role_table | {Qt.BackgroundRole: self._get_background_data, Qt.FontRole: self._get_font_data}
-        self.filter_data = {"server_profiling_record": (LogRecord.record_class != RecordClass.get(name="PerfProfilingRecord")), "antistasi_profiling_record": (LogRecord.record_class != RecordClass.get(name="PerformanceRecord"))} | filter_data
+        self._base_filter_item = (LogRecord.record_class != RecordClass.get(name="PerfProfilingRecord")) & (LogRecord.record_class != RecordClass.get(name="PerformanceRecord"))
         self.ordered_by = (LogRecord.start, LogRecord.recorded_at)
+
+    def on_query_filter_changed(self, query_filter):
+        self.filter_item = query_filter
+        self.app.backend.thread_pool.submit(self.refresh)
 
     def get_query(self) -> "Query":
 
         query = LogRecord.select()
-        for filter_stmt in self.filter_data.values():
-            query = query.where(filter_stmt)
+        if self._base_filter_item is not None:
+            query = query.where(self._base_filter_item)
+        if self.filter_item is not None:
+            query = query.where(self.filter_item)
 
         return query.order_by(*self.ordered_by)
 
@@ -117,6 +125,8 @@ class LogRecordsModel(BaseQueryDataModel):
             reset_all_colors_action = QAction("Reset all Colors")
             reset_all_colors_action.triggered.connect(item.reset_colors)
             menu.add_action(reset_all_colors_action, "debug")
+
+        menu.add_menu("Copy as")
 
     @profile
     def _get_display_data(self, index: "INDEX_TYPE") -> Any:
@@ -166,14 +176,28 @@ class LogRecordsModel(BaseQueryDataModel):
 
         log.debug("starting getting content for %r", self)
         all_log_files = {log_file.id: log_file for log_file in self.backend.database.get_log_files()}
-        # with self.backend.database:
-        self.content_items = []
-        for record_item in self.app.backend.thread_pool.map(lambda x: self._get_record(_item_data=x, _all_log_files=all_log_files), self.get_query().dicts().iterator()):
-            self.beginInsertRows(QModelIndex(), self.rowCount() - 1, self.rowCount() - 1)
-            self.content_items.append(record_item)
-            self.endInsertRows()
 
+        self.content_items = []
+        records_getter = partial(self._get_record, _all_log_files=all_log_files)
+        num_collected = 0
+        for record_item in self.app.backend.thread_pool.map(records_getter, self.get_query().dicts().iterator()):
+
+            self.content_items.append(record_item)
+            num_collected += 1
+            if num_collected % 10_000 == 0:
+                sleep(0.0)
         log.debug("finished getting content for %r", self)
+
+        return self
+
+    def refresh(self) -> "BaseQueryDataModel":
+        self.request_view_change_visibility.emit(False)
+
+        self.beginResetModel()
+        self.get_columns().get_content()
+        self.endResetModel()
+        self.request_view_change_visibility.emit(True)
+
         return self
 
     def refresh_item(self, index: "INDEX_TYPE"):

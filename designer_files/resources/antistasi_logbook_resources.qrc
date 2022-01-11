@@ -1,29 +1,41 @@
 <RCC>
-  <qresource prefix="images">
-    <file>placeholder.png</file>
-    <file>warning_sign_triangle_red.png</file>
-    <file>warning_sign_round_yellow.svg</file>
-    <file>closed_eye.svg</file>
-    <file>open_eye.svg</file>
-    <file>close-cancel.svg</file>
-    <file>check_mark_green.svg</file>
-    <file>close_black.svg</file>
-    <file>app_icon.png</file>
-    <file>check_mark_black.svg</file>
-    <file>server_tab_icon.svg</file>
-    <file>log_files_tab_icon.svg</file>
-    <file>log_records_tab_icon.svg</file>
-    <file>mark.svg</file>
-    <file>unmark.svg</file>
-    <file>log_file_filter_page_symbol.svg</file>
-    <file>visible_icon.svg</file>
-    <file>hidden_icon.svg</file>
-    <file>antistasi_logbook_splash_backup.png</file>
-    <file>antistasi_logbook_splash_preparing_backend.png</file>
-    <file>antistasi_logbook_splash_preparing_database.png</file>
-    <file>antistasi_logbook_splash_starting_backend.png</file>
-  </qresource>
-  <qresource prefix="gifs">
-  <file>spinner.gif</file>
-  </qresource>
+	<qresource prefix="images">
+		<file>antistasi_logbook_splash_backup.png</file>
+		<file>antistasi_logbook_splash_preparing_backend.png</file>
+		<file>antistasi_logbook_splash_preparing_database.png</file>
+		<file>antistasi_logbook_splash_starting_backend.png</file>
+		<file>app_icon.png</file>
+		<file>placeholder.png</file>
+		<file>warning_sign_triangle_red.png</file>
+		<file>check_mark_black.svg</file>
+		<file>check_mark_green.svg</file>
+		<file>close-cancel.svg</file>
+		<file>close_black.svg</file>
+		<file>closed_eye.svg</file>
+		<file>database_settings.svg</file>
+		<file>debug_settings.svg</file>
+		<file>downloading_settings.svg</file>
+		<file>filter_page_symbol.svg</file>
+		<file>folder_settings.svg</file>
+		<file>general_settings.svg</file>
+		<file>gui_settings.svg</file>
+		<file>hidden_icon.svg</file>
+		<file>log_files_tab_icon.svg</file>
+		<file>log_records_tab_icon.svg</file>
+		<file>mark.svg</file>
+		<file>open_eye.svg</file>
+		<file>parsing_settings.svg</file>
+		<file>server_tab_icon.svg</file>
+		<file>stats_icon.svg</file>
+		<file>stats_icon_2.svg</file>
+		<file>time_settings.svg</file>
+		<file>unmark.svg</file>
+		<file>updating_settings.svg</file>
+		<file>visible_icon.svg</file>
+		<file>warning_sign_round_yellow.svg</file>
+		<file>webdav_settings.svg</file>
+	</qresource>
+	<qresource prefix="gifs">
+		<file>spinner.gif</file>
+	</qresource>
 </RCC>

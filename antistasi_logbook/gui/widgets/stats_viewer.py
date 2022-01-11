@@ -121,6 +121,7 @@ class CustomSampleItem(pg.ItemSample):
 
 class ColorSelector(QGroupBox):
     color_changed = Signal(str, QColor)
+    color_config_name = "stats"
 
     def __init__(self, parent=None):
         super().__init__(parent=parent)
@@ -129,10 +130,11 @@ class ColorSelector(QGroupBox):
         self.layout.setVerticalSpacing(3)
         self.key_map: dict[pg.ColorButton, str] = {}
 
-    def add_key(self, key: str, color: QColor = None):
+    def add_key(self, key: str):
         color_selector = pg.ColorButton(padding=5)
         color_selector.setMinimumSize(QSize(25, 25))
         self.layout.addRow(key, color_selector)
+        color = self.app.color_config.get(self.color_config_name, key.replace(" ", "_"), default=None)
         if color is not None:
             color_selector.setColor(color)
         color_selector.sigColorChanged.connect(self.color_change_proxy)
@@ -142,11 +144,16 @@ class ColorSelector(QGroupBox):
     def color_change_proxy(self, button: pg.ColorButton):
         key = self.key_map[button]
         color = button.color()
+        self.app.color_config.set(self.color_config_name, key.replace(" ", "_"), color)
         self.color_changed.emit(key, color)
 
     @property
     def layout(self) -> QFormLayout:
         return super().layout()
+
+    @property
+    def app(self) -> "AntistasiLogbookApplication":
+        return QApplication.instance()
 
 
 class ControlBox(QGroupBox):
@@ -265,6 +272,7 @@ class CrosshairDisplayBar(QStatusBar):
 
 
 class StatsWindow(QMainWindow):
+    color_config_name = "stats"
     y_padding_factor = 1.5
     x_padding_factor = 0.125
 
@@ -355,6 +363,7 @@ class StatsWindow(QMainWindow):
         self.control_setup()
 
     def general_setup(self):
+        self.resize(1500, 1000)
         self.status_bar = CrosshairDisplayBar(self).setup()
         self.mouse_x_pos_changed.connect(self.status_bar.set_x_value)
         self.mouse_y_pos_changed.connect(self.status_bar.set_y_value)
@@ -382,7 +391,8 @@ class StatsWindow(QMainWindow):
 
         for idx, key in enumerate(self.keys):
             data = (self.all_timestamps, [i.get(key) for i in self.stat_data])
-            item = self.plot_widget.plot(*data, pen=pg.mkPen(self.available_colors[idx], width=1), antialias=False, name=key, autoDownsample=True)
+            color = self.app.color_config.get(self.color_config_name, key.replace(" ", "_"), default=self.available_colors[idx])
+            item = self.plot_widget.plot(*data, pen=pg.mkPen(color, width=1), antialias=False, name=key, autoDownsample=True)
             self.legend.addItem(item, key)
             self.plots[key] = item
             if item.name().casefold() != "serverfps":

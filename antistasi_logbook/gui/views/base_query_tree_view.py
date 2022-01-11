@@ -143,6 +143,7 @@ class BaseQueryTreeView(QTreeView):
         self.customContextMenuRequested.connect(self.handle_custom_context_menu)
         self.setSortingEnabled(True)
         self.header_view.setSortIndicatorClearable(True)
+
         self.setUniformRowHeights(True)
         self.setup_scrollbars()
         self.extra_setup()

@@ -69,17 +69,23 @@ from PIL import Image
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 # endregion[Constants]
-in_file = Path(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\antistasi_logbook\data\map_images\sahrani_small.png")
-out_file = in_file.with_stem(in_file.stem.replace("small", "thumbnail"))
 
 
-image = Image.open(in_file)
-image.thumbnail((250, 250))
-image.save(out_file)
+def make_thumbnail(in_file: Path):
+    out_folder = in_file.parent.joinpath("thumbnails")
+    out_file_name = in_file.with_stem(in_file.stem.replace("small", "").strip('_') + '_thumbnail').name
+    out_file = out_folder.joinpath(out_file_name)
+    out_folder.mkdir(exist_ok=True, parents=True)
+    image = Image.open(in_file)
+    image.thumbnail((250, 250))
+    image.save(out_file)
 
 # region[Main_Exec]
 
+
 if __name__ == '__main__':
-    pass
+    for file in Path(r"C:\Users\Giddi\Downloads\maps_small").iterdir():
+        if file.is_file() and file.suffix == ".png":
+            make_thumbnail(file)
 
 # endregion[Main_Exec]

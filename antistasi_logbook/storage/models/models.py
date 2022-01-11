@@ -132,6 +132,8 @@ class BaseModel(Model):
 
 class AntstasiFunction(BaseModel):
     name = TextField(unique=True)
+    link = URLField(null=True)
+    local_path = PathField(null=True)
     comments = CommentsField()
     marked = MarkedField()
     show_as: Literal["file_name", "function_name"] = "function_name"
@@ -166,7 +168,7 @@ class GameMap(BaseModel):
     official = BooleanField(default=False, index=True, verbose_name="Official")
     dlc = TextField(null=True, index=True, verbose_name="DLC")
     map_image_high_resolution = PathField(null=True, verbose_name="High Resolution Image Path")
-    map_image_low_resolution = PathField(null=True, verbose_name="Low Resolution Image Path")
+    map_image_low_resolution = CompressedImageField(null=True, verbose_name="Low Resolution Image Path")
     coordinates = JSONField(null=True, verbose_name="Coordinates-JSON")
     workshop_link = URLField(null=True, verbose_name="Workshop Link")
     comments = CommentsField()
@@ -591,6 +593,18 @@ class RecordClass(BaseModel):
     class Meta:
         table_name = 'RecordClass'
 
+    @property
+    def specificity(self) -> int:
+        return self.record_class.___specificity___
+
+    @property
+    def pretty_record_family(self):
+        return str(self.record_family).removeprefix("RecordFamily.")
+
+    @property
+    def record_family(self):
+        return self.record_class.___record_family___
+
     @ property
     def record_class(self) -> "RECORD_CLASS_TYPE":
         return self.record_class_manager.get_by_name(self.name)
@@ -803,13 +817,13 @@ def setup_db(database: "GidSqliteApswDatabase"):
                             'name': 'Altis',
                              'official': 1,
                              'workshop_link': None,
-                             "map_image_low_resolution": None},
+                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("altis_thumbnail.png").read_bytes()},
                             {'dlc': 'Apex',
                             'full_name': 'Tanoa',
                              'name': 'Tanoa',
                              'official': 1,
                              'workshop_link': None,
-                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("tanoa_thumbnail.png")},
+                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("tanoa_thumbnail.png").read_bytes()},
                             {'dlc': 'Contact',
                             'full_name': 'Livonia',
                              'name': 'Enoch',
@@ -821,45 +835,51 @@ def setup_db(database: "GidSqliteApswDatabase"):
                              'name': 'Malden',
                              'official': 1,
                              'workshop_link': None,
-                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("malden_thumbnail.png")},
+                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("malden_thumbnail.png").read_bytes()},
                             {'dlc': None,
                             'full_name': 'Takistan',
                              'name': 'takistan',
                              'official': 0,
                              'workshop_link': None,
-                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("takistan_thumbnail.png")},
+                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("takistan_thumbnail.png").read_bytes()},
                             {'dlc': None,
                             'full_name': 'Virolahti',
                              'name': 'vt7',
                              'official': 0,
                              'workshop_link': 'https://steamcommunity.com/workshop/filedetails/?id=1926513010',
-                             "map_image_low_resolution": None},
+                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("virolahti_thumbnail.png").read_bytes()},
                             {'dlc': None,
                             'full_name': 'Sahrani',
                              'name': 'sara',
                              'official': 0,
                              'workshop_link': 'https://steamcommunity.com/sharedfiles/filedetails/?id=583544987',
-                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("sahrani_thumbnail.png")},
+                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("sahrani_thumbnail.png").read_bytes()},
                             {'dlc': None,
                             'full_name': 'Chernarus Winter',
                              'name': 'Chernarus_Winter',
                              'official': 0,
                              'workshop_link': 'https://steamcommunity.com/sharedfiles/filedetails/?id=583544987',
-                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("chernarus_winter_thumbnail.png"),
-                             "map_image_high_resolution": MAP_IMAGES_DIR.joinpath("chernarus_winter_small.png"),
+                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("cherno_winter_thumbnail.png").read_bytes(),
+                             "coordinates": json.loads(MAP_COORDS_DIR.joinpath("chernarus_winter_pos.json").read_text(encoding='utf-8', errors='ignore'))},
+                            {'dlc': None,
+                            'full_name': 'Chernarus Summer',
+                             'name': 'Chernarus_Summer',
+                             'official': 0,
+                             'workshop_link': 'https://steamcommunity.com/sharedfiles/filedetails/?id=583544987',
+                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("cherno_summer_thumbnail.png").read_bytes(),
                              "coordinates": json.loads(MAP_COORDS_DIR.joinpath("chernarus_winter_pos.json").read_text(encoding='utf-8', errors='ignore'))},
                             {'dlc': None,
                             'full_name': 'Anizay',
                              'name': 'tem_anizay',
                              'official': 0,
                              'workshop_link': 'https://steamcommunity.com/workshop/filedetails/?id=1537973181',
-                             "map_image_low_resolution": None},
+                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("anizay_thumbnail.png").read_bytes()},
                             {'dlc': None,
                             'full_name': 'Tembelan',
                              'name': 'Tembelan',
                              'official': 0,
                              'workshop_link': 'https://steamcommunity.com/workshop/filedetails/?id=1252091296',
-                             "map_image_low_resolution": None},
+                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("tembelan_thumbnail.png").read_bytes()},
                             {'dlc': 'S.O.G. Prairie Fire',
                             'full_name': 'Cam Lao Nam',
                              'name': 'cam_lao_nam',

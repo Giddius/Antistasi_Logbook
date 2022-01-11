@@ -36,6 +36,8 @@
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
  </widget>
- <resources/>
+ <resources>
+  <include location="blah.qrc"/>
+ </resources>
  <connections/>
 </ui>

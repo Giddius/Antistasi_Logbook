@@ -274,6 +274,17 @@ class GidSqliteApswDatabase(APSWDatabase):
                 record.origin = self.foreign_key_cache.get_origin_by_id(record.origin_id)
                 yield record
 
+    def get_unique_server_ips(self) -> tuple[str]:
+        with self:
+            _out = tuple(set(s.ip for s in Server.select() if s.ip is not None))
+
+            return _out
+
+    def get_unique_campaign_ids(self) -> tuple[int]:
+        with self:
+            _out = set(l.campaign_id for l in LogFile.select().where(LogFile.unparsable == False).objects() if l.campaign_id is not None)
+            return tuple(sorted(_out))
+
     def __repr__(self) -> str:
         repr_attrs = ("database_name", "config", "auto_backup", "thread_safe", "autoconnect")
         _repr = f"{self.__class__.__name__}"

@@ -106,6 +106,7 @@ log = get_logger(__name__)
 
 
 class GameMapModel(BaseQueryDataModel):
+    strict_exclude_columns = {"map_image_low_resolution"}
 
     def __init__(self, parent: Optional[QtCore.QObject] = None) -> None:
 

@@ -39,6 +39,7 @@ from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog
 
 from gidapptools import get_logger, get_meta_config
 from antistasi_logbook.gui.misc import CustomRole
+
 if TYPE_CHECKING:
     # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.backend import Backend
@@ -101,6 +102,8 @@ class ServerModel(BaseQueryDataModel):
         query = Server.select().join(RemoteStorage).switch(Server)
         if self.show_local_files_server is False:
             query = query.where(Server.remote_path != None)
+        if self.filter_item is not None:
+            query = query.where(self.filter_item)
         return query.order_by(*self.ordered_by)
 
     def get_content(self) -> "BaseQueryDataModel":
@@ -112,7 +115,7 @@ class ServerModel(BaseQueryDataModel):
         with self.backend.database:
             self.content_items = sorted(list(self.get_query().execute()), key=_sort_func, reverse=True)
             self.original_sort_order = tuple(i.id for i in self.content_items)
-        log.debug("sort order = %r", self.content_items)
+
         return self
 
     def add_context_menu_actions(self, menu: "CustomContextMenu", index: QModelIndex):
@@ -124,17 +127,6 @@ class ServerModel(BaseQueryDataModel):
         update_enabled_action = ModelContextMenuAction(item, column, index, text=update_enabled_text, parent=menu)
         update_enabled_action.clicked.connect(self.change_update_enabled)
         menu.add_action(update_enabled_action, "Edit")
-
-        change_color_action = ModelContextMenuAction(item, column, index, text=f"change Color of {item.name!r}", parent=menu)
-        change_color_action.clicked.connect(self.change_color)
-        menu.add_action(change_color_action, "Edit")
-
-    @Slot(object, object, QModelIndex)
-    def change_color(self, item: BaseModel, column: Field, index: QModelIndex):
-        opts = QColorDialog.ColorDialogOption.ShowAlphaChannel | QColorDialog.ColorDialogOption.DontUseNativeDialog
-        color = QColorDialog.getColor(self.color_config.get(self.color_config_name, item.name, default=QColor(255, 255, 255, 0)), title=str(item), options=opts)
-        if color:
-            self.color_config.set(self.color_config_name, item.name, color)
 
     @Slot(object, object, QModelIndex)
     def change_update_enabled(self, item: BaseModel, column: Field, index: QModelIndex):

@@ -46,6 +46,7 @@ from gidapptools.general_helper.enums import MiscEnum
 from gidapptools import get_logger, get_meta_config
 from antistasi_logbook.gui.widgets.markdown_editor import MarkdownEditorDialog
 from peewee import IntegerField
+from antistasi_logbook.gui.widgets.better_color_dialog import BetterColorDialog
 if TYPE_CHECKING:
     # * Third Party Imports --------------------------------------------------------------------------------->
     from antistasi_logbook.backend import Backend
@@ -180,6 +181,10 @@ class BaseQueryDataModel(QAbstractTableModel):
 
         super().__init__(parent=parent)
 
+    def on_query_filter_changed(self, query_filter):
+        self.filter_item = query_filter
+        self.refresh()
+
     @property
     def app(self) -> "AntistasiLogbookApplication":
         return QApplication.instance()
@@ -210,6 +215,7 @@ class BaseQueryDataModel(QAbstractTableModel):
 
     def add_context_menu_actions(self, menu: "CustomContextMenu", index: QModelIndex):
         if self.app.is_dev is True:
+            log.debug("%r has attribute %r: %r", self.db_model, "background_color", hasattr(self.db_model, "background_color"))
             force_refresh_model_action = QAction(f"Force Refresh Model {self.name!r}")
             force_refresh_model_action.triggered.connect(self.force_refresh)
             menu.add_action(force_refresh_model_action, "debug")
@@ -230,6 +236,11 @@ class BaseQueryDataModel(QAbstractTableModel):
             edit_comments_action.clicked.connect(self.edit_comments)
 
             menu.add_action(edit_comments_action, "edit")
+
+        if hasattr(self.db_model, "background_color"):
+            change_color_action = ModelContextMenuAction(item, column, index, text=f"change Color of {item.name!r}", parent=menu)
+            change_color_action.clicked.connect(self.change_color)
+            menu.add_action(change_color_action, "Edit")
 
     @Slot()
     def force_refresh(self):
@@ -339,6 +350,7 @@ class BaseQueryDataModel(QAbstractTableModel):
             return
         if not 0 <= index.row() < len(self.content_items):
             return None
+
         if role not in self.data_role_table:
             return
         if role is not None:
@@ -360,6 +372,9 @@ class BaseQueryDataModel(QAbstractTableModel):
         value = getattr(item, column.name)
         if hasattr(value, "background_color"):
             return value.background_color
+
+        if hasattr(item, "background_color"):
+            return item.background_color
 
     def _get_font_data(self, index: INDEX_TYPE) -> Any:
         pass
@@ -425,6 +440,7 @@ class BaseQueryDataModel(QAbstractTableModel):
         if role not in self.header_data_role_table:
             return
         if role is not None:
+
             handler = self.header_data_role_table.get(role, None)
             if handler is not None:
                 return handler(section, orientation)
@@ -609,6 +625,17 @@ class BaseQueryDataModel(QAbstractTableModel):
                     self.db_model.update(**{column.name: value}).where(self.db_model.id == item.id).execute()
 
         self.refresh_item(index)
+
+    @Slot(object, object, QModelIndex)
+    def change_color(self, item: BaseModel, column: Field, index: QModelIndex):
+
+        accepted, color = BetterColorDialog.show_dialog(self.color_config.get(self.color_config_name, item.name, default=QColor(255, 255, 255, 0)), True)
+        if accepted:
+            log.debug("custom color count: %r", QColorDialog.customCount())
+            log.debug("custom colors: %r", [(QColorDialog.customColor(i), QColorDialog.customColor(i).name()) for i in range(QColorDialog.customCount())])
+
+            self.color_config.set(self.color_config_name, item.name, color)
+            del item.background_color
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(backend={self.backend!r}, db_model={self.db_model!r})"
