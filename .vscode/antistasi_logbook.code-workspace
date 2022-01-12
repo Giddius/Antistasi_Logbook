@@ -10,9 +10,9 @@
             {
                 "label": "upgrade_pip",
                 "type": "shell",
-                "command": "${config:python.pythonPath} -m pip install --upgrade pip",
+                "command": "${config:python.defaultInterpreterPath} -m pip install --upgrade pip",
                 "options": {
-                    "cwd": "${config:python.pythonPath}/..",
+                    "cwd": "${config:python.defaultInterpreterPath}/..",
                     "env": {}
                 },
                 "presentation": {
@@ -123,7 +123,7 @@
             {
                 "label": "convert_resources",
                 "type": "shell",
-                "command": "${config:python.pythonPath} -m invoke convert-resources",
+                "command": "${config:python.defaultInterpreterPath} -m invoke convert-resources",
                 "options": {
                     "cwd": "${workspaceFolder}"
                 },
@@ -139,7 +139,7 @@
             {
                 "label": "convert_ui",
                 "type": "shell",
-                "command": "${config:python.pythonPath} -m invoke convert-designer-files ",
+                "command": "${config:python.defaultInterpreterPath} -m invoke convert-designer-files ",
                 "options": {
                     "cwd": "${workspaceFolder}"
                 },
@@ -172,7 +172,7 @@
         ]
     },
     "settings": {
-        "python.pythonPath": "${workspaceFolder}/.venv/scripts/python",
-        "qtForPython.designer.path": "d:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\.venv\\Scripts\\pyside6-designer.exe"
+        "python.defaultInterpreterPath": "${workspaceFolder}/.venv/scripts/python",
+        "qtForPython.designer.path": "${workspaceFolder}\\.venv\\Scripts\\pyside6-designer.exe"
     }
 }

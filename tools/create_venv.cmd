@@ -248,7 +248,7 @@ POPD
 ECHO.
 )
 
-call pip list | installed_packages_to_json.py
+call pip list --format json | installed_packages_to_json.py
 
 ECHO.
 ECHO.

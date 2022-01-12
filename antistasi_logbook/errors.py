@@ -13,7 +13,7 @@ import threading
 from typing import TYPE_CHECKING, Callable, Optional
 from pathlib import Path
 from datetime import timezone
-
+from gidapptools import get_logger
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.storage.models.models import RemoteStorage
@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
-
+log = get_logger(__name__)
 # endregion[Constants]
 
 
@@ -86,21 +86,31 @@ original_threading_except_hook = threading.excepthook
 
 class DefaultExceptionHandler:
 
+    def __init__(self, manager: "_ExceptionHandlerManager"):
+        self.manager = manager
+
     def handle_exception(self, exception: BaseException):
         raise exception
 
-    def handle_thread_except_hook(self, args):
+    def handle_thread_except_hook(self, args: threading.ExceptHookArgs):
         original_threading_except_hook(args)
 
     def handle_except_hook(self, type_, value, traceback):
         sys.__excepthook__(type_=type_, value=value, traceback=traceback)
 
 
+class MissingLoginAndPasswordHandler(DefaultExceptionHandler):
+
+    def handle_thread_except_hook(self, args: threading.ExceptHookArgs):
+        log.error("Handling %r with value %r and traceback %r", args.exc_type, args.exc_value, args.exc_traceback)
+        self.manager.default_exception_handler.handle_thread_except_hook(args)
+
+
 class _ExceptionHandlerManager:
 
     def __init__(self) -> None:
-        self.default_exception_handler = DefaultExceptionHandler()
-        self.exception_handler_registry: dict[type[BaseException]:Optional[EXCEPTION_HANDLER_TYPE]] = {}
+        self.default_exception_handler = DefaultExceptionHandler(self)
+        self.exception_handler_registry: dict[type[BaseException]:Optional[EXCEPTION_HANDLER_TYPE]] = {MissingLoginAndPasswordError: MissingLoginAndPasswordHandler(self)}
 
     def register_handler(self, exception_class: type[BaseException], handler: EXCEPTION_HANDLER_TYPE) -> None:
         self.exception_handler_registry[exception_class] = handler
