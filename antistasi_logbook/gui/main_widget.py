@@ -174,6 +174,8 @@ class MainWidget(QWidget):
 
     def on_tab_changed(self, index: int):
         if index == self.main_tabs_widget.indexOf(self.log_files_tab):
+            if self.log_files_tab.model is None:
+                return
             if self.log_files_tab.model.data_tool is None:
 
                 widget = LogFileDataToolWidget()
@@ -183,6 +185,8 @@ class MainWidget(QWidget):
             self.query_widget.set_current_index(self.log_files_tab.model.data_tool)
 
         elif index == self.main_tabs_widget.indexOf(self.server_tab):
+            if self.server_tab.model is None:
+                return
             if self.server_tab.model.data_tool is None:
 
                 widget = ServerDataToolWidget()
@@ -192,6 +196,8 @@ class MainWidget(QWidget):
             self.query_widget.set_current_index(self.server_tab.model.data_tool)
 
         elif index == self.main_tabs_widget.indexOf(self.query_result_tab):
+            if self.query_result_tab.model is None:
+                return
             if self.query_result_tab.model.data_tool is None:
                 widget = LogRecordDataToolWidget()
                 self.query_widget.add_page(widget, name="log_record")
