@@ -166,7 +166,7 @@ class AntistasiLogbookApplication(QApplication):
                       "Author": self.organizationName(),
                       "Link": f'<a href="{self.organizationDomain()}">{self.organizationDomain()}</a>',
                       "Version": self.applicationVersion(),
-                      "Dev Mode": self.meta_info.pretty_is_dev,
+                      "Dev Mode": "Yes" if self.is_dev is True else "No",
                       "Operating System": self.meta_info.os,
                       "Python Version": self.meta_info.python_version}
 

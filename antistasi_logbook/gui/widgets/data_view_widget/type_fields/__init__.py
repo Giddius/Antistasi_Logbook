@@ -3,14 +3,11 @@ from importlib import import_module, util
 from .base_type_field import TypeFieldProtocol
 import inspect
 
-MODULES = {"standard_type_fields", "special_type_fields"}
+from .standard_type_fields import BoolTypeField, StringTypeField, IntTypeField, ListTypeField, FloatTypeField
+from .special_type_fields import URLTypeField, PathTypeField
 
 
 TYPE_FIELD_TABLE: dict[str, TypeFieldProtocol] = {}
 
-for _module in MODULES:
-    module = import_module('.' + _module, package=__name__)
-    for name, obj in inspect.getmembers(module):
-        if hasattr(obj, "add_to_type_field_table") and name not in {"AllResourceItems", "TypeFieldProtocol"}:
-
-            TYPE_FIELD_TABLE = obj.add_to_type_field_table(TYPE_FIELD_TABLE)
+for field in [BoolTypeField, StringTypeField, IntTypeField, ListTypeField, FloatTypeField, URLTypeField, PathTypeField]:
+    TYPE_FIELD_TABLE = field.add_to_type_field_table(TYPE_FIELD_TABLE)

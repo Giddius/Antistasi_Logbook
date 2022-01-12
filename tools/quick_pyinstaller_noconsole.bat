@@ -2,6 +2,13 @@
 @Echo off
 SETLOCAL EnableDelayedExpansion
 
+SET THIS_FOLDER=%~dp0
+
+SET _NAME=Antistasi_Logbook
+
+SET _CREATE_TYPE=onefile
+rem SET _CREATE_TYPE=onedir
+
 
 rem --upx-dir "D:\Dropbox\hobby\Modding\Ressources\python\upx\upx-3.96-win64" ^
 rem --upx-exclude "vcruntime140.dll" ^
@@ -9,17 +16,17 @@ rem --upx-exclude "vcruntime140.dll" ^
 set INPATH=%~dp1
 set INFILE=%~nx1
 set INFILEBASE=%~n1
-pushd %INPATH%
-mkdir %INPATH%pyinstaller_output_%INFILEBASE%
+pushd %THIS_FOLDER%\..
+RD /S /Q %THIS_FOLDER%\..\pyinstaller_output_%_NAME%
+mkdir %THIS_FOLDER%\..\pyinstaller_output_%_NAME%
 
 set PYTHONOPTIMIZE=1
-pyinstaller --clean --noconfirm --log-level=INFO -c ^
+pyinstaller --clean --noconfirm --log-level=INFO --onefile ^
 -i D:\Dropbox\hobby\Modding\Ressources\Icons\To_Sort_Icons\ico_icons\Antistasi_flag_experiment.ico ^
--n %2 ^
+-n %_NAME% ^
 --upx-dir D:\Dropbox\hobby\Modding\Ressources\python\upx\upx-3.96-win64 ^
 --upx-exclude vcruntime140.dll ^
 --upx-exclude ucrtbase.dll ^
---distpath %INPATH%pyinstaller_output_%INFILEBASE%/dist ^
---workpath %INPATH%pyinstaller_output_%INFILEBASE%/work ^
---specpath %INPATH%pyinstaller_output_%INFILEBASE%/spec ^
-%INFILE%
+--distpath %THIS_FOLDER%\..\pyinstaller_output_%_NAME%/dist ^
+--workpath %THIS_FOLDER%\..\pyinstaller_output_%_NAME%/work ^
+%INPATH%%INFILE%

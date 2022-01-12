@@ -313,7 +313,7 @@ class Backend:
         process: Process = compress_in_process(source=self.database.database_path, target=backup_path)
         limit_backups(backup_folder)
         while process.is_alive():
-            self.app.processEvents()
+            sleep(1)
 
     def start_update_loop(self) -> "Backend":
         if self.update_manager is None:

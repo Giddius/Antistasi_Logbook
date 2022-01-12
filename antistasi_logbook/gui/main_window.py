@@ -305,6 +305,8 @@ class AntistasiLogbookMainWindow(QMainWindow):
                 pass
             log.info("closing %r", self)
             splash = QSplashScreen(AllResourceItems.app_icon_image.get_as_pixmap(), Qt.WindowStaysOnTopHint)
+            settings = QSettings(f"{META_INFO.app_name}_settings", "main_window")
+            settings.setValue('geometry', self.saveGeometry())
             self.setVisible(False)
             if self.config.get("database", "backup_database") is True:
                 splash.show()
@@ -314,9 +316,6 @@ class AntistasiLogbookMainWindow(QMainWindow):
             self.backend.shutdown()
             log.debug("Finished shutting down %r", self.backend)
             splash.close()
-
-            settings = QSettings(f"{META_INFO.app_name}_settings", "main_window")
-            settings.setValue('geometry', self.saveGeometry())
 
             log.debug('%r accepting event %r', self, event.type().name)
             log.debug("shutting down %r", self.statusbar)

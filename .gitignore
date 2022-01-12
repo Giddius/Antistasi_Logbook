@@ -171,3 +171,4 @@ antistasi_logbook/raised_errors.txt
 !apsw.*
 /tools/quick_scripts
 /antistasi_logbook/storage/backups
+/pyinstaller_output_Antistasi_Logbook

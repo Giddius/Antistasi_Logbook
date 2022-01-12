@@ -105,9 +105,6 @@ class LogbookMenuBar(BaseMenuBar):
         self.open_settings_window_action = self.add_new_action(self.settings_menu, "Open Settings")
 
         self.exit_action.setIcon(AllResourceItems.close_cancel_image.get_as_icon())
-        self.test_menu = self.add_new_menu("test")
-        if self.app.is_dev is False:
-            self.test_menu.setVisible(False)
 
         self.folder_action = self.add_new_action(self.help_menu, "folder")
         self.open_credentials_managment_action = self.add_new_action(self.settings_menu, "Credentials Managment")
