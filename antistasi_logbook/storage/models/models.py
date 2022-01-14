@@ -372,7 +372,15 @@ class LogFile(BaseModel):
 
     @cached_property
     def amount_log_records(self) -> int:
-        return LogRecord.select().where(LogRecord.log_file == self).count()
+        return LogRecord.select().where(LogRecord.log_file_id == self.id).count()
+
+    @cached_property
+    def amount_errors(self) -> int:
+        return LogRecord.select().where((LogRecord.log_file_id == self.id) & (LogRecord.log_level_id == self.database.foreign_key_cache.all_log_levels.get("ERROR").id)).count()
+
+    @cached_property
+    def amount_warnings(self) -> int:
+        return LogRecord.select().where((LogRecord.log_file_id == self.id) & (LogRecord.log_level_id == self.database.foreign_key_cache.all_log_levels.get("WARNING").id)).count()
 
     @cached_property
     def pretty_size(self) -> str:

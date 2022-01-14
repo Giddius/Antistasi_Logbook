@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
 
     from antistasi_logbook.parsing.record_processor import RecordInserter, RecordProcessor
-
+    from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 # endregion[Imports]
 
 # region [TODO]
@@ -133,7 +133,7 @@ class GidSqliteApswDatabase(APSWDatabase):
         extensions = self.default_extensions.copy() | (extensions or {})
         pragmas = DEFAULT_PRAGMAS.copy() | (pragmas or {})
         super().__init__(make_db_path(self.database_path), thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, timeout=30, **extensions)
-        self.foreign_key_cache = None
+        self.foreign_key_cache: "ForeignKeyCache" = None
         self.write_lock = Lock()
         self.record_processor: "RecordProcessor" = None
         self.record_inserter: "RecordInserter" = None

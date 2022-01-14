@@ -51,7 +51,10 @@ log = get_logger(__name__)
 
 
 class LogFilesModel(BaseQueryDataModel):
-    extra_columns = {FakeField(name="amount_log_records", verbose_name="Amount Log Records"), FakeField("time_frame", "Time Frame")}
+    extra_columns = {FakeField(name="amount_log_records", verbose_name="Amount Log Records"),
+                     FakeField("time_frame", "Time Frame"),
+                     FakeField(name="amount_errors", verbose_name="Amount Errors"),
+                     FakeField(name="amount_warnings", verbose_name="Amount Warnings")}
     strict_exclude_columns = {"startup_text", "header_text", "remote_path"}
 
     def __init__(self, parent: Optional[QtCore.QObject] = None, show_unparsable: bool = False) -> None:
