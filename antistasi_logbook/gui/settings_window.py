@@ -13,15 +13,15 @@ from pathlib import Path
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
 from PySide6 import QtGui
-from PySide6.QtGui import QIcon, QPixmap
+from PySide6.QtGui import QIcon, QPixmap, QPalette
 from PySide6.QtCore import Qt, Slot, QSize, QTimer, Signal
-from PySide6.QtWidgets import (QFrame, QLabel, QWidget, QSpinBox, QCheckBox, QComboBox, QGroupBox, QLineEdit, QTextEdit, QTimeEdit, QFormLayout, QGridLayout, QListWidget, QPushButton,
+from PySide6.QtWidgets import (QFrame, QApplication, QLabel, QWidget, QSpinBox, QCheckBox, QComboBox, QGroupBox, QLineEdit, QHBoxLayout, QTextEdit, QTimeEdit, QFormLayout, QGridLayout, QListWidget, QPushButton,
                                QSizePolicy, QVBoxLayout, QDateTimeEdit, QFontComboBox, QDoubleSpinBox, QStackedWidget, QListWidgetItem, QDialogButtonBox, QAbstractItemView)
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.string_helper import StringCase, StringCaseConverter
-
+from gidapptools.errors import EntryMissingError
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.application import AntistasiLogbookApplication
 from antistasi_logbook.storage.models.models import RemoteStorage
@@ -52,6 +52,11 @@ if TYPE_CHECKING:
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
+
+
+def name_to_title(name: str) -> str:
+    cleaned_name = StringCaseConverter.convert_to(name, StringCase.SPLIT)
+    return cleaned_name[0].upper() + cleaned_name[1:]
 
 
 class CategorySelectionWidget(QListWidget):
@@ -93,7 +98,8 @@ class CategoryPicture(QFrame):
         self.setup(text, picture)
 
     def setup(self, text: str, picture: QPixmap):
-        self.setLayout(QGridLayout(self))
+        self.setLayout(QVBoxLayout(self))
+        self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.setContentsMargins(0, 0, 0, 1)
         self.setFrameStyle(self.base_style)
         self.setMidLineWidth(3)
@@ -118,14 +124,14 @@ class CategoryPicture(QFrame):
         self.layout.addWidget(self.picture)
 
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:
-        self.setFrameStyle(QFrame.StyledPanel | QFrame.Plain)
+        self.setFrameStyle(QFrame.Sunken | QFrame.Panel)
         self.clicked.emit(self.category_page_number)
 
     def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:
         self.setFrameStyle(self.base_style)
 
     @property
-    def layout(self) -> QGridLayout:
+    def layout(self) -> QVBoxLayout:
         return super().layout()
 
 
@@ -134,23 +140,37 @@ class PictureCategorySelector(QGroupBox):
     def __init__(self, content_widget: QStackedWidget, parent: QStackedWidget = None, ):
         super().__init__(parent=parent)
         self.content_widget = content_widget
-        self.setLayout(QVBoxLayout(self))
-        self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        self.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+        self.setLayout(QHBoxLayout(self))
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.setAlignment(Qt.AlignCenter)
+        self.setFlat(True)
         self.setTitle("Categories")
         self.categories: dict[str, CategoryPicture] = {}
 
     @property
-    def layout(self):
+    def layout(self) -> QHBoxLayout:
         return super().layout()
 
-    def add_category(self, name: str, picture: QPixmap, category_page_number: int):
-        category = CategoryPicture(name, picture.scaled(50, 50, Qt.KeepAspectRatioByExpanding), category_page_number, self)
+    def add_category(self, name: str, picture: QPixmap, category_page_number: int, verbose_name: str = None):
+        verbose_name = verbose_name or name_to_title(name)
+        category = CategoryPicture(verbose_name, picture.scaled(60, 60, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation), category_page_number, self)
 
         self.layout.addWidget(category)
         self.categories[name] = category
 
         category.clicked.connect(self.content_widget.setCurrentIndex)
+
+    def resize_categories(self):
+        widths = []
+        heights = []
+        for category in self.categories.values():
+            widths.append(category.sizeHint().width())
+            heights.append(category.height())
+
+        max_width = max(widths)
+        max_heights = max(heights)
+        for category in self.categories.values():
+            category.resize(max_width, max_heights)
 
 
 SETTINGS_VALUE_FIELD_TYPE = Union[QTextEdit, QComboBox, QFontComboBox, QSpinBox, QCheckBox, QDoubleSpinBox, QDateTimeEdit, QTimeEdit]
@@ -158,18 +178,18 @@ SETTINGS_VALUE_FIELD_TYPE = Union[QTextEdit, QComboBox, QFontComboBox, QSpinBox,
 
 class SettingsField:
 
-    def __init__(self, name: str, value: Union[Callable, Any], value_typus) -> None:
+    def __init__(self, name: str, value: Union[Callable, Any], value_typus, verbose_name: str = None) -> None:
 
         self.key_field: QLabel = None
         self.value_field: SETTINGS_VALUE_FIELD_TYPE = None
         self.name = name
+        self.verbose_name = verbose_name or name_to_title(self.name)
         self.start_value = value() if callable(value) else value
         self.value_typus = value_typus
         self.setup()
 
     def setup(self):
-        title = StringCaseConverter.convert_to(self.name, StringCase.SPLIT)
-        self.key_field = QLabel(title[0].upper() + title[1:])
+        self.key_field = QLabel(self.verbose_name)
 
         self.value_field = self.determine_value_field()
 
@@ -192,6 +212,14 @@ class SettingsField:
 
     def get_value(self) -> Any:
         pass
+
+    def setEnabled(self, value: bool):
+        self.key_field.setEnabled(value)
+        self.value_field.setEnabled(value)
+
+    def setToolTip(self, tool_tip: str):
+        self.key_field.setToolTip(tool_tip)
+        self.value_field.setToolTip(tool_tip)
 
 
 class SettingsForm(QFrame):
@@ -218,8 +246,16 @@ class SettingsForm(QFrame):
 
         instance.setWindowTitle(section_name.title())
 
-        for key, value in data_dict.items():
-            field = SettingsField(key, value[0], value_typus=value[1])
+        for key, attributes in data_dict.items():
+            if attributes.get("gui_visible", True) is False:
+                continue
+
+            field = SettingsField(key, attributes["value"], value_typus=attributes["converter"], verbose_name=attributes.get("verbose_name", None))
+            field.setToolTip(attributes.get("SHORT_DESCRIPTION", ""))
+            if attributes.get("implemented", True) is False:
+                field.setEnabled(False)
+                field.setToolTip("NOT IMPLEMENTED")
+
             instance.add_field(field)
 
         return instance
@@ -230,6 +266,10 @@ class ContentStackedwidget(QStackedWidget):
     def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
         super().__init__(parent=parent)
         self.pages: dict[str, QWidget] = {}
+        self.setFrameShape(QFrame.WinPanel)
+        self.setFrameShadow(QFrame.Sunken)
+        self.setLineWidth(2)
+        self.setMidLineWidth(2)
 
     def addWidget(self, w: "SettingsForm") -> int:
         self.pages[w.section_name] = w
@@ -238,6 +278,7 @@ class ContentStackedwidget(QStackedWidget):
 
 class SettingsWindow(QWidget):
     window_title: str = "Settings"
+    exclude_categories: set[str] = {"logging"}
 
     def __init__(self, general_config: "GidIniConfig", main_window: "AntistasiLogbookMainWindow", parent=None) -> None:
         super().__init__(parent=parent, f=Qt.Dialog)
@@ -258,28 +299,43 @@ class SettingsWindow(QWidget):
         self.setup_buttons()
         self.setup_content_widget()
         self.setup_selection_box()
-        for cat, sub_data in self.general_config.as_dict(with_typus=True).items():
-            self.add_category(cat, sub_data, getattr(AllResourceItems, f"{cat}_settings_image").get_as_pixmap())
+
+        for section, entries in self.general_config.spec.data.items():
+            if section in self.exclude_categories:
+                continue
+            for entry_name, entry_attributes in entries.items():
+                try:
+                    entry_attributes["value"] = self.general_config.get(section, entry_name)
+                except EntryMissingError:
+                    continue
+            self.add_category(section, entries, getattr(AllResourceItems, f"{section}_settings_image").get_as_pixmap(), self.general_config.spec.get_verbose_name(section))
+
+        # for cat, sub_data in self.general_config.as_dict(with_typus=True, only_gui_visible=True).items():
+        #     if cat in self.exclude_categories:
+        #         continue
+        #     self.add_category(cat, sub_data, getattr(AllResourceItems, f"{cat}_settings_image").get_as_pixmap())
+
+        self.selection_box.resize_categories()
         return self
 
     def setup_buttons(self) -> None:
         self.buttons = QDialogButtonBox(self)
         self.buttons.setOrientation(Qt.Horizontal)
         self.buttons.setStandardButtons(QDialogButtonBox.Cancel | QDialogButtonBox.Ok)
-        self.main_layout.addWidget(self.buttons, 1, 0, 1, 2, Qt.AlignBottom)
+        self.main_layout.addWidget(self.buttons, 2, 0, 1, 1, Qt.AlignBottom)
         self.buttons.rejected.connect(self.on_cancelled)
         self.buttons.accepted.connect(self.on_accepted)
 
     def setup_content_widget(self) -> None:
         self.content_widget = ContentStackedwidget(self)
-        self.main_layout.addWidget(self.content_widget, 0, 1, 1, 1)
+        self.main_layout.addWidget(self.content_widget, 1, 0, 1, 1)
 
     def setup_selection_box(self) -> None:
         self.selection_box = PictureCategorySelector(self.content_widget)
 
-        self.main_layout.addWidget(self.selection_box, 0, 0, 4, 1, Qt.AlignTop)
+        self.main_layout.addWidget(self.selection_box, 0, 0, 1, 1, Qt.AlignTop)
 
-    def add_category(self, text: str, data_dict: Mapping[str, Any], picture: QPixmap):
+    def add_category(self, text: str, data_dict: Mapping[str, Any], picture: QPixmap, verbose_name: str = None):
         page_number = self.content_widget.addWidget(SettingsForm.from_dict(section_name=text, data_dict=data_dict, parent=self.content_widget))
         self.selection_box.add_category(text, picture, page_number)
 
@@ -312,6 +368,10 @@ class SettingsWindow(QWidget):
 
         self.general_config.config.save()
         self.general_config.config.auto_write = old_auto_write
+
+    def show(self) -> None:
+
+        return super().show()
 
 
 class CredentialsBox(QGroupBox):

@@ -26,7 +26,7 @@ from PySide6.QtWidgets import QApplication
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
 from gidapptools.gid_signal.interface import get_signal
-from gidapptools.general_helper.compress import compress_in_process
+from gidapptools.general_helper.compress import compress_file
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.records import ALL_GENERIC_RECORD_CLASSES, ALL_ANTISTASI_RECORD_CLASSES
@@ -278,7 +278,6 @@ class Backend:
         self.inserting_thread_pool.shutdown(cancel_futures=True, wait=True)
         self._thread_pool = None
         self._inserting_thread_pool = None
-        self.backup_db()
 
     def remove_and_reset_database(self) -> None:
         self.shutdown()
@@ -295,8 +294,6 @@ class Backend:
         self.record_class_manager.reset()
 
     def backup_db(self, backup_folder: Path = None):
-        if self.config.get("database", "backup_database") is False:
-            return
 
         def limit_backups(_folder: Path):
             limit_amount = self.config.get("database", "backup_limit")
@@ -310,10 +307,8 @@ class Backend:
             backup_folder = self.database.backup_folder
         backup_folder.mkdir(parents=True, exist_ok=True)
         backup_path = backup_folder.joinpath(f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{self.database.database_path.stem}_backup{self.database.database_path.suffix}")
-        process: Process = compress_in_process(source=self.database.database_path, target=backup_path)
+        compress_file(source=self.database.database_path, target=backup_path)
         limit_backups(backup_folder)
-        while process.is_alive():
-            sleep(1)
 
     def start_update_loop(self) -> "Backend":
         if self.update_manager is None:

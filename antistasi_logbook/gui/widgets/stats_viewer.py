@@ -11,7 +11,7 @@ import random
 from math import ceil
 from typing import TYPE_CHECKING, Any, Union, Iterable, Optional
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import cached_property
 from threading import RLock
 
@@ -203,7 +203,7 @@ class CrosshairDisplayBar(QStatusBar):
     @Slot(float)
     def set_x_value(self, value: float):
 
-        date_time = datetime.fromtimestamp(value)
+        date_time = datetime.utcfromtimestamp(value)
 
         text = self.app.format_datetime(date_time)
         # if len(text) < self.x_fixed_num_chars["zero_padding_to"]:
@@ -235,7 +235,7 @@ class StatsWindow(QMainWindow):
         super().__init__(parent=parent)
         self.setCentralWidget(QWidget(self))
         self.centralWidget().setLayout(QHBoxLayout())
-        self.plot_widget = pg.PlotWidget(axisItems={'bottom': pg.DateAxisItem()}, title=title)
+        self.plot_widget = pg.PlotWidget(axisItems={'bottom': pg.DateAxisItem(utcOffset=0)}, title=title)
         self.plots: dict[str, pg.PlotItem] = {}
         self.control_box = ControlBox()
         self.stat_data = sorted(stat_data, key=lambda x: x.get("timestamp"), reverse=False)
@@ -342,6 +342,7 @@ class StatsWindow(QMainWindow):
         for idx, key in enumerate(self.keys):
             data = (self.all_timestamps, [i.get(key) for i in self.stat_data])
             color = self.app.color_config.get(self.color_config_name, key.replace(" ", "_"), default=self.available_colors[idx])
+
             item = self.plot_widget.plot(*data, pen=pg.mkPen(color, width=1), antialias=False, name=key, autoDownsample=True)
             self.legend.addItem(item, key)
             self.plots[key] = item
@@ -458,6 +459,7 @@ class StatsWindow(QMainWindow):
                               text_anchor: tuple[int] = (0, 0),
                               text_angle: int = 0,
                               rotateAxis=None) -> tuple[pg.InfLineLabel, pg.InfiniteLine]:
+
         line = pg.InfiniteLine(pos=record.recorded_at.timestamp(), angle=90, pen=pg.mkPen({"color": line_color, "width": line_width}), movable=False)
 
         self.plot_widget.addItem(line)

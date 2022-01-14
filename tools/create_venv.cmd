@@ -20,7 +20,7 @@ SET PROJECT_NAME=%~1
 SET PROJECT_AUTHOR=%~2
 
 SET TOOLS_FOLDER=%~dp0
-SET WORKSPACE_FOLDER=%TOOLS_FOLDER%\..
+SET WORKSPACE_FOLDER=%TOOLS_FOLDER%..
 
 
 REM ---------------------------------------------------
@@ -68,14 +68,7 @@ ECHO -------------------------------------------- BASIC VENV SETUP -------------
 ECHO.
 
 
-ECHO ################# Removing old venv folder
-rem Icacls %WORKSPACE_FOLDER%\.venv /T /Q
-
-%TOOLS_FOLDER%\delete_venv.py
-ECHO.
-ECHO %ERRORLEVEL%
-if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
-
+CD %WORKSPACE_FOLDER%
 
 ECHO ################# pycleaning workspace
 call pyclean %WORKSPACE_FOLDER%
@@ -148,7 +141,7 @@ ECHO.
 Echo +++++++++++++++++++++++++++++ Misc Packages +++++++++++++++++++++++++++++
 ECHO.
 ECHO.
-CALL pip install --upgrade -r .\venv_setup_settings\required_misc.txt
+CALL pip install -r %TOOLS_FOLDER%\venv_setup_settings\required_misc.txt
 ECHO.
 
 
@@ -159,7 +152,7 @@ Echo +++++++++++++++++++++++++++++ Experimental Packages +++++++++++++++++++++++
 ECHO.
 
 ECHO.
-CALL pip install --upgrade -r .\venv_setup_settings\required_experimental.txt
+CALL pip install -r %TOOLS_FOLDER%\venv_setup_settings\required_experimental.txt
 ECHO.
 
 ECHO.
@@ -169,7 +162,7 @@ Echo +++++++++++++++++++++++++++++ GUI Packages +++++++++++++++++++++++++++++
 ECHO.
 
 ECHO.
-CALL pip install --upgrade -r .\venv_setup_settings\required_gui.txt
+CALL pip install -r %TOOLS_FOLDER%\venv_setup_settings\required_gui.txt
 ECHO.
 
 
@@ -178,11 +171,11 @@ ECHO.
 
 Echo +++++++++++++++++++++++++++++ Packages From Github +++++++++++++++++++++++++++++
 ECHO.
-FOR /F "tokens=1 delims=," %%A in (.\venv_setup_settings\required_from_github.txt) do (
+FOR /F "tokens=1 delims=," %%A in (%TOOLS_FOLDER%\venv_setup_settings\required_from_github.txt) do (
 ECHO.
 ECHO -------------------------- Installing %%A --------------^>
 ECHO.
-CALL pip install --upgrade git+%%A
+CALL pip install git+%%A
 ECHO.
 )
 
@@ -193,7 +186,7 @@ Echo +++++++++++++++++++++++++++++ Test Packages +++++++++++++++++++++++++++++
 ECHO.
 
 ECHO.
-CALL pip install --upgrade -r .\venv_setup_settings\required_test.txt
+CALL pip install -r %TOOLS_FOLDER%\venv_setup_settings\required_test.txt
 ECHO.
 
 
@@ -204,7 +197,7 @@ Echo +++++++++++++++++++++++++++++ Dev Packages +++++++++++++++++++++++++++++
 ECHO.
 
 ECHO.
-CALL pip install --upgrade -r .\venv_setup_settings\required_dev.txt
+CALL pip install -r %TOOLS_FOLDER%\venv_setup_settings\required_dev.txt
 ECHO.
 
 
@@ -226,29 +219,36 @@ ECHO.
 
 ECHO -------------------------------------------- POST-SETUP SCRIPTS --------------------------------------------
 ECHO.
-FOR /F "tokens=1 delims=," %%A in (.\venv_setup_settings\post_setup_scripts.txt) do (
+PUSHD %TOOLS_FOLDER%
+FOR /F "tokens=1,2 delims=," %%A in (.\venv_setup_settings\post_setup_scripts.txt) do (
 ECHO.
 ECHO -------------------------- Calling %%A --------------^>
-CALL %%A
+CALL %%A %%B
 ECHO.
 )
 ECHO.
+POPD
 
 ECHO +++++++++++++++++++++++++++++ Gid Packages +++++++++++++++++++++++++++++
 ECHO.
 ECHO.
 
-FOR /F "tokens=1,2 delims=," %%A in (.\venv_setup_settings\required_personal_packages.txt) do (
+FOR /F "tokens=1,2 delims=," %%A in (%TOOLS_FOLDER%\venv_setup_settings\required_personal_packages.txt) do (
 ECHO.
 ECHO -------------------------- Installing %%B --------------^>
 ECHO.
+echo %cd%
 PUSHD %%A
+echo %cd%
 CALL flit install -s
 POPD
 ECHO.
 )
+PUSHD %TOOLS_FOLDER%
 
 call pip list --format json | installed_packages_to_json.py
+
+POPD
 
 ECHO.
 ECHO.

@@ -311,15 +311,15 @@ class AntistasiLogbookMainWindow(QMainWindow):
             if self.config.get("database", "backup_database") is True:
                 splash.show()
             splash.setPixmap(AllResourceItems.antistasi_logbook_splash_backup_image.get_as_pixmap())
-
+            log.debug("shutting down %r", self.statusbar)
+            self.statusbar.shutdown()
             log.debug("Starting shutting down %r", self.backend)
             self.backend.shutdown()
             log.debug("Finished shutting down %r", self.backend)
             splash.close()
 
             log.debug('%r accepting event %r', self, event.type().name)
-            log.debug("shutting down %r", self.statusbar)
-            self.statusbar.shutdown()
+
             if self.update_thread is not None:
                 self.update_thread.join(10)
             self.app.closeAllWindows()

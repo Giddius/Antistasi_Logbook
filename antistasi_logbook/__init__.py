@@ -13,7 +13,7 @@ from rich.box import DOUBLE_EDGE
 from rich.text import Text
 import rich.traceback
 from pathlib import Path
-from gidapptools import get_main_logger, get_main_logger_with_file_logging, get_meta_paths
+from gidapptools import get_main_logger, get_main_logger_with_file_logging, get_meta_paths, get_meta_config
 from gidapptools.meta_data import setup_meta_data
 import antistasi_logbook.errors
 from pyqtgraph.Qt import QT_LIB
@@ -115,7 +115,9 @@ def setup():
                                             log_file_base_name=Path(__file__).resolve().parent.stem,
                                             path=Path(__file__).resolve(),
                                             extra_logger=_extra_logger,
-                                            log_folder=META_PATHS.log_dir)
+                                            log_folder=META_PATHS.log_dir,
+                                            max_func_name_length=get_meta_config().get_config("general").get("logging", "max_function_name_length", default=None),
+                                            max_module_name_length=get_meta_config().get_config("general").get("logging", "max_module_name_length", default=None))
 
     ERROR_CONSOLE = RichConsole(soft_wrap=True, record=False, width=150)
     rich.traceback.install(console=ERROR_CONSOLE, width=150)

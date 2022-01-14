@@ -22,7 +22,6 @@ mkdir %THIS_FOLDER%\..\pyinstaller_output_%_NAME%
 
 set PYTHONOPTIMIZE=1
 pyinstaller --clean --noconfirm --log-level=INFO --onefile ^
--i D:\Dropbox\hobby\Modding\Ressources\Icons\To_Sort_Icons\ico_icons\Antistasi_flag_experiment.ico ^
 -n %_NAME% ^
 --upx-dir D:\Dropbox\hobby\Modding\Ressources\python\upx\upx-3.96-win64 ^
 --upx-exclude vcruntime140.dll ^

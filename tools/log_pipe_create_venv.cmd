@@ -1,7 +1,9 @@
 @echo off
 SETLOCAL EnableDelayedExpansion
 
-:: BatchGotAdmin
+:: BatchGotAdmine
+
+
 :-------------------------------------
 REM  --> Check for permissions
 >nul 2>&1 "%SYSTEMROOT%\system32\cacls.exe" "%SYSTEMROOT%\system32\config\system"
@@ -48,7 +50,8 @@ SET PROJECT_AUTHOR=ANTISTASI_TOOLS
 rem &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 rem ++++++++++++++++++++++++++++++++++++++++++++++++
 
-create_venv.cmd %PROJECT_NAME% %PROJECT_AUTHOR% 2> "%LOG_FOLDER%\create_venv.errors" | TEE "%LOG_FOLDER%\create_venv.log"
+rem create_venv.cmd %PROJECT_NAME% %PROJECT_AUTHOR% 2> "%LOG_FOLDER%\create_venv.errors" | TEE "%LOG_FOLDER%\create_venv.log"
+create_venv.cmd %PROJECT_NAME% %PROJECT_AUTHOR% >"%LOG_FOLDER%\create_venv.log" 2>&1
 
 if %ERRORLEVEL% == 0 (
     @echo off

@@ -1,13 +1,31 @@
 {
-    "general": { "max_threads": { "converter": "integer", "default": "5" } },
+    "general": {
+        "max_threads": {
+            "converter": "integer",
+            "default": "5",
+            "verbose_name": "Maximum amount of Threads"
+        }
+    },
     "database": {
-        "database_path": { "converter": "path", "default": null },
-        "backup_database": { "converter": "boolean", "default": "False" },
+        "database_path": {
+            "converter": "path",
+            "default": null,
+            "verbose_name": "Database Path"
+        },
+        "backup_database": {
+            "converter": "boolean",
+            "default": "False",
+            "implemented": false
+        },
         "backup_limit": { "converter": "integer", "default": "0" }
     },
     "updating": {
         "updates_enabled": { "converter": "boolean", "default": "True" },
-        "update_interval": { "converter": "timedelta", "default": "5 min" },
+        "update_interval": {
+            "converter": "timedelta",
+            "default": "5 min",
+            "implemented": false
+        },
         "max_update_time_frame": {
             "converter": "timedelta",
             "default": null
@@ -24,17 +42,7 @@
         "keep_downloaded_files": { "converter": "boolean", "default": "False" },
         "chunk_size": { "converter": "file_size", "default": null }
     },
-    "webdav": {
-        "max_concurrent_connections": { "converter": "integer" },
-        "delay_between_downloads": {
-            "converter": "timedelta",
-            "default": null
-        },
-        "minimum_download_duration": {
-            "converter": "timedelta",
-            "default": null
-        }
-    },
+
     "parsing": {
         "record_insert_batch_size": {
             "converter": "integer",
@@ -50,5 +58,22 @@
     },
     "debug": {
         "dev_mode": { "converter": "boolean", "default": "False" }
+    },
+    "logging": {
+        "level": {
+            "converter": "string",
+            "default": "debug",
+            "gui_visible": false
+        },
+        "max_function_name_length": {
+            "converter": "integer",
+            "default": "25",
+            "gui_visible": false
+        },
+        "max_module_name_length": {
+            "converter": "integer",
+            "default": "25",
+            "gui_visible": false
+        }
     }
 }
