@@ -101,6 +101,7 @@ class LogbookMenuBar(BaseMenuBar):
         self.database_menu = self.add_new_menu("Database", add_before=self.help_menu.menuAction())
         self.single_update_action = self.add_new_action(self.database_menu, "Update Once")
         self.database_menu.addSeparator()
+        self.reassign_record_classes_action = self.add_new_action(self.database_menu, "Reassign Record-Classes")
 
         self.open_settings_window_action = self.add_new_action(self.settings_menu, "Open Settings")
 

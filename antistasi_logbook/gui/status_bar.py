@@ -11,14 +11,14 @@ from typing import TYPE_CHECKING
 from pathlib import Path
 from datetime import datetime, timedelta
 from threading import Thread
-
+from time import sleep
 # * Third Party Imports --------------------------------------------------------------------------------->
 from dateutil.tz import UTC
 
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
-from PySide6.QtCore import Qt, Slot, Signal, QObject
-from PySide6.QtWidgets import QLabel, QStatusBar, QProgressBar
+from PySide6.QtCore import Qt, Slot, Signal, QObject, QTimer
+from PySide6.QtWidgets import QLabel, QStatusBar, QProgressBar, QApplication
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -27,7 +27,7 @@ from gidapptools.general_helper.conversion import seconds2human
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.gui.main_window import Backend, AntistasiLogbookMainWindow
-
+    from antistasi_logbook.gui.application import AntistasiLogbookApplication
 # endregion[Imports]
 
 # region [TODO]
@@ -64,6 +64,18 @@ class FuncRunner(Thread):
     def run(self) -> None:
         self.label._refresh_text_helper()
         self.signaler.emit_finished()
+
+
+class ErrorMessageClearer(Thread):
+
+    def __init__(self, status_bar, clear_timeout) -> None:
+        super().__init__()
+        self.status_bar = status_bar
+        self.clear_timeout = clear_timeout
+
+    def run(self):
+        sleep(self.clear_timeout)
+        self.status_bar.clear_error()
 
 
 class LastUpdatedLabel(QLabel):
@@ -154,6 +166,7 @@ class LastUpdatedLabel(QLabel):
 
 
 class LogbookStatusBar(QStatusBar):
+    change_status_bar_color = Signal(str)
 
     def __init__(self, main_window: "AntistasiLogbookMainWindow") -> None:
         super().__init__(parent=main_window)
@@ -161,7 +174,12 @@ class LogbookStatusBar(QStatusBar):
         self.last_updated_label: LastUpdatedLabel = None
         self.update_running_label: QLabel = None
         self.update_progress: QProgressBar = None
+        self.timer: int = None
         self.setup()
+
+    @property
+    def app(self) -> "AntistasiLogbookApplication":
+        return QApplication.instance()
 
     @property
     def backend(self) -> "Backend":
@@ -172,6 +190,7 @@ class LogbookStatusBar(QStatusBar):
         self.update_progress = QProgressBar()
         self.insertWidget(2, self.update_progress, 2)
         self.update_progress.hide()
+        self.change_status_bar_color.connect(self.set_background_color)
 
     def setup_labels(self) -> None:
         if self.update_running_label is None:
@@ -201,6 +220,28 @@ class LogbookStatusBar(QStatusBar):
         self.update_progress.reset()
         self.update_progress.setMaximum(max_amount)
         self.update_running_label.setText(f"Updating Server {server_name.title()}")
+
+    def set_background_color(self, color: str = None):
+        if not color:
+            self.setStyleSheet("")
+        else:
+            self.setStyleSheet(f"background: {color}")
+
+    def clear_error(self, future):
+        self.change_status_bar_color.emit("")
+        self.clearMessage()
+        self.last_updated_label.setVisible(True)
+        log.debug("cleared error message")
+
+    @Slot(str)
+    def show_error(self, message: str):
+        self.last_updated_label.setVisible(False)
+        timeout = 10 * 1000
+        self.set_background_color("red")
+
+        self.showMessage(message, timeout)
+        t = self.app.gui_thread_pool.submit(sleep, timeout / 1000)
+        t.add_done_callback(self.clear_error)
 
     def increment_progress_bar(self):
         self.update_progress.setValue(self.update_progress.value() + 1)

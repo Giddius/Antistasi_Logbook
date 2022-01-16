@@ -11,9 +11,27 @@ from typing import TYPE_CHECKING, Union
 from pathlib import Path
 
 # * Qt Imports --------------------------------------------------------------------------------------->
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QMenu, QWidget, QDockWidget, QMainWindow, QApplication, QStackedWidget
+import PySide6
+from PySide6 import (QtCore, QtGui, QtWidgets, Qt3DAnimation, Qt3DCore, Qt3DExtras, Qt3DInput, Qt3DLogic, Qt3DRender, QtAxContainer, QtBluetooth,
+                     QtCharts, QtConcurrent, QtDataVisualization, QtDesigner, QtHelp, QtMultimedia, QtMultimediaWidgets, QtNetwork, QtNetworkAuth,
+                     QtOpenGL, QtOpenGLWidgets, QtPositioning, QtPrintSupport, QtQml, QtQuick, QtQuickControls2, QtQuickWidgets, QtRemoteObjects,
+                     QtScxml, QtSensors, QtSerialPort, QtSql, QtStateMachine, QtSvg, QtSvgWidgets, QtTest, QtUiTools, QtWebChannel, QtWebEngineCore,
+                     QtWebEngineQuick, QtWebEngineWidgets, QtWebSockets, QtXml)
 
+from PySide6.QtCore import (QByteArray, QCoreApplication, QDate, QDateTime, QEvent, QLocale, QMetaObject, QModelIndex, QModelRoleData, QMutex,
+                            QMutexLocker, QObject, QPoint, QRect, QRecursiveMutex, QRunnable, QSettings, QSize, QThread, QThreadPool, QTime, QUrl,
+                            QWaitCondition, Qt, QAbstractItemModel, QAbstractListModel, QAbstractTableModel, Signal, Slot)
+
+from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
+                           QKeySequence, QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform)
+
+from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QDialogButtonBox,
+                               QDockWidget, QDoubleSpinBox, QFontComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
+                               QLCDNumber, QLabel, QLayout, QLineEdit, QListView, QListWidget, QMainWindow, QMenu, QMenuBar, QMessageBox,
+                               QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
+                               QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
+                               QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
+from gidapptools import get_logger
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
@@ -37,7 +55,7 @@ if TYPE_CHECKING:
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
-
+log = get_logger(__name__)
 # endregion[Constants]
 
 
@@ -95,11 +113,11 @@ class BaseDockWidget(QDockWidget):
 
 class QueryWidget(BaseDockWidget):
 
-    def __init__(self, parent: QMainWindow, add_to_menu: QMenu = None):
-        super().__init__(parent, title="Query", start_floating=False, add_to_menu=add_to_menu)
+    def __init__(self, parent: QMainWindow, add_to_menu: QMenu = None, start_floating: bool = False):
+        self.pages: dict[str, QWidget] = {}
+        super().__init__(parent, title="Query", start_floating=start_floating, add_to_menu=add_to_menu)
         self.setWidget(QStackedWidget(self))
         self.widget.setHidden(True)
-        self.pages: dict[str, QWidget] = {}
 
     def add_page(self, widget: QWidget, name: str = None):
         if name is None:
@@ -127,6 +145,19 @@ class QueryWidget(BaseDockWidget):
     @property
     def widget(self) -> QStackedWidget:
         return super().widget()
+
+    def sizeHint(self) -> QSize:
+        base_width = 500
+        base_height = 400
+        try:
+            size = self.widget.currentWidget().sizeHint()
+            max_width = max([base_width, size.width()])
+            max_height = max([base_height, size.height()])
+        except AttributeError:
+            max_width = base_width
+            max_height = base_height
+        log.debug("Size for %r: max_width: %r, max_height:%r", self, max_width, max_width)
+        return QSize(max_width, max_height)
 
 
 # region[Main_Exec]

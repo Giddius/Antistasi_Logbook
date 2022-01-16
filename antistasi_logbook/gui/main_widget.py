@@ -135,13 +135,16 @@ class MainWidget(QWidget):
         self.main_layout.addWidget(self.info_widget, 0, 0, 1, 3)
 
     def setup_query_widget(self) -> None:
-        self.query_widget = QueryWidget(parent=self.parent(), add_to_menu=self.main_window.menubar.windows_menu)
+        self.query_widget = QueryWidget(parent=self.parent(), add_to_menu=self.main_window.menubar.windows_menu, start_floating=True)
+        main_window_size: QSize = self.main_window.size()
+        self.query_widget.move(150, main_window_size.height() // 2)
 
         self.main_window.addDockWidget(Qt.LeftDockWidgetArea, self.query_widget, Qt.Vertical)
 
     def setup_detail_widget(self) -> None:
-        self.detail_widget = BaseDockWidget(title="Details", parent=self.parent(), start_floating=False, add_to_menu=self.main_window.menubar.windows_menu)
-
+        self.detail_widget = BaseDockWidget(title="Details", parent=self.parent(), start_floating=True, add_to_menu=self.main_window.menubar.windows_menu)
+        main_window_size: QSize = self.main_window.size()
+        self.detail_widget.move(main_window_size.width() + (main_window_size.width() // 4), main_window_size.height() // 2)
         self.detail_widget.dockLocationChanged.connect(self.detail_widget_resize_on_undock)
 
         self.main_window.addDockWidget(Qt.RightDockWidgetArea, self.detail_widget, Qt.Vertical)
@@ -183,8 +186,10 @@ class MainWidget(QWidget):
         self.query_widget.setVisible(False)
 
     def on_tab_changed(self, index: int):
+
         if index == self.main_tabs_widget.indexOf(self.log_files_tab):
             if self.log_files_tab.model is None:
+
                 return
             if self.log_files_tab.model.data_tool is None:
 
@@ -193,9 +198,11 @@ class MainWidget(QWidget):
                 self.log_files_tab.model.data_tool = widget
                 widget.pages["filter"].query_filter_changed.connect(self.log_files_tab.model.on_query_filter_changed)
             self.query_widget.set_current_index(self.log_files_tab.model.data_tool)
+            self.query_widget.resize(self.query_widget.sizeHint())
 
         elif index == self.main_tabs_widget.indexOf(self.server_tab):
             if self.server_tab.model is None:
+
                 return
             if self.server_tab.model.data_tool is None:
 
@@ -204,9 +211,11 @@ class MainWidget(QWidget):
                 self.server_tab.model.data_tool = widget
                 widget.pages["filter"].query_filter_changed.connect(self.server_tab.model.on_query_filter_changed)
             self.query_widget.set_current_index(self.server_tab.model.data_tool)
+            self.query_widget.resize(self.query_widget.sizeHint())
 
         elif index == self.main_tabs_widget.indexOf(self.query_result_tab):
             if self.query_result_tab.model is None:
+                self.query_widget.resize(self.query_widget.sizeHint())
                 return
             if self.query_result_tab.model.data_tool is None:
                 widget = LogRecordDataToolWidget()
@@ -218,6 +227,8 @@ class MainWidget(QWidget):
 
                 widget.pages["filter"].query_filter_changed.connect(self.query_result_tab.model.on_query_filter_changed)
             self.query_widget.set_current_index(self.query_result_tab.model.data_tool)
+            self.query_widget.resize(self.query_widget.sizeHint())
+        self.query_widget.resize(self.query_widget.sizeHint())
 
     def setup_views(self) -> None:
         server_model = ServerModel().get_content()

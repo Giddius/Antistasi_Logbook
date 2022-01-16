@@ -8,7 +8,7 @@ Soon.
 # region [Imports]
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QColor, QCloseEvent
-from PySide6.QtCore import Qt, Slot, Signal, QSettings, QByteArray
+from PySide6.QtCore import Qt, Slot, Signal, QObject, QSettings, QByteArray
 from PySide6.QtWidgets import QWidget, QMenuBar, QGridLayout, QHeaderView, QMainWindow, QMessageBox, QPushButton, QSizePolicy, QSplashScreen, QDialog
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
@@ -49,6 +49,7 @@ from antistasi_logbook.gui.models.antistasi_function_model import AntistasiFunct
 from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 from gidapptools.gidapptools_qt.widgets.app_log_viewer import AppLogViewer
+from antistasi_logbook.errors import ExceptionHandlerManager
 setup()
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
@@ -79,11 +80,16 @@ META_INFO = get_meta_info()
 # endregion[Constants]
 
 
+class ErrorSignaler(QObject):
+    show_error_signal = Signal(str)
+
+
 class AntistasiLogbookMainWindow(QMainWindow):
     update_started = Signal()
     update_finished = Signal()
 
     def __init__(self, app: "AntistasiLogbookApplication", config: "GidIniConfig") -> None:
+        ExceptionHandlerManager.signaler = ErrorSignaler()
         self.config = config
         self.app = app
         self.main_widget: MainWidget = None
@@ -147,6 +153,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
         self.setup_backend()
         self.setup_statusbar()
+        ExceptionHandlerManager.signaler.show_error_signal.connect(self.statusbar.show_error)
         self.backend.updater.signaler.update_started.connect(self.statusbar.switch_labels)
         self.backend.updater.signaler.update_finished.connect(self.statusbar.switch_labels)
 
@@ -378,7 +385,7 @@ def start_gui():
 if __name__ == '__main__':
 
     import dotenv
-    dotenv.load_dotenv(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\antistasi_logbook\nextcloud.env")
+    # dotenv.load_dotenv(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\antistasi_logbook\nextcloud.env")
     start_gui()
 
 

@@ -14,11 +14,12 @@ from typing import TYPE_CHECKING, Callable, Optional
 from pathlib import Path
 from datetime import timezone
 from gidapptools import get_logger
+from webdav4.client import ResourceNotFound, HTTPError
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.storage.models.models import RemoteStorage
     from antistasi_logbook.utilities.date_time_utilities import DatetimeDuration
-
+    from PySide6.QtWidgets import QStatusBar
 # endregion[Imports]
 
 # region [TODO]
@@ -93,24 +94,49 @@ class DefaultExceptionHandler:
         raise exception
 
     def handle_thread_except_hook(self, args: threading.ExceptHookArgs):
+        log.error(args.exc_value)
         original_threading_except_hook(args)
 
     def handle_except_hook(self, type_, value, traceback):
+        log.error(value)
         sys.__excepthook__(type_=type_, value=value, traceback=traceback)
 
 
 class MissingLoginAndPasswordHandler(DefaultExceptionHandler):
 
     def handle_thread_except_hook(self, args: threading.ExceptHookArgs):
-        log.error("Handling %r with value %r and traceback %r", args.exc_type, args.exc_value, args.exc_traceback)
+        if self.manager.signaler:
+            self.manager.signaler.show_error_signal.emit("Unable to login to Remote-Storage! Did you set the Credentials?")
+        self.manager.default_exception_handler.handle_thread_except_hook(args)
+
+
+class ResourceNotFoundHandler(DefaultExceptionHandler):
+
+    def handle_thread_except_hook(self, args: threading.ExceptHookArgs):
+        if self.manager.signaler:
+            self.manager.signaler.show_error_signal.emit(str(args.exc_value).split(":")[-1])
+        self.manager.default_exception_handler.handle_thread_except_hook(args)
+
+
+class HTTPErrorHandler(DefaultExceptionHandler):
+
+    def handle_thread_except_hook(self, args: threading.ExceptHookArgs):
+        if self.manager.signaler:
+            text = str(args.exc_value)
+            if "Unauthorized" in str(args.exc_value):
+                text = "Unable to login to Remote-Storage! Did you set the Credentials?"
+            self.manager.signaler.show_error_signal.emit(text)
         self.manager.default_exception_handler.handle_thread_except_hook(args)
 
 
 class _ExceptionHandlerManager:
 
     def __init__(self) -> None:
+        self.signaler = None
         self.default_exception_handler = DefaultExceptionHandler(self)
-        self.exception_handler_registry: dict[type[BaseException]:Optional[EXCEPTION_HANDLER_TYPE]] = {MissingLoginAndPasswordError: MissingLoginAndPasswordHandler(self)}
+        self.exception_handler_registry: dict[type[BaseException]:Optional[EXCEPTION_HANDLER_TYPE]] = {MissingLoginAndPasswordError: MissingLoginAndPasswordHandler(self),
+                                                                                                       ResourceNotFound: ResourceNotFoundHandler(self),
+                                                                                                       HTTPError: HTTPErrorHandler(self)}
 
     def register_handler(self, exception_class: type[BaseException], handler: EXCEPTION_HANDLER_TYPE) -> None:
         self.exception_handler_registry[exception_class] = handler
