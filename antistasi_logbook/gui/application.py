@@ -123,11 +123,7 @@ class AntistasiLogbookApplication(QApplication):
         self.setOrganizationName(self.meta_info.pretty_app_author)
         self.setOrganizationDomain(str(self.meta_info.url))
 
-        font: QFont = self.font()
-        font.setFamily("Roboto Medium")
-        font.setPointSize(10)
-
-        self.setFont(font)
+        self.setup_app_font()
         self.is_setup = True
 
     @ classmethod
@@ -137,6 +133,21 @@ class AntistasiLogbookApplication(QApplication):
         # cls.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.Round)
         QGuiApplication.setDesktopSettingsAware(True)
         return cls(argvs=argvs)
+
+    def setup_app_font(self):
+        font: QFont = self.font()
+
+        font_family = "Roboto"
+        font_size = 11
+        font_weight = QFont.Medium
+        font.setFamily(font_family)
+        font.setPointSize(font_size)
+        # font.setWeight(font_weight)
+        font.setStyleStrategy(QFont.PreferAntialias)
+        font.setHintingPreference(QFont.PreferNoHinting)
+
+        log.debug(QFontDatabase.smoothSizes("Roboto", ""))
+        self.setFont(font)
 
     @property
     def config(self) -> "GidIniConfig":
@@ -150,7 +161,7 @@ class AntistasiLogbookApplication(QApplication):
     def format_datetime(self, date_time: datetime) -> str:
         if self.config.get("time", "use_local_timezone", default=False) is True:
             date_time = date_time.astimezone(tz=self.meta_info.local_tz)
-        time_format = self.config.get("time", "time_format", default='%Y-%m-%d %H:%M:%S.%f')
+        time_format = self.config.get("time", "time_format", default='c')
         if time_format == "iso":
             return date_time.isoformat()
         if time_format == "local":

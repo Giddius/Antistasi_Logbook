@@ -107,7 +107,7 @@ class ServerModel(BaseQueryDataModel):
         item, column = self.get(index)
         if item is None or column is None:
             return
-        update_enabled_text = f"Enable Updates for {item}" if item.update_enabled is False else f"Disable Updates for {item}"
+        update_enabled_text = f"Enable Updates for {item}" if item.update_enabled is False else f"Disable Updates for {item.pretty_name}"
         update_enabled_action = ModelContextMenuAction(item, column, index, text=update_enabled_text, parent=menu)
         update_enabled_action.clicked.connect(self.change_update_enabled)
         menu.add_action(update_enabled_action, "Edit")

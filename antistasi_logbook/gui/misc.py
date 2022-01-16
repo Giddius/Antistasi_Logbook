@@ -39,8 +39,7 @@ class UserRole(Enum):
 
 @unique
 class CustomRole(int, UserRole):
-    UPDATE_ENABLED_ROLE = auto()
-    MARKED_ROLE = auto()
+    STD_COPY_DATA = auto()
 
 
 class UpdaterSignaler(QObject):

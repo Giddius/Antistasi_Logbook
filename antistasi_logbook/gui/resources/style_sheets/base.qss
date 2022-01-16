@@ -2,6 +2,7 @@
 __TAGS__: DEFAULT, BASIC
 */
 
+
 *[display_only="true"] {
     border: 2px solid black;
     border-radius: 2px;

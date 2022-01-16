@@ -165,12 +165,22 @@ class MainWidget(QWidget):
         self.main_tabs_widget.addTab(self.log_files_tab, self.log_files_tab.icon, self.log_files_tab.name)
 
         self.query_result_tab = LogRecordsQueryView().setup()
+        self.query_result_tab.about_to_screenshot.connect(self.hide_dock_widgets)
+        self.query_result_tab.screenshot_finished.connect(self.unhide_dock_widgets)
 
         # self.query_result_tab.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.main_tabs_widget.addTab(self.query_result_tab, self.query_result_tab.icon, "Log-Records")
 
         self.main_layout.addWidget(self.main_tabs_widget, 1, 1, 4, 3)
         self.main_tabs_widget.currentChanged.connect(self.on_tab_changed)
+
+    def unhide_dock_widgets(self):
+        self.detail_widget.setVisible(True)
+        self.query_widget.setVisible(True)
+
+    def hide_dock_widgets(self):
+        self.detail_widget.setVisible(False)
+        self.query_widget.setVisible(False)
 
     def on_tab_changed(self, index: int):
         if index == self.main_tabs_widget.indexOf(self.log_files_tab):
@@ -213,12 +223,12 @@ class MainWidget(QWidget):
         server_model = ServerModel().get_content()
 
         self.server_tab.setModel(server_model)
-        self.server_tab.clicked.connect(self.show_server_detail)
+        self.server_tab.single_item_selected.connect(self.show_server_detail)
         self.on_tab_changed(0)
         log_file_model = LogFilesModel().get_content()
 
         self.log_files_tab.setModel(log_file_model)
-        self.log_files_tab.clicked.connect(self.show_log_file_detail)
+        self.log_files_tab.single_item_selected.connect(self.show_log_file_detail)
 
     def show_server_detail(self, index):
         item = self.server_tab.model.content_items[index.row()]
@@ -245,6 +255,7 @@ class MainWidget(QWidget):
 
     def show_log_record_detail(self, index):
         item = self.query_result_tab.model.content_items[index.row()]
+
         view = LogRecordDetailView(record=item, parent=self.detail_widget)
         self.detail_widget.setWidget(view)
         view.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
@@ -268,7 +279,7 @@ class MainWidget(QWidget):
 
         self.query_result_tab.setModel(log_record_model)
         self.main_tabs_widget.setCurrentWidget(self.query_result_tab)
-        self.query_result_tab.clicked.connect(self.show_log_record_detail)
+        self.query_result_tab.single_item_selected.connect(self.show_log_record_detail)
 
 
 # region[Main_Exec]

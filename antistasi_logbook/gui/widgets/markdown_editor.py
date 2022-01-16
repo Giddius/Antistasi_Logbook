@@ -12,9 +12,9 @@ from pathlib import Path
 
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
-from PySide6.QtGui import QFont, QTextDocument
-from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtWidgets import QDialog, QWidget, QSpinBox, QGroupBox, QLineEdit, QTextEdit, QFormLayout, QGridLayout, QHBoxLayout, QPushButton, QVBoxLayout, QTextBrowser, QDialogButtonBox
+from PySide6.QtGui import QFont, QTextDocument, QBrush, QColor
+from PySide6.QtCore import Qt, QTimer, Signal, QItemSelectionModel
+from PySide6.QtWidgets import QDialog, QWidget, QSpinBox, QGroupBox, QListWidgetItem, QLineEdit, QComboBox, QAbstractItemView, QListWidget, QTextEdit, QFormLayout, QGridLayout, QHBoxLayout, QPushButton, QVBoxLayout, QTextBrowser, QDialogButtonBox
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -43,6 +43,80 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 
 # endregion[Constants]
+
+
+class AddListDialog(QDialog):
+    list_accepted = Signal(str)
+
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent=parent)
+
+        self.setLayout(QFormLayout())
+        self.select_list_type_input = QComboBox(self)
+        self.select_list_type_input.addItems(["Unordered", "Ordered"])
+        self.layout.addRow("List type", self.select_list_type_input)
+
+        self.list_input = QListWidget(self)
+
+        self.list_input.setEditTriggers(QAbstractItemView.AllEditTriggers)
+        self.list_input.setSelectionMode(QListWidget.SingleSelection)
+
+        self.layout.addRow("List", self.list_input)
+
+        self.buttons = QDialogButtonBox(QDialogButtonBox.Cancel | QDialogButtonBox.Ok, Qt.Horizontal)
+        self.buttons.setCenterButtons(True)
+        self.buttons.rejected.connect(self.on_cancelled)
+        self.buttons.accepted.connect(self.on_accepted)
+        self.layout.addWidget(self.buttons)
+
+        self.add_item_button = QPushButton("Add List-Item")
+        self.add_item_button.pressed.connect(self.add_list_item)
+        self.layout.addWidget(self.add_item_button)
+
+    def add_list_item(self):
+        item = QListWidgetItem()
+
+        self.list_input.insertItem(self.list_input.count(), item)
+        item.setFlags(item.flags() | Qt.ItemIsEditable)
+        self.list_input.setCurrentItem(item, QItemSelectionModel.Select)
+
+    def color_list_input(self, clear: bool = True):
+        if clear is False:
+            self.list_input.setStyleSheet("background-color: rgba(179, 58, 58,200)")
+        else:
+            self.list_input.setStyleSheet("")
+
+    def get_text(self) -> str:
+
+        list_strings = []
+        for row in range(self.list_input.count()):
+            item = self.list_input.item(row)
+            if item.text():
+                list_strings.append(item.text())
+        list_type = self.select_list_type_input.currentText()
+        if list_type == "Unordered":
+            return '\n' + '\n'.join(f"* {i}" for i in list_strings) + '\n'
+
+        _out = '\n'
+        for idx, string in enumerate(list_strings):
+            _out += f'{idx+1}. {string}\n'
+        return _out
+
+    def on_cancelled(self):
+        self.close()
+
+    def on_accepted(self):
+        if self.list_input.count() == 0:
+            self.color_list_input(False)
+            self._single_shot_timer = QTimer.singleShot(1 * 1000, self.color_list_input)
+            return
+        text = self.get_text()
+        self.list_accepted.emit(text)
+        self.close()
+
+    @property
+    def layout(self) -> QFormLayout:
+        return super().layout()
 
 
 class AddTitleDialog(QDialog):
@@ -196,6 +270,10 @@ class MarkdownEditor(QWidget):
         add_link_button.pressed.connect(self.add_link)
         self.input_extras["add_link"] = add_link_button
 
+        add_list_button = QPushButton("add List")
+        add_list_button.pressed.connect(self.add_list)
+        self.input_extras["add_list"] = add_list_button
+
         for widget in self.input_extras.values():
             self.input_extras_box.layout().addWidget(widget)
 
@@ -243,6 +321,11 @@ class MarkdownEditor(QWidget):
     def add_link(self):
         self.temp_dialog = AddLinkDialog(self)
         self.temp_dialog.link_accepted.connect(self.input_widget.insertPlainText)
+        self.temp_dialog.show()
+
+    def add_list(self):
+        self.temp_dialog = AddListDialog(self)
+        self.temp_dialog.list_accepted.connect(self.input_widget.insertPlainText)
         self.temp_dialog.show()
 
     @property

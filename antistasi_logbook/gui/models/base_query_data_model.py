@@ -210,20 +210,20 @@ class BaseQueryDataModel(QAbstractTableModel):
         if item is None or column is None:
             return
         if self.db_model.has_column_named("marked"):
-            mark_text = f"Mark {item}" if item.marked is False else f"Unmark {item}"
+            mark_text = f"Mark {item.pretty_name}" if item.marked is False else f"Unmark {item.pretty_name}"
             mark_action = ModelContextMenuAction(item, column, index, text=mark_text)
             mark_action.clicked.connect(self.mark_item)
 
             menu.add_action(mark_action, "edit")
 
         if self.db_model.has_column_named("comments"):
-            edit_comments_action = ModelContextMenuAction(item, column, index, text="Edit Comments")
+            edit_comments_action = ModelContextMenuAction(item, column, index, text=f"Edit Comments for {item.pretty_name}")
             edit_comments_action.clicked.connect(self.edit_comments)
 
             menu.add_action(edit_comments_action, "edit")
 
         if hasattr(self.db_model, "background_color"):
-            change_color_action = ModelContextMenuAction(item, column, index, text=f"change Color of {item.name!r}", parent=menu)
+            change_color_action = ModelContextMenuAction(item, column, index, text=f"change Color of {item.pretty_name}", parent=menu)
             change_color_action.clicked.connect(self.change_color)
             menu.add_action(change_color_action, "Edit")
 

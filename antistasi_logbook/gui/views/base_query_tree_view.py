@@ -13,7 +13,7 @@ from pathlib import Path
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
 from PySide6.QtGui import QIcon, QAction
-from PySide6.QtCore import Qt, Slot, QPoint, Signal
+from PySide6.QtCore import Qt, Slot, QPoint, Signal, QItemSelection, QModelIndex, QSettings, QByteArray
 from PySide6.QtWidgets import QMenu, QTreeView, QScrollBar, QHeaderView, QApplication, QAbstractItemView
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
@@ -92,14 +92,16 @@ class CustomContextMenu(QMenu):
 
 class BaseQueryTreeView(QTreeView):
     initially_hidden_columns: set[str] = set()
+    single_item_selected = Signal(QModelIndex)
+    multiple_items_selected = Signal(list)
 
-    def __init__(self, name: str, icon: QIcon = None) -> None:
+    def __init__(self, name: str, icon: QIcon = None, parent=None) -> None:
+        super().__init__(parent=parent)
         self.icon = icon
 
         self.name = "" if name is None else name
         if self.icon is None:
             self.icon = getattr(AllResourceItems, f"{self.name.casefold().replace('-','_').replace(' ','_').replace('.','_')}_tab_icon_image").get_as_icon()
-        super().__init__()
 
     @property
     def app(self) -> "AntistasiLogbookApplication":
@@ -133,7 +135,10 @@ class BaseQueryTreeView(QTreeView):
         self.header_view.setSortIndicatorClearable(True)
 
         self.setUniformRowHeights(True)
+        self.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.setup_scrollbars()
+        self.setFont(self.app.font())
         self.extra_setup()
         return self
 
@@ -157,12 +162,30 @@ class BaseQueryTreeView(QTreeView):
         log.debug("actions of menu %r : %r", menu, menu.actions())
         menu.exec_(self.mapToGlobal(pos))
 
+    def get_hidden_header_names(self) -> set[str]:
+        settings = QSettings()
+        hidden_header = settings.value(f"{self.name}_hidden_headers", set())
+        return hidden_header
+
+    def set_hidden_header_names(self):
+        hidden_section_names = []
+        for column in self.model.columns:
+            index = self.model.get_column_index(column.name)
+            if index is not None:
+                if self.header_view.isSectionHidden(index) is True:
+                    hidden_section_names.append(column.name)
+        settings = QSettings()
+        settings.setValue(f"{self.name}_hidden_headers", set(hidden_section_names))
+
     def setup_headers(self):
         for column_name in self.initially_hidden_columns:
             index = self.model.get_column_index(column_name)
             if index is not None:
                 self.header_view.hideSection(index)
-
+        for column_name in self.get_hidden_header_names():
+            index = self.model.get_column_index(column_name)
+            if index is not None:
+                self.header_view.hideSection(index)
         self.header_view.setContextMenuPolicy(Qt.CustomContextMenu)
         self.header_view.customContextMenuRequested.connect(self.handle_header_custom_context_menu)
 
@@ -214,6 +237,7 @@ class BaseQueryTreeView(QTreeView):
         else:
             log.debug("setting section %r with idx %r to hidden", self.model.columns[section], section)
             self.header_view.setSectionHidden(section, True)
+        self.set_hidden_header_names()
 
     def extra_setup(self):
         pass
@@ -252,6 +276,27 @@ class BaseQueryTreeView(QTreeView):
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(name={self.name!r})"
+
+    def selectionChanged(self, selected: QItemSelection, deselected: QItemSelection) -> None:
+
+        current_selection = self.selectionModel().selectedRows()
+        amount_selection = len(current_selection)
+
+        if amount_selection == 0:
+
+            return
+
+        if amount_selection == 1:
+
+            self.single_item_selected.emit(current_selection[-1])
+
+        else:
+
+            indexes = current_selection
+
+            self.single_item_selected.emit(current_selection[-1])
+            self.multiple_items_selected.emit(list(indexes))
+        super().selectionChanged(selected, deselected)
 
 
 class LogFilesQueryTreeView(BaseQueryTreeView):

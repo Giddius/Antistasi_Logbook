@@ -29,7 +29,7 @@ from antistasi_logbook.records.enums import MessageFormat
 from antistasi_logbook.storage.models.models import LogRecord, RecordClass
 from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel, ModelContextMenuAction
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-
+from antistasi_logbook.gui.misc import CustomRole
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.records.base_record import BaseRecord
@@ -78,7 +78,7 @@ class LogRecordsModel(BaseQueryDataModel):
 
     def __init__(self, parent=None) -> None:
         super().__init__(LogRecord, parent=parent)
-        self.data_role_table = self.data_role_table | {Qt.BackgroundRole: self._get_background_data, Qt.FontRole: self._get_font_data}
+        self.data_role_table = self.data_role_table | {Qt.BackgroundRole: self._get_background_data, Qt.FontRole: self._get_font_data, CustomRole.STD_COPY_DATA: self._get_std_copy_data}
         self._base_filter_item = (LogRecord.record_class != RecordClass.get(name="PerfProfilingRecord")) & (LogRecord.record_class != RecordClass.get(name="PerformanceRecord"))
         self.ordered_by = (LogRecord.start, LogRecord.recorded_at)
 
@@ -107,16 +107,15 @@ class LogRecordsModel(BaseQueryDataModel):
             reset_all_colors_action.triggered.connect(item.reset_colors)
             menu.add_action(reset_all_colors_action, "debug")
 
-        menu.add_menu("Copy as")
-        copy_action = ModelContextMenuAction(item=item, column=column, index=index, text="Copy", parent=menu)
-        copy_action.clicked.connect(self.on_copy)
-        menu.add_action(copy_action)
-
     @Slot(object, object, QModelIndex)
     def on_copy(self, item: "BaseRecord", column: Field, index: QModelIndex):
         text = item.get_formated_message(msg_format=MessageFormat.ORIGINAL)
         clipboard = self.app.clipboard()
         clipboard.setText(text)
+
+    def _get_std_copy_data(self, index: "INDEX_TYPE"):
+        item, column = self.get(index)
+        return item.get_formated_message(msg_format=MessageFormat.ORIGINAL)
 
     @profile
     def _get_display_data(self, index: "INDEX_TYPE") -> Any:

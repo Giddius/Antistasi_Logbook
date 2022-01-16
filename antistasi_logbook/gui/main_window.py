@@ -9,7 +9,7 @@ Soon.
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QColor, QCloseEvent
 from PySide6.QtCore import Qt, Slot, Signal, QSettings, QByteArray
-from PySide6.QtWidgets import QWidget, QMenuBar, QGridLayout, QHeaderView, QMainWindow, QMessageBox, QPushButton, QSizePolicy, QSplashScreen
+from PySide6.QtWidgets import QWidget, QMenuBar, QGridLayout, QHeaderView, QMainWindow, QMessageBox, QPushButton, QSizePolicy, QSplashScreen, QDialog
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import sys
@@ -48,7 +48,7 @@ from antistasi_logbook.gui.models.remote_storages_model import RemoteStoragesMod
 from antistasi_logbook.gui.models.antistasi_function_model import AntistasiFunctionModel
 from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-
+from gidapptools.gidapptools_qt.widgets.app_log_viewer import AppLogViewer
 setup()
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
@@ -130,11 +130,12 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.setWindowTitle(self.title)
 
         self.set_menubar(LogbookMenuBar(self))
-        self.menubar.folder_action.triggered.connect(self.show_folder_window)
+        self.menubar.show_folder_action.triggered.connect(self.show_folder_window)
         self.menubar.open_credentials_managment_action.triggered.connect(self.show_credentials_managment_window)
 
         self.setWindowIcon(self.app.icon)
-        geometry = settings.value('geometry', QByteArray())
+        settings = QSettings()
+        geometry = settings.value('main_window_geometry', QByteArray())
         if geometry.size():
             self.restoreGeometry(geometry)
         else:
@@ -159,6 +160,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.menubar.open_settings_window_action.triggered.connect(self.open_settings_window)
 
         self.menubar.data_menu_actions_group.triggered.connect(self.show_secondary_model_data)
+        self.menubar.show_app_log_action.triggered.connect(self.show_app_log_window)
         self.development_setup()
 
     def development_setup(self):
@@ -187,17 +189,15 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
         self.debug_dock_widget.add_show_attr_button(attr_name="colorNames", obj=QColor)
 
-        self.shutdown_backend_backend_button = QPushButton("Shutdown Backend")
-        self.shutdown_backend_backend_button.pressed.connect(self.shutdown_backend)
-        self.debug_dock_widget.add_widget("Shutdown Backend", "database", self.shutdown_backend_backend_button)
+    def show_app_log_window(self):
 
-        self.delete_db_button = QPushButton("Delete DB")
-        self.delete_db_button.pressed.connect(self.delete_db)
-        self.debug_dock_widget.add_widget("Delete DB", "database", self.delete_db_button)
-
-        self.start_backend_button = QPushButton("Start Backend")
-        self.start_backend_button.pressed.connect(self.start_backend)
-        self.debug_dock_widget.add_widget("Start Backend", "database", self.start_backend_button)
+        log_folder = Path(self.app.meta_paths.log_dir)
+        try:
+            log_file = sorted([p for p in log_folder.iterdir() if p.is_file() and p.suffix == ".log"], key=lambda x: x.stat().st_ctime, reverse=True)[0]
+            self.temp_add_log_window = AppLogViewer(log_file=log_file).setup()
+            self.temp_add_log_window.show()
+        except IndexError:
+            QMessageBox.warning(self, "Error", f"Unable to retrieve the Application Log File from Folder {log_folder.as_posix()!r}")
 
     def setup_backend(self) -> None:
         self.menubar.single_update_action.triggered.connect(self._single_update)
@@ -271,10 +271,15 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.secondary_model_data_window.show()
 
     def show_folder_window(self):
-        self._temp_folder_window = DataView(title="Folder")
-        self._temp_folder_window.add_row("Database", self.backend.database.database_path)
-        self._temp_folder_window.add_row("Config", self.config.config.file_path)
-        self._temp_folder_window.add_row("Log", self.app.meta_paths.log_dir)
+        self._temp_folder_window = DataView()
+        self._temp_folder_window.setWindowTitle("Folder")
+        self._temp_folder_window.setFixedWidth(1000)
+        self._temp_folder_window.setWindowIcon(AllResourceItems.folder_settings_image.get_as_icon())
+        self._temp_folder_window.add_row("Database", self.backend.database.database_path.resolve())
+        self._temp_folder_window.add_row("Config", self.config.config.file_path.resolve())
+        self._temp_folder_window.add_row("Log", self.app.meta_paths.log_dir.resolve())
+        self._temp_folder_window.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self._temp_folder_window.setFixedHeight(self.sizeHint().height())
         self._temp_folder_window.show()
 
     def _single_update(self) -> None:
@@ -287,7 +292,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
                 self.update_finished.emit()
                 self.menubar.single_update_action.setEnabled(True)
 
-        self.update_thread = Thread(target=_run_update)
+        self.update_thread = Thread(target=_run_update, name="run_update_qThread")
         self.update_thread.start()
 
     def close(self) -> bool:
@@ -305,8 +310,8 @@ class AntistasiLogbookMainWindow(QMainWindow):
                 pass
             log.info("closing %r", self)
             splash = QSplashScreen(AllResourceItems.app_icon_image.get_as_pixmap(), Qt.WindowStaysOnTopHint)
-            settings = QSettings(f"{META_INFO.app_name}_settings", "main_window")
-            settings.setValue('geometry', self.saveGeometry())
+            settings = QSettings()
+            settings.setValue('main_window_geometry', self.saveGeometry())
             self.setVisible(False)
             if self.config.get("database", "backup_database") is True:
                 splash.show()

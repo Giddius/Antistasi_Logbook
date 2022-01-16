@@ -122,6 +122,10 @@ class BaseModel(Model):
             _out = _out[:-3]
         return _out
 
+    @property
+    def pretty_name(self) -> str:
+        return str(self)
+
     def __str__(self) -> str:
         if hasattr(self, "name"):
             return str(self.name)

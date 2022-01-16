@@ -213,6 +213,10 @@ class BaseRecord(AbstractRecord):
             return self.__class__
         raise AttributeError(f"{self!r} does not have an attribute {name!r}")
 
+    @property
+    def pretty_name(self) -> str:
+        return str(self)
+
     def __str__(self) -> str:
         return f"{self.origin}-Record at {self.pretty_recorded_at}"
 

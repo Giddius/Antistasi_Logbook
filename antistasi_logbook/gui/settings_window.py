@@ -251,7 +251,7 @@ class SettingsForm(QFrame):
                 continue
 
             field = SettingsField(key, attributes["value"], value_typus=attributes["converter"], verbose_name=attributes.get("verbose_name", None))
-            field.setToolTip(attributes.get("SHORT_DESCRIPTION", ""))
+            field.setToolTip(attributes.get("short_description", ""))
             if attributes.get("implemented", True) is False:
                 field.setEnabled(False)
                 field.setToolTip("NOT IMPLEMENTED")
@@ -317,6 +317,10 @@ class SettingsWindow(QWidget):
 
         self.selection_box.resize_categories()
         return self
+
+    @property
+    def app(self) -> "AntistasiLogbookApplication":
+        return AntistasiLogbookApplication.instance()
 
     def setup_buttons(self) -> None:
         self.buttons = QDialogButtonBox(self)
