@@ -81,7 +81,7 @@ mkdir %WORKSPACE_FOLDER%\.venv
 ECHO.
 
 ECHO ################# Calling venv module to initialize new venv
-python -m venv --upgrade-deps --clear %WORKSPACE_FOLDER%\.venv
+python -m venv --clear %WORKSPACE_FOLDER%\.venv
 ECHO.
 
 ECHO ################# activating venv for package installation

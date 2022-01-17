@@ -13,13 +13,18 @@ import threading
 from typing import TYPE_CHECKING, Callable, Optional
 from pathlib import Path
 from datetime import timezone
+
+# * Third Party Imports --------------------------------------------------------------------------------->
+from webdav4.client import HTTPError, ResourceNotFound
+
+# * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
-from webdav4.client import ResourceNotFound, HTTPError
+
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.storage.models.models import RemoteStorage
     from antistasi_logbook.utilities.date_time_utilities import DatetimeDuration
-    from PySide6.QtWidgets import QStatusBar
+
 # endregion[Imports]
 
 # region [TODO]
@@ -91,14 +96,15 @@ class DefaultExceptionHandler:
         self.manager = manager
 
     def handle_exception(self, exception: BaseException):
+        log.error(exception, exc_info=True)
         raise exception
 
     def handle_thread_except_hook(self, args: threading.ExceptHookArgs):
-        log.error(args.exc_value)
+        log.error(args.exc_value, exc_info=True)
         original_threading_except_hook(args)
 
     def handle_except_hook(self, type_, value, traceback):
-        log.error(value)
+        log.error(value, exc_info=True)
         sys.__excepthook__(type_=type_, value=value, traceback=traceback)
 
 
@@ -114,7 +120,7 @@ class ResourceNotFoundHandler(DefaultExceptionHandler):
 
     def handle_thread_except_hook(self, args: threading.ExceptHookArgs):
         if self.manager.signaler:
-            self.manager.signaler.show_error_signal.emit(str(args.exc_value).split(":")[-1])
+            self.manager.signaler.show_error_signal.emit(str(args.exc_value).rsplit(":", 1)[-1])
         self.manager.default_exception_handler.handle_thread_except_hook(args)
 
 

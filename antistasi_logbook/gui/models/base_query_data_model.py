@@ -223,7 +223,7 @@ class BaseQueryDataModel(QAbstractTableModel):
             menu.add_action(edit_comments_action, "edit")
 
         if hasattr(self.db_model, "background_color"):
-            change_color_action = ModelContextMenuAction(item, column, index, text=f"change Color of {item.pretty_name}", parent=menu)
+            change_color_action = ModelContextMenuAction(item, column, index, text=f"Change Color of {item.pretty_name}", parent=menu)
             change_color_action.clicked.connect(self.change_color)
             menu.add_action(change_color_action, "Edit")
 

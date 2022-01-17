@@ -1,0 +1,44 @@
+[
+    {
+        "text": "Create release-task that auto-updates `INCLUDED_APSW_ENVIRONMENTS`, or find a way to parse the file names (unlikely, can't find UNIX format)",
+        "identifier": "TODO",
+        "line_number": 25,
+        "file_path": "antistasi_logbook/__init__.py"
+    },
+    {
+        "text": "create own library for somthing like that and replace 'pynotifier', because it emit deprecation warnings from wintypes",
+        "identifier": "TODO",
+        "line_number": 31,
+        "file_path": "antistasi_logbook/__init__.py"
+    },
+    {
+        "text": "Create general functions/classes for something like that in 'gidapptools'",
+        "identifier": "TODO",
+        "line_number": 42,
+        "file_path": "antistasi_logbook/__init__.py"
+    },
+    {
+        "text": "Change the selection widget into a QListwidget in Iconmode",
+        "identifier": "TODO",
+        "line_number": 42,
+        "file_path": "antistasi_logbook/gui/settings_window.py"
+    },
+    {
+        "text": "Refractor this Monster!",
+        "identifier": "TODO",
+        "line_number": 189,
+        "file_path": "antistasi_logbook/parsing/parsing_context.py"
+    },
+    {
+        "text": "make generic regarding record_classes selection",
+        "identifier": "TODO",
+        "line_number": 108,
+        "file_path": "antistasi_logbook/records/record_class_manager.py"
+    },
+    {
+        "text": "add custom error",
+        "identifier": "TODO",
+        "line_number": 80,
+        "file_path": "antistasi_logbook/utilities/path_utilities.py"
+    }
+]

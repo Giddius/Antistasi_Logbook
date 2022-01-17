@@ -12,9 +12,10 @@ from pathlib import Path
 
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
-from PySide6.QtGui import QFont, QTextDocument, QBrush, QColor
+from PySide6.QtGui import QFont, QTextDocument
 from PySide6.QtCore import Qt, QTimer, Signal, QItemSelectionModel
-from PySide6.QtWidgets import QDialog, QWidget, QSpinBox, QGroupBox, QListWidgetItem, QLineEdit, QComboBox, QAbstractItemView, QListWidget, QTextEdit, QFormLayout, QGridLayout, QHBoxLayout, QPushButton, QVBoxLayout, QTextBrowser, QDialogButtonBox
+from PySide6.QtWidgets import (QDialog, QWidget, QSpinBox, QComboBox, QGroupBox, QLineEdit, QTextEdit, QFormLayout, QGridLayout, QHBoxLayout,
+                               QListWidget, QPushButton, QVBoxLayout, QTextBrowser, QListWidgetItem, QDialogButtonBox, QAbstractItemView)
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger

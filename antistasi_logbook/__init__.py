@@ -1,6 +1,6 @@
 """Antistasi Logbook"""
 
-__version__ = '0.3.4'
+__version__ = '0.3.5'
 
 import os
 import atexit
@@ -120,7 +120,7 @@ def setup():
                                             max_module_name_length=get_meta_config().get_config("general").get("logging", "max_module_name_length", default=None))
 
     ERROR_CONSOLE = RichConsole(soft_wrap=True, record=False, width=150)
-    rich.traceback.install(console=ERROR_CONSOLE, width=150)
+    # rich.traceback.install(console=ERROR_CONSOLE, width=150)
     IS_SETUP = True
 
 

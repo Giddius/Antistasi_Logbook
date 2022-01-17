@@ -36,6 +36,7 @@ if TYPE_CHECKING:
 
     from antistasi_logbook.parsing.record_processor import RecordInserter, RecordProcessor
     from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
+
 # endregion[Imports]
 
 # region [TODO]

@@ -13,7 +13,7 @@ from pathlib import Path
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
 from PySide6.QtGui import QIcon, QAction
-from PySide6.QtCore import Qt, Slot, QPoint, Signal, QItemSelection, QModelIndex, QSettings, QByteArray
+from PySide6.QtCore import Qt, Slot, QPoint, Signal, QSettings, QModelIndex, QItemSelection
 from PySide6.QtWidgets import QMenu, QTreeView, QScrollBar, QHeaderView, QApplication, QAbstractItemView
 
 # * Gid Imports ----------------------------------------------------------------------------------------->

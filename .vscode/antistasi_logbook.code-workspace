@@ -168,6 +168,38 @@
                     "showReuseMessage": true,
                     "clear": true
                 }
+            },
+            {
+                "label": "build onefile",
+                "type": "shell",
+                "command": "${config:python.defaultInterpreterPath} -m invoke build-onefile",
+                "options": {
+                    "cwd": "${workspaceFolder}"
+                },
+                "presentation": {
+                    "echo": true,
+                    "reveal": "always",
+                    "focus": false,
+                    "panel": "shared",
+                    "showReuseMessage": true,
+                    "clear": true
+                }
+            },
+            {
+                "label": "build onedir",
+                "type": "shell",
+                "command": "${config:python.defaultInterpreterPath} -m invoke build-onedir",
+                "options": {
+                    "cwd": "${workspaceFolder}"
+                },
+                "presentation": {
+                    "echo": true,
+                    "reveal": "always",
+                    "focus": false,
+                    "panel": "shared",
+                    "showReuseMessage": true,
+                    "clear": true
+                }
             }
         ]
     },

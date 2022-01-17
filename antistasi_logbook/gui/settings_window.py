@@ -13,15 +13,16 @@ from pathlib import Path
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
 from PySide6 import QtGui
-from PySide6.QtGui import QIcon, QPixmap, QPalette
+from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtCore import Qt, Slot, QSize, QTimer, Signal
-from PySide6.QtWidgets import (QFrame, QApplication, QLabel, QWidget, QSpinBox, QCheckBox, QComboBox, QGroupBox, QLineEdit, QHBoxLayout, QTextEdit, QTimeEdit, QFormLayout, QGridLayout, QListWidget, QPushButton,
-                               QSizePolicy, QVBoxLayout, QDateTimeEdit, QFontComboBox, QDoubleSpinBox, QStackedWidget, QListWidgetItem, QDialogButtonBox, QAbstractItemView)
+from PySide6.QtWidgets import (QFrame, QLabel, QWidget, QSpinBox, QCheckBox, QComboBox, QGroupBox, QLineEdit, QTextEdit, QTimeEdit, QFormLayout, QGridLayout, QHBoxLayout, QListWidget,
+                               QPushButton, QSizePolicy, QVBoxLayout, QDateTimeEdit, QFontComboBox, QDoubleSpinBox, QStackedWidget, QListWidgetItem, QDialogButtonBox, QAbstractItemView)
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
-from gidapptools.general_helper.string_helper import StringCase, StringCaseConverter
 from gidapptools.errors import EntryMissingError
+from gidapptools.general_helper.string_helper import StringCase, StringCaseConverter
+
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.application import AntistasiLogbookApplication
 from antistasi_logbook.storage.models.models import RemoteStorage
@@ -249,14 +250,17 @@ class SettingsForm(QFrame):
         for key, attributes in data_dict.items():
             if attributes.get("gui_visible", True) is False:
                 continue
+            try:
 
-            field = SettingsField(key, attributes["value"], value_typus=attributes["converter"], verbose_name=attributes.get("verbose_name", None))
-            field.setToolTip(attributes.get("short_description", ""))
-            if attributes.get("implemented", True) is False:
-                field.setEnabled(False)
-                field.setToolTip("NOT IMPLEMENTED")
+                field = SettingsField(key, attributes["value"], value_typus=attributes["converter"], verbose_name=attributes.get("verbose_name", None))
+                field.setToolTip(attributes.get("short_description", ""))
+                if attributes.get("implemented", True) is False:
+                    field.setEnabled(False)
+                    field.setToolTip("NOT IMPLEMENTED")
 
-            instance.add_field(field)
+                instance.add_field(field)
+            except KeyError as e:
+                log.warning("KeyError for %r and attributes %r", key, attributes)
 
         return instance
 
@@ -307,7 +311,7 @@ class SettingsWindow(QWidget):
                 try:
                     entry_attributes["value"] = self.general_config.get(section, entry_name)
                 except EntryMissingError:
-                    continue
+                    entry_attributes["value"] = None
             self.add_category(section, entries, getattr(AllResourceItems, f"{section}_settings_image").get_as_pixmap(), self.general_config.spec.get_verbose_name(section))
 
         # for cat, sub_data in self.general_config.as_dict(with_typus=True, only_gui_visible=True).items():

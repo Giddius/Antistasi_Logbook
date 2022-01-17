@@ -11,7 +11,7 @@ import random
 from math import ceil
 from typing import TYPE_CHECKING, Any, Union, Iterable, Optional
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import datetime
 from functools import cached_property
 from threading import RLock
 

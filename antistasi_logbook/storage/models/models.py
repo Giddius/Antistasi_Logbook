@@ -47,11 +47,12 @@ setup()
 # * Gid Imports ----------------------------------------------------------------------------------------->
 
 if TYPE_CHECKING:
-    from antistasi_logbook.updating.remote_managers import AbstractRemoteStorageManager, InfoItem
     from gidapptools.gid_config.meta_factory import GidIniConfig
-    from antistasi_logbook.records.record_class_manager import RECORD_CLASS_TYPE, RecordClassManager
+
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
     from antistasi_logbook.parsing.raw_record import RawRecord
+    from antistasi_logbook.updating.remote_managers import InfoItem, AbstractRemoteStorageManager
+    from antistasi_logbook.records.record_class_manager import RECORD_CLASS_TYPE, RecordClassManager
 
 
 get_dummy_profile_decorator_in_globals()

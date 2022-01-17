@@ -7,18 +7,19 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
+from time import sleep
 from typing import TYPE_CHECKING
 from pathlib import Path
 from datetime import datetime, timedelta
 from threading import Thread
-from time import sleep
+
 # * Third Party Imports --------------------------------------------------------------------------------->
 from dateutil.tz import UTC
 
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
-from PySide6.QtCore import Qt, Slot, Signal, QObject, QTimer
-from PySide6.QtWidgets import QLabel, QStatusBar, QProgressBar, QApplication
+from PySide6.QtCore import Qt, Slot, Signal, QObject
+from PySide6.QtWidgets import QLabel, QStatusBar, QApplication, QProgressBar
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -26,8 +27,9 @@ from gidapptools.general_helper.conversion import seconds2human
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-    from antistasi_logbook.gui.main_window import Backend, AntistasiLogbookMainWindow
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
+    from antistasi_logbook.gui.main_window import Backend, AntistasiLogbookMainWindow
+
 # endregion[Imports]
 
 # region [TODO]

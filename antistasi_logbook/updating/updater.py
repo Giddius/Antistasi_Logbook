@@ -280,7 +280,9 @@ class Updater:
             task = self.database.record_inserter.many_update_record_class(list(to_update))
             tasks.append(task)
             to_update.clear()
+
         wait(tasks, return_when=ALL_COMPLETED)
+        log.info("finished updating record classes")
 
     def before_updates(self):
         log.debug("emiting before_updates_signal")

@@ -6,10 +6,6 @@ Soon.
 """
 
 # region [Imports]
-# * Qt Imports --------------------------------------------------------------------------------------->
-from PySide6.QtGui import QColor, QCloseEvent
-from PySide6.QtCore import Qt, Slot, Signal, QObject, QSettings, QByteArray
-from PySide6.QtWidgets import QWidget, QMenuBar, QGridLayout, QHeaderView, QMainWindow, QMessageBox, QPushButton, QSizePolicy, QSplashScreen, QDialog
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import sys
@@ -18,15 +14,21 @@ from pathlib import Path
 from threading import Thread
 
 # * Third Party Imports --------------------------------------------------------------------------------->
+
+
+# * Qt Imports --------------------------------------------------------------------------------------->
+from PySide6.QtGui import QColor, QCloseEvent
+from PySide6.QtCore import Qt, Slot, Signal, QObject, QSettings, QByteArray
+from PySide6.QtWidgets import QWidget, QMenuBar, QGridLayout, QHeaderView, QMainWindow, QMessageBox, QSizePolicy, QSplashScreen
 import qt_material
-
-
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
 from gidapptools.general_helper.string_helper import StringCaseConverter
+from gidapptools.gidapptools_qt.widgets.app_log_viewer import AppLogViewer
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook import setup
+from antistasi_logbook.errors import ExceptionHandlerManager
 from antistasi_logbook.backend import Backend, GidSqliteApswDatabase
 from antistasi_logbook.gui.misc import UpdaterSignaler
 from antistasi_logbook.gui.models import LogLevelsModel, RecordOriginsModel
@@ -48,8 +50,7 @@ from antistasi_logbook.gui.models.remote_storages_model import RemoteStoragesMod
 from antistasi_logbook.gui.models.antistasi_function_model import AntistasiFunctionModel
 from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-from gidapptools.gidapptools_qt.widgets.app_log_viewer import AppLogViewer
-from antistasi_logbook.errors import ExceptionHandlerManager
+
 setup()
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
@@ -208,6 +209,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
     def setup_backend(self) -> None:
         self.menubar.single_update_action.triggered.connect(self._single_update)
+        self.menubar.reassign_record_classes_action.triggered.connect(self._reassing_record_classes)
 
     def setup_statusbar(self) -> None:
         self.statusbar = LogbookStatusBar(self)
@@ -289,6 +291,21 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self._temp_folder_window.setFixedHeight(self.sizeHint().height())
         self._temp_folder_window.show()
 
+    def _reassing_record_classes(self):
+        def _run_reassingment():
+            self.menubar.single_update_action.setEnabled(False)
+            self.menubar.reassign_record_classes_action.setEnabled(False)
+            self.update_started.emit()
+            try:
+                self.backend.updater.update_record_classes(force=True)
+            finally:
+                self.update_finished.emit()
+                self.menubar.single_update_action.setEnabled(True)
+                self.menubar.reassign_record_classes_action.setEnabled(True)
+
+        self.update_thread = Thread(target=_run_reassingment, name="run_reassignment_Thread")
+        self.update_thread.start()
+
     def _single_update(self) -> None:
         def _run_update():
             self.menubar.single_update_action.setEnabled(False)
@@ -299,7 +316,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
                 self.update_finished.emit()
                 self.menubar.single_update_action.setEnabled(True)
 
-        self.update_thread = Thread(target=_run_update, name="run_update_qThread")
+        self.update_thread = Thread(target=_run_update, name="run_update_Thread")
         self.update_thread.start()
 
     def close(self) -> bool:
@@ -384,7 +401,7 @@ def start_gui():
 # region[Main_Exec]
 if __name__ == '__main__':
 
-    import dotenv
+    pass
     # dotenv.load_dotenv(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\antistasi_logbook\nextcloud.env")
     start_gui()
 

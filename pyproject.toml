@@ -17,7 +17,6 @@ dependencies = [
     "certifi==2021.10.8",
     "cffi==1.15.0",
     "charset-normalizer==2.0.10",
-    "click==8.0.3",
     "colorama==0.4.4",
     "colorhash==1.0.4",
     "commonmark==0.9.1",
@@ -25,7 +24,7 @@ dependencies = [
     "cycler==0.11.0",
     "filelock==3.4.2",
     "fonttools==4.28.5",
-    "gidapptools==0.1.16",
+    "gidapptools==0.1.17",
     "h11==0.12.0",
     "httpcore==0.13.7",
     "httpx==0.20.0",
@@ -124,8 +123,8 @@ lines_after_imports = 1
 sections = [
     "FUTURE",
     "STDLIB",
-    "THIRDPARTY",
     "QT",
+    "THIRDPARTY",
     "GID",
     "FIRSTPARTY",
     "LOCALFOLDER",
@@ -142,3 +141,12 @@ remove_all_unused_imports = true
 remove_duplicate_keys = false
 remove_unused_variables = false
 ignore_init_module_imports = false
+
+[tool.gid_tasks.imports_cleaner]
+exclude_globs = [
+    "**/sqf_syntax_data.py",
+    "**/antistasi_logbook_resources.py",
+    "**/antistasi_logbook_resources_accessor.py"
+]
+exclude_init_files = true
+ignore_missing_import_section = true

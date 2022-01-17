@@ -25,11 +25,12 @@ from gidapptools import get_logger
 from gidapptools.general_helper.color.color_item import Color
 
 # * Local Imports --------------------------------------------------------------------------------------->
+from antistasi_logbook.gui.misc import CustomRole
 from antistasi_logbook.records.enums import MessageFormat
 from antistasi_logbook.storage.models.models import LogRecord, RecordClass
-from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel, ModelContextMenuAction
+from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-from antistasi_logbook.gui.misc import CustomRole
+
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.records.base_record import BaseRecord
