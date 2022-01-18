@@ -506,6 +506,43 @@ class SelectReinfUnitsRecord(BaseAntistasiRecord):
 
 
 ALL_ANTISTASI_RECORD_CLASSES.add(SelectReinfUnitsRecord)
+
+
+class ChangingSidesRecord(BaseAntistasiRecord):
+    ___specificity___ = 30
+    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
+    parse_regex = re.compile(r"Changing side of (?P<location>[\w\d]+) to (?P<side>\w+)")
+    __slots__ = tuple(BASE_SLOTS + ["location_name", "side"])
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.location_name: str = None
+        self.side: str = None
+        self.parse_it()
+
+    def get_background_color(self):
+        return Color.get_color_by_name("Moccasin").with_alpha(0.5).qcolor
+
+    def parse_it(self):
+        if match := self.parse_regex.search(self.message):
+            self.location_name = match.group("location")
+            self.side = match.group("side")
+        else:
+            log.critical(self.message)
+
+    @classmethod
+    @profile
+    def check(cls, log_record: "LogRecord") -> bool:
+        logged_from = log_record.logged_from
+
+        if logged_from is None:
+            return
+        if logged_from.name in {"markerChange"} and log_record.message.strip().startswith("Changing side of"):
+            return True
+        return False
+
+
+ALL_ANTISTASI_RECORD_CLASSES.add(ChangingSidesRecord)
 # region[Main_Exec]
 
 

@@ -8,6 +8,7 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
+from antistasi_logbook import stream_capturer
 import sys
 from typing import TYPE_CHECKING
 from pathlib import Path
@@ -50,7 +51,7 @@ from antistasi_logbook.gui.models.remote_storages_model import RemoteStoragesMod
 from antistasi_logbook.gui.models.antistasi_function_model import AntistasiFunctionModel
 from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-
+from gidapptools.gidapptools_qt.widgets.std_stream_widget import StdStreamWidget
 setup()
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
@@ -77,6 +78,7 @@ log = get_logger(__name__)
 META_CONFIG = get_meta_config()
 META_PATHS = get_meta_paths()
 META_INFO = get_meta_info()
+
 
 # endregion[Constants]
 
@@ -169,7 +171,13 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
         self.menubar.data_menu_actions_group.triggered.connect(self.show_secondary_model_data)
         self.menubar.show_app_log_action.triggered.connect(self.show_app_log_window)
+        self.menubar.show_errors_action.triggered.connect(self.show_errors_window)
+
         self.development_setup()
+
+    def show_errors_window(self):
+        self.errors_window = StdStreamWidget(stream_capturer=stream_capturer).setup()
+        self.errors_window.show()
 
     def development_setup(self):
         if self.app.is_dev is False:

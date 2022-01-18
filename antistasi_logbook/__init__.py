@@ -13,11 +13,11 @@ from rich.box import DOUBLE_EDGE
 from rich.text import Text
 import rich.traceback
 from pathlib import Path
-from gidapptools import get_main_logger, get_main_logger_with_file_logging, get_meta_paths, get_meta_config
+from gidapptools import setup_main_logger, setup_main_logger_with_file_logging, get_meta_paths, get_meta_config
 from gidapptools.meta_data import setup_meta_data
 import antistasi_logbook.errors
 from pyqtgraph.Qt import QT_LIB
-
+from gidapptools.gidapptools_qt.widgets.std_stream_widget import BaseStdStreamCapturer, LimitedStdStreamCapturer
 import sys
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
@@ -99,6 +99,10 @@ os.environ["PYTHONDEVMODE"] = "1"
 _extra_logger = []
 
 IS_SETUP: bool = False
+original_stderr = sys.stderr
+stream_capturer = LimitedStdStreamCapturer()
+stream_capturer.original_stream = original_stderr
+sys.stderr = stream_capturer
 
 
 def setup():
@@ -111,13 +115,15 @@ def setup():
                     file_changed_parameter="changed_time")
     META_PATHS = get_meta_paths()
     # log = get_main_logger("__main__", Path(__file__).resolve(), extra_logger=_extra_logger)
-    log = get_main_logger_with_file_logging("__main__",
-                                            log_file_base_name=Path(__file__).resolve().parent.stem,
-                                            path=Path(__file__).resolve(),
-                                            extra_logger=_extra_logger,
-                                            log_folder=META_PATHS.log_dir,
-                                            max_func_name_length=get_meta_config().get_config("general").get("logging", "max_function_name_length", default=None),
-                                            max_module_name_length=get_meta_config().get_config("general").get("logging", "max_module_name_length", default=None))
+
+    log = setup_main_logger_with_file_logging("__main__",
+                                              log_file_base_name=Path(__file__).resolve().parent.stem,
+                                              path=Path(__file__).resolve(),
+                                              extra_logger=_extra_logger,
+                                              log_folder=META_PATHS.log_dir,
+                                              max_func_name_length=get_meta_config().get_config("general").get("logging", "max_function_name_length", default=None),
+                                              max_module_name_length=get_meta_config().get_config("general").get("logging", "max_module_name_length", default=None),
+                                              stream=sys.stdout)
 
     ERROR_CONSOLE = RichConsole(soft_wrap=True, record=False, width=150)
     # rich.traceback.install(console=ERROR_CONSOLE, width=150)

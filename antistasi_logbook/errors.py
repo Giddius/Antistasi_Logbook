@@ -96,16 +96,16 @@ class DefaultExceptionHandler:
         self.manager = manager
 
     def handle_exception(self, exception: BaseException):
-        log.error(exception, exc_info=True)
+        # log.error(exception, exc_info=True, stacklevel=3)
         raise exception
 
     def handle_thread_except_hook(self, args: threading.ExceptHookArgs):
-        log.error(args.exc_value, exc_info=True)
+        # log.error(args.exc_value, exc_info=True, stacklevel=3)
         original_threading_except_hook(args)
 
     def handle_except_hook(self, type_, value, traceback):
-        log.error(value, exc_info=True)
-        sys.__excepthook__(type_=type_, value=value, traceback=traceback)
+        # log.error(value, exc_info=True, stacklevel=3)
+        sys.__excepthook__(type_, value, traceback)
 
 
 class MissingLoginAndPasswordHandler(DefaultExceptionHandler):
