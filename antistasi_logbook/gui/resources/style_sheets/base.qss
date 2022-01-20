@@ -8,3 +8,12 @@ __TAGS__: DEFAULT, BASIC
     background-color: red;
     text-decoration: underline;
     font_size: 15px}
+
+
+
+QLCDNumber{
+  background-color: rgba(200, 200, 200,150);
+  border: 2px solid rgb(0,0,0);
+  color: blue;
+
+}

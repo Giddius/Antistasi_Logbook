@@ -346,6 +346,7 @@ class LogFile(BaseModel):
     server = ForeignKeyField(column_name='server', field='id', model=Server, lazy_load=True, backref="log_files", index=True, verbose_name="Server")
     unparsable = BooleanField(default=False, index=True, verbose_name="Unparsable")
     last_parsed_datetime = AwareTimeStampField(null=True, utc=True, verbose_name="Last Parsed Datetime")
+    max_mem = IntegerField(verbose_name="Max Memory", null=True)
     comments = CommentsField()
     marked = MarkedField()
 

@@ -139,10 +139,10 @@ class AntistasiLogbookApplication(QApplication):
 
         font_family = "Roboto"
         font_size = 11
-        font_weight = QFont.Medium
+        # font_weight = QFont.Medium
         font.setFamily(font_family)
         font.setPointSize(font_size)
-        font.setWeight(font_weight)
+        # font.setWeight(font_weight)
         font.setStyleStrategy(QFont.PreferAntialias)
         font.setHintingPreference(QFont.PreferNoHinting)
 

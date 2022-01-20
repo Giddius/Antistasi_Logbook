@@ -133,7 +133,6 @@ class AntistasiLogbookMainWindow(QMainWindow):
             data = styleSheet
         self.app.setStyleSheet(data)
 
-    @profile
     def setup(self) -> None:
         qt_material.add_fonts()
         self.set_app_style_sheet(self.current_app_style_sheet)
@@ -180,19 +179,16 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
         self.development_setup()
 
-    @profile
     def show_error_dialog(self, text: str, exception: BaseException):
         QMessageBox.critical(None, "Error", text)
 
         if isinstance(exception, MissingLoginAndPasswordError):
             self.show_credentials_managment_window()
 
-    @profile
     def show_errors_window(self):
         self.errors_window = StdStreamWidget(stream_capturer=stream_capturer).setup()
         self.errors_window.show()
 
-    @profile
     def development_setup(self):
         if self.app.is_dev is False:
             return
@@ -218,9 +214,6 @@ class AntistasiLogbookMainWindow(QMainWindow):
             self.debug_dock_widget.add_show_attr_button(attr_name=attr_name, obj=self.app)
 
         self.debug_dock_widget.add_show_attr_button(attr_name="colorNames", obj=QColor)
-        check_call_tree_button = QPushButton("Check Call-Tree")
-        check_call_tree_button.pressed.connect(self.do_the_call_tree)
-        self.debug_dock_widget.add_widget("check call tree", "call_tree", check_call_tree_button)
 
     def do_the_call_tree(self):
         c = CallTree(self.backend.database.get_log_files(ordered_by=LogFile.size)[-1])
@@ -237,32 +230,26 @@ class AntistasiLogbookMainWindow(QMainWindow):
         except IndexError:
             QMessageBox.warning(self, "Error", f"Unable to retrieve the Application Log File from Folder {log_folder.as_posix()!r}")
 
-    @profile
     def setup_backend(self) -> None:
         self.menubar.single_update_action.triggered.connect(self._single_update)
         self.menubar.reassign_record_classes_action.triggered.connect(self._reassing_record_classes)
 
-    @profile
     def setup_statusbar(self) -> None:
         self.statusbar = LogbookStatusBar(self)
         self.setStatusBar(self.statusbar)
 
-    @profile
     def set_menubar(self, menubar: QMenuBar) -> None:
         self.menubar = menubar
         self.setMenuBar(menubar)
 
-    @profile
     def set_main_widget(self, main_widget: QWidget) -> None:
         self.main_widget = main_widget
         self.setCentralWidget(main_widget)
 
-    @profile
     def shutdown_backend(self):
         self.statusbar.shutdown()
         self.backend.shutdown()
 
-    @profile
     def delete_db(self):
         path = self.backend.database.database_path
         log.debug("deleting DB at %r", path.as_posix())
@@ -273,7 +260,6 @@ class AntistasiLogbookMainWindow(QMainWindow):
             log.error(e, True)
             log.critical("Unable to delete DB at %r", path.as_posix())
 
-    @profile
     def start_backend(self):
         config = META_CONFIG.get_config('general')
         db_path = config.get('database', "database_path", default=THIS_FILE_DIR.parent.joinpath("storage"))
@@ -284,7 +270,6 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.app.backend = backend
         self.statusbar.setup()
 
-    @profile
     def show_secondary_model_data(self, db_model: "BaseModel"):
         models = {"AntstasiFunction": AntistasiFunctionModel,
                   "GameMap": GameMapModel,
@@ -317,7 +302,6 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.secondary_model_data_window.resize(width, height)
         self.secondary_model_data_window.show()
 
-    @profile
     def show_folder_window(self):
         self._temp_folder_window = DataView()
         self._temp_folder_window.setWindowTitle("Folder")
@@ -330,9 +314,9 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self._temp_folder_window.setFixedHeight(self.sizeHint().height())
         self._temp_folder_window.show()
 
-    @profile
     def _reassing_record_classes(self):
         def _run_reassingment():
+            self.statusbar.last_updated_label.shutdown()
             self.menubar.single_update_action.setEnabled(False)
             self.menubar.reassign_record_classes_action.setEnabled(False)
             self.update_started.emit()
@@ -342,13 +326,15 @@ class AntistasiLogbookMainWindow(QMainWindow):
                 self.update_finished.emit()
                 self.menubar.single_update_action.setEnabled(True)
                 self.menubar.reassign_record_classes_action.setEnabled(True)
+                self.backend.database.close()
+                self.statusbar.last_updated_label.start()
 
         self.update_thread = Thread(target=_run_reassingment, name="run_reassignment_Thread")
         self.update_thread.start()
 
-    @profile
     def _single_update(self) -> None:
         def _run_update():
+            self.statusbar.last_updated_label.shutdown()
             self.menubar.single_update_action.setEnabled(False)
             self.update_started.emit()
             try:
@@ -356,16 +342,16 @@ class AntistasiLogbookMainWindow(QMainWindow):
             finally:
                 self.update_finished.emit()
                 self.menubar.single_update_action.setEnabled(True)
-
+                self.backend.database.close()
+                self.statusbar.last_updated_label.start()
         self.update_thread = Thread(target=_run_update, name="run_update_Thread")
+
         self.update_thread.start()
 
-    @profile
     def close(self) -> bool:
         log.debug("%r executing 'close'", self)
         return super().close()
 
-    @profile
     def closeEvent(self, event: QCloseEvent):
 
         reply = QMessageBox.question(self, 'Message', 'Are you sure you want to quit?', QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
@@ -405,7 +391,6 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self._temp_settings_window = SettingsWindow(general_config=self.config, main_window=self).setup()
         self._temp_settings_window.show()
 
-    @profile
     def show_credentials_managment_window(self):
         self._temp_credentials_managment_window = CredentialsManagmentWindow()
         self._temp_credentials_managment_window.show()

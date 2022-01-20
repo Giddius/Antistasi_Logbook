@@ -60,7 +60,7 @@ class PerfProfilingRecord(BaseRecord):
     __slots__ = tuple(BASE_SLOTS)
 
     @classmethod
-    @profile
+    
     def check(cls, log_record: "LogRecord") -> bool:
         if log_record.message.strip().startswith("[ASU] Perf-profiling"):
             return True
@@ -104,7 +104,7 @@ class TFEInfoSettings(BaseRecord):
         return super().get_formated_message(msg_format=msg_format)
 
     @classmethod
-    @profile
+    
     def check(cls, log_record: "LogRecord") -> bool:
         if log_record.message.startswith("[TFE] Info: Settings:"):
             return True

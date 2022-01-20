@@ -168,12 +168,10 @@ class BaseRecord(AbstractRecord):
             return LogRecord.get_by_id(self.record_id)
 
     @classmethod
-    @profile
     def check(cls, log_record: "LogRecord") -> bool:
         return True
 
     @classmethod
-    @profile
     def from_db_item(cls, item: "LogRecord") -> "BaseRecord":
         return cls(record_id=item.id,
                    log_file=item.log_file,
@@ -188,7 +186,6 @@ class BaseRecord(AbstractRecord):
                    logged_from=item.logged_from)
 
     @classmethod
-    @profile
     def from_model_dict(cls, model_dict: dict[str, Any], log_file: "LogFile" = None) -> "BaseRecord":
 
         if log_file is not None:

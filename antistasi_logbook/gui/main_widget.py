@@ -137,7 +137,7 @@ class MainWidget(QWidget):
     def setup_detail_widget(self) -> None:
         self.detail_widget = BaseDockWidget(title="Details", parent=self.parent(), start_floating=True, add_to_menu=self.main_window.menubar.windows_menu)
         main_window_size: QSize = self.main_window.size()
-        self.detail_widget.move(main_window_size.width() + (main_window_size.width() // 4), main_window_size.height() // 2)
+        self.detail_widget.move(main_window_size.width() + (main_window_size.width() // 8), main_window_size.height() // 2)
         self.detail_widget.dockLocationChanged.connect(self.detail_widget_resize_on_undock)
 
         self.main_window.addDockWidget(Qt.RightDockWidgetArea, self.detail_widget, Qt.Vertical)

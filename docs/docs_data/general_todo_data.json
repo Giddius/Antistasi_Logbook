@@ -1,1 +1,7 @@
-[]
+[
+    {
+        "identifier": "TODO",
+        "category": "refactoring",
+        "text": "simplify and check each piece of code that is threading related!"
+    }
+]

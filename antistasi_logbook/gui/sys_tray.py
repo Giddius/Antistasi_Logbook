@@ -46,7 +46,7 @@ log = get_logger(__name__)
 
 
 class LogbookSystemTray(QSystemTrayIcon):
-    @profile
+    
     def __init__(self, main_window: "AntistasiLogbookMainWindow", app: "AntistasiLogbookApplication") -> None:
         self.main_window = main_window
         self.app = app
@@ -57,11 +57,11 @@ class LogbookSystemTray(QSystemTrayIcon):
         super().__init__(self.tray_icon, self.main_window)
         self.setup()
 
-    @profile
+    
     def setup(self) -> None:
         self.setup_menu()
 
-    @profile
+    
     def setup_menu(self) -> None:
         self.menu = QMenu(self.main_window)
         self.menu.setStyleSheet("border: 1px solid black;background-color: white;margin: 4px")
@@ -72,7 +72,7 @@ class LogbookSystemTray(QSystemTrayIcon):
         self.close_action = self.add_action("Close", connect_to=self.main_window.close, icon=AllResourceItems.close_cancel_image.get_as_icon())
         self.setContextMenu(self.menu)
 
-    @profile
+    
     def add_menu_title(self) -> None:
         widget_action = QWidgetAction(self.menu)
         self.menu_title = QLabel(self.main_window.name)
@@ -82,7 +82,7 @@ class LogbookSystemTray(QSystemTrayIcon):
         widget_action.setDefaultWidget(self.menu_title)
         self.menu.addAction(widget_action)
 
-    @profile
+    
     def add_action(self, title: str, connect_to: Callable = None, icon: QIcon = None, enabled: bool = True) -> QAction:
         action = QAction(title)
 
@@ -96,7 +96,7 @@ class LogbookSystemTray(QSystemTrayIcon):
         action.setEnabled(enabled)
         return action
 
-    @profile
+    
     def switch_main_window_visible(self):
         main_window_visible = self.main_window.isVisible()
 
@@ -108,7 +108,7 @@ class LogbookSystemTray(QSystemTrayIcon):
         self.hide_show_action.setText(text)
         self.hide_show_action.setIcon(icon)
 
-    @profile
+    
     def send_update_finished_message(self):
 
         self.showMessage("Update finished!", "The Database is now up to date!", QSystemTrayIcon.MessageIcon.Information, 15 * 1000)

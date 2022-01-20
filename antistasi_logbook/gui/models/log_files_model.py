@@ -15,9 +15,27 @@ from datetime import datetime
 from peewee import JOIN, Field, Query
 
 # * Qt Imports --------------------------------------------------------------------------------------->
-from PySide6 import QtCore
-from PySide6.QtGui import Qt
-from PySide6.QtCore import Qt
+import PySide6
+from PySide6 import (QtCore, QtGui, QtWidgets, Qt3DAnimation, Qt3DCore, Qt3DExtras, Qt3DInput, Qt3DLogic, Qt3DRender, QtAxContainer, QtBluetooth,
+                     QtCharts, QtConcurrent, QtDataVisualization, QtDesigner, QtHelp, QtMultimedia, QtMultimediaWidgets, QtNetwork, QtNetworkAuth,
+                     QtOpenGL, QtOpenGLWidgets, QtPositioning, QtPrintSupport, QtQml, QtQuick, QtQuickControls2, QtQuickWidgets, QtRemoteObjects,
+                     QtScxml, QtSensors, QtSerialPort, QtSql, QtStateMachine, QtSvg, QtSvgWidgets, QtTest, QtUiTools, QtWebChannel, QtWebEngineCore,
+                     QtWebEngineQuick, QtWebEngineWidgets, QtWebSockets, QtXml)
+
+from PySide6.QtCore import (QByteArray, QCoreApplication, QDate, QDateTime, QEvent, QLocale, QMetaObject, QModelIndex, QModelRoleData, QMutex,
+                            QMutexLocker, QObject, QPoint, QRect, QRecursiveMutex, QRunnable, QSettings, QSize, QThread, QThreadPool, QTime, QUrl,
+                            QWaitCondition, Qt, QAbstractItemModel, QAbstractListModel, QAbstractTableModel, Signal, Slot)
+
+from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
+                           QKeySequence, QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform)
+
+from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QDialogButtonBox,
+                               QDockWidget, QDoubleSpinBox, QFontComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
+                               QLCDNumber, QLabel, QLayout, QLineEdit, QListView, QListWidget, QMainWindow, QMenu, QMenuBar, QMessageBox,
+                               QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
+                               QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
+                               QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
+
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -25,12 +43,12 @@ from gidapptools import get_logger
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.storage.models.models import Server, GameMap, LogFile
 from antistasi_logbook.storage.models.custom_fields import FakeField
-from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE, BaseQueryDataModel
+from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE, BaseQueryDataModel, ModelContextMenuAction
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.storage.models.models import BaseModel
-
+    from antistasi_logbook.gui.views.base_query_tree_view import CustomContextMenu
 # endregion[Imports]
 
 # region [TODO]
@@ -55,7 +73,7 @@ class LogFilesModel(BaseQueryDataModel):
                      FakeField("time_frame", "Time Frame"),
                      FakeField(name="amount_errors", verbose_name="Amount Errors"),
                      FakeField(name="amount_warnings", verbose_name="Amount Warnings")}
-    strict_exclude_columns = {"startup_text", "remote_path"}
+    strict_exclude_columns = {"startup_text", "remote_path", "header_text"}
 
     def __init__(self, parent: Optional[QtCore.QObject] = None, show_unparsable: bool = False) -> None:
         self.show_unparsable = show_unparsable

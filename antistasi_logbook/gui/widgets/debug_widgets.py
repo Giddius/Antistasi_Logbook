@@ -225,7 +225,10 @@ class DebugDialog(QWidget):
                 widget.addItems(sorted(data))
             else:
                 widget = QListWidget(self)
-                widget.addItems(str(i) for i in sorted(data))
+                try:
+                    widget.addItems(str(i) for i in sorted(data))
+                except TypeError:
+                    widget.addItems(str(i) for i in data)
             return widget
 
         elif isinstance(data, bool):

@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (QMenu, QLabel, QWidget, QGroupBox, QLineEdit, QLi
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
+from gidapptools.general_helper.conversion import seconds2human
 from gidapptools.general_helper.string_helper import StringCaseConverter
 from gidapptools.general_helper.color.color_item import Color
 
@@ -252,6 +253,7 @@ class GameMapValue(QWidget):
         if self.game_map_pixmap is not None:
             self.game_map_thumbnail.setPixmap(self.game_map_pixmap)
             self.collapsible_box = CollapsibleGroupBox(text="Thumbnail", content=self.game_map_thumbnail, parent=self)
+            self.collapsible_box.set_expanded(False)
             self.layout.addWidget(self.collapsible_box)
 
     def _get_game_map_pixmap(self) -> Optional[QPixmap]:
@@ -291,7 +293,7 @@ class BaseDetailWidget(QWidget):
 
 
 class ServerDetailWidget(BaseDetailWidget):
-    @profile
+
     def __init__(self, server: Server, parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
         super().__init__(parent=parent)
         self.server = server
@@ -324,7 +326,6 @@ class ServerDetailWidget(BaseDetailWidget):
         self.layout.addWidget(QLabel("Comments"))
         self.layout.addWidget(self.comments_value)
 
-    @profile
     def get_player_stats(self):
         log_files = LogFile.select().where(LogFile.server == self.server)
         all_log_files = {log_file.id: log_file for log_file in LogFile.select()}
@@ -342,7 +343,7 @@ class ServerDetailWidget(BaseDetailWidget):
 
 
 class LogFileDetailWidget(BaseDetailWidget):
-    @profile
+
     def __init__(self, log_file: LogFile, parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
         super().__init__(parent=parent)
         self.log_file = log_file
@@ -354,6 +355,16 @@ class LogFileDetailWidget(BaseDetailWidget):
 
         self.modified_at_label = QLabel(text="Modified at")
         self.modified_at_value = ValueLineEdit(text=self.app.format_datetime(self.log_file.modified_at))
+
+        time_frame_string = f"{self.app.format_datetime(self.log_file.time_frame.start)} until {self.app.format_datetime(self.log_file.time_frame.end)}"
+
+        self.time_frame_value = ValueLineEdit(text=time_frame_string)
+        self.layout.addRow("Time-Frame", self.time_frame_value)
+
+        time_frame_duration_string = seconds2human(self.log_file.time_frame.delta.total_seconds(), min_unit="second")
+
+        self.duration_value = ValueLineEdit(text=time_frame_duration_string)
+        self.layout.addRow("Duration", self.duration_value)
 
         self.server_label = QLabel(text="Server")
         self.server_value = ValueLineEdit(text=self.log_file.server.name, parent=self)
@@ -381,14 +392,21 @@ class LogFileDetailWidget(BaseDetailWidget):
         self.mods_value.setModel(model)
 
         self.layout.addRow(self.mods_label, self.mods_value)
+
         self.mods_value.doubleClicked.connect(self.open_mod_link)
+        self.header_text_value = QTextEdit()
+        self.header_text_value.setReadOnly(True)
+        self.header_text_value.setLineWrapMode(QTextEdit.NoWrap)
+        self.header_text_value.setPlainText(self.log_file.header_text)
+        self.header_text_box = CollapsibleGroupBox("Show Header Text", self.header_text_value, self)
+        self.header_text_box.set_expanded(False)
+        self.layout.addRow('Header Text', self.header_text_box)
 
         self.get_stats_button = QPushButton(AllResourceItems.stats_icon_2_image.get_as_icon(), "Get Stats")
         self.layout.addWidget(self.get_stats_button)
         self.get_stats_button.pressed.connect(self.show_stats)
         self.temp_plot_widget = None
 
-    @profile
     def show_stats(self):
         all_stats = self.log_file.get_stats()
         if len(all_stats) < 2:
@@ -622,7 +640,6 @@ class MessageHighlighter(QSyntaxHighlighter):
     def add_rule(self, rule: AbstractSyntaxHighlightRule):
         self.rules[rule.name] = rule
 
-    @profile
     def highlightBlock(self, text: str) -> None:
         for rule in self.rules.values():
             for _format in rule.apply(text, self):
@@ -630,7 +647,7 @@ class MessageHighlighter(QSyntaxHighlighter):
 
 
 class MessageValue(QTextEdit):
-    @profile
+
     def __init__(self, record: "AbstractRecord" = None, parent: Optional[PySide6.QtWidgets.QWidget] = None):
         super().__init__(parent)
         self.record = record
@@ -654,14 +671,12 @@ class MessageValue(QTextEdit):
     def text(self) -> str:
         return self.raw_text
 
-    @profile
     def get_text_font(self) -> QFont:
         text_font = QFont()
         text_font.setFamily("Lucida Console")
         text_font.setPointSize(int(self.font().pointSize() * 1))
         return text_font
 
-    @profile
     def setup_highlighter(self):
         self.highlighter.add_rule(SeparatorHighlightRule())
         self.highlighter.add_rule(BracketHighlightRule())
@@ -675,7 +690,7 @@ class MessageValue(QTextEdit):
 
 
 class LogRecordDetailView(BaseDetailWidget):
-    @profile
+
     def __init__(self, record: "BaseRecord", parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
         super().__init__(parent=parent)
         self.record = record
@@ -709,7 +724,6 @@ class LogRecordDetailView(BaseDetailWidget):
         self.layout.addWidget(self.get_stats_button)
         self.get_stats_button.pressed.connect(self.get_stats)
 
-    @profile
     def get_stats(self):
         all_stats = self.record.log_file.get_stats()
         if len(all_stats) < 2:

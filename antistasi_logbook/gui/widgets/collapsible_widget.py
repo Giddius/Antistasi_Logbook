@@ -101,8 +101,12 @@ class CollapsibleGroupBox(QGroupBox):
         self.content.setVisible(self.expanded)
         self.setTitle(self.full_text)
 
-
+    def set_expanded(self, value: bool):
+        self.expanded = value
+        self.content.setVisible(value)
+        self.setTitle(self.full_text)
 # region[Main_Exec]
+
 
 if __name__ == '__main__':
     pass

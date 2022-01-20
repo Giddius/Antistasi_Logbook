@@ -18,7 +18,7 @@ from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor, wait
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 from dateutil.tz import UTC
-
+from functools import partial
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.gid_signal.interface import get_signal
@@ -250,7 +250,6 @@ class Updater:
 
         wait(tasks, return_when=ALL_COMPLETED, timeout=None)
 
-    @profile
     def update_record_classes(self, server: Server = None, force: bool = False):
 
         def _find_record_class(_record: "LogRecord") -> tuple["LogRecord", "RecordClass"]:
@@ -259,22 +258,27 @@ class Updater:
 
         log.info("updating record classes")
         # batch_size = (32767 // 2) - 1
-        batch_size = 100_000
+        batch_size = 1_000_000
+        report_size = batch_size // 5
+
         tasks = []
         to_update = []
 
-        for record, record_class in self.thread_pool.map(_find_record_class, self.database.iter_all_records(server=server, only_missing_record_class=not force)):
+        idx = 0
 
-            if record.record_class_id == record_class.id:
-                continue
+        for record, record_class in (_find_record_class(r) for r in self.database.iter_all_records(server=server, only_missing_record_class=not force)):
+            idx += 1
+            if idx % report_size == 0:
+                log.debug("checked %r records", idx)
+            if record.record_class_id != record_class.id:
 
-            to_update.append((record_class.id, record.id))
-            if len(to_update) == batch_size:
-                log.debug("updating %r records with their record class", len(to_update))
-                task = self.database.record_inserter.many_update_record_class(list(to_update))
-                tasks.append(task)
+                to_update.append((int(record_class.id), int(record.id)))
+                if len(to_update) >= batch_size:
+                    log.debug("updating %r records with their record class", len(to_update))
+                    task = self.database.record_inserter.many_update_record_class(list(to_update))
+                    tasks.append(task)
 
-                to_update.clear()
+                    to_update.clear()
         if len(to_update) > 0:
             log.debug("updating %r records with their record class", len(to_update))
             task = self.database.record_inserter.many_update_record_class(list(to_update))

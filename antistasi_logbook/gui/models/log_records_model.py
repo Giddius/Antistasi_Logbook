@@ -118,7 +118,7 @@ class LogRecordsModel(BaseQueryDataModel):
         item, column = self.get(index)
         return item.get_formated_message(msg_format=MessageFormat.ORIGINAL)
 
-    @profile
+    
     def _get_display_data(self, index: "INDEX_TYPE") -> Any:
         item = self.content_items[index.row()]
         column = self.columns[index.column()]
@@ -132,7 +132,7 @@ class LogRecordsModel(BaseQueryDataModel):
             return self.on_display_data_bool(role=Qt.DisplayRole, item=item, column=column, value=data)
         return str(data)
 
-    @profile
+    
     def _get_background_data(self, index: "INDEX_TYPE") -> Any:
         item = self.content_items[index.row()]
         column = self.columns[index.column()]
@@ -149,11 +149,11 @@ class LogRecordsModel(BaseQueryDataModel):
             return item.background_color
         return super()._get_background_data(index)
 
-    @profile
+    
     def _get_font_data(self, index: "INDEX_TYPE") -> Any:
         pass
 
-    @profile
+    
     def _get_record(self, _item_data, _all_log_files):
         record_class = self.backend.record_class_manager.get_by_id(_item_data.get('record_class'))
         log_file = _all_log_files[_item_data.get('log_file')]
@@ -161,7 +161,7 @@ class LogRecordsModel(BaseQueryDataModel):
 
         return record_item
 
-    @profile
+    
     def get_content(self) -> "LogRecordsModel":
 
         log.debug("starting getting content for %r", self)

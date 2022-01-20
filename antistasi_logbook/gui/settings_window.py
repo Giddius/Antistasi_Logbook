@@ -39,7 +39,6 @@ if TYPE_CHECKING:
 
 # region [TODO]
 
-# TODO: Change the selection widget into a QListwidget in Iconmode
 
 # endregion [TODO]
 

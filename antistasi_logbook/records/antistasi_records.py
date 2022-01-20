@@ -63,7 +63,7 @@ class BaseAntistasiRecord(BaseRecord):
         return Color.get_color_by_name("White").with_alpha(0.01).qcolor
 
     @classmethod
-    @profile
+    
     def check(cls, log_record: "LogRecord") -> bool:
         return True
 
@@ -121,7 +121,7 @@ class PerformanceRecord(BaseAntistasiRecord):
         return super().get_formated_message(msg_format=msg_format)
 
     @classmethod
-    @profile
+    
     def check(cls, log_record: "LogRecord") -> bool:
         logged_from = log_record.logged_from
 
@@ -148,7 +148,7 @@ class IsNewCampaignRecord(BaseAntistasiRecord):
         return Color.get_color_by_name("LightGreen").with_alpha(0.5).qcolor
 
     @classmethod
-    @profile
+    
     def check(cls, log_record: "LogRecord") -> bool:
         logged_from = log_record.logged_from
 
@@ -184,7 +184,7 @@ class FFPunishmentRecord(BaseAntistasiRecord):
         return self._punishment_type
 
     @classmethod
-    @profile
+    
     def check(cls, log_record: "LogRecord") -> bool:
         logged_from = log_record.logged_from
 
@@ -223,7 +223,7 @@ class UpdatePreferenceRecord(BaseAntistasiRecord):
         return self._array_data
 
     @classmethod
-    @profile
+    
     def check(cls, log_record: "LogRecord") -> bool:
         logged_from = log_record.logged_from
 
@@ -264,7 +264,7 @@ class CreateConvoyInputRecord(BaseAntistasiRecord):
         return self._array_data
 
     @classmethod
-    @profile
+    
     def check(cls, log_record: "LogRecord") -> bool:
         logged_from = log_record.logged_from
 
@@ -314,7 +314,7 @@ class SaveParametersRecord(BaseAntistasiRecord):
         return self._kv_data
 
     @classmethod
-    @profile
+    
     def check(cls, log_record: "LogRecord") -> bool:
         logged_from = log_record.logged_from
 
@@ -377,7 +377,7 @@ class ResourceCheckRecord(BaseAntistasiRecord):
         return self._array_data
 
     @classmethod
-    @profile
+    
     def check(cls, log_record: "LogRecord") -> bool:
         logged_from = log_record.logged_from
 
@@ -442,7 +442,7 @@ class FreeSpawnPositionsRecord(BaseAntistasiRecord):
         return super().get_formated_message(msg_format=msg_format)
 
     @classmethod
-    @profile
+    
     def check(cls, log_record: "LogRecord") -> bool:
         logged_from = log_record.logged_from
 
@@ -494,7 +494,7 @@ class SelectReinfUnitsRecord(BaseAntistasiRecord):
         return super().get_formated_message(msg_format=msg_format)
 
     @classmethod
-    @profile
+    
     def check(cls, log_record: "LogRecord") -> bool:
         logged_from = log_record.logged_from
 
@@ -531,7 +531,7 @@ class ChangingSidesRecord(BaseAntistasiRecord):
             log.critical(self.message)
 
     @classmethod
-    @profile
+    
     def check(cls, log_record: "LogRecord") -> bool:
         logged_from = log_record.logged_from
 
