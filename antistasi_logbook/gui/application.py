@@ -18,8 +18,8 @@ from jinja2 import BaseLoader, Environment
 
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6 import QtCore
-from PySide6.QtGui import QFont, QIcon, QColor, QFontDatabase, QGuiApplication
-from PySide6.QtCore import Qt
+from PySide6.QtGui import QFont, QIcon, QMouseEvent, QColor, QFontDatabase, QGuiApplication
+from PySide6.QtCore import Qt, QEvent
 from PySide6.QtWidgets import QMessageBox, QApplication
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
@@ -142,7 +142,7 @@ class AntistasiLogbookApplication(QApplication):
         font_weight = QFont.Medium
         font.setFamily(font_family)
         font.setPointSize(font_size)
-        # font.setWeight(font_weight)
+        font.setWeight(font_weight)
         font.setStyleStrategy(QFont.PreferAntialias)
         font.setHintingPreference(QFont.PreferNoHinting)
 

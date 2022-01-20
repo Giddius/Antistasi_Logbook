@@ -13,7 +13,7 @@ import threading
 from typing import TYPE_CHECKING, Callable, Optional
 from pathlib import Path
 from datetime import timezone
-
+from traceback import format_tb, format_exception
 # * Third Party Imports --------------------------------------------------------------------------------->
 from webdav4.client import HTTPError, ResourceNotFound
 
@@ -44,13 +44,13 @@ log = get_logger(__name__)
 # endregion[Constants]
 
 
-class BaseAntistasiLogBookError(Exception):
+class BaseAntistasiLogbookError(Exception):
     """
     Base Error for antistasi_serverlog_statistics package.
     """
 
 
-class BaseRemoteStorageError(BaseAntistasiLogBookError):
+class BaseRemoteStorageError(BaseAntistasiLogbookError):
     ...
 
 
@@ -75,12 +75,25 @@ class MissingLoginAndPasswordError(BaseRemoteStorageError):
             return f"Missing 'password' for 'RemoteStorage': {self.remote_storage_name!r} with base_url {str(self.base_url)!r}."
 
 
-class DurationTimezoneError(BaseAntistasiLogBookError):
+class DurationTimezoneError(BaseAntistasiLogbookError):
     def __init__(self, duration_item: "DatetimeDuration", start_tz: Optional[timezone], end_tz: Optional[timezone], message: str) -> None:
         self.duration_item = duration_item
         self.start_tz = start_tz
         self.end_tz = end_tz
         self.message = message + f", {start_tz=}, {end_tz=}."
+        super().__init__(self.message)
+
+
+class StatsError(BaseAntistasiLogbookError):
+    ...
+
+
+class InsufficientDataPointsError(StatsError):
+
+    def __init__(self, amount_data_points: int, amount_required: int = 2) -> None:
+        self.amount_data_points = amount_data_points
+        self.amount_required = amount_required
+        self.message = f"Not enough Data-Points, Data-Points required: >={self.amount_required}, Data-Points available: {self.amount_data_points}."
         super().__init__(self.message)
 
 
@@ -112,7 +125,7 @@ class MissingLoginAndPasswordHandler(DefaultExceptionHandler):
 
     def handle_thread_except_hook(self, args: threading.ExceptHookArgs):
         if self.manager.signaler:
-            self.manager.signaler.show_error_signal.emit("Unable to login to Remote-Storage! Did you set the Credentials?")
+            self.manager.signaler.show_error_signal.emit("Unable to login to Remote-Storage! Did you set the Credentials?", args.exc_value)
         self.manager.default_exception_handler.handle_thread_except_hook(args)
 
 
@@ -120,7 +133,7 @@ class ResourceNotFoundHandler(DefaultExceptionHandler):
 
     def handle_thread_except_hook(self, args: threading.ExceptHookArgs):
         if self.manager.signaler:
-            self.manager.signaler.show_error_signal.emit(str(args.exc_value).rsplit(":", 1)[-1])
+            self.manager.signaler.show_error_signal.emit(str(args.exc_value).rsplit(":", 1)[-1], args.exc_value)
         self.manager.default_exception_handler.handle_thread_except_hook(args)
 
 
@@ -131,8 +144,32 @@ class HTTPErrorHandler(DefaultExceptionHandler):
             text = str(args.exc_value)
             if "Unauthorized" in str(args.exc_value):
                 text = "Unable to login to Remote-Storage! Did you set the Credentials?"
-            self.manager.signaler.show_error_signal.emit(text)
+            self.manager.signaler.show_error_signal.emit(text, args.exc_value)
         self.manager.default_exception_handler.handle_thread_except_hook(args)
+
+
+class InsufficientDataPointsHandler(DefaultExceptionHandler):
+
+    def handle_except_hook(self, type_, value, traceback):
+        if self.manager.signaler:
+            self.manager.signaler.show_error_signal.emit(value.message, value)
+        self.manager.default_exception_handler.handle_except_hook(type_, value, traceback)
+
+
+class TypeErrorHandler(DefaultExceptionHandler):
+
+    def handle_except_hook(self, type_, value, traceback):
+
+        if "self.parentChanged()" in '\n'.join(format_tb(traceback)):
+            log.debug("suppressed stupid 'pyqtgraph'-error about 'parentChanged'")
+            return
+        return super().handle_except_hook(type_, value, traceback)
+
+    def handle_thread_except_hook(self, args: threading.ExceptHookArgs):
+        if "self.parentChanged()" in '\n'.join(format_tb(args.exc_traceback)):
+            log.debug("suppressed stupid 'pyqtgraph'-error about 'parentChanged'")
+            return
+        return super().handle_thread_except_hook(args)
 
 
 class _ExceptionHandlerManager:
@@ -142,7 +179,9 @@ class _ExceptionHandlerManager:
         self.default_exception_handler = DefaultExceptionHandler(self)
         self.exception_handler_registry: dict[type[BaseException]:Optional[EXCEPTION_HANDLER_TYPE]] = {MissingLoginAndPasswordError: MissingLoginAndPasswordHandler(self),
                                                                                                        ResourceNotFound: ResourceNotFoundHandler(self),
-                                                                                                       HTTPError: HTTPErrorHandler(self)}
+                                                                                                       HTTPError: HTTPErrorHandler(self),
+                                                                                                       InsufficientDataPointsError: InsufficientDataPointsHandler(self),
+                                                                                                       TypeError: TypeErrorHandler(self)}
 
     def register_handler(self, exception_class: type[BaseException], handler: EXCEPTION_HANDLER_TYPE) -> None:
         self.exception_handler_registry[exception_class] = handler

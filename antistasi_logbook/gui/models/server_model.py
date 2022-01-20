@@ -118,7 +118,8 @@ class ServerModel(BaseQueryDataModel):
     @Slot(object, object, QModelIndex)
     def change_remote_path(self, item: BaseModel, column: Field, index: QModelIndex):
         change_remote_path_index = self.index(index.row(), self.get_column_index("remote_path"), index.parent())
-        new_path, accepted = QInputDialog.getText(self.parent(), f'New Remote-Path for {item.pretty_name!r}', f"please enter an valid path for {item.pretty_name!r}", QLineEdit.EchoMode.Normal)
+        new_path, accepted = QInputDialog.getText(self.parent(), f'New Remote-Path for {item.pretty_name!r}',
+                                                  f"please enter an valid path for {item.pretty_name!r}\n if this is a Next-Cloud server, the Path is CASE-SENSITIVE!", QLineEdit.EchoMode.Normal)
         if not accepted:
             return
         new_remote_path = new_path.replace(os.pathsep, "/").lstrip("/")

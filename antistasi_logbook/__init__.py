@@ -115,14 +115,15 @@ def setup():
                     file_changed_parameter="changed_time")
     META_PATHS = get_meta_paths()
     # log = get_main_logger("__main__", Path(__file__).resolve(), extra_logger=_extra_logger)
-
+    general_config = get_meta_config().get_config("general")
     log = setup_main_logger_with_file_logging("__main__",
+                                              log_level=general_config.get("logging", "level", default="DEBUG"),
                                               log_file_base_name=Path(__file__).resolve().parent.stem,
                                               path=Path(__file__).resolve(),
                                               extra_logger=_extra_logger,
                                               log_folder=META_PATHS.log_dir,
-                                              max_func_name_length=get_meta_config().get_config("general").get("logging", "max_function_name_length", default=None),
-                                              max_module_name_length=get_meta_config().get_config("general").get("logging", "max_module_name_length", default=None),
+                                              max_func_name_length=general_config.get("logging", "max_function_name_length", default=None),
+                                              max_module_name_length=general_config.get("logging", "max_module_name_length", default=None),
                                               stream=sys.stdout)
 
     ERROR_CONSOLE = RichConsole(soft_wrap=True, record=False, width=150)

@@ -13,7 +13,7 @@ from pathlib import Path
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QAction
 from PySide6.QtCore import Signal, QMargins, QStandardPaths, QItemSelectionModel
-from PySide6.QtWidgets import QHeaderView
+from PySide6.QtWidgets import QHeaderView, QGridLayout
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger

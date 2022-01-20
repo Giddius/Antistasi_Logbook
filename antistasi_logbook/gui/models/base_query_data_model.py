@@ -107,6 +107,7 @@ class BaseQueryDataModel(QAbstractTableModel):
     mark_images = {"marked": AllResourceItems.mark_image.get_as_icon(),
                    "unmark": AllResourceItems.unmark_image.get_as_icon()}
 
+    @profile
     def __init__(self, db_model: "BaseModel", parent: Optional[QtCore.QObject] = None, name: str = None) -> None:
         self.data_role_table: DATA_ROLE_MAP_TYPE = {Qt.DisplayRole: self._get_display_data,
                                                     Qt.ToolTipRole: self._get_tool_tip_data,
@@ -166,6 +167,7 @@ class BaseQueryDataModel(QAbstractTableModel):
 
         super().__init__(parent=parent)
 
+    @profile
     def on_query_filter_changed(self, query_filter):
         self.filter_item = query_filter
         self.refresh()
@@ -187,6 +189,7 @@ class BaseQueryDataModel(QAbstractTableModel):
         index.column_item = self.columns[index.column()]
         return index
 
+    @profile
     def add_empty_item(self, position: int = None):
         empty_item = EmptyContentItem()
         content_items = list(self.content_items)
@@ -198,6 +201,7 @@ class BaseQueryDataModel(QAbstractTableModel):
         self.original_sort_order = tuple(content_items)
         self.content_items = content_items
 
+    @profile
     def add_context_menu_actions(self, menu: "CustomContextMenu", index: QModelIndex):
         if self.app.is_dev is True:
             log.debug("%r has attribute %r: %r", self.db_model, "background_color", hasattr(self.db_model, "background_color"))
@@ -223,7 +227,7 @@ class BaseQueryDataModel(QAbstractTableModel):
             menu.add_action(edit_comments_action, "edit")
 
         if hasattr(self.db_model, "background_color"):
-            change_color_action = ModelContextMenuAction(item, column, index, text=f"Change Color of {item.pretty_name}", parent=menu)
+            change_color_action = ModelContextMenuAction(item, column, index, text=f"Change Color of {item.pretty_name}", icon=AllResourceItems.coloring_icon_1_image.get_as_icon(), parent=menu)
             change_color_action.clicked.connect(self.change_color)
             menu.add_action(change_color_action, "Edit")
 
@@ -248,12 +252,14 @@ class BaseQueryDataModel(QAbstractTableModel):
         marked_index = self.index(index.row(), self.get_column_index("marked"), index.parent())
         self.setData(index=marked_index, value=not item.marked, role=Qt.DisplayRole)
 
+    @profile
     def get_query(self) -> "Query":
         query = self.db_model.select()
         if self.filter_item is not None:
             query = query.where(self.filter_item)
         return query.order_by(*self.ordered_by)
 
+    @profile
     def get_content(self) -> "BaseQueryDataModel":
         """
         [summary]
@@ -272,6 +278,7 @@ class BaseQueryDataModel(QAbstractTableModel):
             log.debug(f"{self.get_query()=}")
         return self
 
+    @profile
     def get_columns(self) -> "BaseQueryDataModel":
         """
         [summary]
@@ -284,6 +291,7 @@ class BaseQueryDataModel(QAbstractTableModel):
         self.columns = tuple(c for c in list(self.db_model.get_meta().sorted_fields) + list(self.extra_columns) if c.name not in self.strict_exclude_columns)
         return self
 
+    @profile
     def get_column_index(self, column: Union[str, Field]) -> Optional[int]:
 
         if isinstance(column, str):
@@ -341,6 +349,7 @@ class BaseQueryDataModel(QAbstractTableModel):
         if role is not None:
             handler = self.data_role_table.get(role, None)
             if handler is not None:
+
                 return handler(index=self.modify_index(index))
 
     @profile
@@ -562,6 +571,7 @@ class BaseQueryDataModel(QAbstractTableModel):
 
         self.layoutChanged.emit()
 
+    @profile
     def refresh(self) -> "BaseQueryDataModel":
         self.beginResetModel()
         self.get_columns().get_content()
@@ -569,6 +579,7 @@ class BaseQueryDataModel(QAbstractTableModel):
 
         return self
 
+    @profile
     def refresh_items(self):
         new_items = []
         with self.database:
@@ -578,6 +589,7 @@ class BaseQueryDataModel(QAbstractTableModel):
         self.content_items = tuple(new_items)
         self.dataChanged.emit(self.index(0, 0, QModelIndex()), self.index(self.rowCount(), self.columnCount(), QModelIndex()))
 
+    @profile
     def refresh_item(self, index: "INDEX_TYPE"):
         item = self.content_items[index.row()]
         with self.database:
@@ -585,6 +597,7 @@ class BaseQueryDataModel(QAbstractTableModel):
         self.content_items = tuple([new_item if i is item else i for i in self.content_items])
         self.dataChanged.emit(self.index(index.row(), 0, QModelIndex()), self.index(index.row(), self.columnCount(), QModelIndex()))
 
+    @profile
     def get(self, key: Union[QModelIndex, int]) -> Union[tuple, BaseModel]:
         if isinstance(key, QModelIndex):
             if not (0 <= key.row() < len(self.content_items)):
@@ -596,6 +609,7 @@ class BaseQueryDataModel(QAbstractTableModel):
                 return None
             return self.content_items[key]
 
+    @profile
     def setData(self, index: Union[PySide6.QtCore.QModelIndex, PySide6.QtCore.QPersistentModelIndex], value: Any, role: int = ...) -> bool:
         if not index.isValid():
             return
@@ -620,7 +634,10 @@ class BaseQueryDataModel(QAbstractTableModel):
             log.debug("custom colors: %r", [(QColorDialog.customColor(i), QColorDialog.customColor(i).name()) for i in range(QColorDialog.customCount())])
 
             self.color_config.set(self.color_config_name, item.name, color)
-            del item.background_color
+            try:
+                del item.background_color
+            except AttributeError:
+                pass
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(backend={self.backend!r}, db_model={self.db_model!r})"

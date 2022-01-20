@@ -43,7 +43,8 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
@@ -87,6 +88,7 @@ class LastUpdatedLabel(QLabel):
                                   timedelta(days=5): "day",
                                   timedelta(weeks=5): "week"}
 
+    @profile
     def __init__(self, status_bar: "LogbookStatusBar", parent=None) -> None:
         super().__init__(parent=parent)
         self.status_bar = status_bar
@@ -97,6 +99,7 @@ class LastUpdatedLabel(QLabel):
         self.label_text: str = None
         self.is_running = False
 
+    @profile
     def set_refresh_interval(self, new_interval: int) -> None:
         if new_interval == self.refresh_interval:
             return
@@ -104,20 +107,24 @@ class LastUpdatedLabel(QLabel):
         self.start_timer()
 
     @property
+    @profile
     def last_update_finished_at(self) -> "datetime":
         return self.status_bar.backend.session_meta_data.get_absolute_last_update_finished_at()
 
+    @profile
     def start(self) -> None:
         if self.is_running is False:
             self.refresh_text()
             self.start_timer()
             self.is_running = True
 
+    @profile
     def _thread_finished(self):
 
         self.setText(self.label_text)
         self.update()
 
+    @profile
     def _refresh_text_helper(self):
         log.debug("refreshing %s text", self)
         if self.last_update_finished_at is None:
@@ -131,6 +138,7 @@ class LastUpdatedLabel(QLabel):
                 log.error("indexerror with self.last_update_finished_at = %r, now = %r, now-self.last_update_finished_at = %r", self.last_update_finished_at.isoformat(sep=" "), datetime.now(tz=UTC).isoformat(sep=" "), delta)
                 self.label_text = "Never Updated"
 
+    @profile
     def refresh_text(self) -> None:
         self._refresh_text_helper()
         self._thread_finished()
@@ -140,20 +148,24 @@ class LastUpdatedLabel(QLabel):
         # self.running_thread.signaler.finished.connect(self._thread_finished)
         # self.running_thread.start()
 
+    @profile
     def start_timer(self) -> None:
         if self.timer_id is not None:
             self.killTimer(self.timer_id)
         self.timer_id = self.startTimer(self.refresh_interval, Qt.VeryCoarseTimer)
 
+    @profile
     def _time_since_last_update_finished(self) -> timedelta:
         now = datetime.now(tz=UTC)
         return now - self.last_update_finished_at
 
+    @profile
     def timerEvent(self, event: PySide6.QtCore.QTimerEvent) -> None:
         if event.timerId() == self.timer_id:
             self.last_triggered = datetime.now(tz=UTC)
             self.refresh_text()
 
+    @profile
     def shutdown(self):
         if self.timer_id is not None:
             self.killTimer(self.timer_id)
@@ -168,8 +180,9 @@ class LastUpdatedLabel(QLabel):
 
 
 class LogbookStatusBar(QStatusBar):
-    change_status_bar_color = Signal(str)
+    change_status_bar_color = Signal(bool)
 
+    @profile
     def __init__(self, main_window: "AntistasiLogbookMainWindow") -> None:
         super().__init__(parent=main_window)
         self.main_window = main_window
@@ -187,13 +200,16 @@ class LogbookStatusBar(QStatusBar):
     def backend(self) -> "Backend":
         return self.main_window.backend
 
+    @profile
     def setup(self) -> None:
+
         self.setup_labels()
         self.update_progress = QProgressBar()
         self.insertWidget(2, self.update_progress, 2)
         self.update_progress.hide()
-        self.change_status_bar_color.connect(self.set_background_color)
+        self.change_status_bar_color.connect(self.set_showing_error)
 
+    @profile
     def setup_labels(self) -> None:
         if self.update_running_label is None:
             self.update_running_label = QLabel()
@@ -207,6 +223,7 @@ class LogbookStatusBar(QStatusBar):
         self.last_updated_label.start()
         self.current_label = self.last_updated_label
 
+    @profile
     def switch_labels(self, update_start: bool) -> None:
         if update_start is True:
             self.last_updated_label.hide()
@@ -223,31 +240,32 @@ class LogbookStatusBar(QStatusBar):
         self.update_progress.setMaximum(max_amount)
         self.update_running_label.setText(f"Updating Server {server_name.title()}")
 
-    def set_background_color(self, color: str = None):
-        if not color:
-            self.setStyleSheet("")
-        else:
-            self.setStyleSheet(f"background: {color}")
+    @profile
+    def set_showing_error(self, value: bool = False):
 
+        self.setProperty("showing_error", value)
+        self.style().unpolish(self)
+
+        self.style().polish(self)
+
+    @profile
     def clear_error(self, future):
-        self.change_status_bar_color.emit("")
+        self.change_status_bar_color.emit(False)
         self.clearMessage()
-        self.last_updated_label.setVisible(True)
-        log.debug("cleared error message")
 
-    @Slot(str)
-    def show_error(self, message: str):
-        self.last_updated_label.setVisible(False)
+    @Slot(str, BaseException)
+    def show_error(self, message: str, exception: BaseException):
+        self.set_showing_error(True)
         timeout = 10 * 1000
-        self.set_background_color("red")
-
         self.showMessage(message, timeout)
         t = self.app.gui_thread_pool.submit(sleep, timeout / 1000)
         t.add_done_callback(self.clear_error)
 
+    @profile
     def increment_progress_bar(self):
         self.update_progress.setValue(self.update_progress.value() + 1)
 
+    @profile
     def shutdown(self):
         self.last_updated_label.shutdown()
 

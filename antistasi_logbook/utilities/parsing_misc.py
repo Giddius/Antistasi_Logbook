@@ -50,7 +50,7 @@ def _maybe_join(parts):
 # Array parsing Grammar
 
 
-@profile
+
 def get_array_grammar():
     colon = pp.Suppress(',')
     sqb_open = pp.Suppress('[')
@@ -67,7 +67,7 @@ def get_array_grammar():
     return array
 
 
-@profile
+
 def parse_text_array(in_text: str) -> list[list[Any]]:
     try:
         return get_array_grammar().parse_string(in_text, parse_all=True).as_list()[0]

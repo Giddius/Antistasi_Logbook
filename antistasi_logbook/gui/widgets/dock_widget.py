@@ -141,7 +141,7 @@ class QueryWidget(BaseDockWidget):
         except AttributeError:
             max_width = base_width
             max_height = base_height
-        log.debug("Size for %r: max_width: %r, max_height:%r", self, max_width, max_width)
+
         return QSize(max_width, max_height)
 
 

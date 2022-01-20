@@ -34,7 +34,7 @@ from antistasi_logbook.gui.widgets.stats_viewer import StatsWindow
 from antistasi_logbook.gui.widgets.collapsible_widget import CollapsibleGroupBox
 from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-
+from antistasi_logbook.errors import InsufficientDataPointsError
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
@@ -57,7 +57,8 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
@@ -290,7 +291,7 @@ class BaseDetailWidget(QWidget):
 
 
 class ServerDetailWidget(BaseDetailWidget):
-
+    @profile
     def __init__(self, server: Server, parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
         super().__init__(parent=parent)
         self.server = server
@@ -323,6 +324,7 @@ class ServerDetailWidget(BaseDetailWidget):
         self.layout.addWidget(QLabel("Comments"))
         self.layout.addWidget(self.comments_value)
 
+    @profile
     def get_player_stats(self):
         log_files = LogFile.select().where(LogFile.server == self.server)
         all_log_files = {log_file.id: log_file for log_file in LogFile.select()}
@@ -340,7 +342,7 @@ class ServerDetailWidget(BaseDetailWidget):
 
 
 class LogFileDetailWidget(BaseDetailWidget):
-
+    @profile
     def __init__(self, log_file: LogFile, parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
         super().__init__(parent=parent)
         self.log_file = log_file
@@ -386,12 +388,12 @@ class LogFileDetailWidget(BaseDetailWidget):
         self.get_stats_button.pressed.connect(self.show_stats)
         self.temp_plot_widget = None
 
+    @profile
     def show_stats(self):
         all_stats = self.log_file.get_stats()
         if len(all_stats) < 2:
-            log.debug("%r -> %r", len(all_stats), all_stats)
-            QMessageBox.warning(self, "Insufficient Data-Points", f"<center>The requested Log-File <b>{self.log_file.name}</b> has <b>&lt; 2</b> Data-Points. Unable to Plot!</center>")
-            return
+            raise InsufficientDataPointsError(len(all_stats), 2)
+
         self.temp_plot_widget = StatsWindow(all_stats, title=self.log_file.name.upper)
         self.temp_plot_widget.add_marked_records(self.log_file.get_marked_records())
         self.temp_plot_widget.show()
@@ -620,6 +622,7 @@ class MessageHighlighter(QSyntaxHighlighter):
     def add_rule(self, rule: AbstractSyntaxHighlightRule):
         self.rules[rule.name] = rule
 
+    @profile
     def highlightBlock(self, text: str) -> None:
         for rule in self.rules.values():
             for _format in rule.apply(text, self):
@@ -627,7 +630,7 @@ class MessageHighlighter(QSyntaxHighlighter):
 
 
 class MessageValue(QTextEdit):
-
+    @profile
     def __init__(self, record: "AbstractRecord" = None, parent: Optional[PySide6.QtWidgets.QWidget] = None):
         super().__init__(parent)
         self.record = record
@@ -651,12 +654,14 @@ class MessageValue(QTextEdit):
     def text(self) -> str:
         return self.raw_text
 
+    @profile
     def get_text_font(self) -> QFont:
         text_font = QFont()
         text_font.setFamily("Lucida Console")
         text_font.setPointSize(int(self.font().pointSize() * 1))
         return text_font
 
+    @profile
     def setup_highlighter(self):
         self.highlighter.add_rule(SeparatorHighlightRule())
         self.highlighter.add_rule(BracketHighlightRule())
@@ -670,7 +675,7 @@ class MessageValue(QTextEdit):
 
 
 class LogRecordDetailView(BaseDetailWidget):
-
+    @profile
     def __init__(self, record: "BaseRecord", parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
         super().__init__(parent=parent)
         self.record = record
@@ -704,12 +709,12 @@ class LogRecordDetailView(BaseDetailWidget):
         self.layout.addWidget(self.get_stats_button)
         self.get_stats_button.pressed.connect(self.get_stats)
 
+    @profile
     def get_stats(self):
         all_stats = self.record.log_file.get_stats()
         if len(all_stats) < 2:
-            log.debug("%r -> %r", len(all_stats), all_stats)
-            QMessageBox.warning(self, "Insufficient Data-Points", f"<center>The requested Log-File <b>{self.record.log_file.name}</b> has <b>&lt; 2</b> Data-Points.\nUnable to Plot!</center>")
-            return
+            raise InsufficientDataPointsError(len(all_stats), 2)
+
         self.temp_plot_widget = StatsWindow(all_stats, title=self.record.log_file.name.upper)
         self.temp_plot_widget.add_current_record(self.record)
 

@@ -100,7 +100,7 @@ class MainWidget(QWidget):
     def __init__(self, main_window: "AntistasiLogbookMainWindow") -> None:
         super().__init__(parent=main_window)
         self.main_window = main_window
-        self.info_widget: QGroupBox = None
+
         self.query_widget: QueryWidget = None
         self.detail_widget: BaseDockWidget = None
         self.main_tabs_widget: QTabWidget = None
@@ -120,19 +120,12 @@ class MainWidget(QWidget):
 
         self.setLayout(self.main_layout)
 
-        self.setup_info_widget()
         self.setup_query_widget()
         self.setup_detail_widget()
         self.setup_main_tabs_widget()
 
     def _clear_temp_runnable(self):
         self.temp_runnable = None
-
-    def setup_info_widget(self) -> None:
-        self.info_widget = QGroupBox(self)
-        self.info_widget.setMinimumSize(QSize(0, 50))
-        self.info_widget.setMaximumSize(QSize(16777215, 50))
-        self.main_layout.addWidget(self.info_widget, 0, 0, 1, 3)
 
     def setup_query_widget(self) -> None:
         self.query_widget = QueryWidget(parent=self.parent(), add_to_menu=self.main_window.menubar.windows_menu, start_floating=True)

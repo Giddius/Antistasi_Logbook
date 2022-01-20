@@ -42,7 +42,8 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
@@ -67,10 +68,12 @@ class CustomContextMenu(QMenu):
         super().__init__(*[i for i in [title, parent] if i is not None])
         self.sub_menus: dict[str, "CustomContextMenu"] = {}
 
+    @profile
     def get_sub_menu(self, name: str, default=None):
         default = default or self
         return self.sub_menus.get(name.casefold(), default)
 
+    @profile
     def add_menu(self, name: str, add_to: "CustomContextMenu" = None):
         add_to = add_to or self
         sub_menu = self.__class__(name, add_to)
@@ -78,6 +81,7 @@ class CustomContextMenu(QMenu):
         self.addMenu(sub_menu)
         log.debug("added menu %r to context-menu %r of %r", sub_menu, self, self.parent())
 
+    @profile
     def add_action(self, action: QAction, sub_menu: Union[str, "CustomContextMenu", QMenu] = None):
         if sub_menu is None:
             sub_menu = self
@@ -95,6 +99,7 @@ class BaseQueryTreeView(QTreeView):
     single_item_selected = Signal(QModelIndex)
     multiple_items_selected = Signal(list)
 
+    @profile
     def __init__(self, name: str, icon: QIcon = None, parent=None) -> None:
         super().__init__(parent=parent)
         self.icon = icon
@@ -127,6 +132,7 @@ class BaseQueryTreeView(QTreeView):
     def model(self) -> "BaseQueryDataModel":
         return super().model()
 
+    @profile
     def setup(self) -> "BaseQueryTreeView":
         # self.setRootIsDecorated(False)
         self.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -162,11 +168,13 @@ class BaseQueryTreeView(QTreeView):
         log.debug("actions of menu %r : %r", menu, menu.actions())
         menu.exec_(self.mapToGlobal(pos))
 
+    @profile
     def get_hidden_header_names(self) -> set[str]:
         settings = QSettings()
         hidden_header = settings.value(f"{self.name}_hidden_headers", set())
         return hidden_header
 
+    @profile
     def set_hidden_header_names(self):
         hidden_section_names = []
         for column in self.model.columns:
@@ -177,6 +185,7 @@ class BaseQueryTreeView(QTreeView):
         settings = QSettings()
         settings.setValue(f"{self.name}_hidden_headers", set(hidden_section_names))
 
+    @profile
     def setup_headers(self):
         for column_name in self.initially_hidden_columns:
             index = self.model.get_column_index(column_name)
@@ -189,6 +198,7 @@ class BaseQueryTreeView(QTreeView):
         self.header_view.setContextMenuPolicy(Qt.CustomContextMenu)
         self.header_view.customContextMenuRequested.connect(self.handle_header_custom_context_menu)
 
+    @profile
     def handle_header_custom_context_menu(self, pos: QPoint):
         def get_amount_not_hidden():
             not_hidden = []
@@ -229,6 +239,7 @@ class BaseQueryTreeView(QTreeView):
         self.doItemsLayout()
         log.debug("finished force refreshing %r", self)
 
+    @profile
     def toggle_header_section_hidden(self, section: int):
         is_hidden = self.header_view.isSectionHidden(section)
         if is_hidden:
@@ -239,25 +250,30 @@ class BaseQueryTreeView(QTreeView):
             self.header_view.setSectionHidden(section, True)
         self.set_hidden_header_names()
 
+    @profile
     def extra_setup(self):
         pass
 
+    @profile
     def setup_scrollbars(self):
         self.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.vertical_scrollbar.setSingleStep(3)
 
+    @profile
     def pre_set_model(self):
         self.setEnabled(False)
         self._temp_original_sorting_enabled = self.isSortingEnabled()
         if self._temp_original_sorting_enabled is True:
             self.setSortingEnabled(False)
 
+    @profile
     def post_set_model(self):
         self.setEnabled(True)
 
         self.setSortingEnabled(self._temp_original_sorting_enabled)
 
+    @profile
     def setModel(self, model: PySide6.QtCore.QAbstractItemModel) -> None:
         try:
             self.pre_set_model()
@@ -277,6 +293,7 @@ class BaseQueryTreeView(QTreeView):
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(name={self.name!r})"
 
+    @profile
     def selectionChanged(self, selected: QItemSelection, deselected: QItemSelection) -> None:
 
         current_selection = self.selectionModel().selectedRows()

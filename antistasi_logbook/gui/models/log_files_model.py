@@ -55,72 +55,13 @@ class LogFilesModel(BaseQueryDataModel):
                      FakeField("time_frame", "Time Frame"),
                      FakeField(name="amount_errors", verbose_name="Amount Errors"),
                      FakeField(name="amount_warnings", verbose_name="Amount Warnings")}
-    strict_exclude_columns = {"startup_text", "header_text", "remote_path"}
+    strict_exclude_columns = {"startup_text", "remote_path"}
 
     def __init__(self, parent: Optional[QtCore.QObject] = None, show_unparsable: bool = False) -> None:
         self.show_unparsable = show_unparsable
         super().__init__(LogFile, parent=parent)
         self.ordered_by = (-LogFile.modified_at, LogFile.server)
         self.filter_item = None
-
-    def on_filter_newer_than(self, dt: datetime):
-        if not isinstance(dt, datetime):
-            dt = None
-        if dt is None and "newer_than" in self.filters:
-            del self.filters["newer_than"]
-            self.refresh()
-
-        if dt is not None:
-            self.filters["newer_than"] = (LogFile.modified_at >= dt)
-            self.refresh()
-
-    def on_filter_by_new_campaign(self, checked):
-        if not checked and "new_campaign" in self.filters:
-            del self.filters["new_campaign"]
-            self.refresh()
-
-        elif checked:
-            self.filters["new_campaign"] = (LogFile.is_new_campaign == True)
-            self.refresh()
-
-    def on_filter_older_than(self, dt: datetime):
-        if not isinstance(dt, datetime):
-            dt = None
-        if dt is None and "older_than" in self.filters:
-            del self.filters["older_than"]
-            self.refresh()
-
-        if dt is not None:
-            self.filters["older_than"] = (LogFile.modified_at <= dt)
-            self.refresh()
-
-    def on_filter_by_marked(self, checked):
-        if not checked and "marked" in self.filters:
-            del self.filters["marked"]
-            self.refresh()
-        elif checked:
-            self.filters["marked"] = (LogFile.marked == True)
-            self.refresh()
-
-    def filter_by_server(self, server_id: int):
-
-        if server_id == -1 and "server" in self.filters:
-            del self.filters["server"]
-            self.refresh()
-
-        elif server_id != -1:
-            self.filters["server"] = (LogFile.server_id == server_id)
-            self.refresh()
-
-    def filter_by_game_map(self, game_map_id: int):
-
-        if game_map_id == -1 and "game_map" in self.filters:
-            del self.filters["game_map"]
-            self.refresh()
-
-        elif game_map_id != -1:
-            self.filters["game_map"] = (LogFile.game_map_id == game_map_id)
-            self.refresh()
 
     def change_show_unparsable(self, show_unparsable):
         if show_unparsable and self.show_unparsable is False:
