@@ -192,6 +192,7 @@ class MainWidget(QWidget):
                 widget.pages["filter"].query_filter_changed.connect(self.log_files_tab.model.on_query_filter_changed)
             self.query_widget.set_current_index(self.log_files_tab.model.data_tool)
             self.query_widget.resize(self.query_widget.sizeHint())
+            self.log_files_tab.resize_header_sections()
 
         elif index == self.main_tabs_widget.indexOf(self.server_tab):
             if self.server_tab.model is None:
@@ -205,7 +206,7 @@ class MainWidget(QWidget):
                 widget.pages["filter"].query_filter_changed.connect(self.server_tab.model.on_query_filter_changed)
             self.query_widget.set_current_index(self.server_tab.model.data_tool)
             self.query_widget.resize(self.query_widget.sizeHint())
-
+            self.server_tab.resize_header_sections()
         elif index == self.main_tabs_widget.indexOf(self.query_result_tab):
             if self.query_result_tab.model is None:
                 self.query_widget.resize(self.query_widget.sizeHint())
@@ -221,18 +222,25 @@ class MainWidget(QWidget):
                 widget.pages["filter"].query_filter_changed.connect(self.query_result_tab.model.on_query_filter_changed)
             self.query_widget.set_current_index(self.query_result_tab.model.data_tool)
             self.query_widget.resize(self.query_widget.sizeHint())
+            self.query_result_tab.resize_header_sections()
         self.query_widget.resize(self.query_widget.sizeHint())
 
     def setup_views(self) -> None:
-        server_model = ServerModel().get_content()
+        server_model = ServerModel()
 
         self.server_tab.setModel(server_model)
+
         self.server_tab.single_item_selected.connect(self.show_server_detail)
         self.on_tab_changed(0)
-        log_file_model = LogFilesModel().get_content()
+        log_file_model = LogFilesModel()
 
         self.log_files_tab.setModel(log_file_model)
+
+        self.log_files_tab.resize_header_sections()
         self.log_files_tab.single_item_selected.connect(self.show_log_file_detail)
+
+        self.log_files_tab.model.refresh()
+        self.server_tab.model.refresh()
 
     def show_server_detail(self, index):
         item = self.server_tab.model.content_items[index.row()]
@@ -280,9 +288,11 @@ class MainWidget(QWidget):
         log_record_model._base_filter_item = log_record_model._base_filter_item & (LogRecord.log_file_id == log_file.id)
         log_record_model.request_view_change_visibility.connect(self.query_result_tab.setEnabled)
         log_record_model.request_view_change_visibility.connect(self.query_result_tab.setVisible)
+        self.main_tabs_widget.setCurrentWidget(self.query_result_tab)
 
         self.query_result_tab.setModel(log_record_model)
-        self.main_tabs_widget.setCurrentWidget(self.query_result_tab)
+        self.on_tab_changed(self.main_tabs_widget.currentIndex())
+
         self.query_result_tab.single_item_selected.connect(self.show_log_record_detail)
 
 

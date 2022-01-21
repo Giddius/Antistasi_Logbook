@@ -77,9 +77,9 @@ class ServerModel(BaseQueryDataModel):
         return _out
 
     def get_query(self) -> "Query":
-        query = Server.select().join(RemoteStorage).switch(Server)
+        query = Server.select(Server, RemoteStorage).join(RemoteStorage).switch(Server)
         if self.show_local_files_server is False:
-            query = query.where(Server.remote_path != None)
+            query = query.where((Server.remote_path.is_null(False)))
         if self.filter_item is not None:
             query = query.where(self.filter_item)
         return query.order_by(*self.ordered_by)

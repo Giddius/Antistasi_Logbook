@@ -14,7 +14,7 @@ from pathlib import Path
 import PySide6
 from PySide6.QtGui import QIcon, QAction
 from PySide6.QtCore import Qt, Slot, QPoint, Signal, QSettings, QModelIndex, QItemSelection
-from PySide6.QtWidgets import QMenu, QTreeView, QScrollBar, QHeaderView, QApplication, QAbstractItemView
+from PySide6.QtWidgets import QMenu, QTreeView, QScrollBar, QHeaderView, QApplication, QAbstractItemView, QStyleOptionViewItem
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -129,17 +129,19 @@ class BaseQueryTreeView(QTreeView):
         return super().model()
 
     def setup(self) -> "BaseQueryTreeView":
-        # self.setRootIsDecorated(False)
+
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.handle_custom_context_menu)
         self.setSortingEnabled(True)
         self.header_view.setSortIndicatorClearable(True)
 
-        self.setUniformRowHeights(True)
+        # self.setUniformRowHeights(True)
         self.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.setup_scrollbars()
         self.setFont(self.app.font())
+        self.header_view.setStretchLastSection(False)
+
         self.extra_setup()
         return self
 
@@ -178,6 +180,7 @@ class BaseQueryTreeView(QTreeView):
         settings = QSettings()
         settings.setValue(f"{self.name}_hidden_headers", set(hidden_section_names))
 
+    @profile
     def setup_headers(self):
         for column_name in self.initially_hidden_columns:
             index = self.model.get_column_index(column_name)
@@ -248,26 +251,47 @@ class BaseQueryTreeView(QTreeView):
         self.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.vertical_scrollbar.setSingleStep(3)
 
+    @profile
+    def resize_header_sections(self):
+
+        self.header_view.setSectionResizeMode(QHeaderView.ResizeToContents)
+        new_sizes = {}
+        for idx in range(self.header_view.count()):
+            section_size = self.header_view.sectionSize(idx)
+            new_size = int(section_size)
+
+            if self.model.columns[idx].name not in {"marked"}:
+                new_size = int(section_size + (self.size().width() * 0.02))
+
+            new_sizes[idx] = new_size
+
+        self.header_view.setSectionResizeMode(QHeaderView.Interactive)
+        for idx, size in new_sizes.items():
+            self.header_view.resizeSection(idx, size)
+
+    @profile
     def pre_set_model(self):
         self.setEnabled(False)
         self._temp_original_sorting_enabled = self.isSortingEnabled()
         if self._temp_original_sorting_enabled is True:
             self.setSortingEnabled(False)
 
+    @profile
     def post_set_model(self):
         self.setEnabled(True)
-        self.setUniformRowHeights(True)
-
         self.setSortingEnabled(self._temp_original_sorting_enabled)
 
+    @profile
     def setModel(self, model: PySide6.QtCore.QAbstractItemModel) -> None:
         try:
             self.pre_set_model()
 
             super().setModel(model)
-            model.setParent(self)
-            self.app.gui_thread_pool.submit(model.refresh)
-            log.debug("after set model, parent of model: %r", model.parent())
+            self.model.setParent(self)
+
+            if model.content_items is None:
+                self.backend.thread_pool.submit(self.model.refresh)
+            self.model.modelReset.connect(self.resize_header_sections)
             self.setup_headers()
             self.reset()
         finally:

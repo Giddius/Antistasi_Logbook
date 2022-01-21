@@ -10,7 +10,7 @@ Soon.
 from typing import TYPE_CHECKING, Any, Union, Optional
 from pathlib import Path
 from datetime import datetime
-
+from functools import cache
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
 
@@ -118,6 +118,7 @@ class BaseRecord(AbstractRecord):
         self.qt_attributes: QtAttributes = QtAttributes()
         self.pretty_attribute_cache: PrettyAttributeCache = PrettyAttributeCache()
 
+    @cache
     def get_data(self, name: str):
         _out = getattr(self, f"pretty_{name}", MiscEnum.NOTHING)
         if _out is MiscEnum.NOTHING:
@@ -128,24 +129,28 @@ class BaseRecord(AbstractRecord):
         return _out
 
     @property
+    @profile
     def pretty_message(self) -> str:
         if self.pretty_attribute_cache.pretty_message is MiscEnum.NOTHING:
             self.pretty_attribute_cache.pretty_message = self.get_formated_message(MessageFormat.PRETTY)
         return self.pretty_attribute_cache.pretty_message
 
     @property
+    @profile
     def pretty_log_level(self) -> Optional[str]:
         if self.pretty_attribute_cache.pretty_log_level is MiscEnum.NOTHING:
             self.pretty_attribute_cache.pretty_log_level = str(self.log_level) if self.log_level.id != 0 else None
         return self.pretty_attribute_cache.pretty_log_level
 
     @property
+    @profile
     def pretty_recorded_at(self) -> str:
         if self.pretty_attribute_cache.pretty_recorded_at is MiscEnum.NOTHING:
             self.pretty_attribute_cache.pretty_recorded_at = self.log_file.format_datetime(self.recorded_at)
         return self.pretty_attribute_cache.pretty_recorded_at
 
     @property
+    @profile
     def background_color(self) -> Optional["QColor"]:
         if self._background_qcolor is MiscEnum.NOTHING:
             self._background_qcolor = self.get_background_color()
@@ -162,6 +167,7 @@ class BaseRecord(AbstractRecord):
             return f"{self.pretty_recorded_at} {self.message}"
         return self.message
 
+    @profile
     def get_db_item(self, database: "GidSqliteApswDatabase") -> "LogRecord":
         from antistasi_logbook.storage.models.models import LogRecord
         with database:
@@ -208,7 +214,7 @@ class BaseRecord(AbstractRecord):
             return self.record_id
         if name == "record_class":
             return self.__class__
-        raise AttributeError(f"{self!r} does not have an attribute {name!r}")
+        raise AttributeError(f"{self.__class__.__name__!r} does not have an attribute {name!r}")
 
     @property
     def pretty_name(self) -> str:

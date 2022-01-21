@@ -10,7 +10,7 @@ Soon.
 from typing import TYPE_CHECKING, Any
 from pathlib import Path
 from threading import Event
-
+from time import sleep
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 
@@ -130,11 +130,13 @@ class Parser:
         if context._log_file.header_text is None:
 
             context.set_header_text(self._parse_header_text(context))
+            sleep(0)
         if self.stop_event.is_set():
             return
         if context._log_file.startup_text is None:
 
             context.set_startup_text(self._parse_startup_entries(context))
+            sleep(0)
         if self.stop_event.is_set():
             return
         log.info("Parsing entries for %r", context._log_file)
@@ -142,6 +144,7 @@ class Parser:
 
             processed_record = self.record_processor(raw_record=raw_record, utc_offset=context.log_file_data["utc_offset"])
             yield processed_record
+            sleep(0)
 
 
 # region[Main_Exec]

@@ -27,7 +27,7 @@ from gidapptools.general_helper.conversion import human2bytes
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook import setup
-from antistasi_logbook.storage.models.models import Server, GameMap, LogFile, Version, LogLevel, LogRecord, RecordClass, RecordOrigin, RemoteStorage, AntstasiFunction, DatabaseMetaData, setup_db
+from antistasi_logbook.storage.models.models import Server, GameMap, LogFile, Version, LogLevel, LogRecord, RecordClass, RecordOrigin, RemoteStorage, AntstasiFunction, DatabaseMetaData, setup_db, migration
 
 setup()
 # * Type-Checking Imports --------------------------------------------------------------------------------->
@@ -68,7 +68,8 @@ DEFAULT_PRAGMAS = {
     "ignore_check_constraints": 0,
     "foreign_keys": 1,
     "temp_store": "MEMORY",
-    "mmap_size": human2bytes("500 mb")
+    "mmap_size": human2bytes("500 mb"),
+    "journal_size_limit": human2bytes("500mb")
 }
 
 
@@ -169,7 +170,12 @@ class GidSqliteApswDatabase(APSWDatabase):
         self._pre_start_up(overwrite=overwrite)
         self.connect(reuse_if_open=True)
         with self.write_lock:
+            log.debug("starting setup for %r", self)
             setup_db(self)
+            log.debug("finished setup for %r", self)
+            log.debug("starting migration for %r", self)
+            migration(self)
+            log.debug("finished migration for %r", self)
 
         self._post_start_up()
         self.started_up = True
@@ -251,7 +257,7 @@ class GidSqliteApswDatabase(APSWDatabase):
     def iter_all_records(self, server: Server = None, only_missing_record_class: bool = False) -> Generator[LogRecord, None, None]:
         self.connect(True)
 
-        query = LogRecord.select().join(RecordClass, join_type=JOIN.LEFT_OUTER)
+        query = LogRecord.select(LogRecord, RecordClass).join(RecordClass, join_type=JOIN.LEFT_OUTER)
         if server is not None:
             nested = LogFile.select().where(LogFile.server_id == server.id)
             query = query.where((LogRecord.log_file << nested))

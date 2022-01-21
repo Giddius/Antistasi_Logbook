@@ -21,7 +21,7 @@ from threading import Thread
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QColor, QCloseEvent, QMouseEvent
 from PySide6.QtCore import Qt, Slot, Signal, QObject, QSettings, QByteArray
-from PySide6.QtWidgets import QWidget, QMenuBar, QGridLayout, QHeaderView, QMainWindow, QMessageBox, QSizePolicy, QSplashScreen, QToolBar, QTabBar, QPushButton
+from PySide6.QtWidgets import QWidget, QMenuBar, QGridLayout, QHeaderView, QMainWindow, QMessageBox, QSizePolicy, QSplashScreen, QToolBar, QTabBar, QPushButton, QDockWidget
 import qt_material
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
@@ -110,7 +110,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.name: str = None
         self.title: str = None
         self.update_thread: Thread = None
-
+        self.dock_widgets: list[QDockWidget] = []
         super().__init__()
 
         self.setup()
@@ -133,6 +133,13 @@ class AntistasiLogbookMainWindow(QMainWindow):
             data = styleSheet
         self.app.setStyleSheet(data)
 
+    def addDockWidget(self, area: Qt.DockWidgetArea, dockwidget: QDockWidget, orientation: Qt.Orientation = None):
+        args = [area, dockwidget]
+        if orientation is not None:
+            args.append(orientation)
+        super().addDockWidget(*args)
+        self.dock_widgets.append(dockwidget)
+
     def setup(self) -> None:
         qt_material.add_fonts()
         self.set_app_style_sheet(self.current_app_style_sheet)
@@ -153,6 +160,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
         else:
             self.resize(*self.initial_size)
         self.set_main_widget(MainWidget(self))
+        self.main_widget.server_tab.resize_header_sections()
         self.sys_tray = LogbookSystemTray(self, self.app)
         self.app.sys_tray = self.sys_tray
         self.sys_tray.show()
@@ -316,7 +324,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
     def _reassing_record_classes(self):
         def _run_reassingment():
-            self.statusbar.last_updated_label.shutdown()
+
             self.menubar.single_update_action.setEnabled(False)
             self.menubar.reassign_record_classes_action.setEnabled(False)
             self.update_started.emit()
@@ -327,14 +335,13 @@ class AntistasiLogbookMainWindow(QMainWindow):
                 self.menubar.single_update_action.setEnabled(True)
                 self.menubar.reassign_record_classes_action.setEnabled(True)
                 self.backend.database.close()
-                self.statusbar.last_updated_label.start()
 
         self.update_thread = Thread(target=_run_reassingment, name="run_reassignment_Thread")
         self.update_thread.start()
 
     def _single_update(self) -> None:
         def _run_update():
-            self.statusbar.last_updated_label.shutdown()
+
             self.menubar.single_update_action.setEnabled(False)
             self.update_started.emit()
             try:
@@ -343,7 +350,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
                 self.update_finished.emit()
                 self.menubar.single_update_action.setEnabled(True)
                 self.backend.database.close()
-                self.statusbar.last_updated_label.start()
+
         self.update_thread = Thread(target=_run_update, name="run_update_Thread")
 
         self.update_thread.start()
@@ -376,11 +383,12 @@ class AntistasiLogbookMainWindow(QMainWindow):
             log.debug("Finished shutting down %r", self.backend)
             splash.close()
 
-            log.debug('%r accepting event %r', self, event.type().name)
-
             if self.update_thread is not None:
                 self.update_thread.join(10)
             self.app.closeAllWindows()
+            log.info("Quiting %r", self.app)
+            self.app.quit()
+            log.debug('%r accepting event %r', self, event.type().name)
             event.accept()
 
         else:

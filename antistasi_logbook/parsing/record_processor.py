@@ -100,10 +100,6 @@ class RecordInserter:
     def write_lock(self) -> Lock:
         return self.database.write_lock
 
-    @property
-    def max_threads(self) -> int:
-        return self.config.get("updating", "max_inserting_threads", default=5)
-
     def _insert_func(self, records: Iterable["RawRecord"], context: "LogParsingContext") -> ManyRecordsInsertResult:
 
         # LogRecord.insert_many(i.to_log_record_dict(log_file=context._log_file) for i in records).execute()

@@ -122,7 +122,7 @@ class AntistasiLogbookApplication(QApplication):
         self.setApplicationVersion(self.meta_info.version)
         self.setOrganizationName(self.meta_info.pretty_app_author)
         self.setOrganizationDomain(str(self.meta_info.url))
-
+        self.setQuitOnLastWindowClosed(False)
         self.setup_app_font()
         self.is_setup = True
 

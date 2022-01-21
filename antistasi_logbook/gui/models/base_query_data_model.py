@@ -18,8 +18,8 @@ from natsort import natsorted
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
 from PySide6 import QtCore
-from PySide6.QtGui import QIcon, QColor, QAction
-from PySide6.QtCore import Qt, Slot, Signal, QModelIndex, QAbstractTableModel, QPersistentModelIndex
+from PySide6.QtGui import QIcon, QColor, QAction, QFontMetrics
+from PySide6.QtCore import Qt, Slot, Signal, QModelIndex, QAbstractTableModel, QPersistentModelIndex, QSize
 from PySide6.QtWidgets import QApplication, QColorDialog
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
@@ -107,7 +107,6 @@ class BaseQueryDataModel(QAbstractTableModel):
     mark_images = {"marked": AllResourceItems.mark_image.get_as_icon(),
                    "unmark": AllResourceItems.unmark_image.get_as_icon()}
 
-    
     def __init__(self, db_model: "BaseModel", parent: Optional[QtCore.QObject] = None, name: str = None) -> None:
         self.data_role_table: DATA_ROLE_MAP_TYPE = {Qt.DisplayRole: self._get_display_data,
                                                     Qt.ToolTipRole: self._get_tool_tip_data,
@@ -118,7 +117,7 @@ class BaseQueryDataModel(QAbstractTableModel):
                                                     # Qt.FontRole: self._get_font_data,
                                                     # Qt.EditRole: self._get_edit_data,
                                                     # Qt.InitialSortOrderRole: self._get_initial_sort_order_data,
-                                                    # Qt.SizeHintRole: self._get_size_hint_data,
+                                                    Qt.SizeHintRole: self._get_size_hint_data,
                                                     # Qt.StatusTipRole: self._get_status_tip_data,
                                                     # Qt.WhatsThisRole: self._get_whats_this_data,
                                                     # Qt.CheckStateRole: self._get_check_state_data,
@@ -145,7 +144,7 @@ class BaseQueryDataModel(QAbstractTableModel):
                                                                   #   Qt.WhatsThisRole: self._get_whats_this_header_data,
                                                                   #   Qt.DecorationRole: self._get_decoration_header_data,
                                                                   #   Qt.CheckStateRole: self._get_check_state_header_data,
-                                                                  #   Qt.TextAlignmentRole: self._get_text_alignment_header_data,
+                                                                  Qt.TextAlignmentRole: self._get_text_alignment_header_data,
                                                                   #   Qt.AccessibleTextRole: self._get_accessible_text_header_data,
                                                                   #   Qt.DisplayPropertyRole: self._get_display_property_header_data,
                                                                   #   Qt.ToolTipPropertyRole: self._get_tool_tip_property_header_data,
@@ -164,10 +163,11 @@ class BaseQueryDataModel(QAbstractTableModel):
         self.original_sort_order: tuple[int] = tuple()
         self.color_config = get_meta_config().get_config("color")
         self.filter_item = None
+        self._median_width: int = None
+        self._size_hints: dict[tuple[int, int], QSize] = {}
 
         super().__init__(parent=parent)
 
-    
     def on_query_filter_changed(self, query_filter):
         self.filter_item = query_filter
         self.refresh()
@@ -189,7 +189,6 @@ class BaseQueryDataModel(QAbstractTableModel):
         index.column_item = self.columns[index.column()]
         return index
 
-    
     def add_empty_item(self, position: int = None):
         empty_item = EmptyContentItem()
         content_items = list(self.content_items)
@@ -201,7 +200,6 @@ class BaseQueryDataModel(QAbstractTableModel):
         self.original_sort_order = tuple(content_items)
         self.content_items = content_items
 
-    
     def add_context_menu_actions(self, menu: "CustomContextMenu", index: QModelIndex):
         if self.app.is_dev is True:
             log.debug("%r has attribute %r: %r", self.db_model, "background_color", hasattr(self.db_model, "background_color"))
@@ -252,14 +250,12 @@ class BaseQueryDataModel(QAbstractTableModel):
         marked_index = self.index(index.row(), self.get_column_index("marked"), index.parent())
         self.setData(index=marked_index, value=not item.marked, role=Qt.DisplayRole)
 
-    
     def get_query(self) -> "Query":
         query = self.db_model.select()
         if self.filter_item is not None:
             query = query.where(self.filter_item)
         return query.order_by(*self.ordered_by)
 
-    
     def get_content(self) -> "BaseQueryDataModel":
         """
         [summary]
@@ -278,7 +274,6 @@ class BaseQueryDataModel(QAbstractTableModel):
             log.debug(f"{self.get_query()=}")
         return self
 
-    
     def get_columns(self) -> "BaseQueryDataModel":
         """
         [summary]
@@ -291,7 +286,6 @@ class BaseQueryDataModel(QAbstractTableModel):
         self.columns = tuple(c for c in list(self.db_model.get_meta().sorted_fields) + list(self.extra_columns) if c.name not in self.strict_exclude_columns)
         return self
 
-    
     def get_column_index(self, column: Union[str, Field]) -> Optional[int]:
 
         if isinstance(column, str):
@@ -301,7 +295,7 @@ class BaseQueryDataModel(QAbstractTableModel):
                 return None
         return list(self.columns).index(column)
 
-    
+    @profile
     def on_display_data_bool(self, role: int, item: "BaseModel", column: "Field", value: bool) -> str:
         if role == Qt.DisplayRole:
             if column.name == "marked":
@@ -313,11 +307,12 @@ class BaseQueryDataModel(QAbstractTableModel):
 
             return self.bool_images[value]
 
-    
+    @profile
     def on_display_data_none(self, role: int, item: "BaseModel", column: "Field") -> str:
         if role == Qt.DisplayRole:
             return '-'
 
+    @profile
     def _modify_display_data(self, data: Any, item: "BaseModel", column: "Field") -> str:
         if isinstance(data, bool):
             return self.on_display_data_bool(Qt.DisplayRole, item, column, data)
@@ -325,19 +320,16 @@ class BaseQueryDataModel(QAbstractTableModel):
             return self.on_display_data_none(Qt.DisplayRole, item, column)
         return str(data)
 
-    
     def columnCount(self, parent: Union[PySide6.QtCore.QModelIndex, PySide6.QtCore.QPersistentModelIndex] = None) -> int:
         if self.columns is None:
             return 0
         return len(self.columns)
 
-    
     def rowCount(self, parent: Union[PySide6.QtCore.QModelIndex, PySide6.QtCore.QPersistentModelIndex] = None) -> int:
         if self.content_items is None:
             return 0
         return len(self.content_items)
 
-    
     def data(self, index: INDEX_TYPE, role: int = None) -> Any:
         if not index.isValid():
             return
@@ -352,7 +344,7 @@ class BaseQueryDataModel(QAbstractTableModel):
 
                 return handler(index=self.modify_index(index))
 
-    
+    @profile
     def _get_display_data(self, index: INDEX_TYPE) -> Any:
         data = index.row_item.get_data(index.column_item.name)
         return self._modify_display_data(data, index.row_item, index.column_item)
@@ -360,7 +352,6 @@ class BaseQueryDataModel(QAbstractTableModel):
     def _get_foreground_data(self, index: INDEX_TYPE) -> Any:
         pass
 
-    
     def _get_background_data(self, index: INDEX_TYPE) -> Any:
         item, column = self.get(index)
         value = getattr(item, column.name)
@@ -373,7 +364,6 @@ class BaseQueryDataModel(QAbstractTableModel):
     def _get_font_data(self, index: INDEX_TYPE) -> Any:
         pass
 
-    
     def _get_tool_tip_data(self, index: INDEX_TYPE) -> Any:
         return index.column_item.help_text
 
@@ -383,10 +373,21 @@ class BaseQueryDataModel(QAbstractTableModel):
     def _get_user_data(self, index: INDEX_TYPE) -> Any:
         pass
 
+    @profile
     def _get_size_hint_data(self, index: INDEX_TYPE) -> Any:
-        pass
+        if self.parent():
+            try:
+                return self._size_hints[(index.row(), index.column())]
+            except KeyError:
+                fm: QFontMetrics = self.parent().fontMetrics()
+                data = self._get_display_data(index)
+                rect = fm.boundingRect(data)
+                width = rect.size().width()
 
-    
+                size = QSize(width, int(rect.size().height() * 1.5))
+                self._size_hints[(index.row(), index.column())] = size
+                return size
+
     def _get_decoration_data(self, index: INDEX_TYPE) -> Any:
 
         data = getattr(index.row_item, index.column_item.name)
@@ -404,9 +405,8 @@ class BaseQueryDataModel(QAbstractTableModel):
     def _get_check_state_data(self, index: INDEX_TYPE) -> Any:
         pass
 
-    
     def _get_text_alignment_data(self, index: INDEX_TYPE) -> Any:
-        return Qt.AlignVCenter | Qt.AlignLeft
+        return Qt.AlignCenter
 
     def _get_accessible_text_data(self, index: INDEX_TYPE) -> Any:
         pass
@@ -429,7 +429,6 @@ class BaseQueryDataModel(QAbstractTableModel):
     def _get_accessible_description_data(self, index: INDEX_TYPE) -> Any:
         pass
 
-    
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = None) -> Any:
         if role not in self.header_data_role_table:
             return
@@ -439,7 +438,6 @@ class BaseQueryDataModel(QAbstractTableModel):
             if handler is not None:
                 return handler(section, orientation)
 
-    
     def _get_display_header_data(self, section: int, orientation: Qt.Orientation) -> Any:
         if orientation == Qt.Horizontal:
             _out = self.columns[section].verbose_name
@@ -456,7 +454,6 @@ class BaseQueryDataModel(QAbstractTableModel):
     def _get_font_header_data(self, section: int, orientation: Qt.Orientation) -> Any:
         pass
 
-    
     def _get_tool_tip_header_data(self, section: int, orientation: Qt.Orientation) -> Any:
         if orientation == Qt.Horizontal:
             return self.columns[section].help_text
@@ -486,7 +483,7 @@ class BaseQueryDataModel(QAbstractTableModel):
         pass
 
     def _get_text_alignment_header_data(self, section: int, orientation: Qt.Orientation) -> Any:
-        pass
+        return Qt.AlignCenter
 
     def _get_accessible_text_header_data(self, section: int, orientation: Qt.Orientation) -> Any:
         pass
@@ -509,7 +506,6 @@ class BaseQueryDataModel(QAbstractTableModel):
     def _get_accessible_description_header_data(self, section: int, orientation: Qt.Orientation) -> Any:
         pass
 
-    
     def sort(self, column: int, order: PySide6.QtCore.Qt.SortOrder = None) -> None:
 
         def make_sort_key(in_column: Field):
@@ -571,7 +567,6 @@ class BaseQueryDataModel(QAbstractTableModel):
 
         self.layoutChanged.emit()
 
-    
     def refresh(self) -> "BaseQueryDataModel":
         self.beginResetModel()
         self.get_columns().get_content()
@@ -579,7 +574,6 @@ class BaseQueryDataModel(QAbstractTableModel):
 
         return self
 
-    
     def refresh_items(self):
         new_items = []
         with self.database:
@@ -589,7 +583,6 @@ class BaseQueryDataModel(QAbstractTableModel):
         self.content_items = tuple(new_items)
         self.dataChanged.emit(self.index(0, 0, QModelIndex()), self.index(self.rowCount(), self.columnCount(), QModelIndex()))
 
-    
     def refresh_item(self, index: "INDEX_TYPE"):
         item = self.content_items[index.row()]
         with self.database:
@@ -597,7 +590,6 @@ class BaseQueryDataModel(QAbstractTableModel):
         self.content_items = tuple([new_item if i is item else i for i in self.content_items])
         self.dataChanged.emit(self.index(index.row(), 0, QModelIndex()), self.index(index.row(), self.columnCount(), QModelIndex()))
 
-    
     def get(self, key: Union[QModelIndex, int]) -> Union[tuple, BaseModel]:
         if isinstance(key, QModelIndex):
             if not (0 <= key.row() < len(self.content_items)):
@@ -609,7 +601,6 @@ class BaseQueryDataModel(QAbstractTableModel):
                 return None
             return self.content_items[key]
 
-    
     def setData(self, index: Union[PySide6.QtCore.QModelIndex, PySide6.QtCore.QPersistentModelIndex], value: Any, role: int = ...) -> bool:
         if not index.isValid():
             return

@@ -46,7 +46,7 @@ log = get_logger(__name__)
 
 
 class LogbookSystemTray(QSystemTrayIcon):
-    
+
     def __init__(self, main_window: "AntistasiLogbookMainWindow", app: "AntistasiLogbookApplication") -> None:
         self.main_window = main_window
         self.app = app
@@ -57,11 +57,9 @@ class LogbookSystemTray(QSystemTrayIcon):
         super().__init__(self.tray_icon, self.main_window)
         self.setup()
 
-    
     def setup(self) -> None:
         self.setup_menu()
 
-    
     def setup_menu(self) -> None:
         self.menu = QMenu(self.main_window)
         self.menu.setStyleSheet("border: 1px solid black;background-color: white;margin: 4px")
@@ -72,7 +70,6 @@ class LogbookSystemTray(QSystemTrayIcon):
         self.close_action = self.add_action("Close", connect_to=self.main_window.close, icon=AllResourceItems.close_cancel_image.get_as_icon())
         self.setContextMenu(self.menu)
 
-    
     def add_menu_title(self) -> None:
         widget_action = QWidgetAction(self.menu)
         self.menu_title = QLabel(self.main_window.name)
@@ -82,7 +79,6 @@ class LogbookSystemTray(QSystemTrayIcon):
         widget_action.setDefaultWidget(self.menu_title)
         self.menu.addAction(widget_action)
 
-    
     def add_action(self, title: str, connect_to: Callable = None, icon: QIcon = None, enabled: bool = True) -> QAction:
         action = QAction(title)
 
@@ -96,19 +92,18 @@ class LogbookSystemTray(QSystemTrayIcon):
         action.setEnabled(enabled)
         return action
 
-    
     def switch_main_window_visible(self):
         main_window_visible = self.main_window.isVisible()
 
         self.main_window.setVisible(not main_window_visible)
-        # for widget in self.app.extra_windows:
-        #     widget.setVisible(not main_window_visible)
+        for dock_widget in self.main_window.dock_widgets:
+            dock_widget.setVisible(not main_window_visible)
+
         text = "Minimize to Tray" if main_window_visible is False else "Open"
         icon = AllResourceItems.hidden_image.get_as_icon() if main_window_visible is False else AllResourceItems.view_image.get_as_icon()
         self.hide_show_action.setText(text)
         self.hide_show_action.setIcon(icon)
 
-    
     def send_update_finished_message(self):
 
         self.showMessage("Update finished!", "The Database is now up to date!", QSystemTrayIcon.MessageIcon.Information, 15 * 1000)

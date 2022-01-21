@@ -3,6 +3,7 @@ __TAGS__: DEFAULT, BASIC
 */
 
 
+
 *[showing_error="true"]{
     color: white;
     background-color: red;

@@ -1,4 +1,10 @@
-from pathlib import Path
+import sys
+import os
+import shutil
 
+x = {}
 
-THIS_FILE_DIR = Path(__file__).parent.absolute()
+for i in range(100):
+    x[str(i)] = i
+
+print(sys.getsizeof(x))

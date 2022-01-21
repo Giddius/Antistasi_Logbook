@@ -3,5 +3,20 @@
         "identifier": "TODO",
         "category": "refactoring",
         "text": "simplify and check each piece of code that is threading related!"
+    },
+    {
+        "identifier": "TODO",
+        "category": "formatting",
+        "text": "Go through all classes and change the visual order of the methods and properties to be consistent and make sense."
+    },
+    {
+        "identifier": "idea",
+        "category": "feature",
+        "text": "Create AAR-Animation via $CLASS->ChangingSidesRecord$ entries for a certain 'Campaign_id' and have it play back by painting the locations with user controlled replay speed."
+    },
+    {
+        "identifier": "idea",
+        "category": "performance",
+        "text": "Make $CLASS->LogFile:-:amount_log_records$, $CLASS->LogFile:-:amount_warnings$ and $CLASS->LogFile:-:amount_errors$ of $CLASS->LogFile$ and actual DB column and not a calculated Property. Maybe via Trigger or Table-function, better via the normal $CLASS->Updater:-:update-mechanism$"
     }
 ]

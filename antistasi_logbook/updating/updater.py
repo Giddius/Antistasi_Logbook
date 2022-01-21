@@ -270,6 +270,7 @@ class Updater:
             idx += 1
             if idx % report_size == 0:
                 log.debug("checked %r records", idx)
+                sleep(0)
             if record.record_class_id != record_class.id:
 
                 to_update.append((int(record_class.id), int(record.id)))
@@ -279,6 +280,7 @@ class Updater:
                     tasks.append(task)
 
                     to_update.clear()
+
         if len(to_update) > 0:
             log.debug("updating %r records with their record class", len(to_update))
             task = self.database.record_inserter.many_update_record_class(list(to_update))
@@ -296,6 +298,7 @@ class Updater:
         log.debug("emiting after_updates_signal")
         self.signaler.send_update_finished()
         remote_manager_registry.close()
+        self.database.close()
 
     def update(self) -> None:
 

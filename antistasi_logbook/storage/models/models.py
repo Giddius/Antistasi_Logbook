@@ -19,7 +19,7 @@ from dateutil.tz import UTC
 from playhouse.signals import Model
 from playhouse.apsw_ext import TextField, BooleanField, IntegerField, ForeignKeyField
 from playhouse.sqlite_ext import JSONField
-
+from gidapptools.general_helper.enums import MiscEnum
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QColor
 
@@ -107,8 +107,12 @@ class BaseModel(Model):
     def color_config(self) -> "GidIniConfig":
         return get_meta_config().get_config("color")
 
+    @profile
     def get_data(self, attr_name: str, default: Any = "") -> Any:
-        return getattr(self, f"pretty_{attr_name}", getattr(self, attr_name, default))
+        _out = getattr(self, f"pretty_{attr_name}", MiscEnum.NOTHING)
+        if _out is MiscEnum.NOTHING:
+            _out = getattr(self, attr_name, default)
+        return _out
 
     def format_datetime(self, date_time: datetime) -> str:
         if self.config.get("time", "use_local_timezone", default=False) is True:
@@ -171,8 +175,8 @@ class GameMap(BaseModel):
     name = TextField(unique=True, index=True, verbose_name="Internal Name")
     official = BooleanField(default=False, index=True, verbose_name="Official")
     dlc = TextField(null=True, index=True, verbose_name="DLC")
-    map_image_high_resolution = PathField(null=True, verbose_name="High Resolution Image Path")
-    map_image_low_resolution = CompressedImageField(null=True, verbose_name="Low Resolution Image Path")
+    map_image_high_resolution = CompressedImageField(null=True, verbose_name="High Resolution Image")
+    map_image_low_resolution = CompressedImageField(null=True, verbose_name="Low Resolution Image")
     coordinates = JSONField(null=True, verbose_name="Coordinates-JSON")
     workshop_link = URLField(null=True, verbose_name="Workshop Link")
     comments = CommentsField()
@@ -254,14 +258,17 @@ class Server(BaseModel):
         table_name = 'Server'
 
     @cached_property
+    @profile
     def background_color(self):
         return self.color_config.get("server", self.name, default=None)
 
     @cached_property
+    @profile
     def pretty_name(self) -> str:
         return self.name.replace('_', ' ').title()
 
     @cached_property
+    @profile
     def pretty_remote_path(self) -> str:
         return self.remote_path.as_posix()
 
@@ -341,7 +348,7 @@ class LogFile(BaseModel):
     utc_offset = TzOffsetField(null=True, verbose_name="UTC Offset")
     version = ForeignKeyField(null=True, model=Version, field="id", column_name="version", lazy_load=True, index=True, verbose_name="Version")
     game_map = ForeignKeyField(column_name='game_map', field='id', model=GameMap, null=True, lazy_load=True, index=True, verbose_name="Game-Map")
-    is_new_campaign = BooleanField(null=True, index=True, verbose_name="Is New Campaign")
+    is_new_campaign = BooleanField(null=True, index=True, verbose_name="New Campaign")
     campaign_id = IntegerField(null=True, index=True, verbose_name="Campaign Id")
     server = ForeignKeyField(column_name='server', field='id', model=Server, lazy_load=True, backref="log_files", index=True, verbose_name="Server")
     unparsable = BooleanField(default=False, index=True, verbose_name="Unparsable")
@@ -361,15 +368,18 @@ class LogFile(BaseModel):
         self.is_downloaded = False
 
     @cached_property
+    @profile
     def time_frame(self) -> DateTimeFrame:
         min_date_time, max_date_time = LogRecord.select(fn.Min(LogRecord.recorded_at), fn.Max(LogRecord.recorded_at)).where(LogRecord.log_file_id == self.id).scalar(as_tuple=True)
         return DateTimeFrame(min_date_time, max_date_time)
 
     @cached_property
+    @profile
     def pretty_server(self) -> str:
         return self.server.pretty_name
 
     @cached_property
+    @profile
     def pretty_utc_offset(self) -> str:
         offset = self.utc_offset
         offset_hours = offset._offset.total_seconds() / 3600
@@ -377,33 +387,40 @@ class LogFile(BaseModel):
         return f"UTC{offset_hours:+}"
 
     @cached_property
+    @profile
     def amount_log_records(self) -> int:
         return LogRecord.select().where(LogRecord.log_file_id == self.id).count()
 
     @cached_property
+    @profile
     def amount_errors(self) -> int:
         return LogRecord.select().where((LogRecord.log_file_id == self.id) & (LogRecord.log_level_id == self.database.foreign_key_cache.all_log_levels.get("ERROR").id)).count()
 
     @cached_property
+    @profile
     def amount_warnings(self) -> int:
         return LogRecord.select().where((LogRecord.log_file_id == self.id) & (LogRecord.log_level_id == self.database.foreign_key_cache.all_log_levels.get("WARNING").id)).count()
 
     @cached_property
+    @profile
     def pretty_size(self) -> str:
         if self.size is not None:
             return bytes2human(self.size)
 
     @cached_property
+    @profile
     def pretty_modified_at(self) -> str:
         if self.modified_at is not None:
             return self.format_datetime(self.modified_at)
 
     @cached_property
+    @profile
     def pretty_created_at(self) -> str:
         if self.created_at is not None:
             return self.format_datetime(self.created_at)
 
     @cached_property
+    @profile
     def file_lock(self) -> Lock:
         return FILE_LOCKS.get_file_lock(self)
 
@@ -641,12 +658,12 @@ class RecordOrigin(BaseModel):
 
 
 class LogRecord(BaseModel):
-    start = IntegerField(help_text="Start Line number of the Record", verbose_name="Start Line Number", index=True)
-    end = IntegerField(help_text="End Line number of the Record", verbose_name="End Line Number")
+    start = IntegerField(help_text="Start Line number of the Record", verbose_name="Start")
+    end = IntegerField(help_text="End Line number of the Record", verbose_name="End")
     message = TextField(help_text="Message part of the Record", verbose_name="Message")
     recorded_at = AwareTimeStampField(index=True, utc=True, verbose_name="Recorded at")
     called_by = ForeignKeyField(column_name='called_by', field='id', model=AntstasiFunction, backref="log_records_called_by", lazy_load=True, null=True, index=True, verbose_name="Called by")
-    origin = ForeignKeyField(column_name="origin", field="id", model=RecordOrigin, backref="records", lazy_load=True, index=True, verbose_name="Origin", default=0)
+    origin = ForeignKeyField(column_name="origin", field="id", model=RecordOrigin, backref="records", lazy_load=True, verbose_name="Origin", default=0)
     logged_from = ForeignKeyField(column_name='logged_from', field='id', model=AntstasiFunction, backref="log_records_logged_from", lazy_load=True, null=True, index=True, verbose_name="Logged from")
     log_file = ForeignKeyField(column_name='log_file', field='id', model=LogFile, lazy_load=True, backref="log_records", null=False, verbose_name="Log-File", index=True)
     log_level = ForeignKeyField(column_name='log_level', default=0, field='id', model=LogLevel, null=True, lazy_load=True, index=True, verbose_name="Log-Level")
@@ -762,6 +779,34 @@ class DatabaseMetaData(BaseModel):
         with DATABASE_META_LOCK:
             amount = kwargs.get("amount", 1)
             self.added_log_records += amount
+
+
+def migration(database: "GidSqliteApswDatabase"):
+    from playhouse.migrate import SqliteMigrator, migrate
+    from playhouse.reflection import Introspector
+    migrator = SqliteMigrator(database=database)
+    introspector = Introspector.from_database(database)
+    operations = []
+    existing_models = introspector.generate_models()
+    all_models = BaseModel.__subclasses__()
+    for model in all_models:
+        table = model._meta.table_name.removesuffix("__tmp__")
+        existing_model = existing_models[table]
+
+        for field_name, field_obj in model._meta.fields.items():
+            if field_name in {"id"}:
+                continue
+            if field_obj.null is False and field_obj.default is None:
+                continue
+            if field_name not in existing_model._meta.fields:
+                log.debug("adding column named %r to %r", field_name, table)
+                migrate(migrator.add_column(table=table, column_name=field_name, field=field_obj))
+
+        for existing_field_name in existing_model._meta.fields:
+            if existing_field_name not in model._meta.fields:
+                migrate(migrator.drop_column(table=table, column_name=existing_field_name))
+
+    # migrate(*operations)
 
 
 def setup_db(database: "GidSqliteApswDatabase"):
