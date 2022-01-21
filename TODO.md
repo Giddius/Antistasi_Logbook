@@ -43,7 +43,7 @@
 
 
 
-> Make [amount_log_records](antistasi_logbook/gui/models/log_files_model.py#L71), [amount_warnings](antistasi_logbook/gui/models/log_files_model.py#L71) and [amount_errors](antistasi_logbook/gui/models/log_files_model.py#L71) of [LogFile](antistasi_logbook/gui/models/log_files_model.py#L71) and actual DB column and not a calculated Property. Maybe via Trigger or Table-function, better via the normal [update-mechanism](antistasi_logbook/gui/misc.py#L45)
+> Make [amount_log_records](antistasi_logbook/storage/models/models.py#L339), [amount_warnings](antistasi_logbook/storage/models/models.py#L339) and [amount_errors](antistasi_logbook/storage/models/models.py#L339) of [LogFile](antistasi_logbook/storage/models/models.py#L339) and actual DB column and not a calculated Property. Maybe via Trigger or Table-function, better via the normal [update-mechanism](antistasi_logbook/updating/updater.py#L58)
 
 ---
 
