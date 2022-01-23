@@ -8,7 +8,7 @@ Soon.
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable
 from pathlib import Path
 from functools import cached_property
 
@@ -42,6 +42,7 @@ class AbstractRecord(ABC):
     ___record_family___: RecordFamily = ...
     ___specificity___: int = ...
     ___has_multiline_message___: bool = False
+    extra_detail_views: Iterable[str] = []
 
     @classmethod
     @abstractmethod

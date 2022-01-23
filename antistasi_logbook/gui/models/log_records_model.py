@@ -76,6 +76,16 @@ class LogRecordsModel(BaseQueryDataModel):
     strict_exclude_columns = {"record_class"}
     bool_images = {True: AllResourceItems.check_mark_green_image.get_as_icon(),
                    False: AllResourceItems.close_black_image.get_as_icon()}
+    item_size_by_column_name: dict[str, QSize] = {"message": QSize(750, 30),
+                                                  "start": QSize(30, 30),
+                                                  "end": QSize(30, 30),
+                                                  "recorded_at": QSize(140, 30),
+                                                  "log_file": QSize(250, 30),
+                                                  "marked": QSize(10, 30),
+                                                  "Origin": QSize(60, 30),
+                                                  "log_level": QSize(60, 30),
+                                                  "called_by": QSize(150, 30),
+                                                  "logged_from": QSize(150, 30)}
 
     def __init__(self, parent=None) -> None:
         super().__init__(LogRecord, parent=parent)
@@ -157,18 +167,6 @@ class LogRecordsModel(BaseQueryDataModel):
         if hasattr(item, "background_color"):
             return item.background_color
         return super()._get_background_data(index)
-
-    def _get_size_hint_data(self, index: INDEX_TYPE) -> Any:
-        if self.parent():
-            size = super()._get_size_hint_data(index)
-            if index.column_item.name in {"message"}:
-                width = min(self.parent().size().width() * 0.4, size.width())
-                size = QSize(width, size.height())
-
-            elif index.column_item.name in {"logged_from", "called_by"}:
-                width = min(self.parent().size().width() * 0.075, size.width())
-                size = QSize(width, size.height())
-            return size
 
     def _get_text_alignment_data(self, index: INDEX_TYPE) -> Any:
         if index.column_item.name in {"message"}:

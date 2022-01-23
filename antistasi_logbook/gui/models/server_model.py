@@ -17,7 +17,7 @@ from peewee import Query
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6 import QtCore
 from PySide6.QtGui import QColor
-from PySide6.QtCore import Qt, Slot, QModelIndex
+from PySide6.QtCore import Qt, Slot, QModelIndex, QSize
 from PySide6.QtWidgets import QLineEdit, QInputDialog
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
@@ -63,6 +63,10 @@ def get_int_from_name(name: str, default: int = -1) -> int:
 class ServerModel(BaseQueryDataModel):
     extra_columns = set()
     color_config_name = "server"
+    item_size_by_column_name: dict[str, QSize] = {"name": QSize(100, 30),
+                                                  "remote_path": QSize(300, 30),
+                                                  "remote_storage": QSize(150, 30),
+                                                  "marked": QSize(10, 30)}
 
     def __init__(self, parent: Optional[QtCore.QObject] = None, show_local_files_server: bool = False) -> None:
         self.show_local_files_server = show_local_files_server

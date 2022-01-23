@@ -75,6 +75,7 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
+
 get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
@@ -222,6 +223,10 @@ class AntistasiLogbookMainWindow(QMainWindow):
             self.debug_dock_widget.add_show_attr_button(attr_name=attr_name, obj=self.app)
 
         self.debug_dock_widget.add_show_attr_button(attr_name="colorNames", obj=QColor)
+
+        close_all_db_conn_button = QPushButton("Close All Db Connections")
+        close_all_db_conn_button.pressed.connect(self.backend.database.close_all)
+        self.debug_dock_widget.add_widget("close_all_db_conn", "Database", close_all_db_conn_button)
 
     def do_the_call_tree(self):
         c = CallTree(self.backend.database.get_log_files(ordered_by=LogFile.size)[-1])
@@ -375,20 +380,26 @@ class AntistasiLogbookMainWindow(QMainWindow):
             self.setVisible(False)
             if self.config.get("database", "backup_database") is True:
                 splash.show()
-            splash.setPixmap(AllResourceItems.antistasi_logbook_splash_backup_image.get_as_pixmap())
-            log.debug("shutting down %r", self.statusbar)
+            splash.setPixmap(AllResourceItems.antistasi_logbook_splash_shutdown_backend_image.get_as_pixmap())
+
+            for widget in self.app.allWidgets():
+                if widget is not splash:
+                    widget.hide()
+
+            log.info("shutting down %r", self.statusbar)
             self.statusbar.shutdown()
-            log.debug("Starting shutting down %r", self.backend)
+            log.info("Starting shutting down %r", self.backend)
             self.backend.shutdown()
-            log.debug("Finished shutting down %r", self.backend)
+            log.info("Finished shutting down %r", self.backend)
             splash.close()
 
             if self.update_thread is not None:
                 self.update_thread.join(10)
+            log.info("closing all windows of %r", self.app)
             self.app.closeAllWindows()
             log.info("Quiting %r", self.app)
             self.app.quit()
-            log.debug('%r accepting event %r', self, event.type().name)
+            log.info('%r accepting event %r', self, event.type().name)
             event.accept()
 
         else:

@@ -70,6 +70,8 @@ WARNING_SIGN_ROUND_YELLOW_IMAGE = ressource_item_factory(file_path='D:/Dropbox/h
 
 CLOSED_EYE_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/closed_eye.svg', qt_path=':/images/closed_eye.svg')
 
+ANTISTASI_LOGBOOK_SPLASH_SHUTDOWN_BACKEND_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/antistasi_logbook_splash_shutdown_backend.png', qt_path=':/images/antistasi_logbook_splash_shutdown_backend.png')
+
 DATABASE_SETTINGS_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/database_settings.svg', qt_path=':/images/database_settings.svg')
 
 SPINNER_GIF = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/spinner.gif', qt_path=':/gifs/spinner.gif')
@@ -137,6 +139,7 @@ class AllResourceItems(metaclass=AllResourceItemsMeta):
     antistasi_logbook_splash_starting_backend_image = ANTISTASI_LOGBOOK_SPLASH_STARTING_BACKEND_IMAGE
     warning_sign_round_yellow_image = WARNING_SIGN_ROUND_YELLOW_IMAGE
     closed_eye_image = CLOSED_EYE_IMAGE
+    antistasi_logbook_splash_shutdown_backend_image = ANTISTASI_LOGBOOK_SPLASH_SHUTDOWN_BACKEND_IMAGE
     database_settings_image = DATABASE_SETTINGS_IMAGE
     stats_icon_2_image = STATS_ICON_2_IMAGE
     hidden_icon_image = HIDDEN_ICON_IMAGE

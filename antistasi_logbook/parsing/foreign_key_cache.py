@@ -46,6 +46,19 @@ log = get_logger(__name__)
 
 
 class ForeignKeyCache:
+    """
+    Stores contents of auxilliary tables that do not change often.
+
+    Listens to changes on those tables and updates itself lazily if necessary.
+
+    Is Thread-safe.
+
+    Should only be auto-instantiated by the Backend.
+
+    Args:
+        backend (`Backend`) = The current Backend instance.
+    """
+
     log_levels_blocker = BlockingEvent()
     game_map_model_blocker = BlockingEvent()
     antistasi_file_model_blocker = BlockingEvent()
@@ -80,14 +93,24 @@ class ForeignKeyCache:
         self._register_signals()
 
     def _register_signals(self) -> None:
+        """
+        Registers the Change signals of the Models with the method that invalidates the specific cache.
+
+        """
         for model_class in self.update_map:
             try:
-                post_save.connect(self.on_save_handler, sender=model_class)
+                post_save.connect(self._on_save_handler, sender=model_class)
             except ValueError:
                 continue
 
     @property
     def database(self) -> "GidSqliteApswDatabase":
+        """
+        Provides the Database-instance.
+
+        convenience-method
+
+        """
         return self.backend.database
 
     @property
@@ -192,6 +215,10 @@ class ForeignKeyCache:
         return self.all_version_objects_by_id.get(str(model_id))
 
     def reset_all(self) -> None:
+        """
+        Invalidate each cache.
+
+        """
         self.__class__._all_log_levels = None
         self.__class__._all_antistasi_file_objects = None
         self.__class__._all_game_map_objects = None
@@ -204,7 +231,14 @@ class ForeignKeyCache:
         self.__class__._all_version_objects_by_id = None
         log.info("all cached foreign keys were reseted.")
 
-    def on_save_handler(self, sender, instance, created):
+    def _on_save_handler(self, sender, instance, created):
+        """
+        Invalidates the cache of the Model that was changed.
+
+        Handles the Models, `post_save`-Signal.
+
+
+        """
         if created:
             event, class_attr_names = self.update_map.get(sender, (None, None))
             if event is None:

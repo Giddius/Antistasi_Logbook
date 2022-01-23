@@ -48,7 +48,7 @@ class CollapsibleGroupBox(QGroupBox):
     expand_prefix = "▼"
     collapse_prefix = "▲"
 
-    def __init__(self, text: str = None, content: QWidget = None, parent=None):
+    def __init__(self, text: str = None, content: QWidget = None, start_expanded: bool = True, parent=None):
         super().__init__(parent=parent)
         self.setLayout(QGridLayout())
         self.layout.setAlignment(Qt.AlignCenter)
@@ -58,10 +58,13 @@ class CollapsibleGroupBox(QGroupBox):
         self.content = content
 
         self.layout.addWidget(self.content)
+
         self.expanded = True
         self.setTitle(self.full_text)
         self.original_cursor = self.cursor()
         self.current_cursor = self.cursor()
+        if start_expanded is False:
+            self.set_expanded(False)
 
     @property
     def full_text(self) -> str:

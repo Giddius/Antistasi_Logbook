@@ -69,11 +69,26 @@ log = get_logger(__name__)
 
 
 class LogFilesModel(BaseQueryDataModel):
-    extra_columns = {FakeField(name="amount_log_records", verbose_name="Amount Log Records"),
+    extra_columns = {FakeField(name="amount_log_records", verbose_name="Records"),
                      FakeField("time_frame", "Time Frame"),
-                     FakeField(name="amount_errors", verbose_name="Amount Errors"),
-                     FakeField(name="amount_warnings", verbose_name="Amount Warnings")}
+                     FakeField(name="amount_errors", verbose_name="Errors"),
+                     FakeField(name="amount_warnings", verbose_name="Warnings")}
     strict_exclude_columns = {"startup_text", "remote_path", "header_text"}
+
+    item_size_by_column_name: dict[str, QSize] = {"name": QSize(250, 30),
+                                                  "modified_at": QSize(140, 30),
+                                                  "created_at": QSize(140, 30),
+                                                  "size": QSize(50, 30),
+                                                  "version": QSize(40, 30),
+                                                  "game_map": QSize(60, 30),
+                                                  "is_new_campaign": QSize(10, 30),
+                                                  "campaign_id": QSize(50, 30),
+                                                  "server": QSize(90, 30),
+                                                  "max_mem": QSize(40, 30),
+                                                  "marked": QSize(10, 30),
+                                                  "amount_warnings": QSize(20, 30),
+                                                  "amount_errors": QSize(20, 30),
+                                                  "amount_log_records": QSize(20, 30)}
 
     def __init__(self, parent: Optional[QtCore.QObject] = None, show_unparsable: bool = False) -> None:
         self.show_unparsable = show_unparsable

@@ -8,7 +8,7 @@ Soon.
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import re
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union, Iterable
 from pathlib import Path
 
 # * Third Party Imports --------------------------------------------------------------------------------->
@@ -18,7 +18,7 @@ import pp
 from gidapptools import get_logger
 from gidapptools.general_helper.enums import MiscEnum
 from gidapptools.general_helper.color.color_item import Color
-
+from gidapptools.general_helper.string_helper import fix_multiple_quotes
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.records.base_record import BASE_SLOTS, BaseRecord, RecordFamily
 from antistasi_logbook.utilities.parsing_misc import parse_text_array
@@ -57,10 +57,21 @@ class PerfProfilingRecord(BaseRecord):
     ___record_family___ = RecordFamily.GENERIC
     ___specificity___ = 10
     _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
-    __slots__ = tuple(BASE_SLOTS)
+    __slots__ = ("record_id",
+                 "log_file",
+                 "origin",
+                 "start",
+                 "end",
+                 "message",
+                 "recorded_at",
+                 "log_level",
+                 "marked",
+                 "called_by",
+                 "logged_from",
+                 "qt_attributes",
+                 "pretty_attribute_cache")
 
     @classmethod
-    
     def check(cls, log_record: "LogRecord") -> bool:
         if log_record.message.strip().startswith("[ASU] Perf-profiling"):
             return True
@@ -78,7 +89,21 @@ class TFEInfoSettings(BaseRecord):
     ___record_family___ = RecordFamily.GENERIC
     ___specificity___ = 10
     _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
-    __slots__ = tuple(BASE_SLOTS + ["_array_data"])
+    extra_detail_views: Iterable[str] = ("array_data",)
+    __slots__ = ("record_id",
+                 "log_file",
+                 "origin",
+                 "start",
+                 "end",
+                 "message",
+                 "recorded_at",
+                 "log_level",
+                 "marked",
+                 "called_by",
+                 "logged_from",
+                 "qt_attributes",
+                 "pretty_attribute_cache",
+                 "_array_data")
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -104,7 +129,6 @@ class TFEInfoSettings(BaseRecord):
         return super().get_formated_message(msg_format=msg_format)
 
     @classmethod
-    
     def check(cls, log_record: "LogRecord") -> bool:
         if log_record.message.startswith("[TFE] Info: Settings:"):
             return True
@@ -114,6 +138,125 @@ class TFEInfoSettings(BaseRecord):
 
 ALL_GENERIC_RECORD_CLASSES.add(TFEInfoSettings)
 
+
+class PlayerDisconnected(BaseRecord):
+    ___record_family___ = RecordFamily.GENERIC
+    ___specificity___ = 10
+    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
+    extra_detail_views: Iterable[str] = ("player_name", "player_id", "array_data")
+    __slots__ = ("record_id",
+                 "log_file",
+                 "origin",
+                 "start",
+                 "end",
+                 "message",
+                 "recorded_at",
+                 "log_level",
+                 "marked",
+                 "called_by",
+                 "logged_from",
+                 "qt_attributes",
+                 "pretty_attribute_cache",
+                 "array_data",
+                 "player_name",
+                 "player_id")
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.array_data: list = None
+        self.player_name: str = None
+        self.player_id: str = None
+        self.parse_it()
+
+    def parse_it(self):
+
+        data_array_text = self.message.removeprefix("[TFE] Info: Player disconnected:").strip()
+        _, player_id, player_name, *rest = data_array_text.strip("[]").split(",")
+        self.player_name = player_name.strip('" ')
+        self.player_id = player_id.strip('" ')
+
+        self.array_data = parse_text_array(fix_multiple_quotes(data_array_text))
+
+    def get_background_color(self):
+        return Color.get_color_by_name("DeepPink").with_alpha(0.2).qcolor
+
+    def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
+        if msg_format is MessageFormat.PRETTY:
+            text = "[TFE] Info: Player disconnected: "
+            text += pp.fmt(self.array_data).replace("'", '"')
+            return text
+
+        return super().get_formated_message(msg_format=msg_format)
+
+    @classmethod
+    def check(cls, log_record: "LogRecord") -> bool:
+        if log_record.message.startswith("[TFE] Info: Player disconnected:"):
+            return True
+
+        return False
+
+
+ALL_GENERIC_RECORD_CLASSES.add(PlayerDisconnected)
+
+
+class PlayerConnected(BaseRecord):
+    ___record_family___ = RecordFamily.GENERIC
+    ___specificity___ = 10
+    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
+    __slots__ = ("record_id",
+                 "log_file",
+                 "origin",
+                 "start",
+                 "end",
+                 "message",
+                 "recorded_at",
+                 "log_level",
+                 "marked",
+                 "called_by",
+                 "logged_from",
+                 "qt_attributes",
+                 "pretty_attribute_cache",
+                 "array_data",
+                 "player_name",
+                 "player_id")
+    extra_detail_views: Iterable[str] = ("player_name", "player_id", "array_data")
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.array_data: list = None
+        self.player_name: str = None
+        self.player_id: str = None
+        self.parse_it()
+
+    def parse_it(self):
+
+        data_array_text = self.message.removeprefix("[TFE] Info: Player connected:").strip()
+        _, player_id, player_name, *rest = data_array_text.strip("[]").split(",")
+        self.player_name = player_name.strip('" ')
+        self.player_id = player_id.strip('" ')
+
+        self.array_data = parse_text_array(fix_multiple_quotes(data_array_text))
+
+    def get_background_color(self):
+        return Color.get_color_by_name("Ivory").with_alpha(0.2).qcolor
+
+    def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
+        if msg_format is MessageFormat.PRETTY:
+            text = "[TFE] Info: Player connected: "
+            text += pp.fmt(self.array_data).replace("'", '"')
+            return text
+
+        return super().get_formated_message(msg_format=msg_format)
+
+    @classmethod
+    def check(cls, log_record: "LogRecord") -> bool:
+        if log_record.message.startswith("[TFE] Info: Player connected:"):
+            return True
+
+        return False
+
+
+ALL_GENERIC_RECORD_CLASSES.add(PlayerConnected)
 
 # region[Main_Exec]
 

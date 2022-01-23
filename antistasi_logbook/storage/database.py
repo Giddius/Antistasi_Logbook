@@ -10,6 +10,7 @@ Soon.
 import os
 from typing import TYPE_CHECKING, Union, Protocol, Generator
 from pathlib import Path
+import types
 from weakref import WeakSet
 from functools import cached_property
 from threading import Lock
@@ -28,7 +29,8 @@ from gidapptools.general_helper.conversion import human2bytes
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook import setup
 from antistasi_logbook.storage.models.models import Server, GameMap, LogFile, Version, LogLevel, LogRecord, RecordClass, RecordOrigin, RemoteStorage, AntstasiFunction, DatabaseMetaData, setup_db, migration
-
+import apsw
+from time import sleep
 setup()
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
@@ -69,12 +71,24 @@ DEFAULT_PRAGMAS = {
     "foreign_keys": 1,
     "temp_store": "MEMORY",
     "mmap_size": human2bytes("500 mb"),
-    "journal_size_limit": human2bytes("500mb")
+    "journal_size_limit": human2bytes("100mb")
 }
 
 
 def make_db_path(in_path: Union[str, os.PathLike, Path]) -> str:
-    return Path(in_path).resolve().as_posix().replace('/', '\\')
+    """
+    Returns the provided path resolved and as a String so APSW can understand it.
+
+    Peewee (or APSW) seems to not follow the `os.PathLike`-Protocol.
+
+    Args:
+        in_path (Union[str, os.PathLike, Path])
+
+    Returns:
+        str: The resolved and normalized path to the db.
+    """
+
+    return str(Path(in_path).resolve())
 
 
 class GidSqliteDatabase(Protocol):
@@ -148,9 +162,22 @@ class GidSqliteApswDatabase(APSWDatabase):
     def base_record_id(self) -> int:
         return RecordClass.select().where(RecordClass.name == "BaseRecord").scalar()
 
-    # def _add_conn_hooks(self, conn):
-    #     super()._add_conn_hooks(conn)
-    #     self.all_connections.add(conn)
+    def _add_conn_hooks(self, conn):
+        super()._add_conn_hooks(conn)
+        self.all_connections.add(conn)
+
+    def close_all(self):
+        log.debug("all connections: %r", ', '.join(repr(conn) for conn in self.all_connections))
+        for conn in self.all_connections:
+            log.debug("interrupting connection %r", conn)
+            try:
+                conn.interrupt()
+            except apsw.ConnectionClosedError as e:
+                log.debug("encountered error %r", e)
+
+            conn.close(True)
+
+        self.close()
 
     def _pre_start_up(self, overwrite: bool = False) -> None:
         self.database_path.parent.mkdir(exist_ok=True, parents=True)
@@ -195,17 +222,12 @@ class GidSqliteApswDatabase(APSWDatabase):
             self.execute_sql("VACUUM;")
         return self
 
-    def close(self):
-        return super().close()
-
     def shutdown(self, error: BaseException = None) -> None:
         log.debug("shutting down %r", self)
         with self.write_lock:
             self.session_meta_data.save()
-
-        is_closed = self.close()
-        for conn in self.all_connections:
-            conn.close()
+        sleep(5)
+        self.close_all()
 
         log.debug("finished shutting down %r", self)
         self.started_up = False
@@ -289,5 +311,6 @@ class GidSqliteApswDatabase(APSWDatabase):
 
 # region[Main_Exec]
 if __name__ == '__main__':
+
     pass
-    # endregion[Main_Exec]
+# endregion[Main_Exec]

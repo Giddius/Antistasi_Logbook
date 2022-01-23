@@ -107,6 +107,9 @@ class BaseQueryDataModel(QAbstractTableModel):
     mark_images = {"marked": AllResourceItems.mark_image.get_as_icon(),
                    "unmark": AllResourceItems.unmark_image.get_as_icon()}
 
+    default_item_size = QSize(100, 30)
+    item_size_by_column_name: dict[str, QSize] = {"id": QSize(30, 30)}
+
     def __init__(self, db_model: "BaseModel", parent: Optional[QtCore.QObject] = None, name: str = None) -> None:
         self.data_role_table: DATA_ROLE_MAP_TYPE = {Qt.DisplayRole: self._get_display_data,
                                                     Qt.ToolTipRole: self._get_tool_tip_data,
@@ -373,20 +376,8 @@ class BaseQueryDataModel(QAbstractTableModel):
     def _get_user_data(self, index: INDEX_TYPE) -> Any:
         pass
 
-    @profile
     def _get_size_hint_data(self, index: INDEX_TYPE) -> Any:
-        if self.parent():
-            try:
-                return self._size_hints[(index.row(), index.column())]
-            except KeyError:
-                fm: QFontMetrics = self.parent().fontMetrics()
-                data = self._get_display_data(index)
-                rect = fm.boundingRect(data)
-                width = rect.size().width()
-
-                size = QSize(width, int(rect.size().height() * 1.5))
-                self._size_hints[(index.row(), index.column())] = size
-                return size
+        return self.item_size_by_column_name.get(index.column_item.name, self.default_item_size)
 
     def _get_decoration_data(self, index: INDEX_TYPE) -> Any:
 

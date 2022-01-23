@@ -70,7 +70,7 @@ class PrettyAttributeCache:
     pretty_message: str = attr.ib(default=MiscEnum.NOTHING)
 
 
-BASE_SLOTS: list[str] = ["record_id",
+BASE_SLOTS: list[str] = ("record_id",
                          "log_file",
                          "origin",
                          "start",
@@ -82,7 +82,7 @@ BASE_SLOTS: list[str] = ["record_id",
                          "called_by",
                          "logged_from",
                          "qt_attributes",
-                         "pretty_attribute_cache"]
+                         "pretty_attribute_cache")
 
 
 class BaseRecord(AbstractRecord):
@@ -90,7 +90,19 @@ class BaseRecord(AbstractRecord):
     ___specificity___ = 0
     foreign_key_cache: "ForeignKeyCache" = None
     _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
-    __slots__ = tuple(BASE_SLOTS)
+    __slots__ = ["record_id",
+                 "log_file",
+                 "origin",
+                 "start",
+                 "end",
+                 "message",
+                 "recorded_at",
+                 "log_level",
+                 "marked",
+                 "called_by",
+                 "logged_from",
+                 "qt_attributes",
+                 "pretty_attribute_cache"]
 
     def __init__(self,
                  record_id: int,

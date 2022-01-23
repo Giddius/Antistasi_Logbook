@@ -35,6 +35,10 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 
 class SimpleRegexKeeper:
+    """
+    Stores all compiled Regexes for parsing.
+
+    """
 
     __slots__ = ("only_time", "local_datetime", "continued_record", "generic_record", "full_datetime", "called_by", "game_map", "game_file", "mods", "mod_time_strip", "campaign_id", "first_full_datetime")
 

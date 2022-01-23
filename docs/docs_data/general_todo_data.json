@@ -17,6 +17,6 @@
     {
         "identifier": "idea",
         "category": "performance",
-        "text": "Make $CLASS->LogFile:-:amount_log_records$, $CLASS->LogFile:-:amount_warnings$ and $CLASS->LogFile:-:amount_errors$ of $CLASS->LogFile$ and actual DB column and not a calculated Property. Maybe via Trigger or Table-function, better via the normal $CLASS->Updater:-:update-mechanism$"
+        "text": "Make $CLASSMETHOD->LogFile.amount_log_records:-:amount_log_records$, $CLASSMETHOD->LogFile.amount_warnings:-:amount_warnings$ and $CLASSMETHOD->LogFile.amount_errors:-:amount_errors$ of $CLASS->LogFile$ and actual DB column and not a calculated Property. Maybe via Trigger or Table-function, better via the normal $CLASS->Updater:-:update-mechanism$"
     }
 ]

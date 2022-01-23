@@ -2,9 +2,7 @@ import sys
 import os
 import shutil
 
-x = {}
+a = '[2.65218e+008,"76561198028571384","=ΛI= Slaxin",true,48,"265217542"]'
 
-for i in range(100):
-    x[str(i)] = i
 
-print(sys.getsizeof(x))
+print(a[33])

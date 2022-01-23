@@ -8,7 +8,7 @@ Soon.
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 from time import sleep
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING, Iterable, Optional
 from pathlib import Path
 from weakref import WeakSet
 from datetime import datetime
@@ -130,7 +130,7 @@ class Backend:
     Args:
         database (`GidSqliteDatabase`): [description]
         config (`GidIniConfig`): [description]
-        database_proxy (`peewee.DatabaseProxy`): [description]
+        update_signaler (`UpdaterSignaler`): [description]
 
     """
     all_parsing_context: WeakSet["LogParsingContext"] = WeakSet()
@@ -162,19 +162,53 @@ class Backend:
         self.update_manager: UpdateManager = None
 
     @property
-    def app(self) -> "AntistasiLogbookApplication":
+    def app(self) -> Optional["AntistasiLogbookApplication"]:
+        """
+        Provides the QtApplication instance, if one exists.
+
+        The running Qt(PySide) Application object is a Singleton(by Qt).
+
+        convenience-method
+
+        Returns:
+            `AntistasiLogbookApplication`: The subclassed QApplication-Instance.
+        """
         return QApplication.instance()
 
     @property
     def thread_pool(self) -> ThreadPoolExecutor:
+        """
+        Provides the shared thread-pool each part of the Backend(except the `RecordInserter`) uses.
+
+        It is shared to easily be able to limit the max amount of threads via the config.
+
+        Max amount of Threads is 1/3 of the config provided amount
+
+        The thread-pool is created lazily.
+
+        Returns:
+            ThreadPoolExecutor: [description]
+        """
         if self._thread_pool is None:
-            self._thread_pool = ThreadPoolExecutor(max_workers=max(1, self.config.get("general", "max_threads") // 2), thread_name_prefix="backend")
+            self._thread_pool = ThreadPoolExecutor(max_workers=max(1, int(self.config.get("general", "max_threads") * 0.34)), thread_name_prefix="backend")
         return self._thread_pool
 
     @property
     def inserting_thread_pool(self) -> ThreadPoolExecutor:
+        """
+        Provides the thread-pool for usage by the `RecordInserter`.
+
+        Is an extra ThreadPool-instance to prevent starvation.
+
+        Max amount of Threads is 2/3 of the config provided amount
+
+        The thread-pool is created lazily.
+
+        Returns:
+            ThreadPoolExecutor: [description]
+        """
         if self._inserting_thread_pool is None:
-            self._inserting_thread_pool = ThreadPoolExecutor(max_workers=max(1, self.config.get("general", "max_threads") // 2), thread_name_prefix="backend_inserting")
+            self._inserting_thread_pool = ThreadPoolExecutor(max_workers=max(1, int(self.config.get("general", "max_threads") * 0.67)), thread_name_prefix="backend_inserting")
         return self._inserting_thread_pool
 
     @property
@@ -266,17 +300,19 @@ class Backend:
             all_futures += ctx.futures
         log.debug("waiting for all futures to finish")
         wait(all_futures, return_when=ALL_COMPLETED, timeout=3.0)
-
-        if self.update_manager is not None and self.update_manager.is_alive() is True:
-            self.update_manager.shutdown()
-        self.remote_manager_registry.close()
-        self.updater.shutdown()
-        self.records_inserter.shutdown()
-        self.database.shutdown()
-        self.thread_pool.shutdown(cancel_futures=True, wait=True)
-        self.inserting_thread_pool.shutdown(cancel_futures=True, wait=True)
-        self._thread_pool = None
-        self._inserting_thread_pool = None
+        try:
+            if self.update_manager is not None and self.update_manager.is_alive() is True:
+                self.update_manager.shutdown()
+            self.remote_manager_registry.close()
+            self.updater.shutdown()
+            self.records_inserter.shutdown()
+            self.database.shutdown()
+            self.thread_pool.shutdown(cancel_futures=True, wait=True)
+            self.inserting_thread_pool.shutdown(cancel_futures=True, wait=True)
+            self._thread_pool = None
+            self._inserting_thread_pool = None
+        except Exception as e:
+            log.debug(e, exc_info=True)
 
     def remove_and_reset_database(self) -> None:
         self.shutdown()
@@ -314,6 +350,9 @@ class Backend:
             self.update_manager = self.get_update_manager()
         self.update_manager.start()
         return self
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(database={self.database!r}, config={self.config!r}, update_signaler={self.update_signaler!r})"
 
 
 # region[Main_Exec]

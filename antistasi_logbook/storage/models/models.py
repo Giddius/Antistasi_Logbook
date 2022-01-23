@@ -286,6 +286,10 @@ class Server(BaseModel):
     def get_remote_files(self) -> Generator["InfoItem", None, None]:
         yield from self.remote_manager.get_files(self.remote_path)
 
+    def get_amount_log_files(self)->int:
+        with self.database.connection_context() as ctx:
+            return LogFile.select().where(LogFile.server_id == self.id).count()
+
     @cached_property
     def full_local_path(self) -> Path:
         if self.local_path is None:
@@ -507,10 +511,11 @@ class LogFile(BaseModel):
             self.is_downloaded = False
 
     def get_mods(self) -> Optional[list["Mod"]]:
-        _out = [mod.mod for mod in self.mods]
-        if not _out:
-            return None
-        return _out
+        with self.database.connection_context() as ctx:
+            _out = [mod.mod for mod in self.mods]
+            if not _out:
+                return None
+            return _out
 
     def __rich__(self):
         return f"[u b blue]{self.server.name}/{self.name}[/u b blue]"

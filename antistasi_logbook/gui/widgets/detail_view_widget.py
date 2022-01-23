@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (QMenu, QLabel, QWidget, QGroupBox, QLineEdit, QLi
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.conversion import seconds2human
-from gidapptools.general_helper.string_helper import StringCaseConverter
+from gidapptools.general_helper.string_helper import StringCaseConverter, StringCase
 from gidapptools.general_helper.color.color_item import Color
 
 # * Local Imports --------------------------------------------------------------------------------------->
@@ -294,7 +294,7 @@ class BaseDetailWidget(QWidget):
 
 class ServerDetailWidget(BaseDetailWidget):
 
-    def __init__(self, server: Server, parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
+    def __init__(self, server: Server, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent=parent)
         self.server = server
 
@@ -306,7 +306,7 @@ class ServerDetailWidget(BaseDetailWidget):
         self.amount_log_files_label = QLabel(text="Amount Log-Files")
         self.amount_log_files_value = QLCDNumber(3, self)
         self.amount_log_files_value.setSegmentStyle(QLCDNumber.Flat)
-        self.amount_log_files_value.display(LogFile.select().where(LogFile.server == self.server).count())
+        self.amount_log_files_value.display(self.server.get_amount_log_files())
         self.layout.addRow(self.amount_log_files_label, self.amount_log_files_value)
 
         self.remote_path_label = QLabel(text="Remote Path")
@@ -716,6 +716,15 @@ class LogRecordDetailView(BaseDetailWidget):
         self.origin_value = ValueLineEdit(self.record.origin.name)
 
         self.layout.addRow("Origin", self.origin_value)
+        if self.record.extra_detail_views:
+            extra_view_content = DataView(border=True)
+
+            for extra in self.record.extra_detail_views:
+
+                extra_view_content.add_row(StringCaseConverter.convert_to(extra, StringCase.TITLE), self.record.get_data(extra))
+
+            self.extra_view = CollapsibleGroupBox("Extra Data", extra_view_content.build(), start_expanded=False, parent=self)
+            self.layout.addWidget(self.extra_view)
 
         self.message_value = MessageValue(self.record)
         self.layout.addRow("Message", self.message_value)
