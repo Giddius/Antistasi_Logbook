@@ -12,7 +12,7 @@ from pathlib import Path
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 from apsw import SQLError
-from peewee import Field, Query, IntegerField
+from peewee import Field, Query, IntegerField, ForeignKeyField
 from natsort import natsorted
 
 # * Qt Imports --------------------------------------------------------------------------------------->
@@ -26,11 +26,12 @@ from PySide6.QtWidgets import QApplication, QColorDialog
 from gidapptools import get_logger, get_meta_config
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.storage.models.models import BaseModel
+from antistasi_logbook.storage.models.models import BaseModel, GameMap, Version
 from antistasi_logbook.gui.widgets.markdown_editor import MarkdownEditorDialog
 from antistasi_logbook.storage.models.custom_fields import URLField, PathField
 from antistasi_logbook.gui.widgets.better_color_dialog import BetterColorDialog
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
+from antistasi_logbook.gui.misc import CustomRole
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
@@ -101,26 +102,22 @@ class BaseQueryDataModel(QAbstractTableModel):
     extra_columns = set()
     strict_exclude_columns = set()
 
-    bool_images = {True: AllResourceItems.check_mark_green_image.get_as_icon(),
-                   False: AllResourceItems.close_black_image.get_as_icon()}
-
-    mark_images = {"marked": AllResourceItems.mark_image.get_as_icon(),
-                   "unmark": AllResourceItems.unmark_image.get_as_icon()}
-
-    default_item_size = QSize(100, 30)
-    item_size_by_column_name: dict[str, QSize] = {"id": QSize(30, 30)}
-
     def __init__(self, db_model: "BaseModel", parent: Optional[QtCore.QObject] = None, name: str = None) -> None:
+        self.bool_images = {True: AllResourceItems.check_mark_green_image.get_as_icon(),
+                            False: AllResourceItems.close_black_image.get_as_icon()}
+
+        self.mark_images = {"marked": AllResourceItems.mark_image.get_as_icon(),
+                            "unmark": AllResourceItems.unmark_image.get_as_icon()}
         self.data_role_table: DATA_ROLE_MAP_TYPE = {Qt.DisplayRole: self._get_display_data,
                                                     Qt.ToolTipRole: self._get_tool_tip_data,
                                                     Qt.TextAlignmentRole: self._get_text_alignment_data,
                                                     Qt.DecorationRole: self._get_decoration_data,
                                                     # Qt.ForegroundRole: self._get_foreground_data,
                                                     Qt.BackgroundRole: self._get_background_data,
+                                                    Qt.SizeHintRole: self._get_size_hint_data,
                                                     # Qt.FontRole: self._get_font_data,
                                                     # Qt.EditRole: self._get_edit_data,
                                                     # Qt.InitialSortOrderRole: self._get_initial_sort_order_data,
-                                                    Qt.SizeHintRole: self._get_size_hint_data,
                                                     # Qt.StatusTipRole: self._get_status_tip_data,
                                                     # Qt.WhatsThisRole: self._get_whats_this_data,
                                                     # Qt.CheckStateRole: self._get_check_state_data,
@@ -131,7 +128,7 @@ class BaseQueryDataModel(QAbstractTableModel):
                                                     # Qt.WhatsThisPropertyRole: self._get_whats_this_property_data,
                                                     # Qt.DecorationPropertyRole: self._get_decoration_property_data,
                                                     # Qt.AccessibleDescriptionRole: self._get_accessible_description_data,
-
+                                                    CustomRole.RAW_DATA: self._get_raw_data
                                                     }
 
         self.header_data_role_table: HEADER_DATA_ROLE_MAP_TYPE = {Qt.DisplayRole: self._get_display_header_data,
@@ -347,6 +344,10 @@ class BaseQueryDataModel(QAbstractTableModel):
 
                 return handler(index=self.modify_index(index))
 
+    def _get_raw_data(self, index: INDEX_TYPE) -> Any:
+        item, column = self.get(index)
+        return getattr(item, column.name, None)
+
     @profile
     def _get_display_data(self, index: INDEX_TYPE) -> Any:
         data = index.row_item.get_data(index.column_item.name)
@@ -377,7 +378,7 @@ class BaseQueryDataModel(QAbstractTableModel):
         pass
 
     def _get_size_hint_data(self, index: INDEX_TYPE) -> Any:
-        return self.item_size_by_column_name.get(index.column_item.name, self.default_item_size)
+        return QSize(0, 35)
 
     def _get_decoration_data(self, index: INDEX_TYPE) -> Any:
 
@@ -501,6 +502,7 @@ class BaseQueryDataModel(QAbstractTableModel):
 
         def make_sort_key(in_column: Field):
             def sort_key(item):
+                # TODO: Fix this and make everything sortable, find out how!
                 if in_column.field_type in {"TIMESTAMP", "TZOFFSET"} or in_column.name in {"size"}:
                     _out = getattr(item, in_column.name)
                 else:
@@ -524,6 +526,12 @@ class BaseQueryDataModel(QAbstractTableModel):
 
                 if isinstance(in_column, IntegerField) and _out is None:
                     return 9999999
+
+                if isinstance(_out, GameMap):
+                    return str(_out)
+
+                if isinstance(_out, Version):
+                    return _out.full
 
                 if _out is None:
                     return ""

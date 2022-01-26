@@ -9,19 +9,36 @@ Soon.
 # * Standard Library Imports ---------------------------------------------------------------------------->
 from typing import TYPE_CHECKING, Union, Optional
 from pathlib import Path
-
+from concurrent.futures import Future, wait, ALL_COMPLETED
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
-from PySide6.QtGui import QIcon, QAction
-from PySide6.QtCore import Qt, Slot, QPoint, Signal, QSettings, QModelIndex, QItemSelection
-from PySide6.QtWidgets import QMenu, QTreeView, QScrollBar, QHeaderView, QApplication, QAbstractItemView, QStyleOptionViewItem
+from PySide6 import (QtCore, QtGui, QtWidgets, Qt3DAnimation, Qt3DCore, Qt3DExtras, Qt3DInput, Qt3DLogic, Qt3DRender, QtAxContainer, QtBluetooth,
+                     QtCharts, QtConcurrent, QtDataVisualization, QtDesigner, QtHelp, QtMultimedia, QtMultimediaWidgets, QtNetwork, QtNetworkAuth,
+                     QtOpenGL, QtOpenGLWidgets, QtPositioning, QtPrintSupport, QtQml, QtQuick, QtQuickControls2, QtQuickWidgets, QtRemoteObjects,
+                     QtScxml, QtSensors, QtSerialPort, QtSql, QtStateMachine, QtSvg, QtSvgWidgets, QtTest, QtUiTools, QtWebChannel, QtWebEngineCore,
+                     QtWebEngineQuick, QtWebEngineWidgets, QtWebSockets, QtXml)
+
+from PySide6.QtCore import (QByteArray, QCoreApplication, QDate, QDateTime, QEvent, QLocale, QMetaObject, QModelIndex, QItemSelection, QModelRoleData, QMutex,
+                            QMutexLocker, QObject, QPoint, QRect, QRecursiveMutex, QRunnable, QSettings, QSize, QThread, QThreadPool, QTime, QUrl,
+                            QWaitCondition, Qt, QAbstractItemModel, QAbstractListModel, QAbstractTableModel, QSortFilterProxyModel, Signal, Slot)
+
+from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
+                           QKeySequence, QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform)
+
+from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QScrollBar, QDialogButtonBox,
+                               QDockWidget, QDoubleSpinBox, QFontComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
+                               QLCDNumber, QLabel, QLayout, QLineEdit, QListView, QListWidget, QMainWindow, QMenu, QMenuBar, QMessageBox,
+                               QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
+                               QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
+                               QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-
+from antistasi_logbook.gui.misc import CustomRole
+from antistasi_logbook.gui.views.delegates.universal_delegates import BoolImageDelegate, MarkedImageDelegate
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend
@@ -93,6 +110,8 @@ class CustomContextMenu(QMenu):
 
 class BaseQueryTreeView(QTreeView):
     initially_hidden_columns: set[str] = set()
+    default_item_size = 75
+    _item_size_by_column_name: dict[str, int] = {"id": 30, "marked": 60}
     single_item_selected = Signal(QModelIndex)
     multiple_items_selected = Signal(list)
 
@@ -103,6 +122,8 @@ class BaseQueryTreeView(QTreeView):
         self.name = "" if name is None else name
         if self.icon is None:
             self.icon = getattr(AllResourceItems, f"{self.name.casefold().replace('-','_').replace(' ','_').replace('.','_')}_tab_icon_image").get_as_icon()
+        self.item_size_by_column_name = self._item_size_by_column_name.copy()
+        self.original_model: BaseQueryDataModel = None
 
     @property
     def app(self) -> "AntistasiLogbookApplication":
@@ -135,7 +156,6 @@ class BaseQueryTreeView(QTreeView):
         self.setSortingEnabled(True)
         self.header_view.setSortIndicatorClearable(True)
 
-        # self.setUniformRowHeights(True)
         self.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.setup_scrollbars()
@@ -144,6 +164,15 @@ class BaseQueryTreeView(QTreeView):
 
         self.extra_setup()
         return self
+
+    def filter(self, use_regex: bool, column_name: str, text: str):
+        if self.model:
+
+            self.model.setFilterKeyColumn(self.model.get_column_index(column_name))
+            if use_regex is True:
+                self.model.setFilterRegularExpression(text)
+            else:
+                self.model.setFilterFixedString(text)
 
     def add_free_context_menu_options(self, menu: QMenu):
 
@@ -163,7 +192,7 @@ class BaseQueryTreeView(QTreeView):
         if self.model is not None:
             self.model.add_context_menu_actions(menu=menu, index=index)
         log.debug("actions of menu %r : %r", menu, menu.actions())
-        menu.exec_(self.mapToGlobal(pos))
+        menu.exec(self.mapToGlobal(pos))
 
     def get_hidden_header_names(self) -> set[str]:
         settings = QSettings()
@@ -254,24 +283,17 @@ class BaseQueryTreeView(QTreeView):
     @profile
     def resize_header_sections(self):
 
-        self.header_view.setSectionResizeMode(QHeaderView.ResizeToContents)
-        new_sizes = {}
-        for idx in range(self.header_view.count()):
-            section_size = self.header_view.sectionSize(idx)
-            new_size = int(section_size)
-
-            if self.model.columns[idx].name not in {"marked"}:
-                new_size = int(section_size + (self.size().width() * 0.02))
-
-            new_sizes[idx] = new_size
-
         self.header_view.setSectionResizeMode(QHeaderView.Interactive)
-        for idx, size in new_sizes.items():
-            self.header_view.resizeSection(idx, size)
+
+        for idx in range(self.header_view.count()):
+            section = self.model.columns[idx]
+            new_size = int(self.item_size_by_column_name.get(section.name, self.default_item_size))
+            self.header_view.resizeSection(idx, new_size)
 
     @profile
     def pre_set_model(self):
         self.setEnabled(False)
+        self.setUniformRowHeights(True)
         self._temp_original_sorting_enabled = self.isSortingEnabled()
         if self._temp_original_sorting_enabled is True:
             self.setSortingEnabled(False)
@@ -281,19 +303,38 @@ class BaseQueryTreeView(QTreeView):
         self.setEnabled(True)
         self.setSortingEnabled(self._temp_original_sorting_enabled)
 
+    def set_delegates(self):
+        marked_col_index = self.model.get_column_index("marked")
+        if marked_col_index is not None:
+            self.setItemDelegateForColumn(marked_col_index, MarkedImageDelegate(self))
+
+        for column in self.model.columns:
+            if column.name == "marked":
+                continue
+            if column.field_type == "BOOL":
+                idx = self.model.get_column_index(column.name)
+                self.setItemDelegateForColumn(idx, BoolImageDelegate(self))
+
     @profile
     def setModel(self, model: PySide6.QtCore.QAbstractItemModel) -> None:
+        def _callback(future: Future):
+            if future.exception():
+                raise future.exception()
+            else:
+                self.reset()
         try:
             self.pre_set_model()
-
             super().setModel(model)
             self.model.setParent(self)
+            self.model.get_columns()
+            self.set_delegates()
+            self.setup_headers()
+            self.resize_header_sections()
 
             if model.content_items is None:
-                self.backend.thread_pool.submit(self.model.refresh)
-            self.model.modelReset.connect(self.resize_header_sections)
-            self.setup_headers()
-            self.reset()
+                task = self.app.gui_thread_pool.submit(self.model.refresh)
+                task.add_done_callback(_callback)
+
         finally:
             self.post_set_model()
 
@@ -325,15 +366,7 @@ class BaseQueryTreeView(QTreeView):
         super().selectionChanged(selected, deselected)
 
 
-class LogFilesQueryTreeView(BaseQueryTreeView):
-    initially_hidden_columns: set[str] = {"id", "comments"}
-
-    def __init__(self) -> None:
-        super().__init__(name="Log-Files")
-
-
 # region[Main_Exec]
-
 if __name__ == '__main__':
     pass
 

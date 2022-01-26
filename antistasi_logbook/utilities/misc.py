@@ -86,7 +86,7 @@ class NoThreadPoolExecutor:
 def try_convert_int(data: Union[str, int, None]) -> Union[str, int, None]:
     if data is None:
         return None
-    if isinstance(data, str) and data == "":
+    if isinstance(data, str) and data in {"", "MISSING"}:
         return None
     try:
         return int(data)
@@ -101,7 +101,7 @@ class VersionItem:
     minor: int = attr.ib(converter=int)
     patch: int = attr.ib(default=None, converter=try_convert_int)
     extra: Union[str, int] = attr.ib(default=None, converter=try_convert_int)
-    version_regex: ClassVar = re.compile(r"(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)\-?(?P<extra>.*)?")
+    version_regex: ClassVar = re.compile(r"(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+|MISSING)\-?(?P<extra>.*)?")
 
     def __str__(self) -> str:
         _out = f"{self.major}.{self.minor}"
@@ -127,18 +127,34 @@ class VersionItem:
     def __eq__(self, other: object) -> bool:
         if isinstance(other, self.__class__):
             return self.as_tuple() == other.as_tuple()
+
+        if isinstance(other, str):
+            return False
         return NotImplemented
 
     def __lt__(self, other: object) -> bool:
         if other is None:
             return False
         if isinstance(other, self.__class__):
+
             if (self.major, self.minor, self.patch) == (other.major, other.minor, other.patch):
                 if self.extra is None and other.extra is not None:
                     return True
                 return False
-            if sorted([self, other], key=lambda x: x.as_tuple(False))[0] is self:
+
+            if self.major < other.major:
                 return True
+            elif self.major == other.major and self.minor < other.minor:
+                return True
+            elif self.major == other.major and self.minor == other.minor and (self.patch is None and other.patch is not None):
+                return True
+            elif self.major == other.major and self.minor == other.minor and (all([self.patch is not None, other.patch is not None]) and self.patch < other.patch):
+                return True
+            elif self.major == other.major and self.minor == other.minor and (all([self.patch is not None, other.patch is not None]) and self.patch == other.patch) and (self.extra is None and other.extra is not None):
+                return True
+            return False
+
+        if isinstance(other, str):
             return False
         return NotImplemented
 

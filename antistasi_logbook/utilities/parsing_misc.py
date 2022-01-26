@@ -70,7 +70,7 @@ def parse_text_array(in_text: str) -> list[list[Any]]:
     try:
         return get_array_grammar().parse_string(in_text, parse_all=True).as_list()[0]
     except pp.ParseException as e:
-        log.error(e, exc_info=True, extra={"in_text": in_text})
+        log.error(e, exc_info=1, extra={"in_text": in_text}, stacklevel=3)
         log.critical("%r was caused by %r", e, in_text)
         return "ERROR"
 # region[Main_Exec]

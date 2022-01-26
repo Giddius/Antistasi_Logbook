@@ -24,7 +24,7 @@ dependencies = [
     "cycler==0.11.0",
     "filelock==3.4.2",
     "fonttools==4.28.5",
-    "gidapptools==0.1.17",
+    "gidapptools==0.1.18",
     "h11==0.12.0",
     "httpcore==0.13.7",
     "httpx==0.20.0",
@@ -98,7 +98,10 @@ exclude = [
     "tasks.py",
     "designer_files",
     ".vscode",
-    ".favorites.json"
+    ".favorites.json",
+    ".venv",
+    ".pytest_cache",
+    "__pycache__"
 ]
 
 [tool.autopep8]

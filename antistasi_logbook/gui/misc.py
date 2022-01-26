@@ -40,6 +40,7 @@ class UserRole(Enum):
 @unique
 class CustomRole(int, UserRole):
     STD_COPY_DATA = auto()
+    RAW_DATA = auto()
 
 
 class UpdaterSignaler(QObject):
@@ -47,6 +48,7 @@ class UpdaterSignaler(QObject):
     update_finished = Signal(bool)
     update_info = Signal(int, str)
     update_increment = Signal()
+    change_update_text = Signal(str)
 
     def send_update_increment(self):
         self.update_increment.emit()

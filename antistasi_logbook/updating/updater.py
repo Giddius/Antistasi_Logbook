@@ -251,6 +251,7 @@ class Updater:
         wait(tasks, return_when=ALL_COMPLETED, timeout=None)
 
     def update_record_classes(self, server: Server = None, force: bool = False):
+        self.signaler.change_update_text.emit("Updating Record-Classes")
 
         def _find_record_class(_record: "LogRecord") -> tuple["LogRecord", "RecordClass"]:
             _record_class = self.database.record_processor.determine_record_class(_record)
@@ -259,7 +260,7 @@ class Updater:
         log.info("updating record classes")
         # batch_size = (32767 // 2) - 1
         batch_size = 1_000_000
-        report_size = batch_size // 5
+        report_size = batch_size // 100
 
         tasks = []
         to_update = []
@@ -270,12 +271,14 @@ class Updater:
             idx += 1
             if idx % report_size == 0:
                 log.debug("checked %r records", idx)
+                self.signaler.change_update_text.emit(f"Updating Record-Classes --- Checked {idx:,} Records")
                 sleep(0)
             if record.record_class_id != record_class.id:
 
                 to_update.append((int(record_class.id), int(record.id)))
                 if len(to_update) >= batch_size:
                     log.debug("updating %r records with their record class", len(to_update))
+
                     task = self.database.record_inserter.many_update_record_class(list(to_update))
                     tasks.append(task)
 
@@ -289,6 +292,7 @@ class Updater:
 
         wait(tasks, return_when=ALL_COMPLETED)
         log.info("finished updating record classes")
+        self.signaler.change_update_text.emit("")
 
     def before_updates(self):
         log.debug("emiting before_updates_signal")

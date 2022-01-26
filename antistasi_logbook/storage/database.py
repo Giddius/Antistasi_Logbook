@@ -174,7 +174,7 @@ class GidSqliteApswDatabase(APSWDatabase):
                 conn.interrupt()
             except apsw.ConnectionClosedError as e:
                 log.debug("encountered error %r", e)
-
+            log.debug("closing connection %r", conn)
             conn.close(True)
 
         self.close()
@@ -226,8 +226,8 @@ class GidSqliteApswDatabase(APSWDatabase):
         log.debug("shutting down %r", self)
         with self.write_lock:
             self.session_meta_data.save()
-        sleep(5)
-        self.close_all()
+        with self.write_lock:
+            self.close_all()
 
         log.debug("finished shutting down %r", self)
         self.started_up = False

@@ -24,7 +24,7 @@ from PySide6 import (QtCore, QtGui, QtWidgets, Qt3DAnimation, Qt3DCore, Qt3DExtr
 
 from PySide6.QtCore import (QByteArray, QCoreApplication, QDate, QDateTime, QEvent, QLocale, QMetaObject, QModelIndex, QModelRoleData, QMutex,
                             QMutexLocker, QObject, QPoint, QRect, QRecursiveMutex, QRunnable, QSettings, QSize, QThread, QThreadPool, QTime, QUrl,
-                            QWaitCondition, Qt, QAbstractItemModel, QAbstractListModel, QAbstractTableModel, Signal, Slot)
+                            QWaitCondition, Qt, QAbstractItemModel, QAbstractListModel, QAbstractTableModel, Signal, Slot, QIdentityProxyModel, QSortFilterProxyModel)
 
 from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
                            QKeySequence, QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform)
@@ -44,7 +44,7 @@ from gidapptools import get_logger
 from antistasi_logbook.storage.models.models import Server, GameMap, LogFile
 from antistasi_logbook.storage.models.custom_fields import FakeField
 from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE, BaseQueryDataModel, ModelContextMenuAction
-
+from antistasi_logbook.gui.models.proxy_models.base_proxy_model import BaseProxyModel
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.storage.models.models import BaseModel
@@ -74,21 +74,6 @@ class LogFilesModel(BaseQueryDataModel):
                      FakeField(name="amount_errors", verbose_name="Errors"),
                      FakeField(name="amount_warnings", verbose_name="Warnings")}
     strict_exclude_columns = {"startup_text", "remote_path", "header_text"}
-
-    item_size_by_column_name: dict[str, QSize] = {"name": QSize(250, 30),
-                                                  "modified_at": QSize(140, 30),
-                                                  "created_at": QSize(140, 30),
-                                                  "size": QSize(50, 30),
-                                                  "version": QSize(40, 30),
-                                                  "game_map": QSize(60, 30),
-                                                  "is_new_campaign": QSize(10, 30),
-                                                  "campaign_id": QSize(50, 30),
-                                                  "server": QSize(90, 30),
-                                                  "max_mem": QSize(40, 30),
-                                                  "marked": QSize(10, 30),
-                                                  "amount_warnings": QSize(20, 30),
-                                                  "amount_errors": QSize(20, 30),
-                                                  "amount_log_records": QSize(20, 30)}
 
     def __init__(self, parent: Optional[QtCore.QObject] = None, show_unparsable: bool = False) -> None:
         self.show_unparsable = show_unparsable

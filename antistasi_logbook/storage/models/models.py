@@ -286,7 +286,7 @@ class Server(BaseModel):
     def get_remote_files(self) -> Generator["InfoItem", None, None]:
         yield from self.remote_manager.get_files(self.remote_path)
 
-    def get_amount_log_files(self)->int:
+    def get_amount_log_files(self) -> int:
         with self.database.connection_context() as ctx:
             return LogFile.select().where(LogFile.server_id == self.id).count()
 
@@ -326,6 +326,8 @@ class Version(BaseModel):
 
     @classmethod
     def add_or_get_version(cls, version: "VersionItem"):
+        if version is None:
+            return
         with cls.get_meta().database.write_lock:
             with cls.get_meta().database:
                 extra = version.extra
@@ -1012,10 +1014,10 @@ def setup_db(database: "GidSqliteApswDatabase"):
                                      {'id': 39, 'name': 'theBossToggleEligibility'},
                                      {'id': 40, 'name': 'retrievePlayerStat'},
                                      {'id': 41, 'name': 'resetPlayer'},
-                                     {'id': 42, 'name': 'HR_GRG_fnc_addVehicle'},
+                                     {'id': 42, 'name': 'addVehicle'},
                                      {'id': 43, 'name': 'punishment_FF'},
-                                     {'id': 44, 'name': 'HR_GRG_fnc_removeFromPool'},
-                                     {'id': 45, 'name': 'HR_GRG_fnc_toggleLock'},
+                                     {'id': 44, 'name': 'removeFromPool'},
+                                     {'id': 45, 'name': 'toggleLock'},
                                      {'id': 46, 'name': 'unlockEquipment'},
                                      {'id': 47, 'name': 'arsenalManage'},
                                      {'id': 48, 'name': 'economicsAI'},
@@ -1107,7 +1109,7 @@ def setup_db(database: "GidSqliteApswDatabase"):
                                      {'id': 134, 'name': 'logistics_unload'},
                                      {'id': 135, 'name': 'rebuildRadioTower'},
                                      {'id': 136, 'name': 'roadblockFight'},
-                                     {'id': 137, 'name': 'HR_GRG_fnc_getCatIndex'},
+                                     {'id': 137, 'name': 'getCatIndex'},
                                      {'id': 138, 'name': 'punishment_sentence_server'},
                                      {'id': 139, 'name': 'punishment_checkStatus'},
                                      {'id': 140, 'name': 'taskUpdate'},
@@ -1131,22 +1133,21 @@ def setup_db(database: "GidSqliteApswDatabase"):
                                      {'id': 158, 'name': 'spawnGroup'},
                                      {'id': 159, 'name': 'fillLootCrate'},
                                      {'id': 160, 'name': 'getNearestNavPoint'},
-                                     {'id': 171, 'name': 'HR_GRG_fnc_loadSaveData'},
-                                     {'id': 172, 'name': 'compatabilityLoadFaction'},
-                                     {'id': 173, 'name': 'spawnHCGroup'},
-                                     {'id': 174, 'name': 'AS_Traitor'},
-                                     {'id': 175, 'name': 'LOG_Supplies'},
-                                     {'id': 176, 'name': 'DES_Heli'},
-                                     {'id': 177, 'name': 'LOG_Salvage'},
-                                     {'id': 178, 'name': 'ConvoyTravel'},
-                                     {"id": 179, "name": "RES_Refugees"},
-                                     {'id': 180, 'name': "NATOinit"},
-                                     {'id': 181, 'name': "chooseAttackType"},
-                                     {"id": 182, "name": "CIVinit"},
-                                     {"id": 183, "name": "onConvoyArrival"},
-                                     {"id": 184, "name": "surrenderAction"},
-                                     {"id": 185, "name": "arePositionsConnected"},
-                                     {"id": 186, "name": "moveHQObject"}]}
+                                     {'id': 171, 'name': 'loadSaveData'},
+                                     {'id': 172, 'name': 'spawnHCGroup'},
+                                     {'id': 173, 'name': 'AS_Traitor'},
+                                     {'id': 174, 'name': 'LOG_Supplies'},
+                                     {'id': 175, 'name': 'DES_Heli'},
+                                     {'id': 176, 'name': 'LOG_Salvage'},
+                                     {'id': 177, 'name': 'ConvoyTravel'},
+                                     {"id": 178, "name": "RES_Refugees"},
+                                     {'id': 179, 'name': "NATOinit"},
+                                     {'id': 180, 'name': "chooseAttackType"},
+                                     {"id": 181, "name": "CIVinit"},
+                                     {"id": 182, "name": "onConvoyArrival"},
+                                     {"id": 183, "name": "surrenderAction"},
+                                     {"id": 184, "name": "arePositionsConnected"},
+                                     {"id": 185, "name": "moveHQObject"}]}
     with database:
         database.create_tables(all_models)
     for model, data in setup_data.items():

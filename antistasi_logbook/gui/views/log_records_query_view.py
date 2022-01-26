@@ -24,7 +24,7 @@ from antistasi_logbook.gui.views.base_query_tree_view import BaseQueryTreeView, 
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-    pass
+    from antistasi_logbook.gui.models.log_records_model import LogRecordsModel
 
 # endregion[Imports]
 
@@ -52,6 +52,15 @@ class LogRecordsQueryView(BaseQueryTreeView):
 
     def __init__(self, parent=None) -> None:
         super().__init__(name="Log-Records", parent=parent)
+        self.item_size_by_column_name = self._item_size_by_column_name.copy() | {"message": 1000,
+                                                                                 "start": 75,
+                                                                                 "end": 75,
+                                                                                 "recorded_at": 175,
+                                                                                 "log_file": 250,
+                                                                                 "Origin": 75,
+                                                                                 "log_level": 100,
+                                                                                 "called_by": 225,
+                                                                                 "logged_from": 225}
 
     def extra_setup(self):
         super().extra_setup()
@@ -117,6 +126,11 @@ class LogRecordsQueryView(BaseQueryTreeView):
 
     def post_set_model(self):
         super().post_set_model()
+
+    def setModel(self, model: "LogRecordsModel") -> None:
+        self.original_model = model
+        model = model.proxy_model
+        return super().setModel(model)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}"

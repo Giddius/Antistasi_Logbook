@@ -1,8 +1,6 @@
-import sys
-import os
-import shutil
 
-a = '[2.65218e+008,"76561198028571384","=ΛI= Slaxin",true,48,"265217542"]'
+import dis
+from pathlib import Path
+import re
 
-
-print(a[33])
+f = Path(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\antistasi_logbook\gui\main_window.py")

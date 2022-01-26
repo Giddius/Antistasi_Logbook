@@ -30,7 +30,7 @@ from antistasi_logbook.records.enums import MessageFormat
 from antistasi_logbook.storage.models.models import LogRecord, RecordClass
 from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel, INDEX_TYPE
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-
+from antistasi_logbook.gui.models.proxy_models.base_proxy_model import BaseProxyModel
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.records.base_record import BaseRecord
@@ -76,16 +76,6 @@ class LogRecordsModel(BaseQueryDataModel):
     strict_exclude_columns = {"record_class"}
     bool_images = {True: AllResourceItems.check_mark_green_image.get_as_icon(),
                    False: AllResourceItems.close_black_image.get_as_icon()}
-    item_size_by_column_name: dict[str, QSize] = {"message": QSize(750, 30),
-                                                  "start": QSize(30, 30),
-                                                  "end": QSize(30, 30),
-                                                  "recorded_at": QSize(140, 30),
-                                                  "log_file": QSize(250, 30),
-                                                  "marked": QSize(10, 30),
-                                                  "Origin": QSize(60, 30),
-                                                  "log_level": QSize(60, 30),
-                                                  "called_by": QSize(150, 30),
-                                                  "logged_from": QSize(150, 30)}
 
     def __init__(self, parent=None) -> None:
         super().__init__(LogRecord, parent=parent)
@@ -93,6 +83,8 @@ class LogRecordsModel(BaseQueryDataModel):
         self._base_filter_item = (LogRecord.record_class != RecordClass.get(name="PerfProfilingRecord")) & (LogRecord.record_class != RecordClass.get(name="PerformanceRecord"))
         self.ordered_by = (LogRecord.start, LogRecord.recorded_at)
         self.message_font = self._create_message_font()
+        self.proxy_model = BaseProxyModel()
+        self.proxy_model.setSourceModel(self)
 
     def _create_message_font(self) -> QFont:
         font: QFont = self.app.font()
@@ -143,9 +135,9 @@ class LogRecordsModel(BaseQueryDataModel):
         item = self.content_items[index.row()]
         column = self.columns[index.column()]
 
-        data = item.get_data(column.name)
         if column.name == "message":
-            return f"{item.message}"
+            return str(item.message)
+        data = item.get_data(column.name)
         if data is None:
             return self.on_display_data_none(role=Qt.DisplayRole, item=item, column=column)
         if isinstance(data, bool):

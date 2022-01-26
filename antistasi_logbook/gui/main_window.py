@@ -6,7 +6,8 @@ Soon.
 """
 
 # region [Imports]
-
+from antistasi_logbook import setup
+setup()
 # * Standard Library Imports ---------------------------------------------------------------------------->
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 from antistasi_logbook import stream_capturer
@@ -29,7 +30,7 @@ from gidapptools.general_helper.string_helper import StringCaseConverter
 from gidapptools.gidapptools_qt.widgets.app_log_viewer import AppLogViewer
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook import setup
+
 from antistasi_logbook.errors import ExceptionHandlerManager, MissingLoginAndPasswordError
 from antistasi_logbook.backend import Backend, GidSqliteApswDatabase
 from antistasi_logbook.gui.misc import UpdaterSignaler
@@ -55,7 +56,7 @@ from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import
 from gidapptools.gidapptools_qt.widgets.std_stream_widget import StdStreamWidget
 from antistasi_logbook.call_tree.call_tree_item import CallTree
 from antistasi_logbook.storage.models.models import LogFile
-setup()
+
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
@@ -95,9 +96,9 @@ class AntistasiLogbookMainWindow(QMainWindow):
     update_started = Signal()
     update_finished = Signal()
 
-    def __init__(self, app: "AntistasiLogbookApplication", config: "GidIniConfig") -> None:
+    def __init__(self, app: "AntistasiLogbookApplication", flags=None) -> None:
         ExceptionHandlerManager.signaler = ErrorSignaler()
-        self.config = config
+
         self.app = app
         self.main_widget: MainWidget = None
         self.menubar: LogbookMenuBar = None
@@ -112,13 +113,18 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.title: str = None
         self.update_thread: Thread = None
         self.dock_widgets: list[QDockWidget] = []
-        super().__init__()
+        flags = flags or Qt.WindowFlags()
+        super().__init__(None, flags)
 
         self.setup()
 
     @property
     def backend(self):
         return self.app.backend
+
+    @property
+    def config(self) -> "GidIniConfig":
+        return self.app.config
 
     @property
     def initial_size(self) -> list[int, int]:
@@ -172,6 +178,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
         ExceptionHandlerManager.signaler.show_error_signal.connect(self.show_error_dialog)
         self.backend.updater.signaler.update_started.connect(self.statusbar.switch_labels)
         self.backend.updater.signaler.update_finished.connect(self.statusbar.switch_labels)
+        self.backend.update_signaler.change_update_text.connect(self.statusbar.set_update_text)
 
         self.backend.updater.signaler.update_info.connect(self.statusbar.start_progress_bar)
         self.backend.updater.signaler.update_increment.connect(self.statusbar.increment_progress_bar)
@@ -205,7 +212,10 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.debug_dock_widget = DebugDockWidget(parent=self, add_to_menu=self.menubar.windows_menu)
         self.addDockWidget(Qt.NoDockWidgetArea, self.debug_dock_widget)
 
-        for attr_name in ["desktopFileName",
+        for attr_name in ["applicationVersion",
+                          "organizationName",
+                          "applicationDisplayName",
+                          "desktopFileName",
                           "desktopSettingsAware",
                           "devicePixelRatio",
                           "highDpiScaleFactorRoundingPolicy",
@@ -218,8 +228,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
                           "arguments",
                           "isQuitLockEnabled",
                           "isSetuidAllowed",
-                          "libraryPaths",
-                          "available_font_families"]:
+                          "libraryPaths"]:
             self.debug_dock_widget.add_show_attr_button(attr_name=attr_name, obj=self.app)
 
         self.debug_dock_widget.add_show_attr_button(attr_name="colorNames", obj=QColor)
@@ -234,7 +243,6 @@ class AntistasiLogbookMainWindow(QMainWindow):
         c.save_to_png()
 
     def show_app_log_window(self):
-
         log_folder = Path(self.app.meta_paths.log_dir)
         try:
             log_file = sorted([p for p in log_folder.iterdir() if p.is_file() and p.suffix == ".log"], key=lambda x: x.stat().st_ctime, reverse=True)[0]
@@ -265,10 +273,11 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
     def delete_db(self):
         path = self.backend.database.database_path
+
         log.debug("deleting DB at %r", path.as_posix())
+
         try:
             path.unlink(missing_ok=True)
-
         except Exception as e:
             log.error(e, True)
             log.critical("Unable to delete DB at %r", path.as_posix())
@@ -302,8 +311,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
             model = model_class().refresh()
 
         view.setModel(model)
-        if not isinstance(model, GameMapModel):
-            view.header_view.setSectionResizeMode(QHeaderView.ResizeToContents)
+
         window.layout().addWidget(view)
         view.setup()
         width = 150 * (view.header_view.count() - view.header_view.hiddenSectionCount())
@@ -328,8 +336,8 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self._temp_folder_window.show()
 
     def _reassing_record_classes(self):
-        def _run_reassingment():
 
+        def _run_reassingment():
             self.menubar.single_update_action.setEnabled(False)
             self.menubar.reassign_record_classes_action.setEnabled(False)
             self.update_started.emit()
@@ -346,7 +354,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
     def _single_update(self) -> None:
         def _run_update():
-
+            # TODO: Connect update_action to the Stausbar label and shut it down while updating and start it up afterwards
             self.menubar.single_update_action.setEnabled(False)
             self.update_started.emit()
             try:
@@ -419,31 +427,26 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
 
 def start_gui():
-    qApp = AntistasiLogbookApplication.instance()
-    if qApp is None:
-        qApp = AntistasiLogbookApplication.with_high_dpi_scaling(argvs=sys.argv)
-    start_splash = QSplashScreen(AllResourceItems.app_icon_image.get_as_pixmap(), Qt.WindowStaysOnTopHint)
+    # TODO: Rewrite so everything starts through the app
 
-    start_splash.setPixmap(AllResourceItems.antistasi_logbook_splash_preparing_database_image.get_as_pixmap())
+    app = AntistasiLogbookApplication.with_high_dpi_scaling(argvs=sys.argv)
+    if app.is_full_gui is False:
+        return
+    start_splash = app.show_splash_screen("start_up")
 
-    qApp.processEvents()
-    start_splash.show()
     config = META_CONFIG.get_config('general')
     db_path = config.get('database', "database_path", default=None)
     database = GidSqliteApswDatabase(db_path, config=config, thread_safe=True, autoconnect=True)
-    start_splash.setPixmap(AllResourceItems.antistasi_logbook_splash_preparing_backend_image.get_as_pixmap())
+
     backend = Backend(database=database, config=config, update_signaler=UpdaterSignaler())
 
-    start_splash.setPixmap(AllResourceItems.antistasi_logbook_splash_starting_backend_image.get_as_pixmap())
-    qApp.setup(backend=backend, icon=AllResourceItems.app_icon_image)
+    app.setup(backend=backend, icon=AllResourceItems.app_icon_image)
 
-    _main_window = AntistasiLogbookMainWindow(qApp, META_CONFIG.get_config('general'))
-    qApp.main_window = _main_window
+    _main_window = app.create_main_window(AntistasiLogbookMainWindow)
 
     _main_window.show()
-    _main_window.setWindowState(Qt.WindowActive)
-    start_splash.finish(_main_window)
-    sys.exit(qApp.exec())
+
+    sys.exit(app.exec())
 
 
 # region[Main_Exec]

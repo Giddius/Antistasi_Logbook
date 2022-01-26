@@ -214,7 +214,7 @@ class RecordProcessor:
 
     @staticmethod
     def clean_antistasi_function_name(in_name: str) -> str:
-        return in_name.strip().removeprefix("A3A_fnc_").removeprefix("fn_").removesuffix('.sqf')
+        return in_name.strip().removeprefix("A3A_fnc_").removeprefix("fn_").removesuffix('.sqf').removeprefix("HR_GRG_fnc_")
 
     @property
     def default_origin(self) -> RecordOrigin:

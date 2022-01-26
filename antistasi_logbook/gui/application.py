@@ -19,13 +19,15 @@ from jinja2 import BaseLoader, Environment
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6 import QtCore
 from PySide6.QtGui import QFont, QIcon, QMouseEvent, QColor, QFontDatabase, QGuiApplication
-from PySide6.QtCore import Qt, QEvent
-from PySide6.QtWidgets import QMessageBox, QApplication
+from PySide6.QtCore import Qt, QEvent, QCoreApplication
+from PySide6.QtWidgets import QMessageBox, QApplication, QMainWindow, QSplashScreen
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
 from gidapptools.gid_config.interface import EntryTypus
-
+import argparse
+import pp
+from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
@@ -52,7 +54,7 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 META_INFO = get_meta_info()
 META_PATHS = get_meta_paths()
-COLOR_CONFIG = get_meta_config().get_config("color")
+
 # endregion[Constants]
 
 
@@ -80,6 +82,7 @@ def _handle_qcolor(value: Any, sub_arguments: dict[str, str]) -> EntryTypus:
     return EntryTypus(original_value=value, base_typus=QColor)
 
 
+COLOR_CONFIG = get_meta_config().get_config("color")
 COLOR_CONFIG.add_spec_value_handler("qcolor", _handle_qcolor)
 COLOR_CONFIG.add_converter_function(QColor, _qcolor)
 
@@ -90,38 +93,44 @@ class AntistasiLogbookApplication(QApplication):
 
     def __init__(self, argvs: Iterable[str] = None):
         super().__init__(argvs)
-        self.backend: "Backend" = None
+        self.is_setup: bool = False
+        self.is_full_gui = True
         self.icon: QIcon = None
-        self.meta_info = None
-        self.meta_paths = None
-        self.available_font_families = None
-        self.jinja_environment = None
         self.main_window: "AntistasiLogbookMainWindow" = None
         self.sys_tray: "LogbookSystemTray" = None
         self.extra_windows = WeakSet()
-        self.gui_thread_pool: ThreadPoolExecutor = None
-        self.is_setup: bool = False
-
-    def setup(self, backend: "Backend", icon: "PixmapResourceItem") -> None:
-        if self.is_setup is True:
-            return
-
-        self.gui_thread_pool = ThreadPoolExecutor(5, thread_name_prefix="gui")
-        self.backend = backend
-        self.icon = icon.get_as_icon() if icon is not None else icon
+        self.current_splash_screen: QSplashScreen = None
+        self._gui_thread_pool: ThreadPoolExecutor = None
         self.meta_info = get_meta_info()
         self.meta_paths = get_meta_paths()
 
-        self.available_font_families = set(QFontDatabase().families())
-        self.jinja_environment = Environment(loader=BaseLoader)
+        self.backend: "Backend" = None
+        self.jinja_environment = None
+        self.init_app_meta_data()
+        self.cli_arguments = self.parse_cli_arguments()
 
-        self.color_config = COLOR_CONFIG
-        self.backend.start_up()
+    def init_app_meta_data(self):
         self.setApplicationName(self.meta_info.app_name)
         self.setApplicationDisplayName(self.meta_info.pretty_app_name)
         self.setApplicationVersion(self.meta_info.version)
         self.setOrganizationName(self.meta_info.pretty_app_author)
         self.setOrganizationDomain(str(self.meta_info.url))
+
+    def parse_cli_arguments(self):
+        return self.parse_arguments()
+
+    def setup(self, backend: "Backend", icon: "PixmapResourceItem") -> None:
+        if self.is_setup is True:
+            return
+
+        self.backend = backend
+        self.icon = icon.get_as_icon() if icon is not None else icon
+
+        self.jinja_environment = Environment(loader=BaseLoader)
+
+        self.color_config = get_meta_config().get_config("color")
+        self.backend.start_up()
+
         self.setQuitOnLastWindowClosed(False)
         self.setup_app_font()
         self.is_setup = True
@@ -129,8 +138,7 @@ class AntistasiLogbookApplication(QApplication):
     @ classmethod
     def with_high_dpi_scaling(cls, argvs: Iterable[str] = None):
         cls.setAttribute(Qt.AA_EnableHighDpiScaling, True)
-        cls.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
-        # cls.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.Round)
+        cls.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
         QGuiApplication.setDesktopSettingsAware(True)
         return cls(argvs=argvs)
 
@@ -139,15 +147,18 @@ class AntistasiLogbookApplication(QApplication):
 
         font_family = "Roboto"
         font_size = 11
-        # font_weight = QFont.Medium
         font.setFamily(font_family)
         font.setPointSize(font_size)
-        # font.setWeight(font_weight)
         font.setStyleStrategy(QFont.PreferAntialias)
         font.setHintingPreference(QFont.PreferNoHinting)
 
-        log.debug(QFontDatabase.smoothSizes("Roboto", ""))
         self.setFont(font)
+
+    @property
+    def gui_thread_pool(self) -> ThreadPoolExecutor:
+        if self._gui_thread_pool is None:
+            self._gui_thread_pool = ThreadPoolExecutor(5, thread_name_prefix="gui")
+        return self._gui_thread_pool
 
     @property
     def config(self) -> "GidIniConfig":
@@ -181,11 +192,6 @@ class AntistasiLogbookApplication(QApplication):
                       "Operating System": self.meta_info.os,
                       "Python Version": self.meta_info.python_version}
 
-        # text = "<dl>"
-        # for k, v in text_parts.items():
-        #     text += f"<dt><b>{k.title()}:</b></dt><dd>{v}</dd><br>"
-        # text += "</dl>"
-        # return text
         return self.jinja_environment.from_string(ABOUT_TEMPLATE).render(data=text_parts)
 
     def show_about(self) -> None:
@@ -195,6 +201,45 @@ class AntistasiLogbookApplication(QApplication):
 
     def show_about_qt(self) -> None:
         self.aboutQt()
+
+    def get_argument_parser(self) -> argparse.ArgumentParser:
+        parser = argparse.ArgumentParser(prog=self.applicationDisplayName(), add_help=True)
+        parser.add_argument("-m", '--maximized', action='store_true')
+        parser.add_argument('-t', '--always-on-top', action='store_true')
+        return parser
+
+    def parse_arguments(self):
+        parser = self.get_argument_parser()
+        raw_args = self.arguments()[1:]
+        if "-h" in raw_args or '--help' in raw_args:
+            self.is_full_gui = False
+        result = parser.parse_args()
+        _out = {"main_window_flags": Qt.WindowFlags(), "main_window_states": Qt.WindowActive}
+        if result.maximized:
+            _out["main_window_states"] |= Qt.WindowMaximized
+        if result.always_on_top:
+            _out["main_window_flags"] |= Qt.WindowStaysOnTopHint
+
+        return _out
+
+    def create_main_window(self, main_window_class: type[QMainWindow], **kwargs) -> QMainWindow:
+        args = self.parse_arguments()
+
+        main_window = main_window_class(self, flags=args["main_window_flags"], ** kwargs)
+        self.current_splash_screen.finish(main_window)
+        main_window.setWindowState(args["main_window_states"])
+        self.main_window = main_window
+        return main_window
+
+    def show_splash_screen(self, splash_type: str) -> QSplashScreen:
+        if splash_type == "start_up":
+            pixmap = AllResourceItems.antistasi_logbook_splash_starting_backend_image.get_as_pixmap()
+        elif splash_type == "shutdown":
+            pixmap = AllResourceItems.antistasi_logbook_splash_shutdown_backend_image.get_as_pixmap()
+
+        self.current_splash_screen = QSplashScreen(pixmap, Qt.WindowStaysOnTopHint)
+        self.current_splash_screen.show()
+        return self.current_splash_screen
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(name={self.applicationDisplayName()!r})"

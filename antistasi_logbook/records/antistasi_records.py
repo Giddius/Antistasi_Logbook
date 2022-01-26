@@ -290,7 +290,7 @@ class UpdatePreferenceRecord(BaseAntistasiRecord):
 
         if logged_from is None:
             return False
-        if logged_from.name in {"updatePreference"} and cls.msg_start_regex.match(log_record.message.lstrip()):
+        if logged_from.name in {"updatePreference"} and cls.msg_start_regex.match(log_record.message.lstrip()) and "[" in log_record.message:
             return True
         return False
 
@@ -691,6 +691,69 @@ class ChangingSidesRecord(BaseAntistasiRecord):
 
 
 ALL_ANTISTASI_RECORD_CLASSES.add(ChangingSidesRecord)
+
+
+class ToggleLockRecord(BaseAntistasiRecord):
+    ___specificity___ = 20
+    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
+    extra_detail_views = ("vehicle_id", "player_name", "lock_status")
+    __slots__ = ("record_id",
+                 "log_file",
+                 "origin",
+                 "start",
+                 "end",
+                 "message",
+                 "recorded_at",
+                 "log_level",
+                 "marked",
+                 "called_by",
+                 "logged_from",
+                 "qt_attributes",
+                 "pretty_attribute_cache",
+                 "vehicle_id",
+                 "player_name",
+                 "lock_status")
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.vehicle_id: str = None
+        self.player_name: str = None
+        self.lock_status: bool = None
+        self.parse_it()
+
+    def get_background_color(self):
+        return Color.get_color_by_name("Gainsboro").with_alpha(0.5).qcolor
+
+    def parse_it(self):
+        try:
+            id_part, player_part, lock_part = self.message.split("|")
+            self.vehicle_id = id_part.strip().removeprefix("Lock state toggled for Vehicle ID:").strip()
+            self.player_name = player_part.strip().removeprefix("By:").strip()
+            raw_lock_status = lock_part.strip().removeprefix("Locked:").strip()
+            if raw_lock_status.casefold() == "true":
+                self.lock_status = True
+
+            elif raw_lock_status.casefold() == "false":
+                self.lock_status = False
+            else:
+                raise TypeError(f"Unable to convert {raw_lock_status!r} to bool")
+        except ValueError as e:
+            log.debug("ValueError with message %r of %r", self.message, self.__class__.__name__)
+            log.error(e, exc_info=True, extra={"text": self.message})
+
+    @classmethod
+    def check(cls, log_record: "LogRecord") -> bool:
+        logged_from = log_record.logged_from
+
+        if logged_from is None:
+            return
+        if logged_from.name in {"toggleLock"} and log_record.message.strip().startswith("Lock state toggled for Vehicle ID:"):
+            return True
+        return False
+
+
+ALL_ANTISTASI_RECORD_CLASSES.add(ToggleLockRecord)
+
 # region[Main_Exec]
 
 

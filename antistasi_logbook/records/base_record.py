@@ -68,6 +68,7 @@ class PrettyAttributeCache:
     pretty_recorded_at: str = attr.ib(default=MiscEnum.NOTHING)
     pretty_log_level: str = attr.ib(default=MiscEnum.NOTHING)
     pretty_message: str = attr.ib(default=MiscEnum.NOTHING)
+    pretty_log_file: str = attr.ib(default=MiscEnum.NOTHING)
 
 
 BASE_SLOTS: list[str] = ("record_id",
@@ -104,6 +105,7 @@ class BaseRecord(AbstractRecord):
                  "qt_attributes",
                  "pretty_attribute_cache"]
 
+    @profile
     def __init__(self,
                  record_id: int,
                  log_file: "LogFile",
@@ -130,15 +132,21 @@ class BaseRecord(AbstractRecord):
         self.qt_attributes: QtAttributes = QtAttributes()
         self.pretty_attribute_cache: PrettyAttributeCache = PrettyAttributeCache()
 
-    @cache
+    @profile
     def get_data(self, name: str):
-        _out = getattr(self, f"pretty_{name}", MiscEnum.NOTHING)
-        if _out is MiscEnum.NOTHING:
+        try:
+            return getattr(self, f"pretty_{name}")
+        except AttributeError:
 
-            # log.warning("no pretty data for %r, pretty_attribute_cache=%r", name, self.pretty_attribute_cache)
+            log.debug("no pretty data for attribute %r of %r", name, self)
 
             return getattr(self, name)
-        return _out
+
+    @property
+    def pretty_log_file(self) -> str:
+        if self.pretty_attribute_cache.pretty_log_file is MiscEnum.NOTHING:
+            self.pretty_attribute_cache.pretty_log_file = str(self.log_file.name)
+        return self.pretty_attribute_cache.pretty_log_file
 
     @property
     @profile
@@ -168,9 +176,11 @@ class BaseRecord(AbstractRecord):
             self._background_qcolor = self.get_background_color()
         return self._background_qcolor
 
+    @profile
     def get_background_color(self) -> "QColor":
         return Color.get_color_by_name("Gray").with_alpha(0.1).qcolor
 
+    @profile
     def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
         if msg_format is MessageFormat.SHORT:
             return shorten_string(self.message, max_length=30)
@@ -229,9 +239,11 @@ class BaseRecord(AbstractRecord):
         raise AttributeError(f"{self.__class__.__name__!r} does not have an attribute {name!r}")
 
     @property
+    @profile
     def pretty_name(self) -> str:
         return str(self)
 
+    @profile
     def __str__(self) -> str:
         return f"{self.origin}-Record at {self.pretty_recorded_at}"
 

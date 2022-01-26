@@ -28,7 +28,7 @@ from antistasi_logbook.gui.models.log_files_model import LogFilesModel
 from antistasi_logbook.gui.views.server_query_view import ServerQueryTreeView
 from antistasi_logbook.gui.models.log_records_model import LogRecordsModel
 from antistasi_logbook.gui.widgets.data_tool_widget import ServerDataToolWidget, LogFileDataToolWidget, LogRecordDataToolWidget
-from antistasi_logbook.gui.views.base_query_tree_view import LogFilesQueryTreeView
+from antistasi_logbook.gui.views.log_files_query_view import LogFilesQueryTreeView
 from antistasi_logbook.gui.widgets.detail_view_widget import ServerDetailWidget, LogFileDetailWidget, LogRecordDetailView
 from antistasi_logbook.gui.views.log_records_query_view import LogRecordsQueryView
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
@@ -128,14 +128,14 @@ class MainWidget(QWidget):
         self.temp_runnable = None
 
     def setup_query_widget(self) -> None:
-        self.query_widget = QueryWidget(parent=self.parent(), add_to_menu=self.main_window.menubar.windows_menu, start_floating=True)
+        self.query_widget = QueryWidget(parent=self.parent(), add_to_menu=self.main_window.menubar.windows_menu, start_floating=False)
         main_window_size: QSize = self.main_window.size()
         self.query_widget.move(150, main_window_size.height() // 2)
 
         self.main_window.addDockWidget(Qt.LeftDockWidgetArea, self.query_widget, Qt.Vertical)
 
     def setup_detail_widget(self) -> None:
-        self.detail_widget = BaseDockWidget(title="Details", parent=self.parent(), start_floating=True, add_to_menu=self.main_window.menubar.windows_menu)
+        self.detail_widget = BaseDockWidget(title="Details", parent=self.parent(), start_floating=False, add_to_menu=self.main_window.menubar.windows_menu)
         main_window_size: QSize = self.main_window.size()
         self.detail_widget.move(main_window_size.width() + (main_window_size.width() // 8), main_window_size.height() // 2)
         self.detail_widget.dockLocationChanged.connect(self.detail_widget_resize_on_undock)
@@ -190,6 +190,7 @@ class MainWidget(QWidget):
                 self.query_widget.add_page(widget, name="log_file")
                 self.log_files_tab.model.data_tool = widget
                 widget.pages["filter"].query_filter_changed.connect(self.log_files_tab.model.on_query_filter_changed)
+
             self.query_widget.set_current_index(self.log_files_tab.model.data_tool)
             self.query_widget.resize(self.query_widget.sizeHint())
             self.log_files_tab.resize_header_sections()
@@ -220,6 +221,7 @@ class MainWidget(QWidget):
                     self.query_result_tab.model.request_view_change_visibility.connect(page.setEnabled)
 
                 widget.pages["filter"].query_filter_changed.connect(self.query_result_tab.model.on_query_filter_changed)
+                widget.pages["search"].search_changed.connect(self.query_result_tab.filter)
             self.query_widget.set_current_index(self.query_result_tab.model.data_tool)
             self.query_widget.resize(self.query_widget.sizeHint())
             self.query_result_tab.resize_header_sections()

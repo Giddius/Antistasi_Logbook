@@ -15,10 +15,26 @@ from pathlib import Path
 from peewee import Query
 
 # * Qt Imports --------------------------------------------------------------------------------------->
-from PySide6 import QtCore
-from PySide6.QtGui import QColor
-from PySide6.QtCore import Qt, Slot, QModelIndex, QSize
-from PySide6.QtWidgets import QLineEdit, QInputDialog
+import PySide6
+from PySide6 import (QtCore, QtGui, QtWidgets, Qt3DAnimation, Qt3DCore, Qt3DExtras, Qt3DInput, Qt3DLogic, Qt3DRender, QtAxContainer, QtBluetooth,
+                     QtCharts, QtConcurrent, QtDataVisualization, QtDesigner, QtHelp, QtMultimedia, QtMultimediaWidgets, QtNetwork, QtNetworkAuth,
+                     QtOpenGL, QtOpenGLWidgets, QtPositioning, QtPrintSupport, QtQml, QtQuick, QtQuickControls2, QtQuickWidgets, QtRemoteObjects,
+                     QtScxml, QtSensors, QtSerialPort, QtSql, QtStateMachine, QtSvg, QtSvgWidgets, QtTest, QtUiTools, QtWebChannel, QtWebEngineCore,
+                     QtWebEngineQuick, QtWebEngineWidgets, QtWebSockets, QtXml)
+
+from PySide6.QtCore import (QByteArray, QCoreApplication, QDate, QDateTime, QEvent, QLocale, QMetaObject, QModelIndex, QModelRoleData, QMutex,
+                            QMutexLocker, QObject, QPoint, QRect, QRecursiveMutex, QRunnable, QSettings, QSize, QThread, QThreadPool, QTime, QUrl,
+                            QWaitCondition, Qt, QAbstractItemModel, QAbstractListModel, QAbstractTableModel, Signal, Slot, QIdentityProxyModel)
+
+from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
+                           QKeySequence, QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform)
+
+from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QDialogButtonBox,
+                               QDockWidget, QDoubleSpinBox, QFontComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
+                               QLCDNumber, QLabel, QLayout, QLineEdit, QListView, QListWidget, QMainWindow, QMenu, QMenuBar, QMessageBox,
+                               QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
+                               QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
+                               QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -26,7 +42,7 @@ from gidapptools import get_logger
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.storage.models.models import Server, RemoteStorage
 from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE, Field, BaseModel, BaseQueryDataModel, ModelContextMenuAction
-
+from antistasi_logbook.gui.models.proxy_models.base_proxy_model import BaseProxyModel
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.gui.views.base_query_tree_view import CustomContextMenu
@@ -63,10 +79,6 @@ def get_int_from_name(name: str, default: int = -1) -> int:
 class ServerModel(BaseQueryDataModel):
     extra_columns = set()
     color_config_name = "server"
-    item_size_by_column_name: dict[str, QSize] = {"name": QSize(100, 30),
-                                                  "remote_path": QSize(300, 30),
-                                                  "remote_storage": QSize(150, 30),
-                                                  "marked": QSize(10, 30)}
 
     def __init__(self, parent: Optional[QtCore.QObject] = None, show_local_files_server: bool = False) -> None:
         self.show_local_files_server = show_local_files_server
