@@ -240,6 +240,7 @@ class MainWidget(QWidget):
 
         self.log_files_tab.resize_header_sections()
         self.log_files_tab.single_item_selected.connect(self.show_log_file_detail)
+        self.log_files_tab.clicked.connect(self.show_log_file_detail)
 
         self.log_files_tab.model.refresh()
         self.server_tab.model.refresh()

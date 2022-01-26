@@ -508,7 +508,9 @@ class LogRecordSearchPage(BaseDataToolPage):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.column_select_combo = QComboBox(self)
-        self.column_select_combo.addItems(list(LogRecord.get_meta().columns))
+        items = list(LogRecord.get_meta().columns)
+        self.column_select_combo.addItems(items)
+        self.column_select_combo.setCurrentIndex(items.index("message"))
         self.layout.addRow("column", self.column_select_combo)
 
         self.regex_select_box = QGroupBox(self)

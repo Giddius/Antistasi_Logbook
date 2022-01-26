@@ -30,3 +30,6 @@ pyinstaller --clean --noconfirm --log-level=INFO ^
 --distpath %THIS_FOLDER%\..\pyinstaller_output_%_NAME%/dist ^
 --workpath %THIS_FOLDER%\..\pyinstaller_output_%_NAME%/work ^
 %INPATH%%INFILE%
+
+
+call 7z.exe a -tZip %THIS_FOLDER%\..\pyinstaller_output_%_NAME%\dist\%_NAME%.zip %THIS_FOLDER%\..\pyinstaller_output_%_NAME%\dist\%_NAME%\ -mx9

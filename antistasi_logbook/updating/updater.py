@@ -251,7 +251,8 @@ class Updater:
         wait(tasks, return_when=ALL_COMPLETED, timeout=None)
 
     def update_record_classes(self, server: Server = None, force: bool = False):
-        self.signaler.change_update_text.emit("Updating Record-Classes")
+        if force is True:
+            self.signaler.change_update_text.emit("Updating Record-Classes")
 
         def _find_record_class(_record: "LogRecord") -> tuple["LogRecord", "RecordClass"]:
             _record_class = self.database.record_processor.determine_record_class(_record)
@@ -270,8 +271,10 @@ class Updater:
         for record, record_class in (_find_record_class(r) for r in self.database.iter_all_records(server=server, only_missing_record_class=not force)):
             idx += 1
             if idx % report_size == 0:
-                log.debug("checked %r records", idx)
-                self.signaler.change_update_text.emit(f"Updating Record-Classes --- Checked {idx:,} Records")
+
+                if force is True:
+                    self.signaler.change_update_text.emit(f"Updating Record-Classes --- Checked {idx:,} Records")
+            if idx % (report_size * 10) == 0:
                 sleep(0)
             if record.record_class_id != record_class.id:
 
@@ -292,7 +295,8 @@ class Updater:
 
         wait(tasks, return_when=ALL_COMPLETED)
         log.info("finished updating record classes")
-        self.signaler.change_update_text.emit("")
+        if force is True:
+            self.signaler.change_update_text.emit("")
 
     def before_updates(self):
         log.debug("emiting before_updates_signal")

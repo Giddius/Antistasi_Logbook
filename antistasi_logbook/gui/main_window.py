@@ -12,6 +12,7 @@ setup()
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 from antistasi_logbook import stream_capturer
 import sys
+from time import sleep
 from typing import TYPE_CHECKING
 from pathlib import Path
 from threading import Thread
@@ -393,16 +394,16 @@ class AntistasiLogbookMainWindow(QMainWindow):
             for widget in self.app.allWidgets():
                 if widget is not splash:
                     widget.hide()
-
+            if self.update_thread is not None:
+                self.update_thread.join(5)
             log.info("shutting down %r", self.statusbar)
             self.statusbar.shutdown()
             log.info("Starting shutting down %r", self.backend)
             self.backend.shutdown()
+            sleep(3)
             log.info("Finished shutting down %r", self.backend)
             splash.close()
 
-            if self.update_thread is not None:
-                self.update_thread.join(10)
             log.info("closing all windows of %r", self.app)
             self.app.closeAllWindows()
             log.info("Quiting %r", self.app)
