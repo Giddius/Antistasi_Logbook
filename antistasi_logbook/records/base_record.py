@@ -10,7 +10,7 @@ Soon.
 from typing import TYPE_CHECKING, Any, Union, Optional
 from pathlib import Path
 from datetime import datetime
-
+from functools import cache
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
 
@@ -68,9 +68,10 @@ class PrettyAttributeCache:
     pretty_recorded_at: str = attr.ib(default=MiscEnum.NOTHING)
     pretty_log_level: str = attr.ib(default=MiscEnum.NOTHING)
     pretty_message: str = attr.ib(default=MiscEnum.NOTHING)
+    pretty_log_file: str = attr.ib(default=MiscEnum.NOTHING)
 
 
-BASE_SLOTS: list[str] = ["record_id",
+BASE_SLOTS: list[str] = ("record_id",
                          "log_file",
                          "origin",
                          "start",
@@ -82,7 +83,7 @@ BASE_SLOTS: list[str] = ["record_id",
                          "called_by",
                          "logged_from",
                          "qt_attributes",
-                         "pretty_attribute_cache"]
+                         "pretty_attribute_cache")
 
 
 class BaseRecord(AbstractRecord):
@@ -90,8 +91,21 @@ class BaseRecord(AbstractRecord):
     ___specificity___ = 0
     foreign_key_cache: "ForeignKeyCache" = None
     _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
-    __slots__ = tuple(BASE_SLOTS)
+    __slots__ = ["record_id",
+                 "log_file",
+                 "origin",
+                 "start",
+                 "end",
+                 "message",
+                 "recorded_at",
+                 "log_level",
+                 "marked",
+                 "called_by",
+                 "logged_from",
+                 "qt_attributes",
+                 "pretty_attribute_cache"]
 
+    @profile
     def __init__(self,
                  record_id: int,
                  log_file: "LogFile",
@@ -118,42 +132,55 @@ class BaseRecord(AbstractRecord):
         self.qt_attributes: QtAttributes = QtAttributes()
         self.pretty_attribute_cache: PrettyAttributeCache = PrettyAttributeCache()
 
+    @profile
     def get_data(self, name: str):
-        _out = getattr(self, f"pretty_{name}", MiscEnum.NOTHING)
-        if _out is MiscEnum.NOTHING:
+        try:
+            return getattr(self, f"pretty_{name}")
+        except AttributeError:
 
-            # log.warning("no pretty data for %r, pretty_attribute_cache=%r", name, self.pretty_attribute_cache)
+            log.debug("no pretty data for attribute %r of %r", name, self)
 
             return getattr(self, name)
-        return _out
 
     @property
+    def pretty_log_file(self) -> str:
+        if self.pretty_attribute_cache.pretty_log_file is MiscEnum.NOTHING:
+            self.pretty_attribute_cache.pretty_log_file = str(self.log_file.name)
+        return self.pretty_attribute_cache.pretty_log_file
+
+    @property
+    @profile
     def pretty_message(self) -> str:
         if self.pretty_attribute_cache.pretty_message is MiscEnum.NOTHING:
             self.pretty_attribute_cache.pretty_message = self.get_formated_message(MessageFormat.PRETTY)
         return self.pretty_attribute_cache.pretty_message
 
     @property
+    @profile
     def pretty_log_level(self) -> Optional[str]:
         if self.pretty_attribute_cache.pretty_log_level is MiscEnum.NOTHING:
             self.pretty_attribute_cache.pretty_log_level = str(self.log_level) if self.log_level.id != 0 else None
         return self.pretty_attribute_cache.pretty_log_level
 
     @property
+    @profile
     def pretty_recorded_at(self) -> str:
         if self.pretty_attribute_cache.pretty_recorded_at is MiscEnum.NOTHING:
             self.pretty_attribute_cache.pretty_recorded_at = self.log_file.format_datetime(self.recorded_at)
         return self.pretty_attribute_cache.pretty_recorded_at
 
     @property
+    @profile
     def background_color(self) -> Optional["QColor"]:
         if self._background_qcolor is MiscEnum.NOTHING:
             self._background_qcolor = self.get_background_color()
         return self._background_qcolor
 
+    @profile
     def get_background_color(self) -> "QColor":
         return Color.get_color_by_name("Gray").with_alpha(0.1).qcolor
 
+    @profile
     def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
         if msg_format is MessageFormat.SHORT:
             return shorten_string(self.message, max_length=30)
@@ -162,18 +189,17 @@ class BaseRecord(AbstractRecord):
             return f"{self.pretty_recorded_at} {self.message}"
         return self.message
 
+    @profile
     def get_db_item(self, database: "GidSqliteApswDatabase") -> "LogRecord":
         from antistasi_logbook.storage.models.models import LogRecord
         with database:
             return LogRecord.get_by_id(self.record_id)
 
     @classmethod
-    @profile
     def check(cls, log_record: "LogRecord") -> bool:
         return True
 
     @classmethod
-    @profile
     def from_db_item(cls, item: "LogRecord") -> "BaseRecord":
         return cls(record_id=item.id,
                    log_file=item.log_file,
@@ -188,7 +214,6 @@ class BaseRecord(AbstractRecord):
                    logged_from=item.logged_from)
 
     @classmethod
-    @profile
     def from_model_dict(cls, model_dict: dict[str, Any], log_file: "LogFile" = None) -> "BaseRecord":
 
         if log_file is not None:
@@ -211,8 +236,14 @@ class BaseRecord(AbstractRecord):
             return self.record_id
         if name == "record_class":
             return self.__class__
-        raise AttributeError(f"{self!r} does not have an attribute {name!r}")
+        raise AttributeError(f"{self.__class__.__name__!r} does not have an attribute {name!r}")
 
+    @property
+    @profile
+    def pretty_name(self) -> str:
+        return str(self)
+
+    @profile
     def __str__(self) -> str:
         return f"{self.origin}-Record at {self.pretty_recorded_at}"
 

@@ -24,7 +24,8 @@ from PySide6.QtWidgets import (QMenu, QLabel, QWidget, QGroupBox, QLineEdit, QLi
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
-from gidapptools.general_helper.string_helper import StringCaseConverter
+from gidapptools.general_helper.conversion import seconds2human
+from gidapptools.general_helper.string_helper import StringCaseConverter, StringCase
 from gidapptools.general_helper.color.color_item import Color
 
 # * Local Imports --------------------------------------------------------------------------------------->
@@ -34,7 +35,7 @@ from antistasi_logbook.gui.widgets.stats_viewer import StatsWindow
 from antistasi_logbook.gui.widgets.collapsible_widget import CollapsibleGroupBox
 from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-
+from antistasi_logbook.errors import InsufficientDataPointsError
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
@@ -57,7 +58,8 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
@@ -251,6 +253,7 @@ class GameMapValue(QWidget):
         if self.game_map_pixmap is not None:
             self.game_map_thumbnail.setPixmap(self.game_map_pixmap)
             self.collapsible_box = CollapsibleGroupBox(text="Thumbnail", content=self.game_map_thumbnail, parent=self)
+            self.collapsible_box.set_expanded(False)
             self.layout.addWidget(self.collapsible_box)
 
     def _get_game_map_pixmap(self) -> Optional[QPixmap]:
@@ -291,7 +294,7 @@ class BaseDetailWidget(QWidget):
 
 class ServerDetailWidget(BaseDetailWidget):
 
-    def __init__(self, server: Server, parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
+    def __init__(self, server: Server, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent=parent)
         self.server = server
 
@@ -303,7 +306,7 @@ class ServerDetailWidget(BaseDetailWidget):
         self.amount_log_files_label = QLabel(text="Amount Log-Files")
         self.amount_log_files_value = QLCDNumber(3, self)
         self.amount_log_files_value.setSegmentStyle(QLCDNumber.Flat)
-        self.amount_log_files_value.display(LogFile.select().where(LogFile.server == self.server).count())
+        self.amount_log_files_value.display(self.server.get_amount_log_files())
         self.layout.addRow(self.amount_log_files_label, self.amount_log_files_value)
 
         self.remote_path_label = QLabel(text="Remote Path")
@@ -353,6 +356,16 @@ class LogFileDetailWidget(BaseDetailWidget):
         self.modified_at_label = QLabel(text="Modified at")
         self.modified_at_value = ValueLineEdit(text=self.app.format_datetime(self.log_file.modified_at))
 
+        time_frame_string = f"{self.app.format_datetime(self.log_file.time_frame.start)} until {self.app.format_datetime(self.log_file.time_frame.end)}"
+
+        self.time_frame_value = ValueLineEdit(text=time_frame_string)
+        self.layout.addRow("Time-Frame", self.time_frame_value)
+
+        time_frame_duration_string = seconds2human(self.log_file.time_frame.delta.total_seconds(), min_unit="second")
+
+        self.duration_value = ValueLineEdit(text=time_frame_duration_string)
+        self.layout.addRow("Duration", self.duration_value)
+
         self.server_label = QLabel(text="Server")
         self.server_value = ValueLineEdit(text=self.log_file.server.name, parent=self)
         self.layout.addRow(self.server_label, self.server_value)
@@ -379,7 +392,15 @@ class LogFileDetailWidget(BaseDetailWidget):
         self.mods_value.setModel(model)
 
         self.layout.addRow(self.mods_label, self.mods_value)
+
         self.mods_value.doubleClicked.connect(self.open_mod_link)
+        self.header_text_value = QTextEdit()
+        self.header_text_value.setReadOnly(True)
+        self.header_text_value.setLineWrapMode(QTextEdit.NoWrap)
+        self.header_text_value.setPlainText(self.log_file.header_text)
+        self.header_text_box = CollapsibleGroupBox("Show Header Text", self.header_text_value, self)
+        self.header_text_box.set_expanded(False)
+        self.layout.addRow('Header Text', self.header_text_box)
 
         self.get_stats_button = QPushButton(AllResourceItems.stats_icon_2_image.get_as_icon(), "Get Stats")
         self.layout.addWidget(self.get_stats_button)
@@ -389,9 +410,8 @@ class LogFileDetailWidget(BaseDetailWidget):
     def show_stats(self):
         all_stats = self.log_file.get_stats()
         if len(all_stats) < 2:
-            log.debug("%r -> %r", len(all_stats), all_stats)
-            QMessageBox.warning(self, "Insufficient Data-Points", f"<center>The requested Log-File <b>{self.log_file.name}</b> has <b>&lt; 2</b> Data-Points. Unable to Plot!</center>")
-            return
+            raise InsufficientDataPointsError(len(all_stats), 2)
+
         self.temp_plot_widget = StatsWindow(all_stats, title=self.log_file.name.upper)
         self.temp_plot_widget.add_marked_records(self.log_file.get_marked_records())
         self.temp_plot_widget.show()
@@ -696,6 +716,15 @@ class LogRecordDetailView(BaseDetailWidget):
         self.origin_value = ValueLineEdit(self.record.origin.name)
 
         self.layout.addRow("Origin", self.origin_value)
+        if self.record.extra_detail_views:
+            extra_view_content = DataView(border=True)
+
+            for extra in self.record.extra_detail_views:
+
+                extra_view_content.add_row(StringCaseConverter.convert_to(extra, StringCase.TITLE), self.record.get_data(extra))
+
+            self.extra_view = CollapsibleGroupBox("Extra Data", extra_view_content.build(), start_expanded=False, parent=self)
+            self.layout.addWidget(self.extra_view)
 
         self.message_value = MessageValue(self.record)
         self.layout.addRow("Message", self.message_value)
@@ -707,9 +736,8 @@ class LogRecordDetailView(BaseDetailWidget):
     def get_stats(self):
         all_stats = self.record.log_file.get_stats()
         if len(all_stats) < 2:
-            log.debug("%r -> %r", len(all_stats), all_stats)
-            QMessageBox.warning(self, "Insufficient Data-Points", f"<center>The requested Log-File <b>{self.record.log_file.name}</b> has <b>&lt; 2</b> Data-Points.\nUnable to Plot!</center>")
-            return
+            raise InsufficientDataPointsError(len(all_stats), 2)
+
         self.temp_plot_widget = StatsWindow(all_stats, title=self.record.log_file.name.upper)
         self.temp_plot_widget.add_current_record(self.record)
 

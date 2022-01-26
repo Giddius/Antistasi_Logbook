@@ -12,6 +12,7 @@ from pathlib import Path
 from datetime import timedelta
 from threading import Lock, RLock
 from contextlib import contextmanager
+import re
 from collections import deque
 from concurrent.futures import FIRST_EXCEPTION, Future, wait
 
@@ -146,6 +147,7 @@ class LineCache(deque):
 
 class LogParsingContext:
     new_log_record_signal = get_signal("new_log_record")
+    mem_cache_regex = re.compile(r"-MaxMem\=(?P<max_mem>\d+)")
     __slots__ = ("__weakref__", "_log_file", "record_lock", "log_file_data", "data_lock", "foreign_key_cache", "line_cache", "_line_iterator",
                  "_current_line", "_current_line_number", "futures", "record_storage", "inserter", "_bulk_create_batch_size", "database", "config", "is_open", "done_signal")
 
@@ -183,7 +185,6 @@ class LogParsingContext:
     def set_unparsable(self) -> None:
         self.log_file_data["unparsable"] = True
 
-    @profile
     def set_found_meta_data(self, finder: "MetaFinder") -> None:
 
         # TODO: Refractor this Monster!
@@ -235,6 +236,9 @@ class LogParsingContext:
         # takes about 0.0003763 s
         if lines:
             text = '\n'.join(i.content for i in lines if i.content)
+            if match := self.mem_cache_regex.search(text):
+                max_mem = int(match.group("max_mem"))
+                self.log_file_data["max_mem"] = max_mem
             self.log_file_data["header_text"] = text
 
     def set_startup_text(self, lines: Iterable["RecordLine"]) -> None:
@@ -295,7 +299,6 @@ class LogParsingContext:
         if self.done_signal:
             self.done_signal()
 
-    @profile
     def _future_callback(self, result: "ManyRecordsInsertResult") -> None:
         max_line_number = result.max_line_number
         max_recorded_at = result.max_recorded_at
@@ -319,7 +322,6 @@ class LogParsingContext:
                 log.error(error)
                 log.debug(max_recorded_at)
 
-    @profile
     def insert_record(self, record: "RawRecord") -> None:
         with self.record_lock:
             self.record_storage.append(record)
@@ -354,7 +356,6 @@ class LogParsingContext:
         self.is_open = True
         return self
 
-    @profile
     def __exit__(self, exception_type: type = None, exception_value: BaseException = None, traceback: Any = None) -> None:
         if exception_value is not None:
             log.error("%s, %s", exception_type, exception_value, exc_info=True)

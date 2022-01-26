@@ -150,6 +150,13 @@ class DateTimeFrame:
             return self.start <= other <= self.end
         return NotImplemented
 
+    def to_pretty_string(self, fmt=None, multiline: bool = False):
+        fmt = "%Y-%m-%d %H:%M:%S" if fmt is None else fmt
+        if multiline is False:
+            return f"{self.start.strftime(fmt)} until {self.end.strftime(fmt)}"
+        else:
+            return f"{self.start.strftime(fmt)}\nuntil\n{self.end.strftime(fmt)}"
+
     def __str__(self) -> str:
         return f"{self.start.isoformat()} until {self.end.isoformat()}"
 

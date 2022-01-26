@@ -14,7 +14,7 @@ from pathlib import Path
 import PySide6
 from PySide6.QtGui import QFont
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QLabel, QWidget, QFormLayout, QApplication
+from PySide6.QtWidgets import QLabel, QWidget, QFormLayout, QApplication, QFrame
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -22,7 +22,7 @@ from gidapptools.general_helper.enums import MiscEnum
 from gidapptools.general_helper.string_helper import StringCase, StringCaseConverter
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.gui.widgets.data_view_widget.type_fields import TYPE_FIELD_TABLE, TypeFieldProtocol
+from antistasi_logbook.gui.widgets.data_view_widget.type_fields import TYPE_FIELD_TABLE, TypeFieldProtocol, get_type_widget
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
@@ -113,14 +113,20 @@ class TitleLabel(QLabel):
         return super().setText(text)
 
 
-class DataView(QWidget):
+class DataView(QFrame):
 
-    def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None, show_none: bool = False, title: str = None) -> None:
+    def __init__(self,
+                 parent: Optional[QWidget] = None,
+                 show_none: bool = False,
+                 title: str = None,
+                 border: bool = False) -> None:
         super().__init__(parent=parent)
         self._is_built: bool = False
+        self.border = border
         self.show_none = show_none
         self.setLayout(QFormLayout())
         self.setup_layout()
+        self.setup_border()
         self.title = title
         self.title_label = TitleLabel()
         self.layout.addRow(self.title_label)
@@ -130,6 +136,15 @@ class DataView(QWidget):
     def setup_layout(self):
         self.layout.setHorizontalSpacing(50)
         self.layout.setVerticalSpacing(25)
+
+    def setup_border(self):
+        if self.border is False:
+            self.setFrameShape(QFrame.NoFrame)
+        else:
+            self.setFrameShape(QFrame.StyledPanel)
+            self.setFrameShadow(QFrame.Sunken)
+            self.setLineWidth(4)
+            self.setMidLineWidth(2)
 
     def set_title(self, title: str):
         if title in {None, ""}:
@@ -159,14 +174,13 @@ class DataView(QWidget):
         data_row = DataRow(name=name, value=value, position=position, type_widget=type_widget)
         self.rows[name] = data_row
 
-    def determine_type_widget(self, value: Any) -> Optional["TypeFieldProtocol"]:
-        typus = type(value)
-        type_widget = TYPE_FIELD_TABLE.get(typus)
-
-        return type_widget
-
     def clear(self):
         pass
+
+    def build(self) -> "DataView":
+        if self._is_built is False:
+            self.rebuild()
+        return self
 
     def rebuild(self):
         self.clear()
@@ -177,14 +191,13 @@ class DataView(QWidget):
             self.title_label.setVisible(False)
         for row in sorted(self.rows.values(), key=lambda x: x.get_sort_key()):
             if row.type_widget is MiscEnum.NOTHING:
-                row.type_widget = self.determine_type_widget(row.value)
+                row.type_widget = get_type_widget(row.value)
             if row.value_widget is None:
                 continue
             self.layout.addRow(row.label, row.value_widget)
             row.value_widget.set_size(self.fontMetrics().height(), self.fontMetrics().height())
             row.position = int(self.layout.getWidgetPosition(row.value_widget)[0])
 
-        self.repaint()
         self._is_built = True
 
     def show(self):
@@ -196,6 +209,11 @@ class DataView(QWidget):
     def closeEvent(self, event: PySide6.QtGui.QCloseEvent) -> None:
         self.app.extra_windows.remove(self)
         return super().closeEvent(event)
+
+    def repaint(self):
+        self.rebuild()
+        self.setup_border()
+        super().repaint()
 # region[Main_Exec]
 
 

@@ -10,6 +10,7 @@ Soon.
 import os
 from typing import TYPE_CHECKING, Union, Protocol, Generator
 from pathlib import Path
+import types
 from weakref import WeakSet
 from functools import cached_property
 from threading import Lock
@@ -27,14 +28,16 @@ from gidapptools.general_helper.conversion import human2bytes
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook import setup
-from antistasi_logbook.storage.models.models import Server, GameMap, LogFile, Version, LogLevel, LogRecord, RecordClass, RecordOrigin, RemoteStorage, AntstasiFunction, DatabaseMetaData, setup_db
-
+from antistasi_logbook.storage.models.models import Server, GameMap, LogFile, Version, LogLevel, LogRecord, RecordClass, RecordOrigin, RemoteStorage, AntstasiFunction, DatabaseMetaData, setup_db, migration
+import apsw
+from time import sleep
 setup()
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
 
     from antistasi_logbook.parsing.record_processor import RecordInserter, RecordProcessor
+    from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 
 # endregion[Imports]
 
@@ -67,12 +70,25 @@ DEFAULT_PRAGMAS = {
     "ignore_check_constraints": 0,
     "foreign_keys": 1,
     "temp_store": "MEMORY",
-    "mmap_size": human2bytes("500 mb")
+    "mmap_size": human2bytes("500 mb"),
+    "journal_size_limit": human2bytes("100mb")
 }
 
 
 def make_db_path(in_path: Union[str, os.PathLike, Path]) -> str:
-    return Path(in_path).resolve().as_posix().replace('/', '\\')
+    """
+    Returns the provided path resolved and as a String so APSW can understand it.
+
+    Peewee (or APSW) seems to not follow the `os.PathLike`-Protocol.
+
+    Args:
+        in_path (Union[str, os.PathLike, Path])
+
+    Returns:
+        str: The resolved and normalized path to the db.
+    """
+
+    return str(Path(in_path).resolve())
 
 
 class GidSqliteDatabase(Protocol):
@@ -132,8 +148,8 @@ class GidSqliteApswDatabase(APSWDatabase):
         self.session_meta_data: "DatabaseMetaData" = None
         extensions = self.default_extensions.copy() | (extensions or {})
         pragmas = DEFAULT_PRAGMAS.copy() | (pragmas or {})
-        super().__init__(make_db_path(self.database_path), thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, timeout=30, **extensions)
-        self.foreign_key_cache = None
+        super().__init__(make_db_path(self.database_path), thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, timeout=30, statementcachesize=1000, ** extensions)
+        self.foreign_key_cache: "ForeignKeyCache" = None
         self.write_lock = Lock()
         self.record_processor: "RecordProcessor" = None
         self.record_inserter: "RecordInserter" = None
@@ -146,9 +162,22 @@ class GidSqliteApswDatabase(APSWDatabase):
     def base_record_id(self) -> int:
         return RecordClass.select().where(RecordClass.name == "BaseRecord").scalar()
 
-    # def _add_conn_hooks(self, conn):
-    #     super()._add_conn_hooks(conn)
-    #     self.all_connections.add(conn)
+    def _add_conn_hooks(self, conn):
+        super()._add_conn_hooks(conn)
+        self.all_connections.add(conn)
+
+    def close_all(self):
+        log.debug("all connections: %r", ', '.join(repr(conn) for conn in self.all_connections))
+        for conn in self.all_connections:
+            log.debug("interrupting connection %r", conn)
+            try:
+                conn.interrupt()
+            except apsw.ConnectionClosedError as e:
+                log.debug("encountered error %r", e)
+            log.debug("closing connection %r", conn)
+            conn.close(True)
+
+        self.close()
 
     def _pre_start_up(self, overwrite: bool = False) -> None:
         self.database_path.parent.mkdir(exist_ok=True, parents=True)
@@ -158,7 +187,6 @@ class GidSqliteApswDatabase(APSWDatabase):
     def _post_start_up(self, **kwargs) -> None:
         self.session_meta_data = DatabaseMetaData.new_session()
 
-    @profile
     def start_up(self,
                  overwrite: bool = False,
                  force: bool = False) -> "GidSqliteApswDatabase":
@@ -169,7 +197,12 @@ class GidSqliteApswDatabase(APSWDatabase):
         self._pre_start_up(overwrite=overwrite)
         self.connect(reuse_if_open=True)
         with self.write_lock:
+            log.debug("starting setup for %r", self)
             setup_db(self)
+            log.debug("finished setup for %r", self)
+            log.debug("starting migration for %r", self)
+            migration(self)
+            log.debug("finished migration for %r", self)
 
         self._post_start_up()
         self.started_up = True
@@ -189,31 +222,22 @@ class GidSqliteApswDatabase(APSWDatabase):
             self.execute_sql("VACUUM;")
         return self
 
-    @profile
-    def close(self):
-        return super().close()
-
-    @profile
     def shutdown(self, error: BaseException = None) -> None:
         log.debug("shutting down %r", self)
         with self.write_lock:
             self.session_meta_data.save()
-
-        is_closed = self.close()
-        for conn in self.all_connections:
-            conn.close()
+        with self.write_lock:
+            self.close_all()
 
         log.debug("finished shutting down %r", self)
         self.started_up = False
 
-    @profile
     def get_all_server(self, ordered_by=Server.id) -> tuple[Server]:
         with self.connection_context() as ctx:
             result = tuple(Server.select().join(RemoteStorage, on=Server.remote_storage).order_by(ordered_by))
 
         return result
 
-    @profile
     def get_log_files(self, server: Server = None, ordered_by=LogFile.id) -> tuple[LogFile]:
         with self:
             query = LogFile.select(LogFile, Server, GameMap, Version)
@@ -224,53 +248,48 @@ class GidSqliteApswDatabase(APSWDatabase):
                 return tuple(query.order_by(ordered_by))
             return tuple(query.where(LogFile.server_id == server.id).order_by(ordered_by))
 
-    @profile
     def get_all_log_levels(self, ordered_by=LogLevel.id) -> tuple[LogLevel]:
         with self.connection_context() as ctx:
             result = tuple(LogLevel.select().order_by(ordered_by))
 
         return result
 
-    @profile
     def get_all_antistasi_functions(self, ordered_by=AntstasiFunction.id) -> tuple[AntstasiFunction]:
         with self.connection_context() as ctx:
             result = tuple(AntstasiFunction.select().order_by(ordered_by))
 
         return result
 
-    @profile
     def get_all_game_maps(self, ordered_by=GameMap.id) -> tuple[GameMap]:
         with self.connection_context() as ctx:
             result = tuple(GameMap.select().order_by(ordered_by))
 
         return result
 
-    @profile
     def get_all_origins(self, ordered_by=RecordOrigin.id) -> tuple[RecordOrigin]:
         with self.connection_context() as ctx:
             result = tuple(RecordOrigin.select().order_by(ordered_by))
         return result
 
-    @profile
     def get_all_versions(self, ordered_by=Version) -> tuple[Version]:
         with self.connection_context() as ctx:
             result = tuple(Version.select().order_by(ordered_by))
         return result
 
-    @profile
     def iter_all_records(self, server: Server = None, only_missing_record_class: bool = False) -> Generator[LogRecord, None, None]:
-        with self:
+        self.connect(True)
 
-            query = LogRecord.select().join(RecordClass, join_type=JOIN.LEFT_OUTER)
-            if server is not None:
-                nested = LogFile.select().where(LogFile.server_id == server.id)
-                query = query.where((LogRecord.log_file << nested))
-            if only_missing_record_class is True:
-                query = query.where((LogRecord.record_class >> None))
-            for record in query.objects().iterator():
-                record.logged_from = self.foreign_key_cache.get_antistasi_file_by_id(record.logged_from_id)
-                record.origin = self.foreign_key_cache.get_origin_by_id(record.origin_id)
-                yield record
+        query = LogRecord.select(LogRecord, RecordClass).join(RecordClass, join_type=JOIN.LEFT_OUTER)
+        if server is not None:
+            nested = LogFile.select().where(LogFile.server_id == server.id)
+            query = query.where((LogRecord.log_file << nested))
+        if only_missing_record_class is True:
+            query = query.where((LogRecord.record_class >> None))
+        for record in query.iterator():
+            record.logged_from = self.foreign_key_cache.get_antistasi_file_by_id(record.logged_from_id)
+            record.origin = self.foreign_key_cache.get_origin_by_id(record.origin_id)
+            yield record
+        self.close()
 
     def get_unique_server_ips(self) -> tuple[str]:
         with self:
@@ -292,5 +311,6 @@ class GidSqliteApswDatabase(APSWDatabase):
 
 # region[Main_Exec]
 if __name__ == '__main__':
+
     pass
-    # endregion[Main_Exec]
+# endregion[Main_Exec]

@@ -3,24 +3,34 @@
         "max_threads": {
             "converter": "integer",
             "default": "5",
-            "verbose_name": "Maximum amount of Threads"
+            "verbose_name": "Maximum amount of Threads",
+            "short_description": "How many Threads should the App maximal use"
         }
     },
     "database": {
         "database_path": {
             "converter": "path",
             "default": null,
-            "verbose_name": "Database Path"
+            "verbose_name": "Database Path",
+            "short_description": "If Path is Folder, the App will use the default DB Name"
         },
         "backup_database": {
             "converter": "boolean",
             "default": "False",
             "implemented": false
         },
-        "backup_limit": { "converter": "integer", "default": "0" }
+        "backup_limit": {
+            "converter": "integer",
+            "default": "0",
+            "implemented": false
+        }
     },
     "updating": {
-        "updates_enabled": { "converter": "boolean", "default": "True" },
+        "updates_enabled": {
+            "converter": "boolean",
+            "default": "True",
+            "short_description": "Setting this to 'No' will disable updates globally, even for manual updates."
+        },
         "update_interval": {
             "converter": "timedelta",
             "default": "5 min",
@@ -28,18 +38,28 @@
         },
         "max_update_time_frame": {
             "converter": "timedelta",
-            "default": null
+            "default": null,
+            "short_description": "Logs that were modified in this Timeframe will get updated in the App."
         },
         "remove_items_older_than_max_update_time_frame": {
             "converter": "boolean",
-            "default": "True"
+            "default": "True",
+            "short_description": "If set to 'Yes' will remove entries for items older than the max update time frame from the db (helps keep DB size small)"
         }
     },
     "folder": {
-        "local_storage_folder": { "converter": "path", "default": null }
+        "local_storage_folder": {
+            "converter": "path",
+            "default": null,
+            "short_description": "Where the app should download the log_file to when updating, defaults to Temp folder"
+        }
     },
     "downloading": {
-        "keep_downloaded_files": { "converter": "boolean", "default": "False" },
+        "keep_downloaded_files": {
+            "converter": "boolean",
+            "default": "False",
+            "short_description": "If set to 'yes' the app will not delete the original log-files after finishing parsing."
+        },
         "chunk_size": { "converter": "file_size", "default": null }
     },
 
@@ -54,7 +74,17 @@
         "time_format": { "converter": "string", "default": "%Y-%m-%d %H:%M:%S" }
     },
     "gui": {
-        "style": { "converter": "string", "default": "base" }
+        "style": { "converter": "string", "default": "base" },
+        "font_family": {
+            "converter": "string",
+            "default": null,
+            "implemented": false
+        },
+        "font_size": {
+            "converter": "integer",
+            "default": null,
+            "implemented": false
+        }
     },
     "debug": {
         "dev_mode": { "converter": "boolean", "default": "False" }

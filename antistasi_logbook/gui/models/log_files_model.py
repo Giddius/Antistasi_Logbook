@@ -15,9 +15,27 @@ from datetime import datetime
 from peewee import JOIN, Field, Query
 
 # * Qt Imports --------------------------------------------------------------------------------------->
-from PySide6 import QtCore
-from PySide6.QtGui import Qt
-from PySide6.QtCore import Qt
+import PySide6
+from PySide6 import (QtCore, QtGui, QtWidgets, Qt3DAnimation, Qt3DCore, Qt3DExtras, Qt3DInput, Qt3DLogic, Qt3DRender, QtAxContainer, QtBluetooth,
+                     QtCharts, QtConcurrent, QtDataVisualization, QtDesigner, QtHelp, QtMultimedia, QtMultimediaWidgets, QtNetwork, QtNetworkAuth,
+                     QtOpenGL, QtOpenGLWidgets, QtPositioning, QtPrintSupport, QtQml, QtQuick, QtQuickControls2, QtQuickWidgets, QtRemoteObjects,
+                     QtScxml, QtSensors, QtSerialPort, QtSql, QtStateMachine, QtSvg, QtSvgWidgets, QtTest, QtUiTools, QtWebChannel, QtWebEngineCore,
+                     QtWebEngineQuick, QtWebEngineWidgets, QtWebSockets, QtXml)
+
+from PySide6.QtCore import (QByteArray, QCoreApplication, QDate, QDateTime, QEvent, QLocale, QMetaObject, QModelIndex, QModelRoleData, QMutex,
+                            QMutexLocker, QObject, QPoint, QRect, QRecursiveMutex, QRunnable, QSettings, QSize, QThread, QThreadPool, QTime, QUrl,
+                            QWaitCondition, Qt, QAbstractItemModel, QAbstractListModel, QAbstractTableModel, Signal, Slot, QIdentityProxyModel, QSortFilterProxyModel)
+
+from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
+                           QKeySequence, QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform)
+
+from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QDialogButtonBox,
+                               QDockWidget, QDoubleSpinBox, QFontComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
+                               QLCDNumber, QLabel, QLayout, QLineEdit, QListView, QListWidget, QMainWindow, QMenu, QMenuBar, QMessageBox,
+                               QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
+                               QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
+                               QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
+
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -25,12 +43,12 @@ from gidapptools import get_logger
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.storage.models.models import Server, GameMap, LogFile
 from antistasi_logbook.storage.models.custom_fields import FakeField
-from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE, BaseQueryDataModel
-
+from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE, BaseQueryDataModel, ModelContextMenuAction
+from antistasi_logbook.gui.models.proxy_models.base_proxy_model import BaseProxyModel
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.storage.models.models import BaseModel
-
+    from antistasi_logbook.gui.views.base_query_tree_view import CustomContextMenu
 # endregion[Imports]
 
 # region [TODO]
@@ -51,73 +69,17 @@ log = get_logger(__name__)
 
 
 class LogFilesModel(BaseQueryDataModel):
-    extra_columns = {FakeField(name="amount_log_records", verbose_name="Amount Log Records"), FakeField("time_frame", "Time Frame")}
-    strict_exclude_columns = {"startup_text", "header_text", "remote_path"}
+    extra_columns = {FakeField(name="amount_log_records", verbose_name="Records"),
+                     FakeField("time_frame", "Time Frame"),
+                     FakeField(name="amount_errors", verbose_name="Errors"),
+                     FakeField(name="amount_warnings", verbose_name="Warnings")}
+    strict_exclude_columns = {"startup_text", "remote_path", "header_text"}
 
     def __init__(self, parent: Optional[QtCore.QObject] = None, show_unparsable: bool = False) -> None:
         self.show_unparsable = show_unparsable
         super().__init__(LogFile, parent=parent)
         self.ordered_by = (-LogFile.modified_at, LogFile.server)
         self.filter_item = None
-
-    def on_filter_newer_than(self, dt: datetime):
-        if not isinstance(dt, datetime):
-            dt = None
-        if dt is None and "newer_than" in self.filters:
-            del self.filters["newer_than"]
-            self.refresh()
-
-        if dt is not None:
-            self.filters["newer_than"] = (LogFile.modified_at >= dt)
-            self.refresh()
-
-    def on_filter_by_new_campaign(self, checked):
-        if not checked and "new_campaign" in self.filters:
-            del self.filters["new_campaign"]
-            self.refresh()
-
-        elif checked:
-            self.filters["new_campaign"] = (LogFile.is_new_campaign == True)
-            self.refresh()
-
-    def on_filter_older_than(self, dt: datetime):
-        if not isinstance(dt, datetime):
-            dt = None
-        if dt is None and "older_than" in self.filters:
-            del self.filters["older_than"]
-            self.refresh()
-
-        if dt is not None:
-            self.filters["older_than"] = (LogFile.modified_at <= dt)
-            self.refresh()
-
-    def on_filter_by_marked(self, checked):
-        if not checked and "marked" in self.filters:
-            del self.filters["marked"]
-            self.refresh()
-        elif checked:
-            self.filters["marked"] = (LogFile.marked == True)
-            self.refresh()
-
-    def filter_by_server(self, server_id: int):
-
-        if server_id == -1 and "server" in self.filters:
-            del self.filters["server"]
-            self.refresh()
-
-        elif server_id != -1:
-            self.filters["server"] = (LogFile.server_id == server_id)
-            self.refresh()
-
-    def filter_by_game_map(self, game_map_id: int):
-
-        if game_map_id == -1 and "game_map" in self.filters:
-            del self.filters["game_map"]
-            self.refresh()
-
-        elif game_map_id != -1:
-            self.filters["game_map"] = (LogFile.game_map_id == game_map_id)
-            self.refresh()
 
     def change_show_unparsable(self, show_unparsable):
         if show_unparsable and self.show_unparsable is False:

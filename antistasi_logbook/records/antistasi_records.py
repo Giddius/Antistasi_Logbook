@@ -8,7 +8,7 @@ Soon.
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import re
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any, Union, Iterable
 from pathlib import Path
 
 # * Third Party Imports --------------------------------------------------------------------------------->
@@ -57,13 +57,24 @@ class BaseAntistasiRecord(BaseRecord):
     ___specificity___ = 1
     ___has_multiline_message___ = False
     _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
-    __slots__ = tuple(BASE_SLOTS)
+    __slots__ = ("record_id",
+                 "log_file",
+                 "origin",
+                 "start",
+                 "end",
+                 "message",
+                 "recorded_at",
+                 "log_level",
+                 "marked",
+                 "called_by",
+                 "logged_from",
+                 "qt_attributes",
+                 "pretty_attribute_cache")
 
     def get_background_color(self):
         return Color.get_color_by_name("White").with_alpha(0.01).qcolor
 
     @classmethod
-    @profile
     def check(cls, log_record: "LogRecord") -> bool:
         return True
 
@@ -86,7 +97,20 @@ class PerformanceRecord(BaseAntistasiRecord):
     ___has_multiline_message___ = True
     performance_regex = re.compile(r"(?P<name>\w+\s?\w*)(?:\:\s?)(?P<value>\d[\d\.]*)")
     _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
-    __slots__ = tuple(BASE_SLOTS + ["_stats"])
+    __slots__ = ("record_id",
+                 "log_file",
+                 "origin",
+                 "start",
+                 "end",
+                 "message",
+                 "recorded_at",
+                 "log_level",
+                 "marked",
+                 "called_by",
+                 "logged_from",
+                 "qt_attributes",
+                 "pretty_attribute_cache",
+                 "_stats")
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -121,7 +145,6 @@ class PerformanceRecord(BaseAntistasiRecord):
         return super().get_formated_message(msg_format=msg_format)
 
     @classmethod
-    @profile
     def check(cls, log_record: "LogRecord") -> bool:
         logged_from = log_record.logged_from
 
@@ -142,13 +165,24 @@ class IsNewCampaignRecord(BaseAntistasiRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 20
     _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
-    __slots__ = tuple(BASE_SLOTS)
+    __slots__ = ("record_id",
+                 "log_file",
+                 "origin",
+                 "start",
+                 "end",
+                 "message",
+                 "recorded_at",
+                 "log_level",
+                 "marked",
+                 "called_by",
+                 "logged_from",
+                 "qt_attributes",
+                 "pretty_attribute_cache")
 
     def get_background_color(self):
         return Color.get_color_by_name("LightGreen").with_alpha(0.5).qcolor
 
     @classmethod
-    @profile
     def check(cls, log_record: "LogRecord") -> bool:
         logged_from = log_record.logged_from
 
@@ -168,7 +202,21 @@ class FFPunishmentRecord(BaseAntistasiRecord):
     ___specificity___ = 10
     punishment_type_regex = re.compile(r"(?P<punishment_type>[A-Z]+)")
     _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
-    __slots__ = tuple(BASE_SLOTS + ["_punishment_type"])
+    extra_detail_views = ("punishment_type",)
+    __slots__ = ("record_id",
+                 "log_file",
+                 "origin",
+                 "start",
+                 "end",
+                 "message",
+                 "recorded_at",
+                 "log_level",
+                 "marked",
+                 "called_by",
+                 "logged_from",
+                 "qt_attributes",
+                 "pretty_attribute_cache",
+                 "_punishment_type")
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -184,7 +232,6 @@ class FFPunishmentRecord(BaseAntistasiRecord):
         return self._punishment_type
 
     @classmethod
-    @profile
     def check(cls, log_record: "LogRecord") -> bool:
         logged_from = log_record.logged_from
 
@@ -205,8 +252,23 @@ class UpdatePreferenceRecord(BaseAntistasiRecord):
     ___has_multiline_message___ = True
     _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
     msg_start_regex = re.compile(r"(?P<category>[a-zA-Z]+)\_preference")
+    extra_detail_views = ("category", "array_data")
 
-    __slots__ = tuple(BASE_SLOTS + ["category", "_array_data"])
+    __slots__ = ("record_id",
+                 "log_file",
+                 "origin",
+                 "start",
+                 "end",
+                 "message",
+                 "recorded_at",
+                 "log_level",
+                 "marked",
+                 "called_by",
+                 "logged_from",
+                 "qt_attributes",
+                 "pretty_attribute_cache",
+                 "category",
+                 "_array_data")
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -223,13 +285,12 @@ class UpdatePreferenceRecord(BaseAntistasiRecord):
         return self._array_data
 
     @classmethod
-    @profile
     def check(cls, log_record: "LogRecord") -> bool:
         logged_from = log_record.logged_from
 
         if logged_from is None:
             return False
-        if logged_from.name in {"updatePreference"} and cls.msg_start_regex.match(log_record.message.lstrip()):
+        if logged_from.name in {"updatePreference"} and cls.msg_start_regex.match(log_record.message.lstrip()) and "[" in log_record.message:
             return True
         return False
 
@@ -247,7 +308,21 @@ class CreateConvoyInputRecord(BaseAntistasiRecord):
     ___specificity___ = 20
     ___has_multiline_message___ = True
     _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
-    __slots__ = tuple(BASE_SLOTS + ["_array_data"])
+    extra_detail_views = ("array_data",)
+    __slots__ = ("record_id",
+                 "log_file",
+                 "origin",
+                 "start",
+                 "end",
+                 "message",
+                 "recorded_at",
+                 "log_level",
+                 "marked",
+                 "called_by",
+                 "logged_from",
+                 "qt_attributes",
+                 "pretty_attribute_cache",
+                 "_array_data")
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -264,7 +339,6 @@ class CreateConvoyInputRecord(BaseAntistasiRecord):
         return self._array_data
 
     @classmethod
-    @profile
     def check(cls, log_record: "LogRecord") -> bool:
         logged_from = log_record.logged_from
 
@@ -293,7 +367,21 @@ class SaveParametersRecord(BaseAntistasiRecord):
     ___specificity___ = 20
     ___has_multiline_message___ = True
     _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
-    __slots__ = tuple(BASE_SLOTS + ["_kv_data"])
+    extra_detail_views = ("kv_data",)
+    __slots__ = ("record_id",
+                 "log_file",
+                 "origin",
+                 "start",
+                 "end",
+                 "message",
+                 "recorded_at",
+                 "log_level",
+                 "marked",
+                 "called_by",
+                 "logged_from",
+                 "qt_attributes",
+                 "pretty_attribute_cache",
+                 "_kv_data")
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -314,7 +402,6 @@ class SaveParametersRecord(BaseAntistasiRecord):
         return self._kv_data
 
     @classmethod
-    @profile
     def check(cls, log_record: "LogRecord") -> bool:
         logged_from = log_record.logged_from
 
@@ -334,7 +421,7 @@ class SaveParametersRecord(BaseAntistasiRecord):
                     value = "Yes"
                 elif v == "false":
                     value = "No"
-                new_line = f"◘ {key:<40}{value:>10}"
+                new_line = f"◘ {key:<30}{value:>10}"
                 txt_lines += [new_line, '┄' * int(len(new_line) * 0.9)]
             return '\n'.join(txt_lines)
         return super().get_formated_message(msg_format=msg_format)
@@ -348,7 +435,23 @@ class ResourceCheckRecord(BaseAntistasiRecord):
     ___has_multiline_message___ = True
     side_regex = re.compile(r"(?P<side>\w+)\sarsenal")
     _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
-    __slots__ = tuple(BASE_SLOTS + ["_array_data", "_stats", "side"])
+    extra_detail_views = ("side", "stats", "array_data")
+    __slots__ = ("record_id",
+                 "log_file",
+                 "origin",
+                 "start",
+                 "end",
+                 "message",
+                 "recorded_at",
+                 "log_level",
+                 "marked",
+                 "called_by",
+                 "logged_from",
+                 "qt_attributes",
+                 "pretty_attribute_cache",
+                 "_array_data",
+                 "_stats",
+                 "side")
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -377,7 +480,6 @@ class ResourceCheckRecord(BaseAntistasiRecord):
         return self._array_data
 
     @classmethod
-    @profile
     def check(cls, log_record: "LogRecord") -> bool:
         logged_from = log_record.logged_from
 
@@ -411,7 +513,23 @@ class FreeSpawnPositionsRecord(BaseAntistasiRecord):
     ___has_multiline_message___ = True
     place_regex = re.compile(r"Spawn places for (?P<place>\w+)", re.IGNORECASE)
     _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
-    __slots__ = tuple(BASE_SLOTS + ["_array_data", "_stats", "place"])
+    extra_detail_views = ("place", "array_data")
+    __slots__ = ("record_id",
+                 "log_file",
+                 "origin",
+                 "start",
+                 "end",
+                 "message",
+                 "recorded_at",
+                 "log_level",
+                 "marked",
+                 "called_by",
+                 "logged_from",
+                 "qt_attributes",
+                 "pretty_attribute_cache",
+                 "_array_data",
+                 "_stats",
+                 "place")
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -442,7 +560,6 @@ class FreeSpawnPositionsRecord(BaseAntistasiRecord):
         return super().get_formated_message(msg_format=msg_format)
 
     @classmethod
-    @profile
     def check(cls, log_record: "LogRecord") -> bool:
         logged_from = log_record.logged_from
 
@@ -461,7 +578,25 @@ class SelectReinfUnitsRecord(BaseAntistasiRecord):
     ___has_multiline_message___ = True
     parse_regex = re.compile(r"units selected vehicle is (?P<unit>\w+) crew is (?P<crew>.*(?= cargo is)) cargo is (?P<cargo>.*)", re.IGNORECASE)
     _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
-    __slots__ = tuple(BASE_SLOTS + ["crew_array_data", "cargo_array_data", "unit", "crew_raw_text", "cargo_raw_text"])
+    extra_detail_views = ("crew_array_data", "cargo_array_data")
+    __slots__ = ("record_id",
+                 "log_file",
+                 "origin",
+                 "start",
+                 "end",
+                 "message",
+                 "recorded_at",
+                 "log_level",
+                 "marked",
+                 "called_by",
+                 "logged_from",
+                 "qt_attributes",
+                 "pretty_attribute_cache",
+                 "crew_array_data",
+                 "cargo_array_data",
+                 "unit",
+                 "crew_raw_text",
+                 "cargo_raw_text")
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -494,7 +629,6 @@ class SelectReinfUnitsRecord(BaseAntistasiRecord):
         return super().get_formated_message(msg_format=msg_format)
 
     @classmethod
-    @profile
     def check(cls, log_record: "LogRecord") -> bool:
         logged_from = log_record.logged_from
 
@@ -506,6 +640,120 @@ class SelectReinfUnitsRecord(BaseAntistasiRecord):
 
 
 ALL_ANTISTASI_RECORD_CLASSES.add(SelectReinfUnitsRecord)
+
+
+class ChangingSidesRecord(BaseAntistasiRecord):
+    ___specificity___ = 30
+    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
+    parse_regex = re.compile(r"Changing side of (?P<location>[\w\d]+) to (?P<side>\w+)")
+    extra_detail_views = ("location_name", "side")
+    __slots__ = ("record_id",
+                 "log_file",
+                 "origin",
+                 "start",
+                 "end",
+                 "message",
+                 "recorded_at",
+                 "log_level",
+                 "marked",
+                 "called_by",
+                 "logged_from",
+                 "qt_attributes",
+                 "pretty_attribute_cache",
+                 "location_name",
+                 "side")
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.location_name: str = None
+        self.side: str = None
+        self.parse_it()
+
+    def get_background_color(self):
+        return Color.get_color_by_name("Moccasin").with_alpha(0.5).qcolor
+
+    def parse_it(self):
+        if match := self.parse_regex.search(self.message):
+            self.location_name = match.group("location")
+            self.side = match.group("side")
+        else:
+            log.critical(self.message)
+
+    @classmethod
+    def check(cls, log_record: "LogRecord") -> bool:
+        logged_from = log_record.logged_from
+
+        if logged_from is None:
+            return
+        if logged_from.name in {"markerChange"} and log_record.message.strip().startswith("Changing side of"):
+            return True
+        return False
+
+
+ALL_ANTISTASI_RECORD_CLASSES.add(ChangingSidesRecord)
+
+
+class ToggleLockRecord(BaseAntistasiRecord):
+    ___specificity___ = 20
+    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
+    extra_detail_views = ("vehicle_id", "player_name", "lock_status")
+    __slots__ = ("record_id",
+                 "log_file",
+                 "origin",
+                 "start",
+                 "end",
+                 "message",
+                 "recorded_at",
+                 "log_level",
+                 "marked",
+                 "called_by",
+                 "logged_from",
+                 "qt_attributes",
+                 "pretty_attribute_cache",
+                 "vehicle_id",
+                 "player_name",
+                 "lock_status")
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.vehicle_id: str = None
+        self.player_name: str = None
+        self.lock_status: bool = None
+        self.parse_it()
+
+    def get_background_color(self):
+        return Color.get_color_by_name("Gainsboro").with_alpha(0.5).qcolor
+
+    def parse_it(self):
+        try:
+            id_part, player_part, lock_part = self.message.split("|")
+            self.vehicle_id = id_part.strip().removeprefix("Lock state toggled for Vehicle ID:").strip()
+            self.player_name = player_part.strip().removeprefix("By:").strip()
+            raw_lock_status = lock_part.strip().removeprefix("Locked:").strip()
+            if raw_lock_status.casefold() == "true":
+                self.lock_status = True
+
+            elif raw_lock_status.casefold() == "false":
+                self.lock_status = False
+            else:
+                raise TypeError(f"Unable to convert {raw_lock_status!r} to bool")
+        except ValueError as e:
+            log.debug("ValueError with message %r of %r", self.message, self.__class__.__name__)
+            log.error(e, exc_info=True, extra={"text": self.message})
+
+    @classmethod
+    def check(cls, log_record: "LogRecord") -> bool:
+        logged_from = log_record.logged_from
+
+        if logged_from is None:
+            return
+        if logged_from.name in {"toggleLock"} and log_record.message.strip().startswith("Lock state toggled for Vehicle ID:"):
+            return True
+        return False
+
+
+ALL_ANTISTASI_RECORD_CLASSES.add(ToggleLockRecord)
+
 # region[Main_Exec]
 
 

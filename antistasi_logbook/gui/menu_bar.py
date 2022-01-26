@@ -101,12 +101,15 @@ class LogbookMenuBar(BaseMenuBar):
         self.database_menu = self.add_new_menu("Database", add_before=self.help_menu.menuAction())
         self.single_update_action = self.add_new_action(self.database_menu, "Update Once")
         self.database_menu.addSeparator()
+        self.reassign_record_classes_action = self.add_new_action(self.database_menu, "Reassign Record-Classes")
 
         self.open_settings_window_action = self.add_new_action(self.settings_menu, "Open Settings")
 
         self.exit_action.setIcon(AllResourceItems.close_cancel_image.get_as_icon())
 
-        self.folder_action = self.add_new_action(self.help_menu, "folder")
+        self.show_folder_action = self.add_new_action(self.help_menu, "Show Folder", add_before=self.help_separator)
+        self.show_app_log_action = self.add_new_action(self.help_menu, "Show App Log", add_before=self.help_separator)
+        self.show_errors_action = self.add_new_action(self.help_menu, "Show Errors", add_before=self.help_separator)
         self.open_credentials_managment_action = self.add_new_action(self.settings_menu, "Credentials Managment")
 
         self.data_menu = self.add_new_menu("Data", parent_menu=self.view_menu)

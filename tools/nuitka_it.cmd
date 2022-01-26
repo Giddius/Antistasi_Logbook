@@ -32,4 +32,4 @@ call nuitka --standalone ^
 --experimental=use_pefile_fullrecurse ^
 --plugin-enable=qt-plugins ^
 --plugin-enable=numpy ^
-D:\Dropbox\hobby\Modding\Projects\Giddis_Project_Creator\gidprojectcreator\__main__.py
+%INPATH%%INFILE%

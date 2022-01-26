@@ -7,6 +7,7 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
+from time import sleep
 from typing import TYPE_CHECKING
 from pathlib import Path
 from datetime import datetime, timedelta
@@ -18,7 +19,7 @@ from dateutil.tz import UTC
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
 from PySide6.QtCore import Qt, Slot, Signal, QObject
-from PySide6.QtWidgets import QLabel, QStatusBar, QProgressBar
+from PySide6.QtWidgets import QLabel, QStatusBar, QApplication, QProgressBar
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -26,6 +27,7 @@ from gidapptools.general_helper.conversion import seconds2human
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
+    from antistasi_logbook.gui.application import AntistasiLogbookApplication
     from antistasi_logbook.gui.main_window import Backend, AntistasiLogbookMainWindow
 
 # endregion[Imports]
@@ -41,7 +43,8 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
@@ -64,6 +67,18 @@ class FuncRunner(Thread):
     def run(self) -> None:
         self.label._refresh_text_helper()
         self.signaler.emit_finished()
+
+
+class ErrorMessageClearer(Thread):
+
+    def __init__(self, status_bar, clear_timeout) -> None:
+        super().__init__()
+        self.status_bar = status_bar
+        self.clear_timeout = clear_timeout
+
+    def run(self):
+        sleep(self.clear_timeout)
+        self.status_bar.clear_error()
 
 
 class LastUpdatedLabel(QLabel):
@@ -154,6 +169,7 @@ class LastUpdatedLabel(QLabel):
 
 
 class LogbookStatusBar(QStatusBar):
+    change_status_bar_color = Signal(bool)
 
     def __init__(self, main_window: "AntistasiLogbookMainWindow") -> None:
         super().__init__(parent=main_window)
@@ -161,28 +177,35 @@ class LogbookStatusBar(QStatusBar):
         self.last_updated_label: LastUpdatedLabel = None
         self.update_running_label: QLabel = None
         self.update_progress: QProgressBar = None
+        self.timer: int = None
         self.setup()
+
+    @property
+    def app(self) -> "AntistasiLogbookApplication":
+        return QApplication.instance()
 
     @property
     def backend(self) -> "Backend":
         return self.main_window.backend
 
     def setup(self) -> None:
+
         self.setup_labels()
         self.update_progress = QProgressBar()
         self.insertWidget(2, self.update_progress, 2)
         self.update_progress.hide()
+        self.change_status_bar_color.connect(self.set_showing_error)
 
     def setup_labels(self) -> None:
+        if self.last_updated_label is None:
+            self.last_updated_label = LastUpdatedLabel(self)
+            self.insertWidget(0, self.last_updated_label, 1)
         if self.update_running_label is None:
             self.update_running_label = QLabel()
             self.update_running_label.setText("Updating...")
             self.update_running_label.hide()
             self.insertWidget(1, self.update_running_label, 1)
 
-        if self.last_updated_label is None:
-            self.last_updated_label = LastUpdatedLabel(self)
-            self.insertWidget(0, self.last_updated_label, 1)
         self.last_updated_label.start()
         self.current_label = self.last_updated_label
 
@@ -201,6 +224,31 @@ class LogbookStatusBar(QStatusBar):
         self.update_progress.reset()
         self.update_progress.setMaximum(max_amount)
         self.update_running_label.setText(f"Updating Server {server_name.title()}")
+
+    def set_showing_error(self, value: bool = False):
+
+        self.setProperty("showing_error", value)
+        self.style().unpolish(self)
+
+        self.style().polish(self)
+
+    def clear_error(self, future):
+        self.change_status_bar_color.emit(False)
+        self.clearMessage()
+
+    @Slot(str, BaseException)
+    def show_error(self, message: str, exception: BaseException):
+        self.set_showing_error(True)
+        timeout = 10 * 1000
+        self.showMessage(message, timeout)
+        t = self.app.gui_thread_pool.submit(sleep, timeout / 1000)
+        t.add_done_callback(self.clear_error)
+
+    def set_update_text(self, text: str):
+        if text:
+            self.showMessage(text)
+        else:
+            self.clearMessage()
 
     def increment_progress_bar(self):
         self.update_progress.setValue(self.update_progress.value() + 1)

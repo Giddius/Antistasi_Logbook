@@ -25,11 +25,12 @@ from gidapptools import get_logger
 from gidapptools.general_helper.color.color_item import Color
 
 # * Local Imports --------------------------------------------------------------------------------------->
+from antistasi_logbook.gui.misc import CustomRole
 from antistasi_logbook.records.enums import MessageFormat
 from antistasi_logbook.storage.models.models import LogRecord, RecordClass
-from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel, ModelContextMenuAction
+from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel, INDEX_TYPE
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-
+from antistasi_logbook.gui.models.proxy_models.base_proxy_model import BaseProxyModel
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.records.base_record import BaseRecord
@@ -78,9 +79,22 @@ class LogRecordsModel(BaseQueryDataModel):
 
     def __init__(self, parent=None) -> None:
         super().__init__(LogRecord, parent=parent)
-        self.data_role_table = self.data_role_table | {Qt.BackgroundRole: self._get_background_data, Qt.FontRole: self._get_font_data}
+        self.data_role_table = self.data_role_table | {Qt.BackgroundRole: self._get_background_data, Qt.FontRole: self._get_font_data, CustomRole.STD_COPY_DATA: self._get_std_copy_data}
         self._base_filter_item = (LogRecord.record_class != RecordClass.get(name="PerfProfilingRecord")) & (LogRecord.record_class != RecordClass.get(name="PerformanceRecord"))
         self.ordered_by = (LogRecord.start, LogRecord.recorded_at)
+        self.message_font = self._create_message_font()
+        self.proxy_model = BaseProxyModel()
+        self.proxy_model.setSourceModel(self)
+
+    def _create_message_font(self) -> QFont:
+        font: QFont = self.app.font()
+        font.setFamily("Lucida Console")
+
+        font.setWeight(QFont.Light)
+        font.setStyleHint(QFont.Monospace)
+        font.setStyleStrategy(QFont.PreferQuality)
+
+        return font
 
     def on_query_filter_changed(self, query_filter):
         self.filter_item = query_filter
@@ -107,32 +121,29 @@ class LogRecordsModel(BaseQueryDataModel):
             reset_all_colors_action.triggered.connect(item.reset_colors)
             menu.add_action(reset_all_colors_action, "debug")
 
-        menu.add_menu("Copy as")
-        copy_action = ModelContextMenuAction(item=item, column=column, index=index, text="Copy", parent=menu)
-        copy_action.clicked.connect(self.on_copy)
-        menu.add_action(copy_action)
-
     @Slot(object, object, QModelIndex)
     def on_copy(self, item: "BaseRecord", column: Field, index: QModelIndex):
         text = item.get_formated_message(msg_format=MessageFormat.ORIGINAL)
         clipboard = self.app.clipboard()
         clipboard.setText(text)
 
-    @profile
+    def _get_std_copy_data(self, index: "INDEX_TYPE"):
+        item, column = self.get(index)
+        return item.get_formated_message(msg_format=MessageFormat.ORIGINAL)
+
     def _get_display_data(self, index: "INDEX_TYPE") -> Any:
         item = self.content_items[index.row()]
         column = self.columns[index.column()]
 
-        data = item.get_data(column.name)
         if column.name == "message":
-            return f"{item.message}"
+            return str(item.message)
+        data = item.get_data(column.name)
         if data is None:
             return self.on_display_data_none(role=Qt.DisplayRole, item=item, column=column)
         if isinstance(data, bool):
             return self.on_display_data_bool(role=Qt.DisplayRole, item=item, column=column, value=data)
         return str(data)
 
-    @profile
     def _get_background_data(self, index: "INDEX_TYPE") -> Any:
         item = self.content_items[index.row()]
         column = self.columns[index.column()]
@@ -149,11 +160,15 @@ class LogRecordsModel(BaseQueryDataModel):
             return item.background_color
         return super()._get_background_data(index)
 
-    @profile
-    def _get_font_data(self, index: "INDEX_TYPE") -> Any:
-        pass
+    def _get_text_alignment_data(self, index: INDEX_TYPE) -> Any:
+        if index.column_item.name in {"message"}:
+            return None
+        return super()._get_text_alignment_data(index)
 
-    @profile
+    def _get_font_data(self, index: "INDEX_TYPE") -> Any:
+        if index.column_item.name in {"message"}:
+            return self.message_font
+
     def _get_record(self, _item_data, _all_log_files):
         record_class = self.backend.record_class_manager.get_by_id(_item_data.get('record_class'))
         log_file = _all_log_files[_item_data.get('log_file')]
@@ -161,7 +176,6 @@ class LogRecordsModel(BaseQueryDataModel):
 
         return record_item
 
-    @profile
     def get_content(self) -> "LogRecordsModel":
 
         log.debug("starting getting content for %r", self)
@@ -184,7 +198,8 @@ class LogRecordsModel(BaseQueryDataModel):
         self.request_view_change_visibility.emit(False)
 
         self.beginResetModel()
-        self.get_columns().get_content()
+        with self.database:
+            self.get_columns().get_content()
         self.endResetModel()
         self.request_view_change_visibility.emit(True)
 

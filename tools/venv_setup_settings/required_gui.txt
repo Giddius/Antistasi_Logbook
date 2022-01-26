@@ -1,2 +1,4 @@
 pyqtgraph>=0.12.3
 PySide6>=6.2.2
+qdarkstyle
+qtawesome

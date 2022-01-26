@@ -28,7 +28,7 @@ from antistasi_logbook.gui.models.log_files_model import LogFilesModel
 from antistasi_logbook.gui.views.server_query_view import ServerQueryTreeView
 from antistasi_logbook.gui.models.log_records_model import LogRecordsModel
 from antistasi_logbook.gui.widgets.data_tool_widget import ServerDataToolWidget, LogFileDataToolWidget, LogRecordDataToolWidget
-from antistasi_logbook.gui.views.base_query_tree_view import LogFilesQueryTreeView
+from antistasi_logbook.gui.views.log_files_query_view import LogFilesQueryTreeView
 from antistasi_logbook.gui.widgets.detail_view_widget import ServerDetailWidget, LogFileDetailWidget, LogRecordDetailView
 from antistasi_logbook.gui.views.log_records_query_view import LogRecordsQueryView
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
@@ -100,7 +100,7 @@ class MainWidget(QWidget):
     def __init__(self, main_window: "AntistasiLogbookMainWindow") -> None:
         super().__init__(parent=main_window)
         self.main_window = main_window
-        self.info_widget: QGroupBox = None
+
         self.query_widget: QueryWidget = None
         self.detail_widget: BaseDockWidget = None
         self.main_tabs_widget: QTabWidget = None
@@ -120,7 +120,6 @@ class MainWidget(QWidget):
 
         self.setLayout(self.main_layout)
 
-        self.setup_info_widget()
         self.setup_query_widget()
         self.setup_detail_widget()
         self.setup_main_tabs_widget()
@@ -128,20 +127,17 @@ class MainWidget(QWidget):
     def _clear_temp_runnable(self):
         self.temp_runnable = None
 
-    def setup_info_widget(self) -> None:
-        self.info_widget = QGroupBox(self)
-        self.info_widget.setMinimumSize(QSize(0, 50))
-        self.info_widget.setMaximumSize(QSize(16777215, 50))
-        self.main_layout.addWidget(self.info_widget, 0, 0, 1, 3)
-
     def setup_query_widget(self) -> None:
-        self.query_widget = QueryWidget(parent=self.parent(), add_to_menu=self.main_window.menubar.windows_menu)
+        self.query_widget = QueryWidget(parent=self.parent(), add_to_menu=self.main_window.menubar.windows_menu, start_floating=False)
+        main_window_size: QSize = self.main_window.size()
+        self.query_widget.move(150, main_window_size.height() // 2)
 
         self.main_window.addDockWidget(Qt.LeftDockWidgetArea, self.query_widget, Qt.Vertical)
 
     def setup_detail_widget(self) -> None:
         self.detail_widget = BaseDockWidget(title="Details", parent=self.parent(), start_floating=False, add_to_menu=self.main_window.menubar.windows_menu)
-
+        main_window_size: QSize = self.main_window.size()
+        self.detail_widget.move(main_window_size.width() + (main_window_size.width() // 8), main_window_size.height() // 2)
         self.detail_widget.dockLocationChanged.connect(self.detail_widget_resize_on_undock)
 
         self.main_window.addDockWidget(Qt.RightDockWidgetArea, self.detail_widget, Qt.Vertical)
@@ -165,6 +161,8 @@ class MainWidget(QWidget):
         self.main_tabs_widget.addTab(self.log_files_tab, self.log_files_tab.icon, self.log_files_tab.name)
 
         self.query_result_tab = LogRecordsQueryView().setup()
+        self.query_result_tab.about_to_screenshot.connect(self.hide_dock_widgets)
+        self.query_result_tab.screenshot_finished.connect(self.unhide_dock_widgets)
 
         # self.query_result_tab.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.main_tabs_widget.addTab(self.query_result_tab, self.query_result_tab.icon, "Log-Records")
@@ -172,9 +170,19 @@ class MainWidget(QWidget):
         self.main_layout.addWidget(self.main_tabs_widget, 1, 1, 4, 3)
         self.main_tabs_widget.currentChanged.connect(self.on_tab_changed)
 
+    def unhide_dock_widgets(self):
+        self.detail_widget.setVisible(True)
+        self.query_widget.setVisible(True)
+
+    def hide_dock_widgets(self):
+        self.detail_widget.setVisible(False)
+        self.query_widget.setVisible(False)
+
     def on_tab_changed(self, index: int):
+
         if index == self.main_tabs_widget.indexOf(self.log_files_tab):
             if self.log_files_tab.model is None:
+
                 return
             if self.log_files_tab.model.data_tool is None:
 
@@ -182,10 +190,14 @@ class MainWidget(QWidget):
                 self.query_widget.add_page(widget, name="log_file")
                 self.log_files_tab.model.data_tool = widget
                 widget.pages["filter"].query_filter_changed.connect(self.log_files_tab.model.on_query_filter_changed)
+
             self.query_widget.set_current_index(self.log_files_tab.model.data_tool)
+            self.query_widget.resize(self.query_widget.sizeHint())
+            self.log_files_tab.resize_header_sections()
 
         elif index == self.main_tabs_widget.indexOf(self.server_tab):
             if self.server_tab.model is None:
+
                 return
             if self.server_tab.model.data_tool is None:
 
@@ -194,9 +206,11 @@ class MainWidget(QWidget):
                 self.server_tab.model.data_tool = widget
                 widget.pages["filter"].query_filter_changed.connect(self.server_tab.model.on_query_filter_changed)
             self.query_widget.set_current_index(self.server_tab.model.data_tool)
-
+            self.query_widget.resize(self.query_widget.sizeHint())
+            self.server_tab.resize_header_sections()
         elif index == self.main_tabs_widget.indexOf(self.query_result_tab):
             if self.query_result_tab.model is None:
+                self.query_widget.resize(self.query_widget.sizeHint())
                 return
             if self.query_result_tab.model.data_tool is None:
                 widget = LogRecordDataToolWidget()
@@ -207,18 +221,28 @@ class MainWidget(QWidget):
                     self.query_result_tab.model.request_view_change_visibility.connect(page.setEnabled)
 
                 widget.pages["filter"].query_filter_changed.connect(self.query_result_tab.model.on_query_filter_changed)
+                widget.pages["search"].search_changed.connect(self.query_result_tab.filter)
             self.query_widget.set_current_index(self.query_result_tab.model.data_tool)
+            self.query_widget.resize(self.query_widget.sizeHint())
+            self.query_result_tab.resize_header_sections()
+        self.query_widget.resize(self.query_widget.sizeHint())
 
     def setup_views(self) -> None:
-        server_model = ServerModel().get_content()
+        server_model = ServerModel()
 
         self.server_tab.setModel(server_model)
-        self.server_tab.clicked.connect(self.show_server_detail)
+
+        self.server_tab.single_item_selected.connect(self.show_server_detail)
         self.on_tab_changed(0)
-        log_file_model = LogFilesModel().get_content()
+        log_file_model = LogFilesModel()
 
         self.log_files_tab.setModel(log_file_model)
-        self.log_files_tab.clicked.connect(self.show_log_file_detail)
+
+        self.log_files_tab.resize_header_sections()
+        self.log_files_tab.single_item_selected.connect(self.show_log_file_detail)
+
+        self.log_files_tab.model.refresh()
+        self.server_tab.model.refresh()
 
     def show_server_detail(self, index):
         item = self.server_tab.model.content_items[index.row()]
@@ -245,6 +269,7 @@ class MainWidget(QWidget):
 
     def show_log_record_detail(self, index):
         item = self.query_result_tab.model.content_items[index.row()]
+
         view = LogRecordDetailView(record=item, parent=self.detail_widget)
         self.detail_widget.setWidget(view)
         view.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
@@ -265,10 +290,12 @@ class MainWidget(QWidget):
         log_record_model._base_filter_item = log_record_model._base_filter_item & (LogRecord.log_file_id == log_file.id)
         log_record_model.request_view_change_visibility.connect(self.query_result_tab.setEnabled)
         log_record_model.request_view_change_visibility.connect(self.query_result_tab.setVisible)
+        self.main_tabs_widget.setCurrentWidget(self.query_result_tab)
 
         self.query_result_tab.setModel(log_record_model)
-        self.main_tabs_widget.setCurrentWidget(self.query_result_tab)
-        self.query_result_tab.clicked.connect(self.show_log_record_detail)
+        self.on_tab_changed(self.main_tabs_widget.currentIndex())
+
+        self.query_result_tab.single_item_selected.connect(self.show_log_record_detail)
 
 
 # region[Main_Exec]

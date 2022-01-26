@@ -11,8 +11,11 @@ from typing import TYPE_CHECKING, Union
 from pathlib import Path
 
 # * Qt Imports --------------------------------------------------------------------------------------->
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QSize
 from PySide6.QtWidgets import QMenu, QWidget, QDockWidget, QMainWindow, QApplication, QStackedWidget
+
+# * Gid Imports ----------------------------------------------------------------------------------------->
+from gidapptools import get_logger
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
@@ -37,7 +40,7 @@ if TYPE_CHECKING:
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
-
+log = get_logger(__name__)
 # endregion[Constants]
 
 
@@ -95,11 +98,11 @@ class BaseDockWidget(QDockWidget):
 
 class QueryWidget(BaseDockWidget):
 
-    def __init__(self, parent: QMainWindow, add_to_menu: QMenu = None):
-        super().__init__(parent, title="Query", start_floating=False, add_to_menu=add_to_menu)
+    def __init__(self, parent: QMainWindow, add_to_menu: QMenu = None, start_floating: bool = False):
+        self.pages: dict[str, QWidget] = {}
+        super().__init__(parent, title="Query", start_floating=start_floating, add_to_menu=add_to_menu)
         self.setWidget(QStackedWidget(self))
         self.widget.setHidden(True)
-        self.pages: dict[str, QWidget] = {}
 
     def add_page(self, widget: QWidget, name: str = None):
         if name is None:
@@ -127,6 +130,19 @@ class QueryWidget(BaseDockWidget):
     @property
     def widget(self) -> QStackedWidget:
         return super().widget()
+
+    def sizeHint(self) -> QSize:
+        base_width = 500
+        base_height = 400
+        try:
+            size = self.widget.currentWidget().sizeHint()
+            max_width = max([base_width, size.width()])
+            max_height = max([base_height, size.height()])
+        except AttributeError:
+            max_width = base_width
+            max_height = base_height
+
+        return QSize(max_width, max_height)
 
 
 # region[Main_Exec]

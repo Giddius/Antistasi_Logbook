@@ -19,9 +19,25 @@ from dateutil.tz import UTC
 
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
-from PySide6.QtGui import Qt, QIcon
-from PySide6.QtCore import Qt, Signal, QLocale, QDateTime
-from PySide6.QtWidgets import QWidget, QToolBox, QCheckBox, QComboBox, QGroupBox, QFormLayout, QGridLayout, QApplication, QDateTimeEdit
+from PySide6 import (QtCore, QtGui, QtWidgets, Qt3DAnimation, Qt3DCore, Qt3DExtras, Qt3DInput, Qt3DLogic, Qt3DRender, QtAxContainer, QtBluetooth,
+                     QtCharts, QtConcurrent, QtDataVisualization, QtDesigner, QtHelp, QtMultimedia, QtMultimediaWidgets, QtNetwork, QtNetworkAuth,
+                     QtOpenGL, QtOpenGLWidgets, QtPositioning, QtPrintSupport, QtQml, QtQuick, QtQuickControls2, QtQuickWidgets, QtRemoteObjects,
+                     QtScxml, QtSensors, QtSerialPort, QtSql, QtStateMachine, QtSvg, QtSvgWidgets, QtTest, QtUiTools, QtWebChannel, QtWebEngineCore,
+                     QtWebEngineQuick, QtWebEngineWidgets, QtWebSockets, QtXml)
+
+from PySide6.QtCore import (QByteArray, QTimer, QBasicTimer, QTimerEvent, QRegularExpression, QCoreApplication, QDate, QDateTime, QSortFilterProxyModel, QEvent, QLocale, QMetaObject, QModelIndex, QModelRoleData, QMutex,
+                            QMutexLocker, QObject, QPoint, QRect, QRecursiveMutex, QRunnable, QSettings, QSize, QThread, QThreadPool, QTime, QUrl,
+                            QWaitCondition, Qt, QAbstractItemModel, QAbstractListModel, QAbstractTableModel, Signal, Slot)
+
+from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
+                           QKeySequence, QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform)
+
+from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QCompleter, QDialogButtonBox,
+                               QDockWidget, QDoubleSpinBox, QFontComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
+                               QLCDNumber, QLabel, QLayout, QLineEdit, QListView, QListWidget, QMainWindow, QMenu, QMenuBar, QMessageBox,
+                               QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
+                               QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
+                               QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -104,12 +120,12 @@ class BaseDataToolPage(QWidget):
 
 class BaseDataToolWidget(QWidget):
     def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None, ) -> None:
+
+        self.pages: dict[str, BaseDataToolPage] = {}
         super().__init__(parent=parent)
         self.setLayout(QGridLayout(self))
         self.tool_box = QToolBox()
         self.layout.addWidget(self.tool_box)
-
-        self.pages: dict[str, BaseDataToolPage] = {}
 
     def add_page(self, page: BaseDataToolPage):
         if page.name is None or page.icon is None:
@@ -138,10 +154,40 @@ class BaseDataToolWidget(QWidget):
     def config(self) -> "GidIniConfig":
         return self.app.config
 
+    def sizeHint(self) -> QSize:
+        widths = [500]
+        heights = [250]
+        for page in self.pages.values():
+            page_size: QSize = page.sizeHint()
+            widths.append(page_size.width())
+            heights.append(page_size.height())
+
+        max_width = max(widths)
+
+        max_height = max(heights)
+
+        return QSize(max_width, max_height)
+
 
 class LogFileSearchPage(BaseDataToolPage):
     name: str = "Search"
     icon_name: str = "search_page_symbol_image"
+    regex_changed = Signal(str, str)
+
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
+        self.column_select_combo = QComboBox(self)
+        self.column_select_combo.addItems(list(LogFile.get_meta().columns))
+        self.layout.addRow("column", self.column_select_combo)
+        self.regex_line_value = QLineEdit(self)
+        self.layout.addRow("Regex", self.regex_line_value)
+        self.column_select_combo.currentIndexChanged.connect(self.on_change)
+        self.regex_line_value.textChanged.connect(self.on_change)
+
+    def on_change(self, *args):
+        column_name = self.column_select_combo.currentText()
+        regex = self.regex_line_value.text()
+        self.regex_changed.emit(column_name, regex)
 
 
 class TimeSpanFilterWidget(QGroupBox):
@@ -345,7 +391,6 @@ class LogFileDataToolWidget(BaseDataToolWidget):
         super().__init__(parent=parent)
 
         self.add_page(LogFileFilterPage(self).setup())
-        self.add_page(LogFileSearchPage(self))
 
 
 class ServerFilterPage(BaseDataToolPage):
@@ -353,7 +398,7 @@ class ServerFilterPage(BaseDataToolPage):
     icon_name: str = "filter_page_symbol_image"
     query_filter_changed = Signal(object)
 
-    def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent=parent)
 
         self.filter_by_ip_combo_box = QComboBox()
@@ -420,13 +465,102 @@ class ServerDataToolWidget(BaseDataToolWidget):
         self.add_page(ServerFilterPage().setup())
 
 
+class AntistasiFunctionSelectComboBox(QComboBox):
+
+    def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
+        super().__init__(parent)
+
+        self.setEditable(True)
+        self.setFocusPolicy(Qt.ClickFocus)
+        self.setInsertPolicy(QComboBox.NoInsert)
+        self.pFilterModel = QSortFilterProxyModel(self)
+        self.pFilterModel.setFilterCaseSensitivity(Qt.CaseInsensitive)
+        self.pFilterModel.setSourceModel(self.model())
+        self._completer = QCompleter(self.pFilterModel, self)
+
+        self._completer.setCompletionMode(QCompleter.UnfilteredPopupCompletion)
+        self.setCompleter(self._completer)
+        self.lineEdit().textEdited.connect(self.pFilterModel.setFilterFixedString)
+        self.currentIndexChanged.connect(self.on_index_change)
+
+    def on_index_change(self, *args):
+
+        log.debug("args: %r", args)
+        self.setEditText(self.itemData(self.currentIndex(), Qt.DisplayRole))
+        self.lineEdit().setPlaceholderText(self.itemData(self.currentIndex(), Qt.DisplayRole))
+
+    def setModel(self, model):
+        super().setModel(model)
+        self.pFilterModel.setSourceModel(model)
+        self._completer.setModel(self.pFilterModel)
+
+    def setModelColumn(self, column):
+        self._completer.setCompletionColumn(column)
+        self.pFilterModel.setFilterKeyColumn(column)
+        super().setModelColumn(column)
+
+
+class LogRecordSearchPage(BaseDataToolPage):
+    name: str = "Search"
+    icon_name: str = "search_page_symbol_image"
+    search_changed = Signal(bool, str, object)
+
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
+        self.column_select_combo = QComboBox(self)
+        self.column_select_combo.addItems(list(LogRecord.get_meta().columns))
+        self.layout.addRow("column", self.column_select_combo)
+
+        self.regex_select_box = QGroupBox(self)
+        self.regex_select_box.setLayout(QHBoxLayout())
+        self.regex_radio_button = QRadioButton("Regex", self.regex_select_box)
+        self.plain_text_radio_button = QRadioButton("Plain Text", self.regex_select_box)
+        self.plain_text_radio_button.setChecked(True)
+        self.regex_select_box.layout().addWidget(self.regex_radio_button)
+        self.regex_select_box.layout().addWidget(self.plain_text_radio_button)
+        self.layout.addRow("Search Type", self.regex_select_box)
+
+        self.regex_line_value = QLineEdit(self)
+        self.regex_line_value.setClearButtonEnabled(True)
+        self.layout.addRow("Regex", self.regex_line_value)
+
+        self.column_select_combo.currentIndexChanged.connect(self.on_change)
+        self.regex_line_value.textChanged.connect(self.delay_text_execution)
+        self.regex_radio_button.toggled.connect(self.on_change)
+        self.plain_text_radio_button.toggled.connect(self.on_change)
+        self.timer: QTimer = None
+
+    def delay_text_execution(self, *args):
+        if self.timer is None or self.timer.isActive() is False:
+            self.timer = QTimer()
+            self.timer.setSingleShot(True)
+            self.timer.setTimerType(Qt.CoarseTimer)
+            self.timer.timeout.connect(self.on_change)
+        self.timer.start(1 * 1000)
+
+    def on_change(self, *args):
+        use_regex = self.regex_radio_button.isChecked()
+        column_name = self.column_select_combo.currentText()
+        text = self.regex_line_value.text()
+        if use_regex is True:
+            text = QRegularExpression(text, QRegularExpression.PatternOptions() | QRegularExpression.CaseInsensitiveOption)
+            if text.isValid() is False:
+                log.debug("regex %r is not valid", text)
+                return
+        self.search_changed.emit(use_regex, column_name, text)
+
+    def setup(self) -> "LogRecordSearchPage":
+
+        return self
+
+
 class LogRecordFilterPage(BaseDataToolPage):
     name: str = "Filter"
     icon_name: str = "filter_page_symbol_image"
     query_filter_changed = Signal(object)
 
-    def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
-        super().__init__(parent=parent)
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
+        super().__init__(parent)
         self.filter_by_log_level_combo_box = QComboBox()
         log_level_model = LogLevelsModel().refresh()
         log_level_model.add_empty_item()
@@ -436,7 +570,7 @@ class LogRecordFilterPage(BaseDataToolPage):
 
         self.layout.addRow("Filter by Log-Level", self.filter_by_log_level_combo_box)
 
-        self.filter_by_logged_from_combo_box = QComboBox()
+        self.filter_by_logged_from_combo_box = AntistasiFunctionSelectComboBox()
         logged_from_model = AntistasiFunctionModel()
         logged_from_model.ordered_by = (AntstasiFunction.name,)
         logged_from_model.refresh()
@@ -447,7 +581,7 @@ class LogRecordFilterPage(BaseDataToolPage):
 
         self.layout.addRow("Filter by Logged-from", self.filter_by_logged_from_combo_box)
 
-        self.filter_by_called_by_combo_box = QComboBox()
+        self.filter_by_called_by_combo_box = AntistasiFunctionSelectComboBox()
         called_by_model = AntistasiFunctionModel()
         called_by_model.ordered_by = (AntstasiFunction.name,)
         called_by_model.refresh()
@@ -534,6 +668,7 @@ class LogRecordDataToolWidget(BaseDataToolWidget):
         super().__init__(parent=parent)
 
         self.add_page(LogRecordFilterPage(self).setup())
+        self.add_page(LogRecordSearchPage(self).setup())
 # region[Main_Exec]
 
 

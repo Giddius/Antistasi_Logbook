@@ -2,6 +2,7 @@ from invoke import task, Result, Context
 import sqlite3
 import os
 import logging
+from zipfile import ZipFile, ZIP_LZMA
 
 import shutil
 from tomlkit.toml_file import TOMLFile
@@ -16,7 +17,6 @@ from datetime import datetime, timedelta
 import sys
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, wait
 import random
-from icecream import ic
 from threading import Semaphore
 from dateparser import parse as date_parse
 from rich import inspect as rinspect
@@ -655,3 +655,17 @@ def convert_resources(c):
     mapping_text = _rcc_list_mapping(c, RESOURCES_FILE)
     _write_resource_list_mapping(mapping_text, resource_lists_folder.joinpath(target.stem + '.md'), converted_file_path=target)
     _write_resource_list_mapping(mapping_text, target.with_name(target.stem + '_accessor.py'), converted_file_path=target)
+
+
+@task()
+def build_onefile(c):
+    pyinstaller_script = THIS_FILE_DIR.joinpath("tools", "quick_pyinstaller_noconsole.bat")
+    spec_file = THIS_FILE_DIR.joinpath("tools", "Antistasi_Logbook_onefile.spec")
+    activator_run(c, f"{str(pyinstaller_script)} {str(spec_file)}")
+
+
+@task()
+def build_onedir(c):
+    pyinstaller_script = THIS_FILE_DIR.joinpath("tools", "quick_pyinstaller_noconsole.bat")
+    spec_file = THIS_FILE_DIR.joinpath("tools", "Antistasi_Logbook.spec")
+    activator_run(c, f"{str(pyinstaller_script)} {str(spec_file)}")

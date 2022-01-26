@@ -100,10 +100,6 @@ class RecordInserter:
     def write_lock(self) -> Lock:
         return self.database.write_lock
 
-    @property
-    def max_threads(self) -> int:
-        return self.config.get("updating", "max_inserting_threads", default=5)
-
     def _insert_func(self, records: Iterable["RawRecord"], context: "LogParsingContext") -> ManyRecordsInsertResult:
 
         # LogRecord.insert_many(i.to_log_record_dict(log_file=context._log_file) for i in records).execute()
@@ -145,15 +141,12 @@ class RecordInserter:
 
         return len(pairs)
 
-    @profile
     def update_record_class(self, log_record: LogRecord, record_class: RecordClass) -> Future:
         return self.thread_pool.submit(self._execute_update_record_class, log_record=log_record, record_class=record_class)
 
-    @profile
     def many_update_record_class(self, pairs: list[tuple[int, int]]) -> Future:
         return self.thread_pool.submit(self._execute_many_update_record_class, pairs=pairs)
 
-    @profile
     def _execute_insert_mods(self, mod_items: Iterable[Mod], log_file: LogFile) -> None:
         mod_data = [mod_item.as_dict() for mod_item in mod_items]
         q_1 = Mod.insert_many(mod_data).on_conflict_ignore()
@@ -173,7 +166,6 @@ class RecordInserter:
     def insert_mods(self, mod_items: Iterable[Mod], log_file: LogFile) -> Future:
         return self.thread_pool.submit(self._execute_insert_mods, mod_items=mod_items, log_file=log_file)
 
-    @profile
     def _execute_update_log_file_from_dict(self, log_file: LogFile, in_dict: dict):
         item = update_model_from_dict(log_file, in_dict)
         with self.write_lock:
@@ -222,7 +214,7 @@ class RecordProcessor:
 
     @staticmethod
     def clean_antistasi_function_name(in_name: str) -> str:
-        return in_name.strip().removeprefix("A3A_fnc_").removeprefix("fn_").removesuffix('.sqf')
+        return in_name.strip().removeprefix("A3A_fnc_").removeprefix("fn_").removesuffix('.sqf').removeprefix("HR_GRG_fnc_")
 
     @property
     def default_origin(self) -> RecordOrigin:
@@ -254,7 +246,7 @@ class RecordProcessor:
                                              microsecond=0)
         if "error in expression" in raw_record.content.casefold():
             _out['log_level'] = "ERROR"
-        elif "warning message:" in raw_record.content.casefold():
+        elif "warning message:" in raw_record.content.casefold() or _out["message"].strip().casefold().startswith("warning:"):
             _out["log_level"] = "WARNING"
         raw_record.parsed_data = _out
 
@@ -326,7 +318,6 @@ class RecordProcessor:
             parsed_data["recorded_at"] = utc_recorded_at
         return parsed_data
 
-    @profile
     def determine_origin(self, raw_record: "RawRecord") -> RecordOrigin:
         for origin in self.foreign_key_cache.all_origin_objects.values():
             if origin.is_default is False:
@@ -346,7 +337,6 @@ class RecordProcessor:
         raw_record.parsed_data = self._convert_raw_record_foreign_keys(parsed_data=raw_record.parsed_data, utc_offset=utc_offset)
 
         return raw_record
-
 
         # region[Main_Exec]
 if __name__ == '__main__':

@@ -38,7 +38,8 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
@@ -95,8 +96,9 @@ class LogbookSystemTray(QSystemTrayIcon):
         main_window_visible = self.main_window.isVisible()
 
         self.main_window.setVisible(not main_window_visible)
-        # for widget in self.app.extra_windows:
-        #     widget.setVisible(not main_window_visible)
+        for dock_widget in self.main_window.dock_widgets:
+            dock_widget.setVisible(not main_window_visible)
+
         text = "Minimize to Tray" if main_window_visible is False else "Open"
         icon = AllResourceItems.hidden_image.get_as_icon() if main_window_visible is False else AllResourceItems.view_image.get_as_icon()
         self.hide_show_action.setText(text)

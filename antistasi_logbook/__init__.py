@@ -1,8 +1,16 @@
 """Antistasi Logbook"""
 
-__version__ = '0.3.3'
+__version__ = '0.4.0'
 
 import os
+
+
+def set_env():
+    os.environ["PYQTGRAPH_QT_LIB"] = "PySide6"
+
+
+set_env()
+
 import atexit
 from rich.console import Console as RichConsole
 from rich.table import Table
@@ -13,11 +21,10 @@ from rich.box import DOUBLE_EDGE
 from rich.text import Text
 import rich.traceback
 from pathlib import Path
-from gidapptools import get_main_logger, get_main_logger_with_file_logging, get_meta_paths, get_meta_config
+from gidapptools import setup_main_logger, setup_main_logger_with_file_logging, get_meta_paths, get_meta_config, get_meta_info
 from gidapptools.meta_data import setup_meta_data
-import antistasi_logbook.errors
-from pyqtgraph.Qt import QT_LIB
 
+from gidapptools.gidapptools_qt.widgets.std_stream_widget import BaseStdStreamCapturer, LimitedStdStreamCapturer
 import sys
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
@@ -90,15 +97,14 @@ if "apsw" not in sys.modules:
         print_apsw_import_error_msg()
 
 
-os.environ["PYQTGRAPH_QT_LIB"] = "PySide6"
-os.environ["PYTHONDEVMODE"] = "1"
-# os.environ["ANALYZE_EVENTS"] = "true"
-
-
 # _extra_logger = ["peewee"]
-_extra_logger = []
+_extra_logger = ["py.warnings"]
 
 IS_SETUP: bool = False
+original_stderr = sys.stderr
+stream_capturer = LimitedStdStreamCapturer()
+stream_capturer.original_stream = original_stderr
+sys.stderr = stream_capturer
 
 
 def setup():
@@ -111,16 +117,21 @@ def setup():
                     file_changed_parameter="changed_time")
     META_PATHS = get_meta_paths()
     # log = get_main_logger("__main__", Path(__file__).resolve(), extra_logger=_extra_logger)
-    log = get_main_logger_with_file_logging("__main__",
-                                            log_file_base_name=Path(__file__).resolve().parent.stem,
-                                            path=Path(__file__).resolve(),
-                                            extra_logger=_extra_logger,
-                                            log_folder=META_PATHS.log_dir,
-                                            max_func_name_length=get_meta_config().get_config("general").get("logging", "max_function_name_length", default=None),
-                                            max_module_name_length=get_meta_config().get_config("general").get("logging", "max_module_name_length", default=None))
+
+    general_config = get_meta_config().get_config("general")
+    stream = sys.stdout if os.getenv('IS_DEV', "false") != "false" else None
+    log = setup_main_logger_with_file_logging("__main__",
+                                              log_level=general_config.get("logging", "level", default="DEBUG"),
+                                              log_file_base_name=Path(__file__).resolve().parent.stem,
+                                              path=Path(__file__).resolve(),
+                                              extra_logger=_extra_logger,
+                                              log_folder=META_PATHS.log_dir,
+                                              max_func_name_length=general_config.get("logging", "max_function_name_length", default=None),
+                                              max_module_name_length=general_config.get("logging", "max_module_name_length", default=None),
+                                              stream=stream)
 
     ERROR_CONSOLE = RichConsole(soft_wrap=True, record=False, width=150)
-    rich.traceback.install(console=ERROR_CONSOLE, width=150)
+    # rich.traceback.install(console=ERROR_CONSOLE, width=150)
     IS_SETUP = True
 
 
