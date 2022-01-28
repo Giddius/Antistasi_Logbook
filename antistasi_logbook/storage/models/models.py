@@ -376,8 +376,9 @@ class LogFile(BaseModel):
     @cached_property
     @profile
     def time_frame(self) -> DateTimeFrame:
-        min_date_time, max_date_time = LogRecord.select(fn.Min(LogRecord.recorded_at), fn.Max(LogRecord.recorded_at)).where(LogRecord.log_file_id == self.id).scalar(as_tuple=True)
-        return DateTimeFrame(min_date_time, max_date_time)
+        with self.database.connection_context() as ctx:
+            min_date_time, max_date_time = LogRecord.select(fn.Min(LogRecord.recorded_at), fn.Max(LogRecord.recorded_at)).where(LogRecord.log_file_id == self.id).scalar(as_tuple=True)
+            return DateTimeFrame(min_date_time, max_date_time)
 
     @cached_property
     @profile
@@ -395,17 +396,20 @@ class LogFile(BaseModel):
     @cached_property
     @profile
     def amount_log_records(self) -> int:
-        return LogRecord.select().where(LogRecord.log_file_id == self.id).count()
+        with self.database.connection_context() as ctx:
+            return LogRecord.select().where(LogRecord.log_file_id == self.id).count()
 
     @cached_property
     @profile
     def amount_errors(self) -> int:
-        return LogRecord.select().where((LogRecord.log_file_id == self.id) & (LogRecord.log_level_id == self.database.foreign_key_cache.all_log_levels.get("ERROR").id)).count()
+        with self.database.connection_context() as ctx:
+            return LogRecord.select().where((LogRecord.log_file_id == self.id) & (LogRecord.log_level_id == self.database.foreign_key_cache.all_log_levels.get("ERROR").id)).count()
 
     @cached_property
     @profile
     def amount_warnings(self) -> int:
-        return LogRecord.select().where((LogRecord.log_file_id == self.id) & (LogRecord.log_level_id == self.database.foreign_key_cache.all_log_levels.get("WARNING").id)).count()
+        with self.database.connection_context() as ctx:
+            return LogRecord.select().where((LogRecord.log_file_id == self.id) & (LogRecord.log_level_id == self.database.foreign_key_cache.all_log_levels.get("WARNING").id)).count()
 
     @cached_property
     @profile
@@ -441,8 +445,10 @@ class LogFile(BaseModel):
     def has_server(self) -> bool:
         return self.server_id is not None
 
+    @profile
     def has_mods(self) -> bool:
-        return LogFileAndModJoin.select(LogFileAndModJoin.mod_id).where(LogFileAndModJoin.log_file == self).count() > 0
+        with self.database.connection_context() as ctx:
+            return LogFileAndModJoin.select(LogFileAndModJoin.mod_id).where(LogFileAndModJoin.log_file == self).count() > 0
 
     def get_marked_records(self) -> list["LogRecord"]:
         with self.database:

@@ -138,8 +138,6 @@ class BaseRecord(AbstractRecord):
             return getattr(self, f"pretty_{name}")
         except AttributeError:
 
-            log.debug("no pretty data for attribute %r of %r", name, self)
-
             return getattr(self, name)
 
     @property

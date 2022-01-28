@@ -3,9 +3,6 @@ This File was auto-generated
 """
 
 
-
-
-
 # region[Imports]
 
 import os
@@ -160,7 +157,6 @@ class AllResourceItems(metaclass=AllResourceItemsMeta):
     stats_icon_image = STATS_ICON_IMAGE
     parsing_settings_image = PARSING_SETTINGS_IMAGE
     spinner_gif = SPINNER_GIF
-
 
     @classmethod
     def dump_missing(cls):

@@ -244,9 +244,11 @@ class RecordProcessor:
                                              minute=int(match.group("minute")),
                                              second=int(match.group("second")),
                                              microsecond=0)
-        if "error in expression" in raw_record.content.casefold():
+
+        msg_words = set(raw_record.content.casefold().split())
+        if "error" in msg_words:
             _out['log_level'] = "ERROR"
-        elif "warning message:" in raw_record.content.casefold() or _out["message"].strip().casefold().startswith("warning:"):
+        elif "warning" in msg_words:
             _out["log_level"] = "WARNING"
         raw_record.parsed_data = _out
 

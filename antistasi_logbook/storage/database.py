@@ -118,7 +118,7 @@ class GidSqliteDatabase(Protocol):
 
 
 class GidSqliteApswDatabase(APSWDatabase):
-    all_connections: WeakSet[Connection] = WeakSet()
+
     default_extensions = {"json_contains": True,
                           "regexp_function": False}
 
@@ -132,6 +132,7 @@ class GidSqliteApswDatabase(APSWDatabase):
                  autoconnect=True,
                  pragmas=None,
                  extensions=None):
+        self.all_connections: WeakSet[Connection] = WeakSet()
         self.database_path = self.default_db_path.joinpath(DEFAULT_DB_NAME)
         if database_path is not None:
             in_path = Path(database_path)
@@ -164,18 +165,18 @@ class GidSqliteApswDatabase(APSWDatabase):
 
     def _add_conn_hooks(self, conn):
         super()._add_conn_hooks(conn)
-        self.all_connections.add(conn)
+        # self.all_connections.add(conn)
 
     def close_all(self):
-        log.debug("all connections: %r", ', '.join(repr(conn) for conn in self.all_connections))
-        for conn in self.all_connections:
-            log.debug("interrupting connection %r", conn)
-            try:
-                conn.interrupt()
-            except apsw.ConnectionClosedError as e:
-                log.debug("encountered error %r", e)
-            log.debug("closing connection %r", conn)
-            conn.close(True)
+        # log.debug("all connections: %r", ', '.join(repr(conn) for conn in self.all_connections))
+        # for conn in self.all_connections:
+        #     log.debug("interrupting connection %r", conn)
+        #     try:
+        #         conn.interrupt()
+        #     except apsw.ConnectionClosedError as e:
+        #         log.debug("encountered error %r", e)
+        #     log.debug("closing connection %r", conn)
+        #     conn.close(True)
 
         self.close()
 

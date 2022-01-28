@@ -149,6 +149,7 @@ class BaseQueryTreeView(QTreeView):
     def model(self) -> "BaseQueryDataModel":
         return super().model()
 
+    @profile
     def setup(self) -> "BaseQueryTreeView":
 
         self.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -194,11 +195,13 @@ class BaseQueryTreeView(QTreeView):
         log.debug("actions of menu %r : %r", menu, menu.actions())
         menu.exec(self.mapToGlobal(pos))
 
+    @profile
     def get_hidden_header_names(self) -> set[str]:
         settings = QSettings()
         hidden_header = settings.value(f"{self.name}_hidden_headers", set())
         return hidden_header
 
+    @profile
     def set_hidden_header_names(self):
         hidden_section_names = []
         for column in self.model.columns:
@@ -222,6 +225,7 @@ class BaseQueryTreeView(QTreeView):
         self.header_view.setContextMenuPolicy(Qt.CustomContextMenu)
         self.header_view.customContextMenuRequested.connect(self.handle_header_custom_context_menu)
 
+    @profile
     def handle_header_custom_context_menu(self, pos: QPoint):
         def get_amount_not_hidden():
             not_hidden = []
@@ -254,6 +258,7 @@ class BaseQueryTreeView(QTreeView):
             menu.addAction(change_visibility_action)
         menu.exec(self.header_view.mapToGlobal(pos))
 
+    @profile
     def force_refresh(self):
         log.debug("starting force refreshing %r", self)
         log.debug("repainting %r", self)
@@ -262,6 +267,7 @@ class BaseQueryTreeView(QTreeView):
         self.doItemsLayout()
         log.debug("finished force refreshing %r", self)
 
+    @profile
     def toggle_header_section_hidden(self, section: int):
         is_hidden = self.header_view.isSectionHidden(section)
         if is_hidden:
@@ -275,6 +281,7 @@ class BaseQueryTreeView(QTreeView):
     def extra_setup(self):
         pass
 
+    @profile
     def setup_scrollbars(self):
         self.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
@@ -303,6 +310,7 @@ class BaseQueryTreeView(QTreeView):
         self.setEnabled(True)
         self.setSortingEnabled(self._temp_original_sorting_enabled)
 
+    @profile
     def set_delegates(self):
         marked_col_index = self.model.get_column_index("marked")
         if marked_col_index is not None:

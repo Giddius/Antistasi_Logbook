@@ -36,7 +36,7 @@ from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog
                                QDockWidget, QDoubleSpinBox, QFontComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
                                QLCDNumber, QLabel, QLayout, QLineEdit, QListView, QListWidget, QMainWindow, QMenu, QMenuBar, QMessageBox,
                                QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
-                               QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
+                               QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QGraphicsView, QToolBox, QTreeView,
                                QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
@@ -308,7 +308,7 @@ class LogFileFilterPage(BaseDataToolPage):
         self.filter_by_campaign_id_combo_box = QComboBox()
         self.filter_by_campaign_id_combo_box.addItem("")
         self.filter_by_campaign_id_combo_box.addItems([str(i) for i in self.app.backend.database.get_unique_campaign_ids()])
-        self.layout.addRow("Filter by Campaing-ID", self.filter_by_campaign_id_combo_box)
+        self.layout.addRow("Filter by Campaign-ID", self.filter_by_campaign_id_combo_box)
 
         self.filter_by_new_campaign = QCheckBox()
 
@@ -316,6 +316,9 @@ class LogFileFilterPage(BaseDataToolPage):
 
         self.filter_by_marked = QCheckBox()
         self.layout.addRow("Show only Marked", self.filter_by_marked)
+
+        self.show_unparsable_check_box = QCheckBox()
+        self.layout.addRow("Show Unparsable", self.show_unparsable_check_box)
 
     def setup(self) -> "LogFileFilterPage":
         self.setup_signals()
@@ -485,7 +488,6 @@ class AntistasiFunctionSelectComboBox(QComboBox):
 
     def on_index_change(self, *args):
 
-        log.debug("args: %r", args)
         self.setEditText(self.itemData(self.currentIndex(), Qt.DisplayRole))
         self.lineEdit().setPlaceholderText(self.itemData(self.currentIndex(), Qt.DisplayRole))
 

@@ -190,6 +190,7 @@ class MainWidget(QWidget):
                 self.query_widget.add_page(widget, name="log_file")
                 self.log_files_tab.model.data_tool = widget
                 widget.pages["filter"].query_filter_changed.connect(self.log_files_tab.model.on_query_filter_changed)
+                widget.pages["filter"].show_unparsable_check_box.toggled.connect(self.log_files_tab.model.change_show_unparsable)
 
             self.query_widget.set_current_index(self.log_files_tab.model.data_tool)
             self.query_widget.resize(self.query_widget.sizeHint())

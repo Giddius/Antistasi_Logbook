@@ -75,8 +75,8 @@ class LogFilesModel(BaseQueryDataModel):
                      FakeField(name="amount_warnings", verbose_name="Warnings")}
     strict_exclude_columns = {"startup_text", "remote_path", "header_text"}
 
-    def __init__(self, parent: Optional[QtCore.QObject] = None, show_unparsable: bool = False) -> None:
-        self.show_unparsable = show_unparsable
+    def __init__(self, parent: Optional[QtCore.QObject] = None) -> None:
+        self.show_unparsable = False
         super().__init__(LogFile, parent=parent)
         self.ordered_by = (-LogFile.modified_at, LogFile.server)
         self.filter_item = None
