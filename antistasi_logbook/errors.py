@@ -113,7 +113,7 @@ class DefaultExceptionHandler:
         raise exception
 
     def handle_thread_except_hook(self, args: threading.ExceptHookArgs):
-        # log.error(args.exc_value, exc_info=True, stacklevel=3)
+        log.error(args.exc_value, exc_info=True, stacklevel=3)
         original_threading_except_hook(args)
 
     def handle_except_hook(self, type_, value, traceback):

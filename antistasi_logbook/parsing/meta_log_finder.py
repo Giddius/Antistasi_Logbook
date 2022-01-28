@@ -53,14 +53,22 @@ class MetaFinder:
 
     __slots__ = ("game_map", "full_datetime", "version", "mods", "campaign_id", "is_new_campaign", "regex_keeper")
 
-    def __init__(self, regex_keeper: "SimpleRegexKeeper", context: "ParsingContext") -> None:
+    def __init__(self, regex_keeper: "SimpleRegexKeeper", context: "ParsingContext", force: bool = False) -> None:
         self.regex_keeper = regex_keeper
-        self.game_map: str = MiscEnum.NOT_FOUND if not context._log_file.has_game_map() else MiscEnum.DEFAULT
-        self.full_datetime: FullDateTimes = MiscEnum.NOT_FOUND if not context._log_file.utc_offset else MiscEnum.DEFAULT
-        self.version: VersionItem = MiscEnum.NOT_FOUND if not context._log_file.version else MiscEnum.DEFAULT
-        self.mods: list[ModItem] = MiscEnum.NOT_FOUND if not context._log_file.has_mods() else MiscEnum.DEFAULT
-        self.campaign_id: int = MiscEnum.NOT_FOUND if context._log_file.campaign_id is None else MiscEnum.DEFAULT
-        self.is_new_campaign: bool = MiscEnum.NOT_FOUND if context._log_file.is_new_campaign is None else MiscEnum.DEFAULT
+        if force is True:
+            self.game_map: str = MiscEnum.NOT_FOUND
+            self.full_datetime: FullDateTimes = MiscEnum.NOT_FOUND
+            self.version: VersionItem = MiscEnum.NOT_FOUND
+            self.mods: list[ModItem] = MiscEnum.NOT_FOUND
+            self.campaign_id: int = MiscEnum.NOT_FOUND
+            self.is_new_campaign: bool = MiscEnum.NOT_FOUND
+        else:
+            self.game_map: str = MiscEnum.NOT_FOUND if not context._log_file.has_game_map() else MiscEnum.DEFAULT
+            self.full_datetime: FullDateTimes = MiscEnum.NOT_FOUND if not context._log_file.utc_offset else MiscEnum.DEFAULT
+            self.version: VersionItem = MiscEnum.NOT_FOUND if not context._log_file.version else MiscEnum.DEFAULT
+            self.mods: list[ModItem] = MiscEnum.NOT_FOUND if not context._log_file.has_mods() else MiscEnum.DEFAULT
+            self.campaign_id: int = MiscEnum.NOT_FOUND if context._log_file.campaign_id is None else MiscEnum.DEFAULT
+            self.is_new_campaign: bool = MiscEnum.NOT_FOUND if context._log_file.is_new_campaign is None else MiscEnum.DEFAULT
 
     def all_found(self) -> bool:
         # takes about 0.000742 s

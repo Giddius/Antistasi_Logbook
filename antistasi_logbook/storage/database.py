@@ -167,19 +167,6 @@ class GidSqliteApswDatabase(APSWDatabase):
         super()._add_conn_hooks(conn)
         # self.all_connections.add(conn)
 
-    def close_all(self):
-        # log.debug("all connections: %r", ', '.join(repr(conn) for conn in self.all_connections))
-        # for conn in self.all_connections:
-        #     log.debug("interrupting connection %r", conn)
-        #     try:
-        #         conn.interrupt()
-        #     except apsw.ConnectionClosedError as e:
-        #         log.debug("encountered error %r", e)
-        #     log.debug("closing connection %r", conn)
-        #     conn.close(True)
-
-        self.close()
-
     def _pre_start_up(self, overwrite: bool = False) -> None:
         self.database_path.parent.mkdir(exist_ok=True, parents=True)
         if overwrite is True:
@@ -228,7 +215,7 @@ class GidSqliteApswDatabase(APSWDatabase):
         with self.write_lock:
             self.session_meta_data.save()
         with self.write_lock:
-            self.close_all()
+            self.close()
 
         log.debug("finished shutting down %r", self)
         self.started_up = False

@@ -81,6 +81,30 @@ class LogFilesModel(BaseQueryDataModel):
         self.ordered_by = (-LogFile.modified_at, LogFile.server)
         self.filter_item = None
 
+    def add_context_menu_actions(self, menu: "CustomContextMenu", index: QModelIndex):
+        super().add_context_menu_actions(menu, index)
+        item, column = self.get(index)
+
+        if item is None or column is None:
+            return
+        force_reparse_action = ModelContextMenuAction(item, column, index, text=f"Force Reparse {item.name}", parent=menu)
+        force_reparse_action.clicked.connect(self.reparse_log_file)
+        menu.add_action(force_reparse_action)
+
+    @Slot(object, object, QModelIndex)
+    def reparse_log_file(self, item: LogFile, column: Field, index: QModelIndex):
+        def _actual_reparse(log_file: LogFile):
+            self.backend.updater.process_log_file(log_file=log_file, force=True)
+            self.backend.updater.update_record_classes(server=log_file.server, force=True)
+            self.refresh()
+
+        def _callback(future):
+            self.layoutChanged.emit()
+
+        self.layoutAboutToBeChanged.emit()
+        task = self.backend.thread_pool.submit(_actual_reparse, item)
+        task.add_done_callback(_callback)
+
     def change_show_unparsable(self, show_unparsable):
         if show_unparsable and self.show_unparsable is False:
             self.show_unparsable = True

@@ -149,7 +149,7 @@ class LogParsingContext:
     new_log_record_signal = get_signal("new_log_record")
     mem_cache_regex = re.compile(r"-MaxMem\=(?P<max_mem>\d+)")
     __slots__ = ("__weakref__", "_log_file", "record_lock", "log_file_data", "data_lock", "foreign_key_cache", "line_cache", "_line_iterator",
-                 "_current_line", "_current_line_number", "futures", "record_storage", "inserter", "_bulk_create_batch_size", "database", "config", "is_open", "done_signal")
+                 "_current_line", "_current_line_number", "futures", "record_storage", "inserter", "_bulk_create_batch_size", "database", "config", "is_open", "done_signal", "force")
 
     def __init__(self, log_file: "LogFile", inserter: "RecordInserter", config: "GidIniConfig", foreign_key_cache: "ForeignKeyCache") -> None:
         self._log_file = log_file
@@ -169,6 +169,7 @@ class LogParsingContext:
         self.record_lock = Lock()
         self.is_open: bool = False
         self.done_signal: Callable[[], None] = None
+        self.force: bool = False
 
     @property
     def _log_record_batch_size(self) -> int:
@@ -233,7 +234,7 @@ class LogParsingContext:
             self.done_signal()
 
     def set_header_text(self, lines: Iterable["RecordLine"]) -> None:
-        # takes about 0.0003763 s
+        log.debug("setting header_text for %r, amount: %r", self._log_file, len(lines))
         if lines:
             text = '\n'.join(i.content for i in lines if i.content)
             if match := self.mem_cache_regex.search(text):
@@ -242,7 +243,7 @@ class LogParsingContext:
             self.log_file_data["header_text"] = text
 
     def set_startup_text(self, lines: Iterable["RecordLine"]) -> None:
-        # takes about 0.0103124 s
+        log.debug("setting startup_text for %r, amount: %r", self._log_file, len(lines))
         if lines:
             text = '\n'.join(i.content for i in lines if i.content)
             self.log_file_data["startup_text"] = text
@@ -256,6 +257,7 @@ class LogParsingContext:
                     continue
                 line = line.rstrip()
                 self._current_line_number = line_number
+
                 yield RecordLine(content=line, start=line_number)
 
     @property

@@ -234,10 +234,6 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
         self.debug_dock_widget.add_show_attr_button(attr_name="colorNames", obj=QColor)
 
-        close_all_db_conn_button = QPushButton("Close All Db Connections")
-        close_all_db_conn_button.pressed.connect(self.backend.database.close_all)
-        self.debug_dock_widget.add_widget("close_all_db_conn", "Database", close_all_db_conn_button)
-
     def do_the_call_tree(self):
         c = CallTree(self.backend.database.get_log_files(ordered_by=LogFile.size)[-1])
         c.populate()

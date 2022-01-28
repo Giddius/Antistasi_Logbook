@@ -80,6 +80,8 @@ if TYPE_CHECKING:
     from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel, CustomContextMenu
     from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
+    from antistasi_logbook.storage.models.models import BaseModel
+    from peewee import Field
 
 # endregion[Imports]
 
@@ -118,6 +120,9 @@ class BaseProxyModel(QSortFilterProxyModel):
     @profile
     def add_context_menu_actions(self, menu: "CustomContextMenu", index: QModelIndex):
         self.source.add_context_menu_actions(menu=menu, index=self.mapToSource(index))
+
+    def get(self, index: QModelIndex) -> Optional[tuple["Field", "BaseModel"]]:
+        return self.source.get(self.mapToSource(index))
 
     @profile
     def __getattr__(self, name: str):
