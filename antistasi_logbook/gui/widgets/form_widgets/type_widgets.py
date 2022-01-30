@@ -12,15 +12,15 @@ from typing import Any, Union, Iterable, Optional, Protocol, runtime_checkable
 from pathlib import Path
 from datetime import timedelta
 
-# * Third Party Imports --------------------------------------------------------------------------------->
-import qt_material
-
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
 from PySide6.QtGui import QFont
 from PySide6.QtCore import Qt, Slot, Signal
 from PySide6.QtWidgets import (QWidget, QSpinBox, QCheckBox, QComboBox, QLineEdit, QTextEdit, QFileDialog, QGridLayout, QHBoxLayout,
                                QListWidget, QPushButton, QSizePolicy, QSpacerItem, QApplication, QButtonGroup, QRadioButton, QDoubleSpinBox)
+
+# * Third Party Imports --------------------------------------------------------------------------------->
+import qt_material
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger

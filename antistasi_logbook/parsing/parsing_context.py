@@ -7,12 +7,12 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
+import re
 from typing import TYPE_CHECKING, Any, TextIO, Callable, Iterable, Generator
 from pathlib import Path
 from datetime import timedelta
 from threading import Lock, RLock
 from contextlib import contextmanager
-import re
 from collections import deque
 from concurrent.futures import FIRST_EXCEPTION, Future, wait
 

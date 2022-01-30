@@ -8,7 +8,7 @@ Soon.
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import re
-from typing import TYPE_CHECKING, Any, Union, Iterable
+from typing import TYPE_CHECKING, Any, Union
 from pathlib import Path
 
 # * Third Party Imports --------------------------------------------------------------------------------->
@@ -20,7 +20,7 @@ from gidapptools.general_helper.enums import MiscEnum
 from gidapptools.general_helper.color.color_item import Color
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.records.base_record import BASE_SLOTS, BaseRecord, RecordFamily
+from antistasi_logbook.records.base_record import BaseRecord, RecordFamily
 from antistasi_logbook.utilities.parsing_misc import parse_text_array
 from antistasi_logbook.records.abstract_record import RecordFamily, MessageFormat
 

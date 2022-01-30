@@ -36,8 +36,15 @@ import xml.etree.ElementTree as et
 from pathlib import Path
 from pprint import pprint
 import attr
-from gid_tasks.actions import *
+from gid_tasks.project_info.project import Project
+from gid_tasks.actions import doc_collection, clean_collection, update_collection
 
+ns = Collection()
+ns.add_collection(doc_collection)
+ns.add_collection(clean_collection)
+ns.add_collection(update_collection)
+PROJECT = Project()
+Context.project = PROJECT
 
 loggers = list(logging.Logger.manager.loggerDict)
 
@@ -61,6 +68,7 @@ def rprint(*args, **kwargs):
 
 
 print = rprint
+Context.console = CONSOLE
 CONSOLE.print(RULE)
 
 

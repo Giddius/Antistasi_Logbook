@@ -16,11 +16,11 @@ from itertools import chain
 from threading import Lock, Event
 from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor, wait
 
-# * Third Party Imports --------------------------------------------------------------------------------->
-import attr
-
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtWidgets import QApplication
+
+# * Third Party Imports --------------------------------------------------------------------------------->
+import attr
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config

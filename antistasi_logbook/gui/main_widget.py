@@ -15,7 +15,7 @@ from threading import Event
 import PySide6
 from PySide6.QtGui import QMovie
 from PySide6.QtCore import Qt, QSize, Signal, QThread, QByteArray, QModelIndex
-from PySide6.QtWidgets import QLabel, QDialog, QWidget, QGroupBox, QTabWidget, QGridLayout, QSizePolicy, QVBoxLayout, QApplication
+from PySide6.QtWidgets import QLabel, QDialog, QWidget, QTabWidget, QGridLayout, QSizePolicy, QVBoxLayout, QApplication
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger

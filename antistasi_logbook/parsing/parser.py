@@ -7,10 +7,11 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
+from time import sleep
 from typing import TYPE_CHECKING, Any
 from pathlib import Path
 from threading import Event
-from time import sleep
+
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 

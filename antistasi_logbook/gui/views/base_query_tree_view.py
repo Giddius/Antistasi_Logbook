@@ -9,36 +9,21 @@ Soon.
 # * Standard Library Imports ---------------------------------------------------------------------------->
 from typing import TYPE_CHECKING, Union, Optional
 from pathlib import Path
-from concurrent.futures import Future, wait, ALL_COMPLETED
+from concurrent.futures import Future
+
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
-from PySide6 import (QtCore, QtGui, QtWidgets, Qt3DAnimation, Qt3DCore, Qt3DExtras, Qt3DInput, Qt3DLogic, Qt3DRender, QtAxContainer, QtBluetooth,
-                     QtCharts, QtConcurrent, QtDataVisualization, QtDesigner, QtHelp, QtMultimedia, QtMultimediaWidgets, QtNetwork, QtNetworkAuth,
-                     QtOpenGL, QtOpenGLWidgets, QtPositioning, QtPrintSupport, QtQml, QtQuick, QtQuickControls2, QtQuickWidgets, QtRemoteObjects,
-                     QtScxml, QtSensors, QtSerialPort, QtSql, QtStateMachine, QtSvg, QtSvgWidgets, QtTest, QtUiTools, QtWebChannel, QtWebEngineCore,
-                     QtWebEngineQuick, QtWebEngineWidgets, QtWebSockets, QtXml)
-
-from PySide6.QtCore import (QByteArray, QCoreApplication, QDate, QDateTime, QEvent, QLocale, QMetaObject, QModelIndex, QItemSelection, QModelRoleData, QMutex,
-                            QMutexLocker, QObject, QPoint, QRect, QRecursiveMutex, QRunnable, QSettings, QSize, QThread, QThreadPool, QTime, QUrl,
-                            QWaitCondition, Qt, QAbstractItemModel, QAbstractListModel, QAbstractTableModel, QSortFilterProxyModel, Signal, Slot)
-
-from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
-                           QKeySequence, QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform)
-
-from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QScrollBar, QDialogButtonBox,
-                               QDockWidget, QDoubleSpinBox, QFontComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
-                               QLCDNumber, QLabel, QLayout, QLineEdit, QListView, QListWidget, QMainWindow, QMenu, QMenuBar, QMessageBox,
-                               QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
-                               QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
-                               QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
+from PySide6.QtGui import QIcon, QAction
+from PySide6.QtCore import Qt, Slot, QPoint, Signal, QSettings, QModelIndex, QItemSelection
+from PySide6.QtWidgets import QMenu, QTreeView, QScrollBar, QHeaderView, QApplication, QAbstractItemView
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-from antistasi_logbook.gui.misc import CustomRole
 from antistasi_logbook.gui.views.delegates.universal_delegates import BoolImageDelegate, MarkedImageDelegate
+from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
+
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend

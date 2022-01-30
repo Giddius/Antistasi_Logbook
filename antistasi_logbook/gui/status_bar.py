@@ -13,13 +13,13 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from threading import Thread
 
-# * Third Party Imports --------------------------------------------------------------------------------->
-from dateutil.tz import UTC
-
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
 from PySide6.QtCore import Qt, Slot, Signal, QObject
 from PySide6.QtWidgets import QLabel, QStatusBar, QApplication, QProgressBar
+
+# * Third Party Imports --------------------------------------------------------------------------------->
+from dateutil.tz import UTC
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger

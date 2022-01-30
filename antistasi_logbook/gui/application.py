@@ -7,27 +7,28 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
+import argparse
 from typing import TYPE_CHECKING, Any, Iterable
 from pathlib import Path
 from weakref import WeakSet
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 
+# * Qt Imports --------------------------------------------------------------------------------------->
+from PySide6.QtGui import QFont, QIcon, QColor, QGuiApplication
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QMainWindow, QMessageBox, QApplication, QSplashScreen
+
 # * Third Party Imports --------------------------------------------------------------------------------->
 from jinja2 import BaseLoader, Environment
-
-# * Qt Imports --------------------------------------------------------------------------------------->
-from PySide6 import QtCore
-from PySide6.QtGui import QFont, QIcon, QMouseEvent, QColor, QFontDatabase, QGuiApplication
-from PySide6.QtCore import Qt, QEvent, QCoreApplication
-from PySide6.QtWidgets import QMessageBox, QApplication, QMainWindow, QSplashScreen
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
 from gidapptools.gid_config.interface import EntryTypus
-import argparse
-import pp
+
+# * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
+
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig

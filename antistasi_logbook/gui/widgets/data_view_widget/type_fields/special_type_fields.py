@@ -12,13 +12,13 @@ import subprocess
 from typing import Optional
 from pathlib import Path, WindowsPath
 
-# * Third Party Imports --------------------------------------------------------------------------------->
-from yarl import URL
-
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QPalette, QDesktopServices
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QPushButton, QApplication
+
+# * Third Party Imports --------------------------------------------------------------------------------->
+from yarl import URL
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger

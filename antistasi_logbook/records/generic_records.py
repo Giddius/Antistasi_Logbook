@@ -17,10 +17,11 @@ import pp
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.enums import MiscEnum
-from gidapptools.general_helper.color.color_item import Color
 from gidapptools.general_helper.string_helper import fix_multiple_quotes
+from gidapptools.general_helper.color.color_item import Color
+
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.records.base_record import BASE_SLOTS, BaseRecord, RecordFamily
+from antistasi_logbook.records.base_record import BaseRecord, RecordFamily
 from antistasi_logbook.utilities.parsing_misc import parse_text_array
 from antistasi_logbook.records.abstract_record import RecordFamily, MessageFormat
 

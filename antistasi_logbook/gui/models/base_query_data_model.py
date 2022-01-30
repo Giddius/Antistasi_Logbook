@@ -10,28 +10,28 @@ Soon.
 from typing import TYPE_CHECKING, Any, Union, Callable, Optional
 from pathlib import Path
 
-# * Third Party Imports --------------------------------------------------------------------------------->
-from apsw import SQLError
-from peewee import Field, Query, IntegerField, ForeignKeyField
-from natsort import natsorted
-
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
 from PySide6 import QtCore
-from PySide6.QtGui import QIcon, QColor, QAction, QFontMetrics
-from PySide6.QtCore import Qt, Slot, Signal, QModelIndex, QAbstractTableModel, QPersistentModelIndex, QSize
+from PySide6.QtGui import QIcon, QColor, QAction
+from PySide6.QtCore import Qt, Slot, QSize, Signal, QModelIndex, QAbstractTableModel, QPersistentModelIndex
 from PySide6.QtWidgets import QApplication, QColorDialog
+
+# * Third Party Imports --------------------------------------------------------------------------------->
+from apsw import SQLError
+from peewee import Field, Query, IntegerField
+from natsort import natsorted
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger, get_meta_config
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.storage.models.models import BaseModel, GameMap, Version
+from antistasi_logbook.gui.misc import CustomRole
+from antistasi_logbook.storage.models.models import GameMap, Version, BaseModel
 from antistasi_logbook.gui.widgets.markdown_editor import MarkdownEditorDialog
 from antistasi_logbook.storage.models.custom_fields import URLField, PathField
 from antistasi_logbook.gui.widgets.better_color_dialog import BetterColorDialog
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-from antistasi_logbook.gui.misc import CustomRole
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:

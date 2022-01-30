@@ -11,6 +11,9 @@ from functools import cached_property
 from threading import Lock, RLock
 from contextlib import contextmanager
 
+# * Qt Imports --------------------------------------------------------------------------------------->
+from PySide6.QtGui import QColor
+
 # * Third Party Imports --------------------------------------------------------------------------------->
 from yarl import URL
 from peewee import DatabaseProxy, IntegrityError, fn
@@ -19,12 +22,10 @@ from dateutil.tz import UTC
 from playhouse.signals import Model
 from playhouse.apsw_ext import TextField, BooleanField, IntegerField, ForeignKeyField
 from playhouse.sqlite_ext import JSONField
-from gidapptools.general_helper.enums import MiscEnum
-# * Qt Imports --------------------------------------------------------------------------------------->
-from PySide6.QtGui import QColor
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
+from gidapptools.general_helper.enums import MiscEnum
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 from gidapptools.general_helper.conversion import bytes2human
 

@@ -10,20 +10,15 @@ Soon.
 from typing import TYPE_CHECKING
 from pathlib import Path
 
-# * Qt Imports --------------------------------------------------------------------------------------->
-from PySide6.QtGui import QAction
-
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.gui.widgets.markdown_editor import MarkdownEditorDialog
 from antistasi_logbook.gui.views.base_query_tree_view import BaseQueryTreeView
-from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-    from antistasi_logbook.gui.models.log_files_model import LogFilesModel
+    pass
 
 # endregion[Imports]
 

@@ -13,14 +13,14 @@ from typing import Any, Union, Optional
 from pathlib import Path
 from functools import cached_property
 
-# * Third Party Imports --------------------------------------------------------------------------------->
-import pp
-from qt_material import list_themes
-
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
 from PySide6.QtGui import Qt
 from PySide6.QtCore import Qt, QAbstractTableModel
+
+# * Third Party Imports --------------------------------------------------------------------------------->
+import pp
+from qt_material import list_themes
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools.general_helper.string_helper import StringCase, StringCaseConverter

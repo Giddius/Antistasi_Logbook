@@ -116,8 +116,8 @@
 ---
 
 
-- **[antistasi\_logbook/gui/main\_window.py](antistasi_logbook/gui/main_window.py#L358)**
-    *Line-num: 358*
+- **[antistasi\_logbook/gui/main\_window.py](antistasi_logbook/gui/main_window.py#L354)**
+    *Line-num: 354*
 
 
 
@@ -126,8 +126,8 @@
 ---
 
 
-- **[antistasi\_logbook/gui/main\_window.py](antistasi_logbook/gui/main_window.py#L431)**
-    *Line-num: 431*
+- **[antistasi\_logbook/gui/main\_window.py](antistasi_logbook/gui/main_window.py#L427)**
+    *Line-num: 427*
 
 
 
@@ -146,8 +146,8 @@
 ---
 
 
-- **[antistasi\_logbook/parsing/parsing\_context.py](antistasi_logbook/parsing/parsing_context.py#L190)**
-    *Line-num: 190*
+- **[antistasi\_logbook/parsing/parsing\_context.py](antistasi_logbook/parsing/parsing_context.py#L191)**
+    *Line-num: 191*
 
 
 

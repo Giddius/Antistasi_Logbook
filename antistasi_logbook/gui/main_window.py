@@ -6,32 +6,35 @@ Soon.
 """
 
 # region [Imports]
+
+# * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook import setup
+
 setup()
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
-from antistasi_logbook import stream_capturer
 import sys
 from time import sleep
 from typing import TYPE_CHECKING
 from pathlib import Path
 from threading import Thread
 
-# * Third Party Imports --------------------------------------------------------------------------------->
-
-
 # * Qt Imports --------------------------------------------------------------------------------------->
-from PySide6.QtGui import QColor, QCloseEvent, QMouseEvent
+from PySide6.QtGui import QColor, QCloseEvent
 from PySide6.QtCore import Qt, Slot, Signal, QObject, QSettings, QByteArray
-from PySide6.QtWidgets import QWidget, QMenuBar, QGridLayout, QHeaderView, QMainWindow, QMessageBox, QSizePolicy, QSplashScreen, QToolBar, QTabBar, QPushButton, QDockWidget
+from PySide6.QtWidgets import QWidget, QMenuBar, QToolBar, QDockWidget, QGridLayout, QMainWindow, QMessageBox, QSizePolicy, QSplashScreen
+
+# * Third Party Imports --------------------------------------------------------------------------------->
 import qt_material
+
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 from gidapptools.general_helper.string_helper import StringCaseConverter
 from gidapptools.gidapptools_qt.widgets.app_log_viewer import AppLogViewer
+from gidapptools.gidapptools_qt.widgets.std_stream_widget import StdStreamWidget
 
 # * Local Imports --------------------------------------------------------------------------------------->
-
+from antistasi_logbook import stream_capturer
 from antistasi_logbook.errors import ExceptionHandlerManager, MissingLoginAndPasswordError
 from antistasi_logbook.backend import Backend, GidSqliteApswDatabase
 from antistasi_logbook.gui.misc import UpdaterSignaler
@@ -43,6 +46,8 @@ from antistasi_logbook.gui.application import AntistasiLogbookApplication
 from antistasi_logbook.gui.main_widget import MainWidget
 from antistasi_logbook.gui.settings_window import SettingsWindow, CredentialsManagmentWindow
 from antistasi_logbook.gui.models.mods_model import ModsModel
+from antistasi_logbook.storage.models.models import LogFile
+from antistasi_logbook.call_tree.call_tree_item import CallTree
 from antistasi_logbook.gui.models.version_model import VersionModel
 from antistasi_logbook.gui.models.game_map_model import GameMapModel
 from antistasi_logbook.gui.widgets.debug_widgets import DebugDockWidget
@@ -54,9 +59,6 @@ from antistasi_logbook.gui.models.remote_storages_model import RemoteStoragesMod
 from antistasi_logbook.gui.models.antistasi_function_model import AntistasiFunctionModel
 from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-from gidapptools.gidapptools_qt.widgets.std_stream_widget import StdStreamWidget
-from antistasi_logbook.call_tree.call_tree_item import CallTree
-from antistasi_logbook.storage.models.models import LogFile
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
