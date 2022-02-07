@@ -81,17 +81,19 @@ class MetaFinder:
             self.full_datetime = FullDateTimes(utc_datetime=datetime(tzinfo=UTC, **utc_datetime_kwargs), local_datetime=datetime(tzinfo=UTC, **local_datetime_kwargs))
 
     def _resolve_version(self, text: str) -> None:
-        if match := self.regex_keeper.game_file.search(text):
+        if match := self.regex_keeper.version.search(text):
+            version = VersionItem.from_string(match.group("version").strip())
+            log.debug("setting version to %r", self.version)
+            self.version = version
+        elif match := self.regex_keeper.game_file.search(text):
             raw = match.group('game_file')
-            version_args = [c for c in raw if c.isnumeric()]
+            version_args = [i for i in raw if i.isnumeric()]
             if version_args:
                 while len(version_args) < 3:
                     version_args.append('MISSING')
                 version = VersionItem(*version_args)
+                log.debug("setting version to %r", self.version)
                 self.version = version
-            else:
-                log.debug("incomplete version from line: %r", match.group('game_file'))
-                self.version = None
 
     def _resolve_game_map(self, text: str) -> None:
         # takes about 0.170319 s
@@ -125,6 +127,7 @@ class MetaFinder:
             self._resolve_game_map(text)
 
         if self.version is MiscEnum.NOT_FOUND:
+            log.debug("resolving version")
             self._resolve_version(text)
 
         if self.full_datetime is MiscEnum.NOT_FOUND:

@@ -47,7 +47,7 @@ from antistasi_logbook.gui.main_widget import MainWidget
 from antistasi_logbook.gui.settings_window import SettingsWindow, CredentialsManagmentWindow
 from antistasi_logbook.gui.models.mods_model import ModsModel
 from antistasi_logbook.storage.models.models import LogFile
-from antistasi_logbook.call_tree.call_tree_item import CallTree
+
 from antistasi_logbook.gui.models.version_model import VersionModel
 from antistasi_logbook.gui.models.game_map_model import GameMapModel
 from antistasi_logbook.gui.widgets.debug_widgets import DebugDockWidget
@@ -138,7 +138,9 @@ class AntistasiLogbookMainWindow(QMainWindow):
         return self.config.get("gui", "style")
 
     def set_app_style_sheet(self, styleSheet: str) -> None:
+
         data = get_style_sheet_data(styleSheet)
+
         if data is None:
             data = styleSheet
         self.app.setStyleSheet(data)
@@ -236,11 +238,6 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
         self.debug_dock_widget.add_show_attr_button(attr_name="colorNames", obj=QColor)
 
-    def do_the_call_tree(self):
-        c = CallTree(self.backend.database.get_log_files(ordered_by=LogFile.size)[-1])
-        c.populate()
-        c.save_to_png()
-
     def show_app_log_window(self):
         log_folder = Path(self.app.meta_paths.log_dir)
         try:
@@ -320,6 +317,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.secondary_model_data_window = window
         self.secondary_model_data_window.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
         self.secondary_model_data_window.resize(width, height)
+        self.secondary_model_data_window.setWindowIcon(view.icon)
         self.secondary_model_data_window.show()
 
     def show_folder_window(self):
@@ -330,6 +328,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self._temp_folder_window.add_row("Database", self.backend.database.database_path.resolve())
         self._temp_folder_window.add_row("Config", self.config.config.file_path.resolve())
         self._temp_folder_window.add_row("Log", self.app.meta_paths.log_dir.resolve())
+        self._temp_folder_window.add_row("Cache", self.app.meta_paths.cache_dir.resolve())
         self._temp_folder_window.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self._temp_folder_window.setFixedHeight(self.sizeHint().height())
         self._temp_folder_window.show()
@@ -405,6 +404,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
             log.info("closing all windows of %r", self.app)
             self.app.closeAllWindows()
             log.info("Quiting %r", self.app)
+
             self.app.quit()
             log.info('%r accepting event %r', self, event.type().name)
             event.accept()

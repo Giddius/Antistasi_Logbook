@@ -217,7 +217,8 @@ class Updater:
         amount_deleted = 0
         for log_file in server.log_files.select().where(LogFile.modified_at < cutoff_datetime):
             log.info("removing log-file %r of server %r", log_file, server)
-
+            if log_file.original_file is not None:
+                log_file.original_file.delete_instance()
             log_file.delete_instance(True)
             amount_deleted += 1
         return amount_deleted

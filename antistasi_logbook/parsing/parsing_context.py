@@ -287,6 +287,7 @@ class LogParsingContext:
         self.wait_on_futures()
         with self.data_lock:
             log.debug("updating log-file %r", self._log_file)
+            self.log_file_data.pop("original_file")
             task = self.inserter.update_log_file_from_dict(log_file=self._log_file, in_dict=self.log_file_data)
             log.debug("waiting for result of 'updating log-file %r'", self._log_file)
             task.result()

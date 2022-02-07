@@ -8,6 +8,7 @@ Soon.
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import argparse
+import shutil
 from typing import TYPE_CHECKING, Any, Iterable
 from pathlib import Path
 from weakref import WeakSet
@@ -16,9 +17,9 @@ from concurrent.futures import ThreadPoolExecutor
 
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QFont, QIcon, QColor, QGuiApplication
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QSettings
 from PySide6.QtWidgets import QMainWindow, QMessageBox, QApplication, QSplashScreen
-
+import sys
 # * Third Party Imports --------------------------------------------------------------------------------->
 from jinja2 import BaseLoader, Environment
 
@@ -83,9 +84,12 @@ def _handle_qcolor(value: Any, sub_arguments: dict[str, str]) -> EntryTypus:
     return EntryTypus(original_value=value, base_typus=QColor)
 
 
-COLOR_CONFIG = get_meta_config().get_config("color")
-COLOR_CONFIG.add_spec_value_handler("qcolor", _handle_qcolor)
-COLOR_CONFIG.add_converter_function(QColor, _qcolor)
+META_CONFIG = get_meta_config()
+META_CONFIG.add_spec_value_handler("qcolor", _handle_qcolor)
+META_CONFIG.add_converter_function(QColor, _qcolor)
+
+COLOR_CONFIG = META_CONFIG.get_config("color")
+
 
 COLOR_CONFIG.reload()
 
@@ -113,7 +117,7 @@ class AntistasiLogbookApplication(QApplication):
     def init_app_meta_data(self):
         self.setApplicationName(self.meta_info.app_name)
         self.setApplicationDisplayName(self.meta_info.pretty_app_name)
-        self.setApplicationVersion(self.meta_info.version)
+        self.setApplicationVersion(str(self.meta_info.version))
         self.setOrganizationName(self.meta_info.pretty_app_author)
         self.setOrganizationDomain(str(self.meta_info.url))
 
@@ -205,8 +209,10 @@ class AntistasiLogbookApplication(QApplication):
 
     def get_argument_parser(self) -> argparse.ArgumentParser:
         parser = argparse.ArgumentParser(prog=self.applicationDisplayName(), add_help=True)
-        parser.add_argument("-m", '--maximized', action='store_true')
+        parser.add_argument("-max", '--maximized', action='store_true')
+        parser.add_argument("-min", '--minimized', action='store_true')
         parser.add_argument('-t', '--always-on-top', action='store_true')
+        parser.add_argument("-c", "--clear-settings", action="store_true")
         return parser
 
     def parse_arguments(self):
@@ -218,8 +224,12 @@ class AntistasiLogbookApplication(QApplication):
         _out = {"main_window_flags": Qt.WindowFlags(), "main_window_states": Qt.WindowActive}
         if result.maximized:
             _out["main_window_states"] |= Qt.WindowMaximized
+        if result.minimized:
+            _out["main_window_states"] |= Qt.WindowMinimized
         if result.always_on_top:
             _out["main_window_flags"] |= Qt.WindowStaysOnTopHint
+        if result.clear_settings:
+            QSettings().clear()
 
         return _out
 
@@ -241,6 +251,19 @@ class AntistasiLogbookApplication(QApplication):
         self.current_splash_screen = QSplashScreen(pixmap, Qt.WindowStaysOnTopHint)
         self.current_splash_screen.show()
         return self.current_splash_screen
+
+    def quit(self):
+        self.on_quit()
+        super().quit()
+
+    def on_quit(self):
+        temp_path = self.meta_paths.temp_dir
+        log.debug("temp_path: %r", temp_path.as_posix())
+        for item in temp_path.iterdir():
+            if item.is_file():
+                item.unlink(missing_ok=True)
+            elif item.is_dir():
+                shutil.rmtree(item)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(name={self.applicationDisplayName()!r})"

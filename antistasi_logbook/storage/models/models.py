@@ -10,7 +10,7 @@ from datetime import datetime
 from functools import cached_property
 from threading import Lock, RLock
 from contextlib import contextmanager
-
+from zipfile import ZipFile, ZIP_LZMA
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QColor
 
@@ -79,12 +79,12 @@ class BaseModel(Model):
     class Meta:
         database: "GidSqliteApswDatabase" = database_proxy
 
-    @classmethod
-    def create_or_get(cls, **kwargs) -> "BaseModel":
-        try:
-            return cls.create(**kwargs)
-        except IntegrityError:
-            return cls.get(*[getattr(cls, k) == v for k, v in kwargs.items()])
+    # @classmethod
+    # def create_or_get(cls, **kwargs) -> "BaseModel":
+    #     try:
+    #         return cls.create(**kwargs)
+    #     except IntegrityError:
+    #         return cls.get(*[getattr(cls, k) == v for k, v in kwargs.items()])
 
     @classmethod
     def has_column_named(cls, name: str) -> bool:
@@ -245,7 +245,6 @@ class RemoteStorage(BaseModel):
 
 
 class Server(BaseModel):
-    local_path = PathField(null=True, unique=True, verbose_name="Local Path", help_text="Location where Log-Files of this server are downloaded to")
     name = TextField(unique=True, index=True, verbose_name="Name", help_text="The Name of the Server")
     remote_path = RemotePathField(null=True, unique=True, verbose_name="Remote Path", help_text="The Path in the Remote Storage containing the log files")
     remote_storage = ForeignKeyField(column_name='remote_storage', default=0, field='id', model=RemoteStorage, lazy_load=True, index=True, verbose_name="Remote Storage")
@@ -254,6 +253,7 @@ class Server(BaseModel):
     port = IntegerField(null=True, verbose_name="Port", help_text="Port the Server uses")
     comments = CommentsField()
     marked = MarkedField()
+    archive_lock = RLock()
 
     class Meta:
         table_name = 'Server'
@@ -293,18 +293,31 @@ class Server(BaseModel):
 
     @cached_property
     def full_local_path(self) -> Path:
-        if self.local_path is None:
 
-            local_path = self.config.get("folder", "local_storage_folder", default=None)
-            if local_path is None:
-                local_path = META_PATHS.get_new_temp_dir(name=self.name)
-            else:
-                local_path = local_path.joinpath(self.name)
+        local_path = META_PATHS.get_new_temp_dir(name=self.name)
 
-        else:
-            local_path = self.local_path
         local_path.mkdir(exist_ok=True, parents=True)
         return local_path
+
+    @cached_property
+    def archive_path(self) -> Path:
+        archive_path = META_PATHS.cache_dir.joinpath(self.name + '.zip')
+        archive_path.parent.mkdir(parents=True, exist_ok=True)
+        return archive_path
+
+    def add_log_file_to_archive(self, log_file: "LogFile"):
+        with self.archive_lock:
+            with ZipFile(self.archive_path, "a", compression=ZIP_LZMA) as zippy:
+                zippy.write(log_file.local_path, log_file.local_path.name)
+
+    def get_log_file_from_archive(self, log_file: "LogFile") -> Path:
+        with self.archive_lock:
+            with ZipFile(self.archive_path, "r", compression=ZIP_LZMA) as zippy:
+                with zippy.open(log_file.local_path.name, "r") as a_f:
+                    with log_file.local_path.open("wb") as l_f:
+                        for chunk in a_f:
+                            l_f.write(chunk)
+        return log_file.local_path
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(name={self.name!r}, remote_storage={self.remote_storage.name!r}, update_enabled={self.update_enabled!r})"
@@ -343,6 +356,25 @@ class Version(BaseModel):
         return str(self.full)
 
 
+class OriginalLogFile(BaseModel):
+    text = CompressedTextField(compression_level=9, unique=True)
+
+    class Meta:
+        table_name = 'OriginalLogFile'
+
+    @cached_property
+    def temp_path(self) -> Path:
+
+        temp_path = META_PATHS.temp_dir.joinpath(self.log_file[0].server.name, self.log_file[0].name + '.txt')
+        temp_path.parent.mkdir(parents=True, exist_ok=True)
+        return temp_path
+
+    def to_file(self) -> Path:
+        path = self.temp_path
+        path.write_text(self.text, encoding='utf-8', errors='ignore')
+        return path
+
+
 class LogFile(BaseModel):
     name = TextField(index=True, verbose_name="Name")
     remote_path = RemotePathField(unique=True, verbose_name="Remote Path")
@@ -361,6 +393,7 @@ class LogFile(BaseModel):
     unparsable = BooleanField(default=False, index=True, verbose_name="Unparsable")
     last_parsed_datetime = AwareTimeStampField(null=True, utc=True, verbose_name="Last Parsed Datetime")
     max_mem = IntegerField(verbose_name="Max Memory", null=True)
+    original_file = ForeignKeyField(model=OriginalLogFile, field="id", column_name="original_file", lazy_load=True, backref="log_file", null=True, on_delete="SET NULL")
     comments = CommentsField()
     marked = MarkedField()
 
@@ -377,9 +410,8 @@ class LogFile(BaseModel):
     @cached_property
     @profile
     def time_frame(self) -> DateTimeFrame:
-        with self.database.connection_context() as ctx:
-            min_date_time, max_date_time = LogRecord.select(fn.Min(LogRecord.recorded_at), fn.Max(LogRecord.recorded_at)).where(LogRecord.log_file_id == self.id).scalar(as_tuple=True)
-            return DateTimeFrame(min_date_time, max_date_time)
+        min_date_time, max_date_time = LogRecord.select(fn.Min(LogRecord.recorded_at), fn.Max(LogRecord.recorded_at)).where(LogRecord.log_file_id == self.id).scalar(as_tuple=True)
+        return DateTimeFrame(min_date_time, max_date_time)
 
     @cached_property
     @profile
@@ -397,20 +429,17 @@ class LogFile(BaseModel):
     @cached_property
     @profile
     def amount_log_records(self) -> int:
-        with self.database.connection_context() as ctx:
-            return LogRecord.select().where(LogRecord.log_file_id == self.id).count()
+        return LogRecord.select().where(LogRecord.log_file_id == self.id).count()
 
     @cached_property
     @profile
     def amount_errors(self) -> int:
-        with self.database.connection_context() as ctx:
-            return LogRecord.select().where((LogRecord.log_file_id == self.id) & (LogRecord.log_level_id == self.database.foreign_key_cache.all_log_levels.get("ERROR").id)).count()
+        return LogRecord.select().where((LogRecord.log_file_id == self.id) & (LogRecord.log_level_id == self.database.foreign_key_cache.all_log_levels.get("ERROR").id)).count()
 
     @cached_property
     @profile
     def amount_warnings(self) -> int:
-        with self.database.connection_context() as ctx:
-            return LogRecord.select().where((LogRecord.log_file_id == self.id) & (LogRecord.log_level_id == self.database.foreign_key_cache.all_log_levels.get("WARNING").id)).count()
+        return LogRecord.select().where((LogRecord.log_file_id == self.id) & (LogRecord.log_level_id == self.database.foreign_key_cache.all_log_levels.get("WARNING").id)).count()
 
     @cached_property
     @profile
@@ -493,10 +522,6 @@ class LogFile(BaseModel):
             return Path(self.remote_path)
         return self.server.full_local_path.joinpath(self.remote_path.name)
 
-    @ property
-    def keep_downloaded_files(self) -> bool:
-        return self.config.get("downloading", "keep_downloaded_files", default=False)
-
     def download(self) -> Path:
         return self.server.remote_manager.download_file(self)
 
@@ -512,9 +537,24 @@ class LogFile(BaseModel):
             if cleanup is True:
                 self._cleanup()
 
-    def _cleanup(self) -> None:
-        if self.is_downloaded is True and self.keep_downloaded_files is False:
+    def store_original_log_file(self):
 
+        if self.original_file is None:
+            log.debug("creating new orginal log file for logfile %r, because logfile.original_file=%r", self, self.original_file)
+            with self.database.write_lock:
+                with self.database:
+                    original_file = OriginalLogFile.create(text=self.local_path.read_text(encoding='utf-8', errors='ignore'))
+                    self.update(original_file=original_file).where(LogFile.id == self.id).execute()
+        else:
+            with self.database.write_lock:
+                with self.database:
+                    log.debug("updating original log file for log file %r, because it already exists", self)
+                    OriginalLogFile.update(text=self.local_path.read_text(encoding='utf-8', errors='ignore')).where(OriginalLogFile.id == self.original_file.id).execute()
+
+    def _cleanup(self) -> None:
+        log.debug("cleaning up LogFile %r", self)
+        if self.is_downloaded is True:
+            self.store_original_log_file()
             self.local_path.unlink(missing_ok=True)
             log.debug('deleted local-file of log_file_item %r from path %r', self.name, self.local_path.as_posix())
             self.is_downloaded = False
@@ -743,7 +783,7 @@ class DatabaseMetaData(BaseModel):
     @classmethod
     def new_session(cls, started_at: datetime = None, app_version: Version = None) -> "DatabaseMetaData":
         started_at = datetime.now(tz=UTC) if started_at is None else started_at
-        app_version = VersionItem.from_string(META_INFO.version) if app_version is None else app_version
+        app_version = META_INFO.version if app_version is None else app_version
         item = cls(started_at=started_at, app_version=app_version)
         with cls._meta.database.write_lock:
             with cls._meta.database:
@@ -841,43 +881,37 @@ def setup_db(database: "GidSqliteApswDatabase"):
                              {"id": 4, "name": "CRITICAL"},
                              {"id": 5, "name": "ERROR"}],
 
-                  Server: [{'local_path': None,
-                            'name': 'NO_SERVER',
+                  Server: [{'name': 'NO_SERVER',
                            'remote_path': None,
                             'remote_storage': 0,
                             'update_enabled': 0,
                             "ip": None,
                             "port": None},
-                           {'local_path': None,
-                           'name': 'Mainserver_1',
+                           {'name': 'Mainserver_1',
                             'remote_path': 'Antistasi_Community_Logs/Mainserver_1/Server/',
                             'remote_storage': 1,
                             'update_enabled': 1,
                             "ip": "38.133.154.60",
                             "port": 2312},
-                           {'local_path': None,
-                           'name': 'Mainserver_2',
+                           {'name': 'Mainserver_2',
                             'remote_path': 'Antistasi_Community_Logs/Mainserver_2/Server/',
                             'remote_storage': 1,
                             'update_enabled': 1,
                             "ip": "38.133.154.60",
                             "port": 2322},
-                           {'local_path': None,
-                           'name': 'Testserver_1',
+                           {'name': 'Testserver_1',
                             'remote_path': 'Antistasi_Community_Logs/Testserver_1/Server/',
                             'remote_storage': 1,
                             'update_enabled': 1,
                             "ip": "38.133.154.60",
                             "port": 2342},
-                           {'local_path': None,
-                           'name': 'Testserver_2',
+                           {'name': 'Testserver_2',
                             'remote_path': 'Antistasi_Community_Logs/Testserver_2/Server/',
                             'remote_storage': 1,
                             'update_enabled': 1,
                             "ip": "38.133.154.60",
                             "port": 2352},
-                           {'local_path': None,
-                           'name': 'Testserver_3',
+                           {'name': 'Testserver_3',
                             'remote_path': 'Antistasi_Community_Logs/Testserver_3/Server/',
                             'remote_storage': 1,
                             'update_enabled': 1,

@@ -364,7 +364,7 @@ class SettingsWindow(QWidget):
 
     def save_config(self) -> None:
         old_auto_write = self.general_config.config.auto_write
-        self.general_config.config.auto_write = False
+        self.general_config.config.auto_write = True
         for i in range(self.content_widget.count()):
             page: SettingsForm = self.content_widget.widget(i)
             sect_name = page.section_name
@@ -373,7 +373,7 @@ class SettingsWindow(QWidget):
                     log.debug("sect_name=%r, field.name=%r, field.value_field.get_value()=%r", sect_name, field.name, field.value_field.get_value())
                     self.general_config.set(sect_name, field.name, field.value_field.get_value())
 
-        self.general_config.config.save()
+        # self.general_config.config.save()
         self.general_config.config.auto_write = old_auto_write
 
     def show(self) -> None:

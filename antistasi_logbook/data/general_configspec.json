@@ -51,14 +51,16 @@
         "local_storage_folder": {
             "converter": "path",
             "default": null,
-            "short_description": "Where the app should download the log_file to when updating, defaults to Temp folder"
+            "short_description": "Where the app should download the log_file to when updating, defaults to Temp folder",
+            "gui_visible": false
         }
     },
     "downloading": {
         "keep_downloaded_files": {
             "converter": "boolean",
             "default": "False",
-            "short_description": "If set to 'yes' the app will not delete the original log-files after finishing parsing."
+            "short_description": "If set to 'yes' the app will not delete the original log-files after finishing parsing.",
+            "gui_visible": false
         },
         "chunk_size": { "converter": "file_size", "default": null }
     },
