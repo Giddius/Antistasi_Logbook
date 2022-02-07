@@ -824,34 +824,6 @@ class DatabaseMetaData(BaseModel):
             self.added_log_records += amount
 
 
-def migration(database: "GidSqliteApswDatabase"):
-    from playhouse.migrate import SqliteMigrator, migrate
-    from playhouse.reflection import Introspector
-    migrator = SqliteMigrator(database=database)
-    introspector = Introspector.from_database(database)
-    operations = []
-    existing_models = introspector.generate_models()
-    all_models = BaseModel.__subclasses__()
-    for model in all_models:
-        table = model._meta.table_name.removesuffix("__tmp__")
-        existing_model = existing_models[table]
-
-        for field_name, field_obj in model._meta.fields.items():
-            if field_name in {"id"}:
-                continue
-            if field_obj.null is False and field_obj.default is None:
-                continue
-            if field_name not in existing_model._meta.fields:
-                log.debug("adding column named %r to %r", field_name, table)
-                migrate(migrator.add_column(table=table, column_name=field_name, field=field_obj))
-
-        for existing_field_name in existing_model._meta.fields:
-            if existing_field_name not in model._meta.fields:
-                migrate(migrator.drop_column(table=table, column_name=existing_field_name))
-
-    # migrate(*operations)
-
-
 def setup_db(database: "GidSqliteApswDatabase"):
     from antistasi_logbook.data.map_images import MAP_IMAGES_DIR
     from antistasi_logbook.data.coordinates import MAP_COORDS_DIR

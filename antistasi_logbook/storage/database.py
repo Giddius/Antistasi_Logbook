@@ -28,7 +28,8 @@ from gidapptools.general_helper.conversion import human2bytes
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook import setup
 from antistasi_logbook.storage.models.models import (Server, GameMap, LogFile, Version, LogLevel, LogRecord, RecordClass, RecordOrigin,
-                                                     RemoteStorage, AntstasiFunction, DatabaseMetaData, setup_db, migration)
+                                                     RemoteStorage, AntstasiFunction, DatabaseMetaData, setup_db)
+from antistasi_logbook.storage.models.migration import run_migration
 
 setup()
 # * Type-Checking Imports --------------------------------------------------------------------------------->
@@ -194,7 +195,7 @@ class GidSqliteApswDatabase(APSWDatabase):
         with self.write_lock:
             if self.database_existed is True:
                 log.debug("starting migration for %r", self)
-                migration(self)
+                run_migration(self)
                 log.debug("finished migration for %r", self)
             log.debug("starting setup for %r", self)
             setup_db(self)
