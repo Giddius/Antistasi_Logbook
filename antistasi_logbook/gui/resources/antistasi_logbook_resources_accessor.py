@@ -34,8 +34,6 @@ OPEN_EYE_IMAGE = ressource_item_factory(file_path='open_eye.svg', qt_path=':/ima
 
 MARK_IMAGE = ressource_item_factory(file_path='mark.png', qt_path=':/images/mark.png')
 
-TXT_FILE_IMAGE = ressource_item_factory(file_path='txt_file.svg', qt_path=':/images/txt_file.svg')
-
 FOLDER_SETTINGS_IMAGE = ressource_item_factory(file_path='folder_settings.svg', qt_path=':/images/folder_settings.svg')
 
 LOG_FILES_TAB_ICON_IMAGE = ressource_item_factory(file_path='log_files_tab_icon.svg', qt_path=':/images/log_files_tab_icon.svg')
@@ -120,6 +118,8 @@ GUI_SETTINGS_IMAGE = ressource_item_factory(file_path='gui_settings.svg', qt_pat
 
 STATS_ICON_IMAGE = ressource_item_factory(file_path='stats_icon.svg', qt_path=':/images/stats_icon.svg')
 
+TXT_FILE_IMAGE = ressource_item_factory(file_path='txt_file.png', qt_path=':/images/txt_file.png')
+
 PARSING_SETTINGS_IMAGE = ressource_item_factory(file_path='parsing_settings.svg', qt_path=':/images/parsing_settings.svg')
 
 
@@ -131,7 +131,6 @@ class AllResourceItems(metaclass=AllResourceItemsMeta):
     filter_page_symbol_image = FILTER_PAGE_SYMBOL_IMAGE
     open_eye_image = OPEN_EYE_IMAGE
     mark_image = MARK_IMAGE
-    txt_file_image = TXT_FILE_IMAGE
     folder_settings_image = FOLDER_SETTINGS_IMAGE
     log_files_tab_icon_image = LOG_FILES_TAB_ICON_IMAGE
     time_settings_image = TIME_SETTINGS_IMAGE
@@ -173,6 +172,7 @@ class AllResourceItems(metaclass=AllResourceItemsMeta):
     antstasifunction_tab_icon_image = ANTSTASIFUNCTION_TAB_ICON_IMAGE
     gui_settings_image = GUI_SETTINGS_IMAGE
     stats_icon_image = STATS_ICON_IMAGE
+    txt_file_image = TXT_FILE_IMAGE
     parsing_settings_image = PARSING_SETTINGS_IMAGE
     spinner_gif = SPINNER_GIF
 

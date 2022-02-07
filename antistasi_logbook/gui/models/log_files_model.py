@@ -124,6 +124,11 @@ class DragTargetWindow(QWidget):
         self.setLayout(QVBoxLayout())
         self.drag_start_label = DragIconLabel(AllResourceItems.txt_file_image.get_as_pixmap(), item=self.item, parent=self)
         self.layout.addWidget(self.drag_start_label)
+        self.close_button = QPushButton("close")
+        self.close_button.clicked.connect(self.close)
+        self.layout.addWidget(self.close_button)
+        self.setWindowModality(Qt.ApplicationModal)
+        self.setWindowFlags(Qt.WindowFlags() | Qt.FramelessWindowHint)
 
     @property
     def layout(self) -> QVBoxLayout:
@@ -142,6 +147,7 @@ class LogFilesModel(BaseQueryDataModel):
         super().__init__(LogFile, parent=parent)
         self.ordered_by = (-LogFile.modified_at, LogFile.server)
         self.filter_item = None
+        self.currently_reparsing: bool = False
 
     def add_context_menu_actions(self, menu: "CustomContextMenu", index: QModelIndex):
         super().add_context_menu_actions(menu, index)
@@ -151,6 +157,8 @@ class LogFilesModel(BaseQueryDataModel):
             return
         force_reparse_action = ModelContextMenuAction(item, column, index, text=f"Force Reparse {item.name}", parent=menu)
         force_reparse_action.clicked.connect(self.reparse_log_file)
+        if self.currently_reparsing is True:
+            force_reparse_action.setEnabled(False)
         menu.add_action(force_reparse_action)
 
         get_original_file_option = ModelContextMenuAction(item, column, index, text=f"Get original file '{item.name}.txt'", parent=menu)
@@ -166,7 +174,9 @@ class LogFilesModel(BaseQueryDataModel):
 
         def _callback(future):
             self.layoutChanged.emit()
+            self.currently_reparsing = False
 
+        self.currently_reparsing = True
         self.layoutAboutToBeChanged.emit()
         task = self.backend.thread_pool.submit(_actual_reparse, item)
         task.add_done_callback(_callback)
@@ -174,6 +184,8 @@ class LogFilesModel(BaseQueryDataModel):
     @Slot(object, object, QModelIndex)
     def get_original_file(self, item: LogFile, column: Field, index: QModelIndex):
         self.drag_window = DragTargetWindow(item=item)
+        pos = QCursor.pos()
+        self.drag_window.move(pos)
         self.drag_window.show()
 
     def change_show_unparsable(self, show_unparsable):

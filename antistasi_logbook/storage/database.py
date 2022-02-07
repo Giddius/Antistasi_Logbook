@@ -15,7 +15,7 @@ from functools import cached_property
 from threading import Lock
 
 # * Third Party Imports --------------------------------------------------------------------------------->
-from apsw import Connection
+from apsw import Connection, SQLITE_CHECKPOINT_TRUNCATE
 from peewee import JOIN, DatabaseProxy
 from playhouse.apsw_ext import APSWDatabase
 
@@ -141,6 +141,7 @@ class GidSqliteApswDatabase(APSWDatabase):
             else:
                 in_path.parent.mkdir(exist_ok=True, parents=True)
                 self.database_path = in_path
+        self.database_existed: bool = self.database_path.is_file()
         self.database_name = self.database_path.name
         self.config = CONFIG if config is None else config
         self.auto_backup = auto_backup
@@ -174,6 +175,13 @@ class GidSqliteApswDatabase(APSWDatabase):
     def _post_start_up(self, **kwargs) -> None:
         self.session_meta_data = DatabaseMetaData.new_session()
 
+    def checkpoint(self, mode=SQLITE_CHECKPOINT_TRUNCATE):
+        self.connect(True)
+        conn = self.connection()
+        result = conn.wal_checkpoint(mode=mode)
+        log.info("checkpoint wal with return: %r", result)
+        self.close()
+
     def start_up(self,
                  overwrite: bool = False,
                  force: bool = False) -> "GidSqliteApswDatabase":
@@ -184,12 +192,13 @@ class GidSqliteApswDatabase(APSWDatabase):
         self._pre_start_up(overwrite=overwrite)
         self.connect(reuse_if_open=True)
         with self.write_lock:
+            if self.database_existed is True:
+                log.debug("starting migration for %r", self)
+                migration(self)
+                log.debug("finished migration for %r", self)
             log.debug("starting setup for %r", self)
             setup_db(self)
             log.debug("finished setup for %r", self)
-            log.debug("starting migration for %r", self)
-            migration(self)
-            log.debug("finished migration for %r", self)
 
         self._post_start_up()
         self.started_up = True
@@ -214,6 +223,7 @@ class GidSqliteApswDatabase(APSWDatabase):
         with self.write_lock:
             self.session_meta_data.save()
         with self.write_lock:
+            self.checkpoint()
             self.close()
 
         log.debug("finished shutting down %r", self)
