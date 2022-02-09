@@ -265,8 +265,8 @@ class Backend:
 
         self.database.connect(True)
         self.fill_record_class_manager()
-        _ = self.foreign_key_cache.all_antistasi_file_objects
-        _ = self.foreign_key_cache.all_antistasi_file_objects_by_id
+        _ = self.foreign_key_cache.all_arma_file_objects
+        _ = self.foreign_key_cache.all_arma_file_objects_by_id
         _ = self.foreign_key_cache.all_game_map_objects
         _ = self.foreign_key_cache.all_game_map_objects_by_id
         _ = self.foreign_key_cache.all_log_levels

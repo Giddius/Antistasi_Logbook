@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS "RecordClass" (
     "name" TEXT UNIQUE NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS "AntstasiFunction" (
+CREATE TABLE IF NOT EXISTS "ArmaFunction" (
     "id" INTEGER PRIMARY KEY,
     "name" TEXT UNIQUE NOT NULL
 );
@@ -108,10 +108,10 @@ CREATE TABLE IF NOT EXISTS "LogRecord" (
     "start" INTEGER NOT NULL,
     "message" TEXT NOT NULL,
     "recorded_at" DATETIME NOT NULL,
-    "called_by" INTEGER REFERENCES "AntstasiFunction" ("id") ON DELETE CASCADE,
+    "called_by" INTEGER REFERENCES "ArmaFunction" ("id") ON DELETE CASCADE,
     "client" TEXT,
     "is_antistasi_record" BOOL DEFAULT (0),
-    "logged_from" INTEGER REFERENCES "AntstasiFunction" ("id") ON DELETE CASCADE,
+    "logged_from" INTEGER REFERENCES "ArmaFunction" ("id") ON DELETE CASCADE,
     "log_file" INTEGER NOT NULL REFERENCES "LogFile" ("id") ON DELETE CASCADE,
     "log_level" INTEGER DEFAULT 0 REFERENCES "LogLevel" ("id") ON DELETE CASCADE,
     "record_class" INTEGER NOT NULL REFERENCES "RecordClass" ("id") ON DELETE CASCADE,

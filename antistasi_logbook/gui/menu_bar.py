@@ -23,7 +23,7 @@ from gidapptools.general_helper.string_helper import StringCase, StringCaseConve
 from gidapptools.gidapptools_qt.basics.menu_bar import BaseMenuBar
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.storage.models.models import Mod, GameMap, Version, LogLevel, BaseModel, RecordClass, RecordOrigin, RemoteStorage, AntstasiFunction
+from antistasi_logbook.storage.models.models import Mod, GameMap, Version, LogLevel, BaseModel, RecordClass, RecordOrigin, RemoteStorage, ArmaFunction
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
@@ -115,7 +115,7 @@ class LogbookMenuBar(BaseMenuBar):
 
         self.data_menu = self.add_new_menu("Data", parent_menu=self.view_menu)
         self.show_game_maps_action = self.add_action(self.data_menu, DataMenuAction(GameMap, self.data_menu))
-        self.show_antistasi_function_action = self.add_action(self.data_menu, DataMenuAction(AntstasiFunction, self.data_menu))
+        self.show_antistasi_function_action = self.add_action(self.data_menu, DataMenuAction(ArmaFunction, self.data_menu))
         self.show_mods_action = self.add_action(self.data_menu, DataMenuAction(Mod, self.data_menu))
         self.show_origins_action = self.add_action(self.data_menu, DataMenuAction(RecordOrigin, self.data_menu))
         self.show_versions_action = self.add_action(self.data_menu, DataMenuAction(Version, self.data_menu))

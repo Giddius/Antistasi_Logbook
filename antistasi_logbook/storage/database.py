@@ -28,7 +28,7 @@ from gidapptools.general_helper.conversion import human2bytes
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook import setup
 from antistasi_logbook.storage.models.models import (Server, GameMap, LogFile, Version, LogLevel, LogRecord, RecordClass, RecordOrigin,
-                                                     RemoteStorage, AntstasiFunction, DatabaseMetaData, setup_db)
+                                                     RemoteStorage, ArmaFunction, DatabaseMetaData, setup_db)
 from antistasi_logbook.storage.models.migration import run_migration
 
 setup()
@@ -252,9 +252,9 @@ class GidSqliteApswDatabase(APSWDatabase):
 
         return result
 
-    def get_all_antistasi_functions(self, ordered_by=AntstasiFunction.id) -> tuple[AntstasiFunction]:
+    def get_all_arma_functions(self, ordered_by=ArmaFunction.id) -> tuple[ArmaFunction]:
         with self.connection_context() as ctx:
-            result = tuple(AntstasiFunction.select().order_by(ordered_by))
+            result = tuple(ArmaFunction.select().order_by(ordered_by))
 
         return result
 
@@ -284,7 +284,8 @@ class GidSqliteApswDatabase(APSWDatabase):
         if only_missing_record_class is True:
             query = query.where((LogRecord.record_class >> None))
         for record in query.iterator():
-            record.logged_from = self.foreign_key_cache.get_antistasi_file_by_id(record.logged_from_id)
+            record.called_by = self.foreign_key_cache.get_arma_file_by_id(record.called_by_id)
+            record.logged_from = self.foreign_key_cache.get_arma_file_by_id(record.logged_from_id)
             record.origin = self.foreign_key_cache.get_origin_by_id(record.origin_id)
             yield record
         self.close()

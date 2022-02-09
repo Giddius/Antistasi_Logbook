@@ -56,7 +56,7 @@ from antistasi_logbook.gui.views.base_query_tree_view import BaseQueryTreeView
 from antistasi_logbook.gui.models.record_classes_model import RecordClassesModel
 from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel
 from antistasi_logbook.gui.models.remote_storages_model import RemoteStoragesModel
-from antistasi_logbook.gui.models.antistasi_function_model import AntistasiFunctionModel
+from antistasi_logbook.gui.models.arma_function_model import ArmaFunctionModel
 from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 
@@ -291,7 +291,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.statusbar.setup()
 
     def show_secondary_model_data(self, db_model: "BaseModel"):
-        models = {"AntstasiFunction": AntistasiFunctionModel,
+        models = {"ArmaFunction": ArmaFunctionModel,
                   "GameMap": GameMapModel,
                   "Version": VersionModel,
                   "Mod": ModsModel,

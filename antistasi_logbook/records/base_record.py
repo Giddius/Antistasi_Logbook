@@ -34,7 +34,7 @@ from gidapptools.general_helper.string_helper import shorten_string
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
-    from antistasi_logbook.storage.models.models import LogFile, LogLevel, LogRecord, RecordOrigin, AntstasiFunction
+    from antistasi_logbook.storage.models.models import LogFile, LogLevel, LogRecord, RecordOrigin, ArmaFunction
     from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 
 # endregion[Imports]
@@ -116,8 +116,8 @@ class BaseRecord(AbstractRecord):
                  recorded_at: datetime,
                  log_level: "LogLevel",
                  marked: bool,
-                 called_by: "AntstasiFunction" = None,
-                 logged_from: "AntstasiFunction" = None) -> None:
+                 called_by: "ArmaFunction" = None,
+                 logged_from: "ArmaFunction" = None) -> None:
         self.record_id = record_id
         self.log_file = log_file
         self.origin = origin
@@ -226,8 +226,8 @@ class BaseRecord(AbstractRecord):
                    recorded_at=model_dict["recorded_at"],
                    log_level=cls.foreign_key_cache.get_log_level_by_id(model_dict['log_level']),
                    marked=model_dict["marked"],
-                   called_by=cls.foreign_key_cache.get_antistasi_file_by_id(model_dict["called_by"]),
-                   logged_from=cls.foreign_key_cache.get_antistasi_file_by_id(model_dict["logged_from"]))
+                   called_by=cls.foreign_key_cache.get_arma_file_by_id(model_dict["called_by"]),
+                   logged_from=cls.foreign_key_cache.get_arma_file_by_id(model_dict["logged_from"]))
 
     def __getattr__(self, name: str):
         if name == "id":

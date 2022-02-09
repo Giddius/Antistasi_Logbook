@@ -27,8 +27,8 @@ from dateutil.tz import UTC
 from gidapptools import get_logger
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.gui.models import LogLevelsModel, RecordClassesModel, RecordOriginsModel, AntistasiFunctionModel
-from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord, AntstasiFunction
+from antistasi_logbook.gui.models import LogLevelsModel, RecordClassesModel, RecordOriginsModel, ArmaFunctionModel
+from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord, ArmaFunction
 from antistasi_logbook.gui.models.server_model import ServerModel
 from antistasi_logbook.gui.models.version_model import VersionModel
 from antistasi_logbook.gui.models.game_map_model import GameMapModel
@@ -559,8 +559,8 @@ class LogRecordFilterPage(BaseDataToolPage):
         self.layout.addRow("Filter by Log-Level", self.filter_by_log_level_combo_box)
 
         self.filter_by_logged_from_combo_box = AntistasiFunctionSelectComboBox()
-        logged_from_model = AntistasiFunctionModel()
-        logged_from_model.ordered_by = (AntstasiFunction.name,)
+        logged_from_model = ArmaFunctionModel()
+        logged_from_model.ordered_by = (ArmaFunction.name,)
         logged_from_model.refresh()
         logged_from_model.add_empty_item()
         self.filter_by_logged_from_combo_box.setModel(logged_from_model)
@@ -570,8 +570,8 @@ class LogRecordFilterPage(BaseDataToolPage):
         self.layout.addRow("Filter by Logged-from", self.filter_by_logged_from_combo_box)
 
         self.filter_by_called_by_combo_box = AntistasiFunctionSelectComboBox()
-        called_by_model = AntistasiFunctionModel()
-        called_by_model.ordered_by = (AntstasiFunction.name,)
+        called_by_model = ArmaFunctionModel()
+        called_by_model.ordered_by = (ArmaFunction.name,)
         called_by_model.refresh()
         called_by_model.add_empty_item()
         self.filter_by_called_by_combo_box.setModel(called_by_model)

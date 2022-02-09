@@ -3,7 +3,7 @@ from antistasi_logbook.updating.updater import Updater
 from antistasi_logbook.utilities.path_utilities import RemotePath
 from antistasi_logbook.utilities.misc import frozen_time_giver, Version
 from antistasi_logbook.storage.database import GidSqliteApswDatabase
-from antistasi_logbook.storage.models.models import LogFile, LogRecord, Server, AntstasiFunction, RecordClass, LogLevel
+from antistasi_logbook.storage.models.models import LogFile, LogRecord, Server, ArmaFunction, RecordClass, LogLevel
 from antistasi_logbook.updating.remote_managers import FakeWebdavManager, WebdavManager
 from gidapptools import get_logger
 from gidapptools.general_helper.timing import time_execution

@@ -17,7 +17,7 @@ from PySide6 import QtCore
 from gidapptools import get_logger
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.storage.models.models import AntstasiFunction
+from antistasi_logbook.storage.models.models import ArmaFunction
 from antistasi_logbook.storage.models.custom_fields import FakeField
 from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel
 
@@ -47,12 +47,12 @@ log = get_logger(__name__)
 # endregion[Constants]
 
 
-class AntistasiFunctionModel(BaseQueryDataModel):
+class ArmaFunctionModel(BaseQueryDataModel):
     extra_columns = {FakeField("file_name", "File Name"), FakeField("function_name", "Function Name")}
 
     def __init__(self, parent: Optional[QtCore.QObject] = None) -> None:
 
-        super().__init__(AntstasiFunction, parent=parent)
+        super().__init__(ArmaFunction, parent=parent)
         self.filter_item = None
 
 

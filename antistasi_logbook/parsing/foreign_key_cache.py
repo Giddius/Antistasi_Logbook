@@ -19,7 +19,7 @@ from gidapptools import get_logger
 from gidapptools.general_helper.concurrency.events import BlockingEvent
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.storage.models.models import GameMap, Version, LogLevel, RecordOrigin, AntstasiFunction
+from antistasi_logbook.storage.models.models import GameMap, Version, LogLevel, RecordOrigin, ArmaFunction
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
@@ -61,15 +61,15 @@ class ForeignKeyCache:
 
     log_levels_blocker = BlockingEvent()
     game_map_model_blocker = BlockingEvent()
-    antistasi_file_model_blocker = BlockingEvent()
+    arma_file_model_blocker = BlockingEvent()
     origin_blocker = BlockingEvent()
     version_blocker = BlockingEvent()
 
     _all_log_levels: dict[str, LogLevel] = None
     _all_log_levels_by_id: dict[int, LogLevel] = None
 
-    _all_antistasi_file_objects: dict[str, AntstasiFunction] = None
-    _all_antistasi_file_objects_by_id: dict[str, AntstasiFunction] = None
+    _all_arma_file_objects: dict[tuple[str, str], ArmaFunction] = None
+    _all_arma_file_objects_by_id: dict[str, ArmaFunction] = None
 
     _all_game_map_objects: dict[str, GameMap] = None
     _all_game_map_objects_by_id: dict[str, GameMap] = None
@@ -85,7 +85,7 @@ class ForeignKeyCache:
     def __init__(self, backend: "Backend") -> None:
         self.backend = backend
         self.backend.database.foreign_key_cache = self
-        self.update_map = {AntstasiFunction: (self.antistasi_file_model_blocker, ("_all_antistasi_file_objects", "_all_antistasi_file_objects_by_id")),
+        self.update_map = {ArmaFunction: (self.arma_file_model_blocker, ("_all_arma_file_objects", "_all_arma_file_objects_by_id")),
                            GameMap: (self.game_map_model_blocker, ("_all_game_map_objects", "_all_game_map_objects_by_id")),
                            LogLevel: (self.log_levels_blocker, ("_all_log_levels", "_all_log_levels_by_id")),
                            RecordOrigin: (self.origin_blocker, ("_all_origin_objects", "_all_origin_objects_by_id")),
@@ -123,13 +123,13 @@ class ForeignKeyCache:
         return self.__class__._all_log_levels
 
     @property
-    def all_antistasi_file_objects(self) -> dict[str, AntstasiFunction]:
+    def all_arma_file_objects(self) -> dict[tuple[str, str], ArmaFunction]:
 
-        if self.__class__._all_antistasi_file_objects is None:
-            self.antistasi_file_model_blocker.wait()
-            self.__class__._all_antistasi_file_objects = {antistasi_file.name: antistasi_file for antistasi_file in self.database.get_all_antistasi_functions()}
+        if self.__class__._all_arma_file_objects is None:
+            self.arma_file_model_blocker.wait()
+            self.__class__._all_arma_file_objects = {(antistasi_file.name, antistasi_file.author_prefix): antistasi_file for antistasi_file in self.database.get_all_arma_functions()}
 
-        return self.__class__._all_antistasi_file_objects
+        return self.__class__._all_arma_file_objects
 
     @property
     def all_game_map_objects(self) -> dict[str, GameMap]:
@@ -150,13 +150,13 @@ class ForeignKeyCache:
         return self.__class__._all_log_levels_by_id
 
     @property
-    def all_antistasi_file_objects_by_id(self) -> dict[str, AntstasiFunction]:
+    def all_arma_file_objects_by_id(self) -> dict[str, ArmaFunction]:
 
-        if self.__class__._all_antistasi_file_objects_by_id is None:
-            self.antistasi_file_model_blocker.wait()
-            self.__class__._all_antistasi_file_objects_by_id = {str(antistasi_file.id): antistasi_file for antistasi_file in self.database.get_all_antistasi_functions()}
+        if self.__class__._all_arma_file_objects_by_id is None:
+            self.arma_file_model_blocker.wait()
+            self.__class__._all_arma_file_objects_by_id = {str(antistasi_file.id): antistasi_file for antistasi_file in self.database.get_all_arma_functions()}
 
-        return self.__class__._all_antistasi_file_objects_by_id
+        return self.__class__._all_arma_file_objects_by_id
 
     @property
     def all_game_map_objects_by_id(self) -> dict[str, GameMap]:
@@ -200,9 +200,9 @@ class ForeignKeyCache:
 
         return self.all_log_levels_by_id.get(model_id)
 
-    def get_antistasi_file_by_id(self, model_id: int) -> Optional[AntstasiFunction]:
+    def get_arma_file_by_id(self, model_id: int) -> Optional[ArmaFunction]:
 
-        return self.all_antistasi_file_objects_by_id.get(str(model_id))
+        return self.all_arma_file_objects_by_id.get(str(model_id))
 
     def get_game_map_by_id(self, model_id: int) -> Optional[GameMap]:
 
@@ -220,10 +220,10 @@ class ForeignKeyCache:
 
         """
         self.__class__._all_log_levels = None
-        self.__class__._all_antistasi_file_objects = None
+        self.__class__._all_arma_file_objects = None
         self.__class__._all_game_map_objects = None
         self.__class__._all_log_levels_by_id = None
-        self.__class__._all_antistasi_file_objects_by_id = None
+        self.__class__._all_arma_file_objects_by_id = None
         self.__class__._all_game_map_objects_by_id = None
         self.__class__._all_origin_objects = None
         self.__class__._all_origin_objects_by_id = None
