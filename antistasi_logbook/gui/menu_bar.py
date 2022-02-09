@@ -15,7 +15,7 @@ from weakref import WeakSet
 import PySide6
 from PySide6.QtGui import QAction
 from PySide6.QtCore import Signal, QObject
-from PySide6.QtWidgets import QWidget, QApplication
+from PySide6.QtWidgets import QWidget, QApplication, QStyle
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -95,8 +95,8 @@ class LogbookMenuBar(BaseMenuBar):
     def app(self) -> "AntistasiLogbookApplication":
         return QApplication.instance()
 
-    def setup_menus(self) -> None:
-        super().setup_menus()
+    def setup_extra_menus(self) -> None:
+        super().setup_extra_menus()
 
         self.database_menu = self.add_new_menu("Database", add_before=self.help_menu.menuAction())
         self.single_update_action = self.add_new_action(self.database_menu, "Update Once")
@@ -107,9 +107,10 @@ class LogbookMenuBar(BaseMenuBar):
 
         self.exit_action.setIcon(AllResourceItems.close_cancel_image.get_as_icon())
 
-        self.show_folder_action = self.add_new_action(self.help_menu, "Show Folder", add_before=self.help_separator)
+        self.show_folder_action = self.add_new_action(self.help_menu, "Show Folder", add_before=self.help_separator, icon=self.style().standardIcon(QStyle.SP_DirIcon))
+
         self.show_app_log_action = self.add_new_action(self.help_menu, "Show App Log", add_before=self.help_separator)
-        self.show_errors_action = self.add_new_action(self.help_menu, "Show Errors", add_before=self.help_separator)
+        self.show_errors_action = self.add_new_action(self.help_menu, "Show Errors", add_before=self.help_separator, icon=AllResourceItems.error_symbol_image.get_as_icon())
         self.open_credentials_managment_action = self.add_new_action(self.settings_menu, "Credentials Managment")
 
         self.data_menu = self.add_new_menu("Data", parent_menu=self.view_menu)

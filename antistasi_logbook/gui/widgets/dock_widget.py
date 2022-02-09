@@ -69,6 +69,7 @@ class BaseDockWidget(QDockWidget):
         view_action = self.toggleViewAction()
         view_action.setText(f"{self.title} Window")
         add_to_menu.addAction(view_action)
+        add_to_menu.setEnabled(True)
 
     @property
     def app(self) -> "AntistasiLogbookApplication":

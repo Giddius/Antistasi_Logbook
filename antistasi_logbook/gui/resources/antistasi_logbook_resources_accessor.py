@@ -62,6 +62,8 @@ CHECK_MARK_GREEN_IMAGE = ressource_item_factory(file_path='check_mark_green.svg'
 
 SETTINGS_WINDOW_SYMBOL_IMAGE = ressource_item_factory(file_path='settings_window_symbol.svg', qt_path=':/images/settings_window_symbol.svg')
 
+ERROR_SYMBOL_IMAGE = ressource_item_factory(file_path='error_symbol.svg', qt_path=':/images/error_symbol.svg')
+
 CLOSE_BLACK_IMAGE = ressource_item_factory(file_path='close_black.svg', qt_path=':/images/close_black.svg')
 
 PLACEHOLDER_IMAGE = ressource_item_factory(file_path='placeholder.png', qt_path=':/images/placeholder.png')
@@ -145,6 +147,7 @@ class AllResourceItems(metaclass=AllResourceItemsMeta):
     warning_sign_triangle_red_image = WARNING_SIGN_TRIANGLE_RED_IMAGE
     check_mark_green_image = CHECK_MARK_GREEN_IMAGE
     settings_window_symbol_image = SETTINGS_WINDOW_SYMBOL_IMAGE
+    error_symbol_image = ERROR_SYMBOL_IMAGE
     close_black_image = CLOSE_BLACK_IMAGE
     placeholder_image = PLACEHOLDER_IMAGE
     antistasi_logbook_splash_backup_image = ANTISTASI_LOGBOOK_SPLASH_BACKUP_IMAGE

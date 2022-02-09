@@ -257,6 +257,8 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
     def set_menubar(self, menubar: QMenuBar) -> None:
         self.menubar = menubar
+        self.menubar.setParent(self)
+        self.menubar.setup()
         self.setMenuBar(menubar)
 
     def set_main_widget(self, main_widget: QWidget) -> None:
