@@ -193,7 +193,7 @@ class TimeDeltaValueField(QWidget):
         return self.get_value() != self.start_value
 
     def set_value(self, value: timedelta, is_start: bool = False):
-        parts = seconds2human(value, as_list_result=True)
+        parts = seconds2human(value, as_dict_result=True)
         for _unit, _value in parts.items():
             self.inputs[_unit].setValue(_value)
         if is_start:

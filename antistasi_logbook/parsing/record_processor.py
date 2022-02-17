@@ -18,13 +18,13 @@ from concurrent.futures import Future, ThreadPoolExecutor
 import attr
 from dateutil.tz import UTC, tzoffset
 from playhouse.shortcuts import update_model_from_dict
-
+from peewee import DoesNotExist, DatabaseError
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.parsing.raw_record import RawRecord
-from antistasi_logbook.storage.models.models import Mod, GameMap, LogFile, LogRecord, RecordClass, RecordOrigin, ArmaFunction, LogFileAndModJoin
+from antistasi_logbook.storage.models.models import Mod, GameMap, LogFile, LogRecord, RecordClass, RecordOrigin, ArmaFunction, LogFileAndModJoin, ArmaFunctionAuthorPrefix
 from antistasi_logbook.parsing.parsing_context import LogParsingContext
 from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 
@@ -290,17 +290,26 @@ class RecordProcessor:
         record_class = self.record_class_manager.determine_record_class(raw_record)
         return record_class
 
+    @profile
     def _convert_raw_record_foreign_keys(self, parsed_data: Optional[dict[str, Any]], utc_offset: tzoffset) -> Optional[dict[str, Any]]:
-
+        @profile
         def _get_or_create_antistasi_file(raw_name: str) -> ArmaFunction:
             parsed_function_data = ArmaFunction.parse_raw_function_name(raw_name)
             try:
-                return self.foreign_key_cache.all_arma_file_objects[tuple(parsed_function_data.values())]
-            except KeyError:
-                with self.database.write_lock:
+                return self.foreign_key_cache.all_arma_file_objects[(parsed_function_data["name"], parsed_function_data["author_prefix"])]
 
-                    ArmaFunction.insert(**parsed_function_data).on_conflict_ignore().execute()
-                    return ArmaFunction.get(**parsed_function_data)
+            except KeyError:
+
+                try:
+                    author_prefix = ArmaFunctionAuthorPrefix.get(name=parsed_function_data["author_prefix"])
+                except DoesNotExist:
+                    with self.database.write_lock:
+                        ArmaFunctionAuthorPrefix.insert(name=parsed_function_data["author_prefix"]).on_conflict_ignore().execute()
+                    author_prefix = ArmaFunctionAuthorPrefix.get(name=parsed_function_data["author_prefix"])
+                with self.database.write_lock:
+                    ArmaFunction.insert(name=parsed_function_data["name"], author_prefix=author_prefix.id).on_conflict_ignore().execute()
+
+                return ArmaFunction.get(name=parsed_function_data["name"], author_prefix=author_prefix.id)
 
         if parsed_data is None:
             return parsed_data
@@ -341,6 +350,7 @@ class RecordProcessor:
         raw_record.parsed_data = self._convert_raw_record_foreign_keys(parsed_data=raw_record.parsed_data, utc_offset=utc_offset)
 
         return raw_record
+
 
         # region[Main_Exec]
 if __name__ == '__main__':

@@ -60,6 +60,7 @@ class BaseDockWidget(QDockWidget):
         self.first_shown: bool = False
         self.setHidden(start_hidden)
         self.setFloating(start_floating)
+        allowed_areas = Qt.DockWidgetAreas() | allowed_areas
         self.setAllowedAreas(allowed_areas)
         self.setFeatures(features)
         if add_to_menu is not None:

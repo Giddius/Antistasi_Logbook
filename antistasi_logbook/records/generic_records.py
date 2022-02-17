@@ -79,9 +79,6 @@ class PerfProfilingRecord(BaseRecord):
 
         return False
 
-    def get_background_color(self):
-        return Color.get_color_by_name("green").with_alpha(0.75).qcolor
-
 
 ALL_GENERIC_RECORD_CLASSES.add(PerfProfilingRecord)
 
@@ -109,9 +106,6 @@ class TFEInfoSettings(BaseRecord):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._array_data = None
-
-    def get_background_color(self):
-        return Color.get_color_by_name("BlueViolet").with_alpha(0.2).qcolor
 
     @property
     def array_data(self):
@@ -178,9 +172,6 @@ class PlayerDisconnected(BaseRecord):
 
         self.array_data = parse_text_array(fix_multiple_quotes(data_array_text))
 
-    def get_background_color(self):
-        return Color.get_color_by_name("DeepPink").with_alpha(0.2).qcolor
-
     def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
         if msg_format is MessageFormat.PRETTY:
             text = "[TFE] Info: Player disconnected: "
@@ -237,9 +228,6 @@ class PlayerConnected(BaseRecord):
         self.player_id = player_id.strip('" ')
 
         self.array_data = parse_text_array(fix_multiple_quotes(data_array_text))
-
-    def get_background_color(self):
-        return Color.get_color_by_name("Ivory").with_alpha(0.2).qcolor
 
     def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
         if msg_format is MessageFormat.PRETTY:

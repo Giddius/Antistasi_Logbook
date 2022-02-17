@@ -49,6 +49,7 @@ log = get_logger(__name__)
 
 class ArmaFunctionModel(BaseQueryDataModel):
     extra_columns = {FakeField("file_name", "File Name"), FakeField("function_name", "Function Name")}
+    _item_size_by_column_name = {"link": 250, "local_path": 250}
 
     def __init__(self, parent: Optional[QtCore.QObject] = None) -> None:
 

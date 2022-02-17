@@ -296,7 +296,7 @@ class Backend:
         for ctx in self.all_parsing_context:
             log.debug("checking ctx %r", ctx)
             while ctx.is_open is True:
-                sleep(0.1)
+                sleep(0.0001)
             all_futures += ctx.futures
         log.debug("waiting for all futures to finish")
         wait(all_futures, return_when=ALL_COMPLETED, timeout=3.0)

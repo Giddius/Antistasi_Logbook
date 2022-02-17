@@ -14,8 +14,8 @@ from pathlib import Path
 
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
-from PySide6.QtGui import Qt, QFont, QColor, QAction, QPixmap, QTextFormat, QTextOption, QFontMetrics, QTextDocument, QTextCharFormat, QDesktopServices, QSyntaxHighlighter
-from PySide6.QtCore import Qt, QUrl, QAbstractTableModel
+from PySide6.QtGui import QFont, QColor, QAction, QPixmap, QMouseEvent, QDrag, QTextFormat, QTextOption, QFontMetrics, QTextDocument, QTextCharFormat, QDesktopServices, QSyntaxHighlighter
+from PySide6.QtCore import Qt, QUrl, QAbstractTableModel, QSize, QMimeData
 from PySide6.QtWidgets import (QMenu, QLabel, QWidget, QGroupBox, QLineEdit, QListView, QTextEdit, QLCDNumber, QFormLayout,
                                QHBoxLayout, QPushButton, QVBoxLayout, QApplication, QInputDialog, QTextBrowser)
 
@@ -489,7 +489,7 @@ class AbstractSyntaxHighlightRule(ABC):
 
     @property
     def name(self) -> str:
-        return StringCaseConverter.to_snake_case(self.suffix_remove_pattern.sub("", self.__class__.__name__))
+        return StringCaseConverter.convert_to(self.suffix_remove_pattern.sub("", self.__class__.__name__), StringCase.SNAKE)
 
     @property
     def style_format(self) -> QTextFormat:

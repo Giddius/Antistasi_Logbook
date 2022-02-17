@@ -71,9 +71,6 @@ class BaseAntistasiRecord(BaseRecord):
                  "qt_attributes",
                  "pretty_attribute_cache")
 
-    def get_background_color(self):
-        return Color.get_color_by_name("White").with_alpha(0.01).qcolor
-
     @classmethod
     def check(cls, log_record: "LogRecord") -> bool:
         return True
@@ -116,9 +113,6 @@ class PerformanceRecord(BaseAntistasiRecord):
         super().__init__(*args, **kwargs)
         self._stats: dict[str, Union[float, int]] = None
 
-    def get_background_color(self):
-        return Color.get_color_by_name("LightSteelBlue").with_alpha(0.5).qcolor
-
     @property
     def stats(self) -> dict[str, Union[int, float]]:
         if self._stats is None:
@@ -151,7 +145,7 @@ class PerformanceRecord(BaseAntistasiRecord):
         if logged_from is None:
             return False
 
-        if logged_from.name == "logPerformance":
+        if logged_from.function_name == "A3A_fnc_logPerformance":
 
             return True
 
@@ -179,16 +173,13 @@ class IsNewCampaignRecord(BaseAntistasiRecord):
                  "qt_attributes",
                  "pretty_attribute_cache")
 
-    def get_background_color(self):
-        return Color.get_color_by_name("LightGreen").with_alpha(0.5).qcolor
-
     @classmethod
     def check(cls, log_record: "LogRecord") -> bool:
         logged_from = log_record.logged_from
 
         if logged_from is None:
             return False
-        if logged_from.name == "initServer" and "Creating new campaign with ID" in log_record.message:
+        if logged_from.function_name == "A3A_fnc_initServer" and "Creating new campaign with ID" in log_record.message:
             return True
 
         return False
@@ -222,9 +213,6 @@ class FFPunishmentRecord(BaseAntistasiRecord):
         super().__init__(*args, **kwargs)
         self._punishment_type: str = None
 
-    def get_background_color(self):
-        return Color.get_color_by_name("OliveDrab").with_alpha(0.5).qcolor
-
     @property
     def punishment_type(self) -> str:
         if self._punishment_type is None:
@@ -237,7 +225,7 @@ class FFPunishmentRecord(BaseAntistasiRecord):
 
         if logged_from is None:
             return False
-        if logged_from.name in {"punishment_FF", "punishment"}:
+        if logged_from.function_name in {"A3A_fnc_punishment_FF", "A3A_fnc_punishment"}:
             return True
 
         return False
@@ -275,9 +263,6 @@ class UpdatePreferenceRecord(BaseAntistasiRecord):
         self.category = self.msg_start_regex.match(self.message.lstrip()).group("category")
         self._array_data: list[list[Any]] = None
 
-    def get_background_color(self):
-        return Color.get_color_by_name("Peru").with_alpha(0.5).qcolor
-
     @property
     def array_data(self) -> list[list[Any]]:
         if self._array_data is None:
@@ -290,7 +275,7 @@ class UpdatePreferenceRecord(BaseAntistasiRecord):
 
         if logged_from is None:
             return False
-        if logged_from.name in {"updatePreference"} and cls.msg_start_regex.match(log_record.message.lstrip()) and "[" in log_record.message:
+        if logged_from.function_name in {"A3A_fnc_updatePreference"} and cls.msg_start_regex.match(log_record.message.lstrip()) and "[" in log_record.message:
             return True
         return False
 
@@ -328,9 +313,6 @@ class CreateConvoyInputRecord(BaseAntistasiRecord):
         super().__init__(*args, **kwargs)
         self._array_data: list[list[Any]] = None
 
-    def get_background_color(self):
-        return Color.get_color_by_name("Wheat").with_alpha(0.5).qcolor
-
     @property
     def array_data(self) -> list[list[Any]]:
         if self._array_data is None:
@@ -344,7 +326,7 @@ class CreateConvoyInputRecord(BaseAntistasiRecord):
 
         if logged_from is None:
             return
-        if logged_from.name in {"createConvoy"} and log_record.message.casefold().startswith("input"):
+        if logged_from.function_name in {"A3A_fnc_createConvoy"} and log_record.message.casefold().startswith("input"):
             return True
         return False
 
@@ -387,9 +369,6 @@ class SaveParametersRecord(BaseAntistasiRecord):
         super().__init__(*args, **kwargs)
         self._kv_data: dict[str, Any] = None
 
-    def get_background_color(self):
-        return Color.get_color_by_name("PeachPuff").with_alpha(0.5).qcolor
-
     @property
     def kv_data(self) -> dict[str, Any]:
         if self._kv_data is None:
@@ -407,7 +386,7 @@ class SaveParametersRecord(BaseAntistasiRecord):
 
         if logged_from is None:
             return
-        if logged_from.name in {"saveLoop"} and '[' in log_record.message and ']' in log_record.message:
+        if logged_from.function_name in {"A3A_fnc_saveLoop"} and '[' in log_record.message and ']' in log_record.message:
             return True
         return False
 
@@ -459,9 +438,6 @@ class ResourceCheckRecord(BaseAntistasiRecord):
         self._stats: dict[str, float] = None
         self.side = self.side_regex.match(self.message).group("side")
 
-    def get_background_color(self):
-        return Color.get_color_by_name("DarkSalmon").with_alpha(0.5).qcolor
-
     @property
     def stats(self) -> dict[str, float]:
         if self._stats is None:
@@ -485,7 +461,7 @@ class ResourceCheckRecord(BaseAntistasiRecord):
 
         if logged_from is None:
             return
-        if logged_from.name in {"economicsAI"} and '[' in log_record.message and ']' in log_record.message:
+        if logged_from.function_name in {"A3A_fnc_economicsAI"} and '[' in log_record.message and ']' in log_record.message:
             return True
         return False
 
@@ -536,9 +512,6 @@ class FreeSpawnPositionsRecord(BaseAntistasiRecord):
         self._array_data: list[list[Any]] = None
         self.place = self.place_regex.search(self.message).group("place")
 
-    def get_background_color(self):
-        return Color.get_color_by_name("pink").with_alpha(0.5).qcolor
-
     @property
     def array_data(self) -> list[list[Any]]:
         if self._array_data is None:
@@ -565,7 +538,7 @@ class FreeSpawnPositionsRecord(BaseAntistasiRecord):
 
         if logged_from is None:
             return
-        if logged_from.name in {"freeSpawnPositions"} and log_record.message.startswith("spawn places for") and '[' in log_record.message and ']' in log_record.message:
+        if logged_from.function_name in {"A3A_fnc_freeSpawnPositions"} and log_record.message.startswith("spawn places for") and '[' in log_record.message and ']' in log_record.message:
             return True
         return False
 
@@ -607,9 +580,6 @@ class SelectReinfUnitsRecord(BaseAntistasiRecord):
         self.cargo_array_data: list[list[Any]] = None
         self.parse_it()
 
-    def get_background_color(self):
-        return Color.get_color_by_name("Gold").with_alpha(0.5).qcolor
-
     def parse_it(self):
         match = self.parse_regex.search(self.message)
         if match:
@@ -634,7 +604,7 @@ class SelectReinfUnitsRecord(BaseAntistasiRecord):
 
         if logged_from is None:
             return
-        if logged_from.name in {"selectReinfUnits"} and '[' in log_record.message and ']' in log_record.message:
+        if logged_from.function_name in {"A3A_fnc_selectReinfUnits"} and '[' in log_record.message and ']' in log_record.message:
             return True
         return False
 
@@ -669,9 +639,6 @@ class ChangingSidesRecord(BaseAntistasiRecord):
         self.side: str = None
         self.parse_it()
 
-    def get_background_color(self):
-        return Color.get_color_by_name("Moccasin").with_alpha(0.5).qcolor
-
     def parse_it(self):
         if match := self.parse_regex.search(self.message):
             self.location_name = match.group("location")
@@ -685,7 +652,7 @@ class ChangingSidesRecord(BaseAntistasiRecord):
 
         if logged_from is None:
             return
-        if logged_from.name in {"markerChange"} and log_record.message.strip().startswith("Changing side of"):
+        if logged_from.function_name in {"A3A_fnc_markerChange"} and log_record.message.strip().startswith("Changing side of"):
             return True
         return False
 
@@ -721,9 +688,6 @@ class ToggleLockRecord(BaseAntistasiRecord):
         self.lock_status: bool = None
         self.parse_it()
 
-    def get_background_color(self):
-        return Color.get_color_by_name("Gainsboro").with_alpha(0.5).qcolor
-
     def parse_it(self):
         try:
             id_part, player_part, lock_part = self.message.split("|")
@@ -747,7 +711,7 @@ class ToggleLockRecord(BaseAntistasiRecord):
 
         if logged_from is None:
             return
-        if logged_from.name in {"toggleLock"} and log_record.message.strip().startswith("Lock state toggled for Vehicle ID:"):
+        if logged_from.function_name in {"HR_GRG_fnc_toggleLock"} and log_record.message.strip().startswith("Lock state toggled for Vehicle ID:"):
             return True
         return False
 

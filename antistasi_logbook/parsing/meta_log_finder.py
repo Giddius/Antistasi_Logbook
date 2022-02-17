@@ -83,7 +83,7 @@ class MetaFinder:
     def _resolve_version(self, text: str) -> None:
         if match := self.regex_keeper.version.search(text):
             version = VersionItem.from_string(match.group("version").strip())
-            log.debug("setting version to %r", self.version)
+
             self.version = version
         elif match := self.regex_keeper.game_file.search(text):
             raw = match.group('game_file')
@@ -92,7 +92,7 @@ class MetaFinder:
                 while len(version_args) < 3:
                     version_args.append('MISSING')
                 version = VersionItem(*version_args)
-                log.debug("setting version to %r", self.version)
+
                 self.version = version
 
     def _resolve_game_map(self, text: str) -> None:
@@ -127,7 +127,7 @@ class MetaFinder:
             self._resolve_game_map(text)
 
         if self.version is MiscEnum.NOT_FOUND:
-            log.debug("resolving version")
+
             self._resolve_version(text)
 
         if self.full_datetime is MiscEnum.NOT_FOUND:

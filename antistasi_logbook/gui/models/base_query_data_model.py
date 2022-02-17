@@ -14,7 +14,7 @@ from pathlib import Path
 import PySide6
 from PySide6 import QtCore
 from PySide6.QtGui import QIcon, QColor, QAction
-from PySide6.QtCore import Qt, Slot, QSize, Signal, QModelIndex, QAbstractTableModel, QPersistentModelIndex
+from PySide6.QtCore import Qt, Slot, QSize, Signal, QModelIndex, QAbstractTableModel, QPersistentModelIndex, QSettings
 from PySide6.QtWidgets import QApplication, QColorDialog
 
 # * Third Party Imports --------------------------------------------------------------------------------->

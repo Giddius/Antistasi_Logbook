@@ -15,7 +15,7 @@ from datetime import datetime
 import attr
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
-from gidapptools import get_logger
+from gidapptools import get_logger, get_meta_config
 from gidapptools.general_helper.color.color_item import Color
 
 # * Local Imports --------------------------------------------------------------------------------------->
@@ -90,6 +90,7 @@ class BaseRecord(AbstractRecord):
     ___record_family___ = RecordFamily.GENERIC | RecordFamily.ANTISTASI
     ___specificity___ = 0
     foreign_key_cache: "ForeignKeyCache" = None
+    color_config = get_meta_config().get_config("color")
     _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
     __slots__ = ["record_id",
                  "log_file",
@@ -167,16 +168,21 @@ class BaseRecord(AbstractRecord):
             self.pretty_attribute_cache.pretty_recorded_at = self.log_file.format_datetime(self.recorded_at)
         return self.pretty_attribute_cache.pretty_recorded_at
 
+    @classmethod
     @property
-    @profile
-    def background_color(self) -> Optional["QColor"]:
-        if self._background_qcolor is MiscEnum.NOTHING:
-            self._background_qcolor = self.get_background_color()
-        return self._background_qcolor
+    def background_color(cls) -> Optional["QColor"]:
+        if cls._background_qcolor is MiscEnum.NOTHING:
+            cls._background_qcolor = cls.get_background_color()
+        return cls._background_qcolor
 
-    @profile
-    def get_background_color(self) -> "QColor":
-        return Color.get_color_by_name("Gray").with_alpha(0.1).qcolor
+    @classmethod
+    def get_background_color(cls) -> "QColor":
+        return cls.color_config.get("record", cls.__name__, default=Color.get_color_by_name("white").with_alpha(0.75).qcolor)
+
+    @classmethod
+    def set_background_color(cls, color: QColor):
+        cls.color_config.set("record", cls.__name__, color)
+        cls.reset_colors()
 
     @profile
     def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
@@ -190,8 +196,8 @@ class BaseRecord(AbstractRecord):
     @profile
     def get_db_item(self, database: "GidSqliteApswDatabase") -> "LogRecord":
         from antistasi_logbook.storage.models.models import LogRecord
-        with database:
-            return LogRecord.get_by_id(self.record_id)
+
+        return LogRecord.get_by_id(self.record_id)
 
     @classmethod
     def check(cls, log_record: "LogRecord") -> bool:

@@ -222,6 +222,7 @@ class CrosshairDisplayBar(QStatusBar):
 
 
 class StatsWindow(QMainWindow):
+    close_signal = Signal(QMainWindow)
     color_config_name = "stats"
     y_padding_factor = 1.5
     x_padding_factor = 0.125
@@ -506,11 +507,11 @@ class StatsWindow(QMainWindow):
         self.marked_records[record] = (label, line)
 
     def show(self) -> None:
-        self.app.extra_windows.add(self)
+        self.app.extra_windows.add_window(self)
         return super().show()
 
     def closeEvent(self, event: PySide6.QtGui.QCloseEvent) -> None:
-        self.app.extra_windows.remove(self)
+        self.close_signal.emit(self)
         return super().closeEvent(event)
 # region[Main_Exec]
 

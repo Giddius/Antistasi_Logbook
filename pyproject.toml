@@ -11,6 +11,7 @@ readme = "README.md"
 dynamic = ['version', 'description']
 requires-python = ">=3.9"
 dependencies = [
+    "pyside6>=6.2.3",
     "anyio==3.5.0",
     "appdirs==1.4.4",
     "attrs<=21.4.0",
@@ -24,7 +25,7 @@ dependencies = [
     "cycler==0.11.0",
     "filelock==3.4.2",
     "fonttools==4.28.5",
-    "gidapptools==0.1.19",
+    # "gidapptools==0.1.19",
     "h11==0.12.0",
     "httpcore==0.13.7",
     "httpx==0.20.0",
@@ -51,7 +52,6 @@ dependencies = [
     "pyparsing==3.0.6",
     "pypiwin32==223",
     "pyqtgraph>=0.12.3",
-    "pyside6>=6.2.2.1",
     "python-dateutil==2.8.2",
     "python-dotenv==0.19.2",
     "pytz==2021.3",
@@ -60,10 +60,8 @@ dependencies = [
     "qdarkstyle==3.0.3",
     "qt-material==2.8.19",
     "qtawesome==1.1.1",
-    "qtpy==2.0.0",
     "rfc3986[idna2008]==1.5.0",
     "rich==11.0.0",
-    "shiboken6==6.2.2.1",
     "six==1.16.0",
     "sniffio==1.2.0",
     "sortedcontainers==2.4.0",

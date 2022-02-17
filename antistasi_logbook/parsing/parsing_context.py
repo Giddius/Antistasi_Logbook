@@ -234,7 +234,6 @@ class LogParsingContext:
             self.done_signal()
 
     def set_header_text(self, lines: Iterable["RecordLine"]) -> None:
-        log.debug("setting header_text for %r, amount: %r", self._log_file, len(lines))
         if lines:
             text = '\n'.join(i.content for i in lines if i.content)
             if match := self.mem_cache_regex.search(text):
@@ -243,7 +242,6 @@ class LogParsingContext:
             self.log_file_data["header_text"] = text
 
     def set_startup_text(self, lines: Iterable["RecordLine"]) -> None:
-        log.debug("setting startup_text for %r, amount: %r", self._log_file, len(lines))
         if lines:
             text = '\n'.join(i.content for i in lines if i.content)
             self.log_file_data["startup_text"] = text
@@ -298,7 +296,7 @@ class LogParsingContext:
         log.debug("cleaning up log-file %r", self._log_file)
         self._log_file._cleanup()
         self.is_open = False
-        log.debug("sending done signal")
+
         if self.done_signal:
             self.done_signal()
 

@@ -126,8 +126,9 @@ class ForeignKeyCache:
     def all_arma_file_objects(self) -> dict[tuple[str, str], ArmaFunction]:
 
         if self.__class__._all_arma_file_objects is None:
+            log.debug("all_arma_file_objects is None")
             self.arma_file_model_blocker.wait()
-            self.__class__._all_arma_file_objects = {(antistasi_file.name, antistasi_file.author_prefix): antistasi_file for antistasi_file in self.database.get_all_arma_functions()}
+            self.__class__._all_arma_file_objects = {(antistasi_file.name, antistasi_file.author_prefix.name): antistasi_file for antistasi_file in self.database.get_all_arma_functions()}
 
         return self.__class__._all_arma_file_objects
 
@@ -153,6 +154,8 @@ class ForeignKeyCache:
     def all_arma_file_objects_by_id(self) -> dict[str, ArmaFunction]:
 
         if self.__class__._all_arma_file_objects_by_id is None:
+            log.debug("all_arma_file_objects_by_id is None")
+
             self.arma_file_model_blocker.wait()
             self.__class__._all_arma_file_objects_by_id = {str(antistasi_file.id): antistasi_file for antistasi_file in self.database.get_all_arma_functions()}
 

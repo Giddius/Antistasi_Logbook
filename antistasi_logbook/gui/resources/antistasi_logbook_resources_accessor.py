@@ -30,6 +30,8 @@ ANTISTASI_LOGBOOK_SPLASH_PREPARING_DATABASE_IMAGE = ressource_item_factory(file_
 
 FILTER_PAGE_SYMBOL_IMAGE = ressource_item_factory(file_path='filter_page_symbol.svg', qt_path=':/images/filter_page_symbol.svg')
 
+ARMAFUNCTION_TAB_ICON_IMAGE = ressource_item_factory(file_path='armafunction_tab_icon.png', qt_path=':/images/armafunction_tab_icon.png')
+
 OPEN_EYE_IMAGE = ressource_item_factory(file_path='open_eye.svg', qt_path=':/images/open_eye.svg')
 
 MARK_IMAGE = ressource_item_factory(file_path='mark.png', qt_path=':/images/mark.png')
@@ -90,9 +92,13 @@ HIDDEN_ICON_IMAGE = ressource_item_factory(file_path='hidden_icon.svg', qt_path=
 
 COLORING_ICON_3_IMAGE = ressource_item_factory(file_path='coloring_icon_3.svg', qt_path=':/images/coloring_icon_3.svg')
 
+ARMAFUNCTIONAUTHORPREFIX_TAB_ICON_IMAGE = ressource_item_factory(file_path='armafunctionauthorprefix_tab_icon.svg', qt_path=':/images/armafunctionauthorprefix_tab_icon.svg')
+
 SELECT_PATH_SYMBOL_IMAGE = ressource_item_factory(file_path='select_path_symbol.svg', qt_path=':/images/select_path_symbol.svg')
 
 GAMEMAP_TAB_ICON_IMAGE = ressource_item_factory(file_path='gamemap_tab_icon.svg', qt_path=':/images/gamemap_tab_icon.svg')
+
+LOGLEVEL_TAB_ICON_IMAGE = ressource_item_factory(file_path='loglevel_tab_icon.png', qt_path=':/images/loglevel_tab_icon.png')
 
 VISIBLE_ICON_IMAGE = ressource_item_factory(file_path='visible_icon.svg', qt_path=':/images/visible_icon.svg')
 
@@ -131,6 +137,7 @@ class AllResourceItems(metaclass=AllResourceItemsMeta):
 
     antistasi_logbook_splash_preparing_database_image = ANTISTASI_LOGBOOK_SPLASH_PREPARING_DATABASE_IMAGE
     filter_page_symbol_image = FILTER_PAGE_SYMBOL_IMAGE
+    armafunction_tab_icon_image = ARMAFUNCTION_TAB_ICON_IMAGE
     open_eye_image = OPEN_EYE_IMAGE
     mark_image = MARK_IMAGE
     folder_settings_image = FOLDER_SETTINGS_IMAGE
@@ -160,8 +167,10 @@ class AllResourceItems(metaclass=AllResourceItemsMeta):
     stats_icon_2_image = STATS_ICON_2_IMAGE
     hidden_icon_image = HIDDEN_ICON_IMAGE
     coloring_icon_3_image = COLORING_ICON_3_IMAGE
+    armafunctionauthorprefix_tab_icon_image = ARMAFUNCTIONAUTHORPREFIX_TAB_ICON_IMAGE
     select_path_symbol_image = SELECT_PATH_SYMBOL_IMAGE
     gamemap_tab_icon_image = GAMEMAP_TAB_ICON_IMAGE
+    loglevel_tab_icon_image = LOGLEVEL_TAB_ICON_IMAGE
     visible_icon_image = VISIBLE_ICON_IMAGE
     general_settings_image = GENERAL_SETTINGS_IMAGE
     webdav_settings_image = WEBDAV_SETTINGS_IMAGE

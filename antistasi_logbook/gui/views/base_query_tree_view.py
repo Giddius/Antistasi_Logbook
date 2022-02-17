@@ -10,20 +10,20 @@ Soon.
 from typing import TYPE_CHECKING, Union, Optional
 from pathlib import Path
 from concurrent.futures import Future
-
+from functools import cached_property
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
 from PySide6.QtGui import QIcon, QAction
-from PySide6.QtCore import Qt, Slot, QPoint, Signal, QSettings, QModelIndex, QItemSelection
-from PySide6.QtWidgets import QMenu, QTreeView, QScrollBar, QHeaderView, QApplication, QAbstractItemView
-
+from PySide6.QtCore import Qt, Slot, QPoint, Signal, QSettings, QModelIndex, QItemSelection, QByteArray
+from PySide6.QtWidgets import QMenu, QTreeView, QScrollBar, QHeaderView, QApplication, QAbstractItemView, QToolBar
+import pp
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.views.delegates.universal_delegates import BoolImageDelegate, MarkedImageDelegate
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-
+from antistasi_logbook.gui.widgets.tool_bars import BaseToolBar
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend
@@ -95,10 +95,12 @@ class CustomContextMenu(QMenu):
 
 class BaseQueryTreeView(QTreeView):
     initially_hidden_columns: set[str] = set()
-    default_item_size = 75
-    _item_size_by_column_name: dict[str, int] = {"id": 30, "marked": 60}
+    default_item_size = 150
+    _item_size_by_column_name: dict[str, int] = {"id": 75, "marked": 60, "comments": 100}
+    default_colum_order = {"marked": 999, "comments": 998}
     single_item_selected = Signal(QModelIndex)
     multiple_items_selected = Signal(list)
+    current_items_changed = Signal(list)
 
     def __init__(self, name: str, icon: QIcon = None, parent=None) -> None:
         super().__init__(parent=parent)
@@ -109,6 +111,7 @@ class BaseQueryTreeView(QTreeView):
             self.icon = getattr(AllResourceItems, f"{self.name.casefold().replace('-','_').replace(' ','_').replace('.','_')}_tab_icon_image").get_as_icon()
         self.item_size_by_column_name = self._item_size_by_column_name.copy()
         self.original_model: BaseQueryDataModel = None
+        self._tool_bar_item: QToolBar = None
 
     @property
     def app(self) -> "AntistasiLogbookApplication":
@@ -133,6 +136,36 @@ class BaseQueryTreeView(QTreeView):
     @property
     def model(self) -> "BaseQueryDataModel":
         return super().model()
+
+    @property
+    def column_order(self) -> dict[str, int]:
+        settings = QSettings()
+        data = settings.value(f"{self.name}_column_order", None)
+        if data is None:
+            data = {}
+
+        return self.default_colum_order | data
+
+    @property
+    def tool_bar_item(self) -> QToolBar:
+        if self._tool_bar_item is None:
+            self._tool_bar_item = self.create_tool_bar_item()
+        return self._tool_bar_item
+
+    def create_tool_bar_item(self) -> QToolBar:
+        return BaseToolBar(title=self.name)
+
+    def store_new_column_order(self, logical_index: int, old_visual_index: int, new_visual_index: int):
+        column_order = self.column_order
+        for idx, column in enumerate(self.model.columns):
+            vis_idx = self.header_view.visualIndex(idx)
+            column_order[column.name] = vis_idx
+
+        column = self.model.columns[logical_index]
+        column_order[column.name] = new_visual_index
+
+        settings = QSettings()
+        settings.setValue(f"{self.name}_column_order", column_order)
 
     @profile
     def setup(self) -> "BaseQueryTreeView":
@@ -177,7 +210,7 @@ class BaseQueryTreeView(QTreeView):
         self.add_free_context_menu_options(menu)
         if self.model is not None:
             self.model.add_context_menu_actions(menu=menu, index=index)
-        log.debug("actions of menu %r : %r", menu, menu.actions())
+
         menu.exec(self.mapToGlobal(pos))
 
     @profile
@@ -205,10 +238,24 @@ class BaseQueryTreeView(QTreeView):
                 self.header_view.hideSection(index)
         for column_name in self.get_hidden_header_names():
             index = self.model.get_column_index(column_name)
+
             if index is not None:
                 self.header_view.hideSection(index)
+        column_order_map = self.column_order
+        original_order = list(self.model.columns)
+        new_order = sorted([i.name for i in original_order], key=lambda x: column_order_map.get(x, 0))
+
+        self.header_view.sectionMoved.disconnect(self.store_new_column_order)
+
+        for idx, column in enumerate(original_order):
+            new_idx = new_order.index(column.name)
+            vis_idx = self.header_view.visualIndex(idx)
+
+            self.header_view.moveSection(vis_idx, new_idx)
+
         self.header_view.setContextMenuPolicy(Qt.CustomContextMenu)
         self.header_view.customContextMenuRequested.connect(self.handle_header_custom_context_menu)
+        self.header_view.sectionMoved.connect(self.store_new_column_order)
 
     @profile
     def handle_header_custom_context_menu(self, pos: QPoint):
@@ -315,9 +362,12 @@ class BaseQueryTreeView(QTreeView):
                 raise future.exception()
             else:
                 self.reset()
+
         try:
             self.pre_set_model()
             super().setModel(model)
+            if hasattr(model, "_item_size_by_column_names"):
+                self.item_size_by_column_name |= model._item_size_by_column_names.copy()
             self.model.setParent(self)
             self.model.get_columns()
             self.set_delegates()
@@ -325,8 +375,10 @@ class BaseQueryTreeView(QTreeView):
             self.resize_header_sections()
 
             if model.content_items is None:
-                task = self.app.gui_thread_pool.submit(self.model.refresh)
-                task.add_done_callback(_callback)
+                self.model.refresh()
+                self.reset()
+                # task = self.app.gui_thread_pool.submit(self.model.refresh)
+                # task.add_done_callback(_callback)
 
         finally:
             self.post_set_model()
@@ -356,6 +408,10 @@ class BaseQueryTreeView(QTreeView):
 
             self.single_item_selected.emit(current_selection[-1])
             self.multiple_items_selected.emit(list(indexes))
+
+        items = [self.model.get(i.row()) for i in current_selection]
+
+        self.current_items_changed.emit(items)
         super().selectionChanged(selected, deselected)
 
 

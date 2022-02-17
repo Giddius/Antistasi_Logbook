@@ -9,7 +9,7 @@ Soon.
 # * Standard Library Imports ---------------------------------------------------------------------------->
 from typing import TYPE_CHECKING, Any, Optional
 from pathlib import Path
-
+from time import sleep
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6 import QtCore
 from PySide6.QtCore import Qt, Slot, QModelIndex
@@ -41,7 +41,7 @@ from peewee import JOIN, Field, Query
 from gidapptools import get_logger
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.storage.models.models import Server, GameMap, LogFile
+from antistasi_logbook.storage.models.models import Server, GameMap, LogFile, Version
 from antistasi_logbook.storage.models.custom_fields import FakeField
 from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE, BaseQueryDataModel, ModelContextMenuAction
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
@@ -67,72 +67,6 @@ if TYPE_CHECKING:
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
-
-
-class DragIconLabel(QLabel):
-    pixmap_width = 50
-    pixmap_height = 50
-
-    def __init__(self, pixmap: QPixmap, item: "LogFile", parent=None):
-        super().__init__(parent=parent)
-        self.item = item
-        self.drag_start_pos = None
-        self._pixmap = pixmap.scaled(QSize(self.pixmap_width, self.pixmap_height), Qt.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation)
-        self.setAlignment(Qt.AlignCenter)
-        self.setPixmap(self._pixmap)
-        self.setToolTip("Drag and drop into the folder where you want to save the file")
-
-    def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
-        if event.button() == Qt.LeftButton:
-            original_file: Path = self.item.original_file.to_file()
-            QDesktopServices.openUrl(QUrl.fromLocalFile(original_file))
-
-        else:
-            super().mouseDoubleClickEvent(event)
-
-    def mousePressEvent(self, event: QMouseEvent) -> None:
-        if event.button() == Qt.LeftButton:
-            self.drag_start_pos = event.pos()
-
-        else:
-            super().mousePressEvent(event)
-
-    def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        if event.buttons() & Qt.LeftButton and (event.pos() - self.drag_start_pos).manhattanLength() >= QApplication.startDragDistance():
-            drag = QDrag(self)
-            drag.setPixmap(self._pixmap)
-            self.clear()
-            mime_data = QMimeData()
-
-            original_file: Path = self.item.original_file.to_file()
-
-            mime_data.setData("text/plain", b"")
-            mime_data.setUrls([QUrl.fromLocalFile(original_file)])
-            drag.setMimeData(mime_data)
-            drag.exec(Qt.CopyAction)
-
-            self.setPixmap(self._pixmap)
-        else:
-            super().mouseMoveEvent(event)
-
-
-class DragTargetWindow(QWidget):
-
-    def __init__(self, item: "LogFile", parent: Optional[PySide6.QtWidgets.QWidget] = None, f: PySide6.QtCore.Qt.WindowFlags = None) -> None:
-        super().__init__(*(i for i in [parent, f] if i))
-        self.item = item
-        self.setLayout(QVBoxLayout())
-        self.drag_start_label = DragIconLabel(AllResourceItems.txt_file_image.get_as_pixmap(), item=self.item, parent=self)
-        self.layout.addWidget(self.drag_start_label)
-        self.close_button = QPushButton("close")
-        self.close_button.clicked.connect(self.close)
-        self.layout.addWidget(self.close_button)
-        self.setWindowModality(Qt.ApplicationModal)
-        self.setWindowFlags(Qt.WindowFlags() | Qt.FramelessWindowHint)
-
-    @property
-    def layout(self) -> QVBoxLayout:
-        return super().layout()
 
 
 class LogFilesModel(BaseQueryDataModel):
@@ -161,10 +95,6 @@ class LogFilesModel(BaseQueryDataModel):
             force_reparse_action.setEnabled(False)
         menu.add_action(force_reparse_action)
 
-        get_original_file_option = ModelContextMenuAction(item, column, index, text=f"Get original file '{item.name}.txt'", parent=menu)
-        get_original_file_option.clicked.connect(self.get_original_file)
-        menu.add_action(get_original_file_option)
-
     @Slot(object, object, QModelIndex)
     def reparse_log_file(self, item: LogFile, column: Field, index: QModelIndex):
         def _actual_reparse(log_file: LogFile):
@@ -180,13 +110,6 @@ class LogFilesModel(BaseQueryDataModel):
         self.layoutAboutToBeChanged.emit()
         task = self.backend.thread_pool.submit(_actual_reparse, item)
         task.add_done_callback(_callback)
-
-    @Slot(object, object, QModelIndex)
-    def get_original_file(self, item: LogFile, column: Field, index: QModelIndex):
-        self.drag_window = DragTargetWindow(item=item)
-        pos = QCursor.pos()
-        self.drag_window.move(pos)
-        self.drag_window.show()
 
     def change_show_unparsable(self, show_unparsable):
         if show_unparsable and self.show_unparsable is False:
@@ -210,7 +133,7 @@ class LogFilesModel(BaseQueryDataModel):
             return super().on_display_data_bool(role=role, item=item, column=column, value=value)
 
     def get_query(self) -> "Query":
-        query = LogFile.select().join(GameMap, join_type=JOIN.LEFT_OUTER).switch(LogFile).join(Server).switch(LogFile)
+        query = LogFile.select().join(GameMap, join_type=JOIN.LEFT_OUTER).switch(LogFile).join(Server).switch(LogFile).join(Version).switch(LogFile)
         if self.show_unparsable is False:
             query = query.where(LogFile.unparsable == False)
         if self.filter_item is not None:
@@ -218,8 +141,22 @@ class LogFilesModel(BaseQueryDataModel):
         return query.order_by(*self.ordered_by)
 
     def get_content(self) -> "BaseQueryDataModel":
-        with self.backend.database:
-            self.content_items = list(self.get_query().execute())
+        def _load_probs(in_log_file: "LogFile") -> "LogFile":
+            try:
+                with self.database.connection_context() as ctx:
+                    _ = in_log_file.pretty_time_frame
+                    _ = in_log_file.pretty_utc_offset
+                    _ = in_log_file.amount_log_records
+                    _ = in_log_file.amount_errors
+                    _ = in_log_file.amount_warnings
+            except AttributeError as error:
+                log.debug("attribute_error %r for %r", error, in_log_file)
+            return in_log_file
+        with self.backend.database.connection_context() as ctx:
+            self.content_items = []
+            for log_file in self.get_query().execute():
+                self.app.gui_thread_pool.submit(_load_probs, log_file)
+                self.content_items.append(log_file)
 
         return self
 

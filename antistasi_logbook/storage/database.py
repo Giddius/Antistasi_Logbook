@@ -28,7 +28,7 @@ from gidapptools.general_helper.conversion import human2bytes
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook import setup
 from antistasi_logbook.storage.models.models import (Server, GameMap, LogFile, Version, LogLevel, LogRecord, RecordClass, RecordOrigin,
-                                                     RemoteStorage, ArmaFunction, DatabaseMetaData, setup_db)
+                                                     RemoteStorage, ArmaFunction, DatabaseMetaData, setup_db, ArmaFunctionAuthorPrefix)
 from antistasi_logbook.storage.models.migration import run_migration
 
 setup()
@@ -211,12 +211,14 @@ class GidSqliteApswDatabase(APSWDatabase):
         log.info("optimizing %r", self)
         with self.write_lock:
             self.pragma("OPTIMIZE")
+            self.checkpoint()
         return self
 
     def vacuum(self) -> "GidSqliteApswDatabase":
         log.info("vacuuming %r", self)
         with self.write_lock:
             self.execute_sql("VACUUM;")
+            self.checkpoint()
         return self
 
     def shutdown(self, error: BaseException = None) -> None:
@@ -254,7 +256,7 @@ class GidSqliteApswDatabase(APSWDatabase):
 
     def get_all_arma_functions(self, ordered_by=ArmaFunction.id) -> tuple[ArmaFunction]:
         with self.connection_context() as ctx:
-            result = tuple(ArmaFunction.select().order_by(ordered_by))
+            result = tuple(ArmaFunction.select(ArmaFunction).join(ArmaFunctionAuthorPrefix).order_by(ordered_by))
 
         return result
 

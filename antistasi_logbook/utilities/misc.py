@@ -101,7 +101,7 @@ class VersionItem:
     minor: int = attr.ib(converter=int)
     patch: int = attr.ib(default=None, converter=try_convert_int)
     extra: Union[str, int] = attr.ib(default=None, converter=try_convert_int)
-    version_regex: ClassVar = re.compile(r"(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+|MISSING)\-?(?P<extra>.*)?")
+    version_regex: ClassVar = re.compile(r"(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+|MISSING)[\-\.]?(?P<extra>.*)?")
 
     def __str__(self) -> str:
         _out = f"{self.major}.{self.minor}"
@@ -115,9 +115,13 @@ class VersionItem:
     def from_string(cls, string: Optional[str]) -> Optional["VersionItem"]:
         if string is None:
             return
-        match = cls.version_regex.match(string.strip())
-        if match is not None:
-            return cls(**match.groupdict())
+        try:
+            match = cls.version_regex.match(string.strip())
+            if match is not None:
+                return cls(**match.groupdict())
+        except AttributeError:
+            log.debug("attribute error with %r", string)
+            raise
 
     def as_tuple(self, include_extra: bool = True) -> tuple[Union[str, int]]:
         if include_extra is False:

@@ -139,9 +139,27 @@ class BaseModel(Model):
         return super().__str__()
 
 
+class ArmaFunctionAuthorPrefix(BaseModel):
+    name = TextField(unique=True)
+    full_name = TextField(unique=True, null=True)
+    local_folder_path = PathField(null=True)
+    github_link = URLField(null=True)
+    comments = CommentsField()
+    marked = MarkedField()
+
+    class Meta:
+        table_name = 'ArmaFunctionAuthorPrefix'
+
+    @property
+    def pretty_name(self) -> str:
+        if self.full_name is not None:
+            return self.full_name
+        return super().pretty_name
+
+
 class ArmaFunction(BaseModel):
     name = TextField()
-    author_prefix = TextField(null=True)
+    author_prefix = ForeignKeyField(column_name='author_prefix', field='id', model=ArmaFunctionAuthorPrefix, lazy_load=True, index=True, verbose_name="Author Prefix")
     link = URLField(null=True)
     local_path = PathField(null=True)
     comments = CommentsField()
@@ -157,16 +175,16 @@ class ArmaFunction(BaseModel):
 
     @cached_property
     def file_name(self) -> str:
-        if self.author_prefix == "FSM":
+        if self.author_prefix.name == "FSM":
             return f"{self.name}.fsm"
 
         return f"fn_{self.name}.sqf"
 
     @cached_property
     def function_name(self) -> str:
-        if self.author_prefix == "UNKNOWN":
+        if self.author_prefix.name == "UNKNOWN":
             return self.file_name
-        if self.author_prefix == "FSM":
+        if self.author_prefix.name == "FSM":
             return self.name
 
         return f"{self.author_prefix}_fnc_{self.name}"
@@ -357,7 +375,7 @@ class Version(BaseModel):
     full = VersionField(unique=True, verbose_name="Full Version")
     major = IntegerField(verbose_name="Major")
     minor = IntegerField(verbose_name="Minor")
-    patch = IntegerField(verbose_name="Patch")
+    patch = IntegerField(verbose_name="Patch", null=True)
     extra = TextField(null=True, verbose_name="Extra")
     comments = CommentsField()
     marked = MarkedField()
@@ -440,27 +458,32 @@ class LogFile(BaseModel):
         return DateTimeFrame(min_date_time, max_date_time)
 
     @cached_property
+    def pretty_time_frame(self) -> str:
+        time_frame = self.time_frame
+        return f"{self.format_datetime(time_frame.start)} until {self.format_datetime(time_frame.end)}"
+
+    @cached_property
     def pretty_server(self) -> str:
         return self.server.pretty_name
 
     @cached_property
     def pretty_utc_offset(self) -> str:
-        offset = self.utc_offset
-        offset_hours = offset._offset.total_seconds() / 3600
+        _offset = self.utc_offset
+        offset_hours = _offset._offset.total_seconds() / 3600
 
         return f"UTC{offset_hours:+}"
 
     @cached_property
     def amount_log_records(self) -> int:
-        return LogRecord.select().where(LogRecord.log_file_id == self.id).count()
+        return LogRecord.select(LogRecord.id).where(LogRecord.log_file_id == self.id).count()
 
     @cached_property
     def amount_errors(self) -> int:
-        return LogRecord.select().where((LogRecord.log_file_id == self.id) & (LogRecord.log_level_id == self.database.foreign_key_cache.all_log_levels.get("ERROR").id)).count()
+        return LogRecord.select(LogRecord.id).where((LogRecord.log_file_id == self.id) & (LogRecord.log_level_id == self.database.foreign_key_cache.all_log_levels.get("ERROR").id)).count()
 
     @cached_property
     def amount_warnings(self) -> int:
-        return LogRecord.select().where((LogRecord.log_file_id == self.id) & (LogRecord.log_level_id == self.database.foreign_key_cache.all_log_levels.get("WARNING").id)).count()
+        return LogRecord.select(LogRecord.id).where((LogRecord.log_file_id == self.id) & (LogRecord.log_level_id == self.database.foreign_key_cache.all_log_levels.get("WARNING").id)).count()
 
     @cached_property
     def pretty_size(self) -> str:
@@ -692,6 +715,10 @@ class RecordClass(BaseModel):
 
     class Meta:
         table_name = 'RecordClass'
+
+    @property
+    def background_color(self) -> "QColor":
+        return self.record_class.background_color
 
     @property
     def specificity(self) -> int:
@@ -957,7 +984,7 @@ def setup_db(database: "GidSqliteApswDatabase"):
                              "coordinates": json.loads(MAP_COORDS_DIR.joinpath("chernarus_winter_pos.json").read_text(encoding='utf-8', errors='ignore'))},
                             {'dlc': None,
                             'full_name': 'Chernarus Summer',
-                             'name': 'Chernarus_Summer',
+                             'name': 'chernarus_summer',
                              'official': 0,
                              'workshop_link': 'https://steamcommunity.com/sharedfiles/filedetails/?id=583544987',
                              "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("cherno_summer_thumbnail.png").read_bytes(),
@@ -1002,182 +1029,317 @@ def setup_db(database: "GidSqliteApswDatabase"):
                   {"cleaned_mod_name": "acecompatrhsunitedstatesarmedforces", "link": "https://steamcommunity.com/sharedfiles/filedetails/?id=773125288"},
                   {"cleaned_mod_name": "taskforceenforcer", "link": "https://github.com/Sparker95/TaskForceEnforcer"},
                   {"cleaned_mod_name": "rksl attachments pack", "link": "https://steamcommunity.com/workshop/filedetails/?id=1661066023"}],
-                  #   ArmaFunction: [{'id': 1, 'name': 'init'},
-                  #                  {'id': 2, 'name': 'initServer'},
-                  #                  {'id': 3, 'name': 'initParams'},
-                  #                  {'id': 4, 'name': 'initFuncs'},
-                  #                  {'id': 5, 'name': 'JN_fnc_arsenal_init'},
-                  #                  {'id': 6, 'name': 'initVar'},
-                  #                  {'id': 7, 'name': 'initVarCommon'},
-                  #                  {'id': 8, 'name': 'initVarServer'},
-                  #                  {'id': 9, 'name': 'initDisabledMods'},
-                  #                  {'id': 10, 'name': 'compatibilityLoadFaction'},
-                  #                  {'id': 11, 'name': 'registerUnitType'},
-                  #                  {'id': 12, 'name': 'aceModCompat'},
-                  #                  {'id': 13, 'name': 'initVarClient'},
-                  #                  {'id': 14, 'name': 'initACEUnconsciousHandler'},
-                  #                  {'id': 15, 'name': 'loadNavGrid'},
-                  #                  {'id': 16, 'name': 'initZones'},
-                  #                  {'id': 17, 'name': 'initSpawnPlaces'},
-                  #                  {'id': 18, 'name': 'initGarrisons'},
-                  #                  {'id': 19, 'name': 'loadServer'},
-                  #                  {'id': 20, 'name': 'returnSavedStat'},
-                  #                  {'id': 21, 'name': 'getStatVariable'},
-                  #                  {'id': 22, 'name': 'loadStat'},
-                  #                  {'id': 23, 'name': 'updatePreference'},
-                  #                  {'id': 24, 'name': 'tierCheck'},
-                  #                  {'id': 25, 'name': 'initPetros'},
-                  #                  {'id': 26, 'name': 'createPetros'},
-                  #                  {'id': 27, 'name': 'assignBossIfNone'},
-                  #                  {'id': 28, 'name': 'loadPlayer'},
-                  #                  {'id': 29, 'name': 'addHC'},
-                  #                  {'id': 30, 'name': 'advancedTowingInit'},
-                  #                  {'id': 31, 'name': 'logPerformance'},
-                  #                  {'id': 32, 'name': 'initServer'},
-                  #                  {'id': 33, 'name': 'onPlayerDisconnect'},
-                  #                  {'id': 34, 'name': 'savePlayer'},
-                  #                  {'id': 35, 'name': 'vehKilledOrCaptured'},
-                  #                  {'id': 36, 'name': 'postmortem'},
-                  #                  {'id': 37, 'name': 'scheduler'},
-                  #                  {'id': 38, 'name': 'distance'},
-                  #                  {'id': 39, 'name': 'theBossToggleEligibility'},
-                  #                  {'id': 40, 'name': 'retrievePlayerStat'},
-                  #                  {'id': 41, 'name': 'resetPlayer'},
-                  #                  {'id': 42, 'name': 'addVehicle'},
-                  #                  {'id': 43, 'name': 'punishment_FF'},
-                  #                  {'id': 44, 'name': 'removeFromPool'},
-                  #                  {'id': 45, 'name': 'toggleLock'},
-                  #                  {'id': 46, 'name': 'unlockEquipment'},
-                  #                  {'id': 47, 'name': 'arsenalManage'},
-                  #                  {'id': 48, 'name': 'economicsAI'},
-                  #                  {'id': 49, 'name': 'resourcecheck'},
-                  #                  {'id': 50, 'name': 'promotePlayer'},
-                  #                  {'id': 51, 'name': 'reinforcementsAI'},
-                  #                  {'id': 52, 'name': 'AAFroadPatrol'},
-                  #                  {'id': 53, 'name': 'createAIAction'},
-                  #                  {'id': 54, 'name': 'selectReinfUnits'},
-                  #                  {'id': 55, 'name': 'createConvoy'},
-                  #                  {'id': 56, 'name': 'findSpawnPosition'},
-                  #                  {'id': 57, 'name': 'milBuildings'},
-                  #                  {'id': 58, 'name': 'placeIntel'},
-                  #                  {'id': 59, 'name': 'createAIOutposts'},
-                  #                  {'id': 60, 'name': 'convoyMovement'},
-                  #                  {'id': 61, 'name': 'rebelAttack'},
-                  #                  {'id': 62, 'name': 'rebelAttack'},
-                  #                  {'id': 63, 'name': 'markerChange'},
-                  #                  {'id': 64, 'name': 'freeSpawnPositions'},
-                  #                  {'id': 65, 'name': 'punishment'},
-                  #                  {'id': 66, 'name': 'supportAvailable'},
-                  #                  {'id': 67, 'name': 'sendSupport'},
-                  #                  {'id': 68, 'name': 'createSupport'},
-                  #                  {'id': 69, 'name': 'SUP_mortar'},
-                  #                  {'id': 70, 'name': 'chooseSupport'},
-                  #                  {'id': 71, 'name': 'AIreactOnKill'},
-                  #                  {'id': 72, 'name': 'findBaseForQRF'},
-                  #                  {'id': 73, 'name': 'SUP_QRF'},
-                  #                  {'id': 74, 'name': 'getVehiclePoolForQRFs'},
-                  #                  {'id': 75, 'name': 'spawnVehicleAtMarker'},
-                  #                  {'id': 76, 'name': 'endSupport'},
-                  #                  {'id': 77, 'name': 'findAirportForAirstrike'},
-                  #                  {'id': 78, 'name': 'SUP_ASF'},
-                  #                  {'id': 79, 'name': 'addSupportTarget'},
-                  #                  {'id': 80, 'name': 'zoneCheck'},
-                  #                  {'id': 81, 'name': 'AIVEHinit'},
-                  #                  {'id': 82, 'name': 'createAIResources'},
-                  #                  {'id': 83, 'name': 'saveLoop'},
-                  #                  {'id': 84, 'name': 'vehiclePrice'},
-                  #                  {'id': 85, 'name': 'patrolReinf'},
-                  #                  {'id': 86, 'name': 'SUP_mortarRoutine'},
-                  #                  {'id': 87, 'name': 'theBossTransfer'},
-                  #                  {'id': 88, 'name': 'setPlaneLoadout'},
-                  #                  {'id': 89, 'name': 'SUP_ASFRoutine'},
-                  #                  {'id': 90, 'name': 'createAttackVehicle'},
-                  #                  {'id': 91, 'name': 'SUP_QRFRoutine'},
-                  #                  {'id': 92, 'name': 'spawnConvoy'},
-                  #                  {'id': 93, 'name': 'spawnConvoyLine'},
-                  #                  {'id': 94, 'name': 'despawnConvoy'},
-                  #                  {'id': 95, 'name': 'ConvoyTravelAir'},
-                  #                  {'id': 96, 'name': 'paradrop'},
-                  #                  {'id': 97, 'name': 'SUP_airstrike'},
-                  #                  {'id': 98, 'name': 'findPathPrecheck'},
-                  #                  {'id': 99, 'name': 'findPath'},
-                  #                  {'id': 100, 'name': 'airspaceControl'},
-                  #                  {'id': 101, 'name': 'callForSupport'},
-                  #                  {'id': 102, 'name': 'SUP_airstrikeRoutine'},
-                  #                  {'id': 103, 'name': 'convoy'},
-                  #                  {'id': 104, 'name': 'airbomb'},
-                  #                  {'id': 105, 'name': 'mrkWIN'},
-                  #                  {'id': 106, 'name': 'occupantInvaderUnitKilledEH'},
-                  #                  {'id': 107, 'name': 'singleAttack'},
-                  #                  {'id': 108, 'name': 'getVehiclePoolForAttacks'},
-                  #                  {'id': 109, 'name': 'SUP_QRFAvailable'},
-                  #                  {'id': 110, 'name': 'wavedCA'},
-                  #                  {'id': 111, 'name': 'garbageCleaner'},
-                  #                  {'id': 112, 'name': 'missionRequest'},
-                  #                  {'id': 113, 'name': 'minefieldAAF'},
-                  #                  {'id': 114, 'name': 'attackDrillAI'},
-                  #                  {'id': 115, 'name': 'invaderPunish'},
-                  #                  {'id': 116, 'name': 'vehicleConvoyTravel'},
-                  #                  {'id': 117, 'name': 'SUP_CAS'},
-                  #                  {'id': 118, 'name': 'splitVehicleCrewIntoOwnGroups'},
-                  #                  {'id': 119, 'name': 'makePlayerBossIfEligible'},
-                  #                  {'id': 120, 'name': 'replenishGarrison'},
-                  #                  {'id': 121, 'name': 'HQGameOptions'},
-                  #                  {'id': 122, 'name': 'vehicleConvoyTravel'},
-                  #                  {'id': 123, 'name': 'WPCreate'},
-                  #                  {'id': 124, 'name': 'createVehicleQRFBehaviour'},
-                  #                  {'id': 125, 'name': 'AIVEHinit'},
-                  #                  {'id': 126, 'name': 'SUP_CASRoutine'},
-                  #                  {'id': 127, 'name': 'SUP_CASRun'},
-                  #                  {'id': 128, 'name': 'startBreachVehicle'},
-                  #                  {'id': 129, 'name': 'spawnDebuggingLoop'},
-                  #                  {'id': 130, 'name': 'SUP_SAM'},
-                  #                  {'id': 131, 'name': 'cleanserVeh'},
-                  #                  {'id': 132, 'name': 'SUP_SAMRoutine'},
-                  #                  {'id': 133, 'name': 'punishment_release'},
-                  #                  {'id': 134, 'name': 'logistics_unload'},
-                  #                  {'id': 135, 'name': 'rebuildRadioTower'},
-                  #                  {'id': 136, 'name': 'roadblockFight'},
-                  #                  {'id': 137, 'name': 'getCatIndex'},
-                  #                  {'id': 138, 'name': 'punishment_sentence_server'},
-                  #                  {'id': 139, 'name': 'punishment_checkStatus'},
-                  #                  {'id': 140, 'name': 'taskUpdate'},
-                  #                  {'id': 141, 'name': 'punishment_FF_addEH'},
-                  #                  {'id': 142, 'name': 'askHelp'},
-                  #                  {'id': 143, 'name': 'unconscious'},
-                  #                  {'id': 144, 'name': 'handleDamage'},
-                  #                  {'id': 145, 'name': 'unconsciousAAF'},
-                  #                  {'id': 146, 'name': 'createCIV'},
-                  #                  {'id': 147, 'name': 'initPreJIP'},
-                  #                  {'id': 148, 'name': 'preInit'},
-                  #                  {'id': 149, 'name': 'init'},
-                  #                  {'id': 150, 'name': 'detector'},
-                  #                  {'id': 151, 'name': 'selector'},
-                  #                  {'id': 152, 'name': 'TV_verifyLoadoutsData'},
-                  #                  {'id': 153, 'name': 'TV_verifyAssets'},
-                  #                  {'id': 154, 'name': 'compileMissionAssets'},
-                  #                  {'id': 155, 'name': 'createAIcontrols'},
-                  #                  {'id': 156, 'name': 'createAICities'},
-                  #                  {'id': 157, 'name': 'createAIAirplane'},
-                  #                  {'id': 158, 'name': 'spawnGroup'},
-                  #                  {'id': 159, 'name': 'fillLootCrate'},
-                  #                  {'id': 160, 'name': 'getNearestNavPoint'},
-                  #                  {'id': 171, 'name': 'loadSaveData'},
-                  #                  {'id': 172, 'name': 'spawnHCGroup'},
-                  #                  {'id': 173, 'name': 'AS_Traitor'},
-                  #                  {'id': 174, 'name': 'LOG_Supplies'},
-                  #                  {'id': 175, 'name': 'DES_Heli'},
-                  #                  {'id': 176, 'name': 'LOG_Salvage'},
-                  #                  {'id': 177, 'name': 'ConvoyTravel'},
-                  #                  {"id": 178, "name": "RES_Refugees"},
-                  #                  {'id': 179, 'name': "NATOinit"},
-                  #                  {'id': 180, 'name': "chooseAttackType"},
-                  #                  {"id": 181, "name": "CIVinit"},
-                  #                  {"id": 182, "name": "onConvoyArrival"},
-                  #                  {"id": 183, "name": "surrenderAction"},
-                  #                  {"id": 184, "name": "arePositionsConnected"},
-                  #                  {"id": 185, "name": "moveHQObject"}]
-                  }
+                  ArmaFunctionAuthorPrefix: [{"id": 1, "name": "UNKNOWN", "full_name": "Unknown", "github_link": None},
+                  {"id": 2, "name": "FSM", "full_name": "Finite State Machine", "github_link": None},
+        {"id": 3, "name": "A3A", "full_name": "Antistasi", "github_link": "https://github.com/official-antistasi-community/A3-Antistasi/tree/unstable"},
+        {"id": 4, "name": "JN", "full_name": "Jeroen Arsenal", "github_link": "https://github.com/official-antistasi-community/A3-Antistasi/tree/unstable"},
+        {"id": 5, "name": "HR_GRG", "full_name": "Hakon Garage", "github_link": "https://github.com/official-antistasi-community/A3-Antistasi/tree/unstable"}],
+        ArmaFunction: [
+        {'author_prefix': 1, 'id': 1, 'link': None, 'name': 'init'},
+        {'author_prefix': 3, 'id': 2, 'link': None, 'name': 'initServer'},
+        {'author_prefix': 3, 'id': 3, 'link': None, 'name': 'initParams'},
+        {'author_prefix': 3, 'id': 4, 'link': None, 'name': 'initFuncs'},
+        {'author_prefix': 4, 'id': 5, 'link': None, 'name': 'arsenal_init'},
+        {'author_prefix': 3, 'id': 6, 'link': None, 'name': 'initVar'},
+        {'author_prefix': 3, 'id': 7, 'link': None, 'name': 'initVarCommon'},
+        {'author_prefix': 3, 'id': 8, 'link': None, 'name': 'initVarServer'},
+        {'author_prefix': 3, 'id': 9, 'link': None, 'name': 'initDisabledMods'},
+        {
+            'author_prefix': 3,
+            'id': 10,
+            'link': None,
+            'name': 'compatibilityLoadFaction',
+        },
+        {'author_prefix': 3, 'id': 11, 'link': None, 'name': 'registerUnitType'},
+        {'author_prefix': 3, 'id': 12, 'link': None, 'name': 'aceModCompat'},
+        {'author_prefix': 3, 'id': 13, 'link': None, 'name': 'initVarClient'},
+        {
+            'author_prefix': 3,
+            'id': 14,
+            'link': None,
+            'name': 'initACEUnconsciousHandler',
+        },
+        {'author_prefix': 3, 'id': 15, 'link': None, 'name': 'loadNavGrid'},
+        {'author_prefix': 3, 'id': 16, 'link': None, 'name': 'initZones'},
+        {'author_prefix': 3, 'id': 17, 'link': None, 'name': 'initSpawnPlaces'},
+        {'author_prefix': 3, 'id': 18, 'link': None, 'name': 'initGarrisons'},
+        {'author_prefix': 3, 'id': 19, 'link': None, 'name': 'addHC'},
+        {'author_prefix': 3, 'id': 20, 'link': None, 'name': 'loadServer'},
+        {'author_prefix': 3, 'id': 21, 'link': None, 'name': 'returnSavedStat'},
+        {'author_prefix': 3, 'id': 22, 'link': None, 'name': 'getStatVariable'},
+        {'author_prefix': 3, 'id': 23, 'link': None, 'name': 'loadStat'},
+        {'author_prefix': 3, 'id': 24, 'link': None, 'name': 'updatePreference'},
+        {'author_prefix': 3, 'id': 25, 'link': None, 'name': 'tierCheck'},
+        {'author_prefix': 3, 'id': 26, 'link': None, 'name': 'initPetros'},
+        {'author_prefix': 3, 'id': 27, 'link': None, 'name': 'createPetros'},
+        {'author_prefix': 1, 'id': 28, 'link': None, 'name': 'advancedTowingInit'},
+        {'author_prefix': 1, 'id': 29, 'link': None, 'name': 'initServer'},
+        {'author_prefix': 3, 'id': 30, 'link': None, 'name': 'assignBossIfNone'},
+        {'author_prefix': 3, 'id': 31, 'link': None, 'name': 'loadPlayer'},
+        {'author_prefix': 3, 'id': 32, 'link': None, 'name': 'logPerformance'},
+        {'author_prefix': 3, 'id': 33, 'link': None, 'name': 'scheduler'},
+        {'author_prefix': 3, 'id': 34, 'link': None, 'name': 'distance'},
+        {'author_prefix': 5, 'id': 35, 'link': None, 'name': 'removeFromPool'},
+        {'author_prefix': 5, 'id': 36, 'link': None, 'name': 'addVehicle'},
+        {'author_prefix': 3, 'id': 37, 'link': None, 'name': 'onPlayerDisconnect'},
+        {'author_prefix': 3, 'id': 38, 'link': None, 'name': 'savePlayer'},
+        {'author_prefix': 3, 'id': 39, 'link': None, 'name': 'theBossTransfer'},
+        {'author_prefix': 3, 'id': 40, 'link': None, 'name': 'punishment_FF'},
+        {'author_prefix': 3, 'id': 41, 'link': None, 'name': 'punishment'},
+        {'author_prefix': 3, 'id': 42, 'link': None, 'name': 'economicsAI'},
+        {'author_prefix': 3, 'id': 43, 'link': None, 'name': 'resourcecheck'},
+        {'author_prefix': 3, 'id': 44, 'link': None, 'name': 'rebelAttack'},
+        {'author_prefix': 3, 'id': 45, 'link': None, 'name': 'promotePlayer'},
+        {'author_prefix': 3, 'id': 46, 'link': None, 'name': 'reinforcementsAI'},
+        {'author_prefix': 3, 'id': 47, 'link': None, 'name': 'AAFroadPatrol'},
+        {'author_prefix': 3, 'id': 48, 'link': None, 'name': 'createAIAction'},
+        {'author_prefix': 3, 'id': 49, 'link': None, 'name': 'wavedCA'},
+        {'author_prefix': 3, 'id': 50, 'link': None, 'name': 'retrievePlayerStat'},
+        {'author_prefix': 3, 'id': 51, 'link': None, 'name': 'resetPlayer'},
+        {'author_prefix': 3, 'id': 52, 'link': None, 'name': 'WPCreate'},
+        {'author_prefix': 3, 'id': 53, 'link': None, 'name': 'findPath'},
+        {'author_prefix': 3, 'id': 54, 'link': None, 'name': 'chooseSupport'},
+        {'author_prefix': 3, 'id': 55, 'link': None, 'name': 'AIreactOnKill'},
+        {'author_prefix': 1, 'id': 56, 'link': None, 'name': 'AIVEHinit'},
+        {
+            'author_prefix': 3,
+            'id': 57,
+            'link': None,
+            'name': 'vehKilledOrCaptured',
+        },
+        {'author_prefix': 3, 'id': 58, 'link': None, 'name': 'postmortem'},
+        {'author_prefix': 3, 'id': 59, 'link': None, 'name': 'AIVEHinit'},
+        {'author_prefix': 3, 'id': 60, 'link': None, 'name': 'supportAvailable'},
+        {'author_prefix': 3, 'id': 61, 'link': None, 'name': 'sendSupport'},
+        {'author_prefix': 3, 'id': 62, 'link': None, 'name': 'createSupport'},
+        {'author_prefix': 3, 'id': 63, 'link': None, 'name': 'SUP_mortar'},
+        {'author_prefix': 3, 'id': 64, 'link': None, 'name': 'saveLoop'},
+        {
+            'author_prefix': 3,
+            'id': 65,
+            'link': None,
+            'name': 'theBossToggleEligibility',
+        },
+        {'author_prefix': 3, 'id': 66, 'link': None, 'name': 'patrolReinf'},
+        {'author_prefix': 3, 'id': 67, 'link': None, 'name': 'selectReinfUnits'},
+        {'author_prefix': 3, 'id': 68, 'link': None, 'name': 'replenishGarrison'},
+        {'author_prefix': 3, 'id': 69, 'link': None, 'name': 'createConvoy'},
+        {'author_prefix': 3, 'id': 70, 'link': None, 'name': 'findSpawnPosition'},
+        {'author_prefix': 3, 'id': 71, 'link': None, 'name': 'milBuildings'},
+        {'author_prefix': 3, 'id': 72, 'link': None, 'name': 'placeIntel'},
+        {
+            'author_prefix': 3,
+            'id': 73,
+            'link': None,
+            'name': 'makePlayerBossIfEligible',
+        },
+        {'author_prefix': 3, 'id': 74, 'link': None, 'name': 'createAIOutposts'},
+        {'author_prefix': 3, 'id': 75, 'link': None, 'name': 'unlockEquipment'},
+        {'author_prefix': 3, 'id': 76, 'link': None, 'name': 'arsenalManage'},
+        {'author_prefix': 3, 'id': 77, 'link': None, 'name': 'attackDrillAI'},
+        {'author_prefix': 3, 'id': 78, 'link': None, 'name': 'callForSupport'},
+        {'author_prefix': 3, 'id': 79, 'link': None, 'name': 'findBaseForQRF'},
+        {'author_prefix': 3, 'id': 80, 'link': None, 'name': 'freeSpawnPositions'},
+        {'author_prefix': 3, 'id': 81, 'link': None, 'name': 'SUP_QRF'},
+        {
+            'author_prefix': 3,
+            'id': 82,
+            'link': None,
+            'name': 'getVehiclePoolForQRFs',
+        },
+        {
+            'author_prefix': 3,
+            'id': 83,
+            'link': None,
+            'name': 'spawnVehicleAtMarker',
+        },
+        {
+            'author_prefix': 3,
+            'id': 84,
+            'link': None,
+            'name': 'createVehicleQRFBehaviour',
+        },
+        {
+            'author_prefix': 3,
+            'id': 85,
+            'link': None,
+            'name': 'createAttackVehicle',
+        },
+        {'author_prefix': 3, 'id': 86, 'link': None, 'name': 'vehiclePrice'},
+        {'author_prefix': 3, 'id': 87, 'link': None, 'name': 'SUP_QRFRoutine'},
+        {'author_prefix': 3, 'id': 88, 'link': None, 'name': 'SUP_mortarRoutine'},
+        {'author_prefix': 3, 'id': 89, 'link': None, 'name': 'endSupport'},
+        {'author_prefix': 3, 'id': 90, 'link': None, 'name': 'spawnConvoy'},
+        {'author_prefix': 3, 'id': 91, 'link': None, 'name': 'convoyMovement'},
+        {'author_prefix': 3, 'id': 92, 'link': None, 'name': 'spawnConvoyLine'},
+        {
+            'author_prefix': 3,
+            'id': 93,
+            'link': None,
+            'name': 'splitVehicleCrewIntoOwnGroups',
+        },
+        {'author_prefix': 3, 'id': 94, 'link': None, 'name': 'garbageCleaner'},
+        {'author_prefix': 3, 'id': 95, 'link': None, 'name': 'convoy'},
+        {'author_prefix': 3, 'id': 96, 'link': None, 'name': 'missionRequest'},
+        {
+            'author_prefix': 3,
+            'id': 97,
+            'link': None,
+            'name': 'findAirportForAirstrike',
+        },
+        {'author_prefix': 3, 'id': 98, 'link': None, 'name': 'SUP_CAS'},
+        {'author_prefix': 3, 'id': 99, 'link': None, 'name': 'despawnConvoy'},
+        {'author_prefix': 3, 'id': 100, 'link': None, 'name': 'zoneCheck'},
+        {'author_prefix': 3, 'id': 101, 'link': None, 'name': 'findPathPrecheck'},
+        {'author_prefix': 3, 'id': 102, 'link': None, 'name': 'SUP_airstrike'},
+        {'author_prefix': 1, 'id': 103, 'link': None, 'name': 'rebelAttack'},
+        {'author_prefix': 3, 'id': 104, 'link': None, 'name': 'markerChange'},
+        {'author_prefix': 3, 'id': 105, 'link': None, 'name': 'setPlaneLoadout'},
+        {'author_prefix': 3, 'id': 106, 'link': None, 'name': 'SUP_CASRoutine'},
+        {'author_prefix': 3, 'id': 107, 'link': None, 'name': 'SUP_CASRun'},
+        {'author_prefix': 5, 'id': 108, 'link': None, 'name': 'toggleLock'},
+        {'author_prefix': 3, 'id': 109, 'link': None, 'name': 'paradrop'},
+        {'author_prefix': 3, 'id': 110, 'link': None, 'name': 'SUP_QRFAvailable'},
+        {
+            'author_prefix': 3,
+            'id': 111,
+            'link': None,
+            'name': 'SUP_airstrikeRoutine',
+        },
+        {'author_prefix': 3, 'id': 112, 'link': None, 'name': 'airbomb'},
+        {'author_prefix': 3, 'id': 113, 'link': None, 'name': 'addSupportTarget'},
+        {'author_prefix': 3, 'id': 114, 'link': None, 'name': 'SUP_ASF'},
+        {
+            'author_prefix': 3,
+            'id': 115,
+            'link': None,
+            'name': 'spawnDebuggingLoop',
+        },
+        {
+            'author_prefix': 3,
+            'id': 116,
+            'link': None,
+            'name': 'punishment_checkStatus',
+        },
+        {
+            'author_prefix': 1,
+            'id': 117,
+            'link': None,
+            'name': 'punishment_sentence_server',
+        },
+        {'author_prefix': 3, 'id': 118, 'link': None, 'name': 'createAIResources'},
+        {
+            'author_prefix': 3,
+            'id': 119,
+            'link': None,
+            'name': 'punishment_release',
+        },
+        {'author_prefix': 3, 'id': 120, 'link': None, 'name': 'mrkWIN'},
+        {'author_prefix': 3, 'id': 121, 'link': None, 'name': 'singleAttack'},
+        {
+            'author_prefix': 3,
+            'id': 122,
+            'link': None,
+            'name': 'vehicleConvoyTravel',
+        },
+        {'author_prefix': 3, 'id': 123, 'link': None, 'name': 'invaderPunish'},
+        {
+            'author_prefix': 3,
+            'id': 124,
+            'link': None,
+            'name': 'occupantInvaderUnitKilledEH',
+        },
+        {'author_prefix': 3, 'id': 125, 'link': None, 'name': 'rebuildRadioTower'},
+        {
+            'author_prefix': 3,
+            'id': 126,
+            'link': None,
+            'name': 'getVehiclePoolForAttacks',
+        },
+        {'author_prefix': 3, 'id': 127, 'link': None, 'name': 'SUP_ASFRoutine'},
+        {'author_prefix': 2, 'id': 128, 'link': None, 'name': 'ConvoyTravel'},
+        {
+            'author_prefix': 3,
+            'id': 129,
+            'link': None,
+            'name': 'startBreachVehicle',
+        },
+        {'author_prefix': 2, 'id': 130, 'link': None, 'name': 'ConvoyTravelAir'},
+        {'author_prefix': 3, 'id': 131, 'link': None, 'name': 'minefieldAAF'},
+        {'author_prefix': 3, 'id': 132, 'link': None, 'name': 'SUP_SAM'},
+        {'author_prefix': 3, 'id': 133, 'link': None, 'name': 'createAICities'},
+        {'author_prefix': 3, 'id': 134, 'link': None, 'name': 'airspaceControl'},
+        {
+            'author_prefix': 3,
+            'id': 135,
+            'link': None,
+            'name': 'getNearestNavPoint',
+        },
+        {
+            'author_prefix': 3,
+            'id': 136,
+            'link': None,
+            'name': 'arePositionsConnected',
+        },
+        {'author_prefix': 3, 'id': 137, 'link': None, 'name': 'createAIcontrols'},
+        {'author_prefix': 3, 'id': 138, 'link': None, 'name': 'DES_Heli'},
+        {'author_prefix': 3, 'id': 139, 'link': None, 'name': 'onConvoyArrival'},
+        {'author_prefix': 3, 'id': 140, 'link': None, 'name': 'LOG_Supplies'},
+        {'author_prefix': 3, 'id': 141, 'link': None, 'name': 'taskUpdate'},
+        {'author_prefix': 1, 'id': 142, 'link': None, 'name': 'CIVinit'},
+        {'author_prefix': 3, 'id': 143, 'link': None, 'name': 'logistics_unload'},
+        {'author_prefix': 3, 'id': 144, 'link': None, 'name': 'HQGameOptions'},
+        {'author_prefix': 3, 'id': 145, 'link': None, 'name': 'fillLootCrate'},
+        {'author_prefix': 3, 'id': 146, 'link': None, 'name': 'SUP_SAMRoutine'},
+        {'author_prefix': 3, 'id': 147, 'link': None, 'name': 'createAIAirplane'},
+        {'author_prefix': 3, 'id': 148, 'link': None, 'name': 'cleanserVeh'},
+        {'author_prefix': 3, 'id': 149, 'link': None, 'name': 'roadblockFight'},
+        {'author_prefix': 3, 'id': 150, 'link': None, 'name': 'NATOinit'},
+        {'author_prefix': 5, 'id': 151, 'link': None, 'name': 'getCatIndex'},
+        {'author_prefix': 3, 'id': 152, 'link': None, 'name': 'LOG_Salvage'},
+        {'author_prefix': 3, 'id': 153, 'link': None, 'name': 'surrenderAction'},
+        {'author_prefix': 3, 'id': 154, 'link': None, 'name': 'citySupportChange'},
+        {'author_prefix': 3, 'id': 155, 'link': None, 'name': 'RES_Refugees'},
+        {
+            'author_prefix': 3,
+            'id': 156,
+            'link': None,
+            'name': 'punishment_FF_addEH',
+        },
+        {'author_prefix': 3, 'id': 157, 'link': None, 'name': 'initPreJIP'},
+        {'author_prefix': 2, 'id': 158, 'link': None, 'name': 'preInit'},
+        {'author_prefix': 3, 'id': 159, 'link': None, 'name': 'init'},
+        {'author_prefix': 3, 'id': 160, 'link': None, 'name': 'detector'},
+        {'author_prefix': 3, 'id': 161, 'link': None, 'name': 'selector'},
+        {
+            'author_prefix': 3,
+            'id': 162,
+            'link': None,
+            'name': 'TV_verifyLoadoutsData',
+        },
+        {'author_prefix': 3, 'id': 163, 'link': None, 'name': 'TV_verifyAssets'},
+        {
+            'author_prefix': 3,
+            'id': 164,
+            'link': None,
+            'name': 'compileMissionAssets',
+        },
+        {'author_prefix': 3, 'id': 165, 'link': None, 'name': 'spawnGroup'},
+        {'author_prefix': 3, 'id': 166, 'link': None, 'name': 'createOutpostsFIA'},
+        {
+            'author_prefix': 3,
+            'id': 167,
+            'link': None,
+            'name': 'punishment_oceanGulag',
+        },
+        {'author_prefix': 3, 'id': 168, 'link': None, 'name': 'LOG_Ammo'},
+        {
+            'author_prefix': 3,
+            'id': 169,
+            'link': None,
+            'name': 'compatabilityLoadFaction',
+        },
+        {'author_prefix': 3, 'id': 170, 'link': None, 'name': 'AS_Traitor'}]}
     with database:
         database.create_tables(all_models)
     for model, data in setup_data.items():

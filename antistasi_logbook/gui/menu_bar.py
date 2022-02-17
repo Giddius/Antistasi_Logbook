@@ -23,7 +23,7 @@ from gidapptools.general_helper.string_helper import StringCase, StringCaseConve
 from gidapptools.gidapptools_qt.basics.menu_bar import BaseMenuBar
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.storage.models.models import Mod, GameMap, Version, LogLevel, BaseModel, RecordClass, RecordOrigin, RemoteStorage, ArmaFunction
+from antistasi_logbook.storage.models.models import Mod, GameMap, Version, LogLevel, BaseModel, RecordClass, RecordOrigin, RemoteStorage, ArmaFunction, ArmaFunctionAuthorPrefix
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
@@ -61,7 +61,7 @@ class DataMenuAction(QAction):
 
     def setup(self):
         name = self.db_model.get_meta().table_name
-        log.debug(name)
+
         formated_name = StringCaseConverter.convert_to(name, StringCase.TITLE)
         if formated_name.endswith("s"):
             text = f"{formated_name}es"
@@ -77,7 +77,7 @@ class DataMenuAction(QAction):
 class DataMenuActionGroup(QObject):
     triggered = Signal(object)
 
-    def __init__(self, parent: Optional[PySide6.QtCore.QObject] = None) -> None:
+    def __init__(self, parent=None) -> None:
         super().__init__(parent=parent)
         self.actions: WeakSet[DataMenuAction] = WeakSet()
 
@@ -115,7 +115,8 @@ class LogbookMenuBar(BaseMenuBar):
 
         self.data_menu = self.add_new_menu("Data", parent_menu=self.view_menu)
         self.show_game_maps_action = self.add_action(self.data_menu, DataMenuAction(GameMap, self.data_menu))
-        self.show_antistasi_function_action = self.add_action(self.data_menu, DataMenuAction(ArmaFunction, self.data_menu))
+        self.show_arma_function_action = self.add_action(self.data_menu, DataMenuAction(ArmaFunction, self.data_menu))
+        self.show_arma_function_author_prefix_action = self.add_action(self.data_menu, DataMenuAction(ArmaFunctionAuthorPrefix, self.data_menu))
         self.show_mods_action = self.add_action(self.data_menu, DataMenuAction(Mod, self.data_menu))
         self.show_origins_action = self.add_action(self.data_menu, DataMenuAction(RecordOrigin, self.data_menu))
         self.show_versions_action = self.add_action(self.data_menu, DataMenuAction(Version, self.data_menu))
@@ -125,7 +126,8 @@ class LogbookMenuBar(BaseMenuBar):
 
         self.data_menu_actions_group = DataMenuActionGroup(self.data_menu)
         self.data_menu_actions_group.add_action(self.show_game_maps_action)
-        self.data_menu_actions_group.add_action(self.show_antistasi_function_action)
+        self.data_menu_actions_group.add_action(self.show_arma_function_action)
+        self.data_menu_actions_group.add_action(self.show_arma_function_author_prefix_action)
         self.data_menu_actions_group.add_action(self.show_mods_action)
         self.data_menu_actions_group.add_action(self.show_origins_action)
         self.data_menu_actions_group.add_action(self.show_versions_action)

@@ -520,6 +520,7 @@ class LogRecordSearchPage(BaseDataToolPage):
 
     def delay_text_execution(self, *args):
         if self.timer is None or self.timer.isActive() is False:
+            log.debug("creating timer for %r", self)
             self.timer = QTimer()
             self.timer.setSingleShot(True)
             self.timer.setTimerType(Qt.CoarseTimer)

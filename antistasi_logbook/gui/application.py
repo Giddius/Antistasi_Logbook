@@ -11,13 +11,13 @@ import argparse
 import shutil
 from typing import TYPE_CHECKING, Any, Iterable
 from pathlib import Path
-from weakref import WeakSet
+from weakref import WeakSet, WeakValueDictionary
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
-
+from functools import cached_property
 # * Qt Imports --------------------------------------------------------------------------------------->
-from PySide6.QtGui import QFont, QIcon, QColor, QGuiApplication
-from PySide6.QtCore import Qt, QSettings
+from PySide6.QtGui import QFont, QIcon, QColor, QCloseEvent, QGuiApplication, QScreen
+from PySide6.QtCore import Qt, QSettings, QEvent, QRect
 from PySide6.QtWidgets import QMainWindow, QMessageBox, QApplication, QSplashScreen
 import sys
 # * Third Party Imports --------------------------------------------------------------------------------->
@@ -29,7 +29,7 @@ from gidapptools.gid_config.interface import EntryTypus
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-
+from gidapptools.gidapptools_qt.basics.application import WindowHolder
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 
     from antistasi_logbook.backend import Backend
     from antistasi_logbook.gui.main_window import LogbookSystemTray, AntistasiLogbookMainWindow
-
+import pp
 # endregion[Imports]
 
 # region [TODO]
@@ -103,7 +103,7 @@ class AntistasiLogbookApplication(QApplication):
         self.icon: QIcon = None
         self.main_window: "AntistasiLogbookMainWindow" = None
         self.sys_tray: "LogbookSystemTray" = None
-        self.extra_windows = WeakSet()
+        self.extra_windows = WindowHolder()
         self.current_splash_screen: QSplashScreen = None
         self._gui_thread_pool: ThreadPoolExecutor = None
         self.meta_info = get_meta_info()
@@ -113,6 +113,15 @@ class AntistasiLogbookApplication(QApplication):
         self.jinja_environment = None
         self.init_app_meta_data()
         self.cli_arguments = self.parse_cli_arguments()
+
+    @cached_property
+    def screen_points(self) -> dict[str, int]:
+        screen: QScreen = self.primaryScreen()
+        screen_rect: QRect = screen.geometry()
+        return {"top": screen_rect.top(), "bottom": screen_rect.bottom(), "left": screen_rect.left(), "right": screen_rect.right()}
+
+    def del_extra_window(self, name: str):
+        del self.extra_windows[name]
 
     def init_app_meta_data(self):
         self.setApplicationName(self.meta_info.app_name)
@@ -240,6 +249,7 @@ class AntistasiLogbookApplication(QApplication):
         self.current_splash_screen.finish(main_window)
         main_window.setWindowState(args["main_window_states"])
         self.main_window = main_window
+        self.main_window.setup()
         return main_window
 
     def show_splash_screen(self, splash_type: str) -> QSplashScreen:
@@ -264,6 +274,8 @@ class AntistasiLogbookApplication(QApplication):
                 item.unlink(missing_ok=True)
             elif item.is_dir():
                 shutil.rmtree(item)
+
+        log.debug(pp.fmt(self.extra_windows.windows))
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(name={self.applicationDisplayName()!r})"
