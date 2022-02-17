@@ -40,7 +40,7 @@ class SimpleRegexKeeper:
 
     """
 
-    __slots__ = ("only_time", "local_datetime", "continued_record", "generic_record", "full_datetime", "called_by", "game_map", "game_file", "mods", "mod_time_strip", "campaign_id", "first_full_datetime")
+    __slots__ = ("only_time", "version", "local_datetime", "continued_record", "generic_record", "full_datetime", "called_by", "game_map", "game_file", "mods", "mod_time_strip", "campaign_id", "first_full_datetime")
 
     def __init__(self) -> None:
 
@@ -58,6 +58,7 @@ class SimpleRegexKeeper:
 
         self.game_map = re.compile(r"\sMission world\:\s*(?P<game_map>.*)")
         self.game_file = re.compile(r"\s+Mission file\:\s*(?P<game_file>.*)")
+        self.version = re.compile(r"\s*MP server version:\s*(?P<version>.*)")
         self.campaign_id = re.compile(r"((?P<text_loading>Loading last campaign ID)|(?P<text_creating>Creating new campaign with ID))\s*(?P<campaign_id>\d+)")
         self.mods = re.compile(r"""^([0-2\s]?\d)
                                           [^\d]

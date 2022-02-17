@@ -8,7 +8,6 @@ Soon.
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import queue
-import random
 from time import sleep
 from typing import TYPE_CHECKING, Any, Optional
 from pathlib import Path
@@ -18,7 +17,7 @@ from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor, wait
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 from dateutil.tz import UTC
-from functools import partial
+
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.gid_signal.interface import get_signal
@@ -218,34 +217,45 @@ class Updater:
         amount_deleted = 0
         for log_file in server.log_files.select().where(LogFile.modified_at < cutoff_datetime):
             log.info("removing log-file %r of server %r", log_file, server)
-
+            if log_file.original_file is not None:
+                log_file.original_file.delete_instance()
             log_file.delete_instance(True)
             amount_deleted += 1
         return amount_deleted
 
+    def process_log_file(self, log_file: "LogFile", force: bool = False) -> None:
+        if force is True:
+            log_file.last_parsed_line_number = 0
+            log_file.last_parsed_datetime = None
+            log_file.version = None
+            log_file.utc_offset = None
+            log_file.is_new_campaign = None
+            log_file.campaign_id = None
+            log_file.game_map = None
+            log_file.startup_text = None
+            log_file.header_text = None
+            log_file.max_mem = None
+        context = self.parsing_context_factory(log_file=log_file)
+        if force is True:
+            context.force = True
+        context.done_signal = self.signaler.send_update_increment
+        with context:
+
+            log.debug("starting to parse %s", log_file)
+            for processed_record in self.parser(context=context):
+                if self.stop_event.is_set() is True:
+                    break
+                context.insert_record(processed_record)
+            context._dump_rest()
+
     def process(self, server: "Server") -> None:
-
-        def _do(_log_file: "LogFile"):
-            sleep(random.uniform(0.1, 2.0))
-            self.signaler.send_update_increment()
-            if self.stop_event.is_set() is False:
-                context = self.parsing_context_factory(log_file=_log_file)
-                context.done_signal = self.signaler.send_update_increment
-                with context:
-
-                    log.debug("starting to parse %s", _log_file)
-                    for processed_record in self.parser(context=context):
-                        if self.stop_event.is_set() is True:
-                            break
-                        context.insert_record(processed_record)
-                    context._dump_rest()
 
         tasks = []
         to_update_log_files = self._get_updated_log_files(server=server)
         self.signaler.send_update_info(len(to_update_log_files) * 3, server.name)
         for log_file in to_update_log_files:
             if self.stop_event.is_set() is False:
-                sub_task = self.thread_pool.submit(_do, _log_file=log_file)
+                sub_task = self.thread_pool.submit(self.process_log_file, log_file=log_file)
                 tasks.append(sub_task)
 
         wait(tasks, return_when=ALL_COMPLETED, timeout=None)

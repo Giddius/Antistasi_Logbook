@@ -10,13 +10,12 @@ Soon.
 import os
 from typing import TYPE_CHECKING, Union, Protocol, Generator
 from pathlib import Path
-import types
 from weakref import WeakSet
 from functools import cached_property
 from threading import Lock
 
 # * Third Party Imports --------------------------------------------------------------------------------->
-from apsw import Connection
+from apsw import Connection, SQLITE_CHECKPOINT_TRUNCATE
 from peewee import JOIN, DatabaseProxy
 from playhouse.apsw_ext import APSWDatabase
 
@@ -28,9 +27,10 @@ from gidapptools.general_helper.conversion import human2bytes
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook import setup
-from antistasi_logbook.storage.models.models import Server, GameMap, LogFile, Version, LogLevel, LogRecord, RecordClass, RecordOrigin, RemoteStorage, AntstasiFunction, DatabaseMetaData, setup_db, migration
-import apsw
-from time import sleep
+from antistasi_logbook.storage.models.models import (Server, GameMap, LogFile, Version, LogLevel, LogRecord, RecordClass, RecordOrigin,
+                                                     RemoteStorage, ArmaFunction, DatabaseMetaData, setup_db, ArmaFunctionAuthorPrefix)
+from antistasi_logbook.storage.models.migration import run_migration
+
 setup()
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
@@ -118,7 +118,7 @@ class GidSqliteDatabase(Protocol):
 
 
 class GidSqliteApswDatabase(APSWDatabase):
-    all_connections: WeakSet[Connection] = WeakSet()
+
     default_extensions = {"json_contains": True,
                           "regexp_function": False}
 
@@ -132,6 +132,7 @@ class GidSqliteApswDatabase(APSWDatabase):
                  autoconnect=True,
                  pragmas=None,
                  extensions=None):
+        self.all_connections: WeakSet[Connection] = WeakSet()
         self.database_path = self.default_db_path.joinpath(DEFAULT_DB_NAME)
         if database_path is not None:
             in_path = Path(database_path)
@@ -141,6 +142,7 @@ class GidSqliteApswDatabase(APSWDatabase):
             else:
                 in_path.parent.mkdir(exist_ok=True, parents=True)
                 self.database_path = in_path
+        self.database_existed: bool = self.database_path.is_file()
         self.database_name = self.database_path.name
         self.config = CONFIG if config is None else config
         self.auto_backup = auto_backup
@@ -164,20 +166,7 @@ class GidSqliteApswDatabase(APSWDatabase):
 
     def _add_conn_hooks(self, conn):
         super()._add_conn_hooks(conn)
-        self.all_connections.add(conn)
-
-    def close_all(self):
-        log.debug("all connections: %r", ', '.join(repr(conn) for conn in self.all_connections))
-        for conn in self.all_connections:
-            log.debug("interrupting connection %r", conn)
-            try:
-                conn.interrupt()
-            except apsw.ConnectionClosedError as e:
-                log.debug("encountered error %r", e)
-            log.debug("closing connection %r", conn)
-            conn.close(True)
-
-        self.close()
+        # self.all_connections.add(conn)
 
     def _pre_start_up(self, overwrite: bool = False) -> None:
         self.database_path.parent.mkdir(exist_ok=True, parents=True)
@@ -186,6 +175,13 @@ class GidSqliteApswDatabase(APSWDatabase):
 
     def _post_start_up(self, **kwargs) -> None:
         self.session_meta_data = DatabaseMetaData.new_session()
+
+    def checkpoint(self, mode=SQLITE_CHECKPOINT_TRUNCATE):
+        self.connect(True)
+        conn = self.connection()
+        result = conn.wal_checkpoint(mode=mode)
+        log.info("checkpoint wal with return: %r", result)
+        self.close()
 
     def start_up(self,
                  overwrite: bool = False,
@@ -197,12 +193,13 @@ class GidSqliteApswDatabase(APSWDatabase):
         self._pre_start_up(overwrite=overwrite)
         self.connect(reuse_if_open=True)
         with self.write_lock:
+            if self.database_existed is True:
+                log.debug("starting migration for %r", self)
+                run_migration(self)
+                log.debug("finished migration for %r", self)
             log.debug("starting setup for %r", self)
             setup_db(self)
             log.debug("finished setup for %r", self)
-            log.debug("starting migration for %r", self)
-            migration(self)
-            log.debug("finished migration for %r", self)
 
         self._post_start_up()
         self.started_up = True
@@ -214,12 +211,14 @@ class GidSqliteApswDatabase(APSWDatabase):
         log.info("optimizing %r", self)
         with self.write_lock:
             self.pragma("OPTIMIZE")
+            self.checkpoint()
         return self
 
     def vacuum(self) -> "GidSqliteApswDatabase":
         log.info("vacuuming %r", self)
         with self.write_lock:
             self.execute_sql("VACUUM;")
+            self.checkpoint()
         return self
 
     def shutdown(self, error: BaseException = None) -> None:
@@ -227,7 +226,8 @@ class GidSqliteApswDatabase(APSWDatabase):
         with self.write_lock:
             self.session_meta_data.save()
         with self.write_lock:
-            self.close_all()
+            self.checkpoint()
+            self.close()
 
         log.debug("finished shutting down %r", self)
         self.started_up = False
@@ -254,9 +254,9 @@ class GidSqliteApswDatabase(APSWDatabase):
 
         return result
 
-    def get_all_antistasi_functions(self, ordered_by=AntstasiFunction.id) -> tuple[AntstasiFunction]:
+    def get_all_arma_functions(self, ordered_by=ArmaFunction.id) -> tuple[ArmaFunction]:
         with self.connection_context() as ctx:
-            result = tuple(AntstasiFunction.select().order_by(ordered_by))
+            result = tuple(ArmaFunction.select(ArmaFunction).join(ArmaFunctionAuthorPrefix).order_by(ordered_by))
 
         return result
 
@@ -286,7 +286,8 @@ class GidSqliteApswDatabase(APSWDatabase):
         if only_missing_record_class is True:
             query = query.where((LogRecord.record_class >> None))
         for record in query.iterator():
-            record.logged_from = self.foreign_key_cache.get_antistasi_file_by_id(record.logged_from_id)
+            record.called_by = self.foreign_key_cache.get_arma_file_by_id(record.called_by_id)
+            record.logged_from = self.foreign_key_cache.get_arma_file_by_id(record.logged_from_id)
             record.origin = self.foreign_key_cache.get_origin_by_id(record.origin_id)
             yield record
         self.close()

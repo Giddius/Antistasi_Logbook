@@ -1,3 +1,4 @@
+Cython
 click==8.0.3
 colorhash==1.0.4
 cryptography==35.0.0
@@ -5,7 +6,7 @@ httpx[brotli]==0.20.0
 jinja2==2.11.3
 marshmallow==3.14.0
 natsort
-peewee==3.14.4
+peewee==3.14.8
 Pillow==8.4.0
 pyparsing==3.0.6
 pyparsing==3.0.6

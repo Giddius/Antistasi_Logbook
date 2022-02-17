@@ -10,12 +10,12 @@ Soon.
 from typing import TYPE_CHECKING, Any, Union, Optional
 from pathlib import Path
 from datetime import datetime
-from functools import cache
+
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
-from gidapptools import get_logger
+from gidapptools import get_logger, get_meta_config
 from gidapptools.general_helper.color.color_item import Color
 
 # * Local Imports --------------------------------------------------------------------------------------->
@@ -34,7 +34,7 @@ from gidapptools.general_helper.string_helper import shorten_string
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
-    from antistasi_logbook.storage.models.models import LogFile, LogLevel, LogRecord, RecordOrigin, AntstasiFunction
+    from antistasi_logbook.storage.models.models import LogFile, LogLevel, LogRecord, RecordOrigin, ArmaFunction
     from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 
 # endregion[Imports]
@@ -90,6 +90,7 @@ class BaseRecord(AbstractRecord):
     ___record_family___ = RecordFamily.GENERIC | RecordFamily.ANTISTASI
     ___specificity___ = 0
     foreign_key_cache: "ForeignKeyCache" = None
+    color_config = get_meta_config().get_config("color")
     _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
     __slots__ = ["record_id",
                  "log_file",
@@ -116,8 +117,8 @@ class BaseRecord(AbstractRecord):
                  recorded_at: datetime,
                  log_level: "LogLevel",
                  marked: bool,
-                 called_by: "AntstasiFunction" = None,
-                 logged_from: "AntstasiFunction" = None) -> None:
+                 called_by: "ArmaFunction" = None,
+                 logged_from: "ArmaFunction" = None) -> None:
         self.record_id = record_id
         self.log_file = log_file
         self.origin = origin
@@ -137,8 +138,6 @@ class BaseRecord(AbstractRecord):
         try:
             return getattr(self, f"pretty_{name}")
         except AttributeError:
-
-            log.debug("no pretty data for attribute %r of %r", name, self)
 
             return getattr(self, name)
 
@@ -169,16 +168,21 @@ class BaseRecord(AbstractRecord):
             self.pretty_attribute_cache.pretty_recorded_at = self.log_file.format_datetime(self.recorded_at)
         return self.pretty_attribute_cache.pretty_recorded_at
 
+    @classmethod
     @property
-    @profile
-    def background_color(self) -> Optional["QColor"]:
-        if self._background_qcolor is MiscEnum.NOTHING:
-            self._background_qcolor = self.get_background_color()
-        return self._background_qcolor
+    def background_color(cls) -> Optional["QColor"]:
+        if cls._background_qcolor is MiscEnum.NOTHING:
+            cls._background_qcolor = cls.get_background_color()
+        return cls._background_qcolor
 
-    @profile
-    def get_background_color(self) -> "QColor":
-        return Color.get_color_by_name("Gray").with_alpha(0.1).qcolor
+    @classmethod
+    def get_background_color(cls) -> "QColor":
+        return cls.color_config.get("record", cls.__name__, default=Color.get_color_by_name("white").with_alpha(0.75).qcolor)
+
+    @classmethod
+    def set_background_color(cls, color: QColor):
+        cls.color_config.set("record", cls.__name__, color, create_missing_section=True)
+        cls.reset_colors()
 
     @profile
     def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
@@ -192,8 +196,8 @@ class BaseRecord(AbstractRecord):
     @profile
     def get_db_item(self, database: "GidSqliteApswDatabase") -> "LogRecord":
         from antistasi_logbook.storage.models.models import LogRecord
-        with database:
-            return LogRecord.get_by_id(self.record_id)
+
+        return LogRecord.get_by_id(self.record_id)
 
     @classmethod
     def check(cls, log_record: "LogRecord") -> bool:
@@ -228,8 +232,8 @@ class BaseRecord(AbstractRecord):
                    recorded_at=model_dict["recorded_at"],
                    log_level=cls.foreign_key_cache.get_log_level_by_id(model_dict['log_level']),
                    marked=model_dict["marked"],
-                   called_by=cls.foreign_key_cache.get_antistasi_file_by_id(model_dict["called_by"]),
-                   logged_from=cls.foreign_key_cache.get_antistasi_file_by_id(model_dict["logged_from"]))
+                   called_by=cls.foreign_key_cache.get_arma_file_by_id(model_dict["called_by"]),
+                   logged_from=cls.foreign_key_cache.get_arma_file_by_id(model_dict["logged_from"]))
 
     def __getattr__(self, name: str):
         if name == "id":

@@ -13,7 +13,8 @@ import threading
 from typing import TYPE_CHECKING, Callable, Optional
 from pathlib import Path
 from datetime import timezone
-from traceback import format_tb, format_exception
+from traceback import format_tb
+
 # * Third Party Imports --------------------------------------------------------------------------------->
 from webdav4.client import HTTPError, ResourceNotFound
 
@@ -109,15 +110,15 @@ class DefaultExceptionHandler:
         self.manager = manager
 
     def handle_exception(self, exception: BaseException):
-        # log.error(exception, exc_info=True, stacklevel=3)
+        log.error(exception, exc_info=True, stacklevel=3)
         raise exception
 
     def handle_thread_except_hook(self, args: threading.ExceptHookArgs):
-        # log.error(args.exc_value, exc_info=True, stacklevel=3)
+        log.error(args.exc_value, exc_info=True, stacklevel=3)
         original_threading_except_hook(args)
 
     def handle_except_hook(self, type_, value, traceback):
-        # log.error(value, exc_info=True, stacklevel=3)
+        log.error(value, exc_info=True, stacklevel=3)
         sys.__excepthook__(type_, value, traceback)
 
 

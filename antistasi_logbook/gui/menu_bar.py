@@ -15,7 +15,7 @@ from weakref import WeakSet
 import PySide6
 from PySide6.QtGui import QAction
 from PySide6.QtCore import Signal, QObject
-from PySide6.QtWidgets import QWidget, QApplication
+from PySide6.QtWidgets import QWidget, QApplication, QStyle
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -23,7 +23,7 @@ from gidapptools.general_helper.string_helper import StringCase, StringCaseConve
 from gidapptools.gidapptools_qt.basics.menu_bar import BaseMenuBar
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.storage.models.models import Mod, GameMap, Version, LogLevel, BaseModel, RecordClass, RecordOrigin, RemoteStorage, AntstasiFunction
+from antistasi_logbook.storage.models.models import Mod, GameMap, Version, LogLevel, BaseModel, RecordClass, RecordOrigin, RemoteStorage, ArmaFunction, ArmaFunctionAuthorPrefix
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
@@ -61,7 +61,7 @@ class DataMenuAction(QAction):
 
     def setup(self):
         name = self.db_model.get_meta().table_name
-        log.debug(name)
+
         formated_name = StringCaseConverter.convert_to(name, StringCase.TITLE)
         if formated_name.endswith("s"):
             text = f"{formated_name}es"
@@ -77,7 +77,7 @@ class DataMenuAction(QAction):
 class DataMenuActionGroup(QObject):
     triggered = Signal(object)
 
-    def __init__(self, parent: Optional[PySide6.QtCore.QObject] = None) -> None:
+    def __init__(self, parent=None) -> None:
         super().__init__(parent=parent)
         self.actions: WeakSet[DataMenuAction] = WeakSet()
 
@@ -95,8 +95,8 @@ class LogbookMenuBar(BaseMenuBar):
     def app(self) -> "AntistasiLogbookApplication":
         return QApplication.instance()
 
-    def setup_menus(self) -> None:
-        super().setup_menus()
+    def setup_extra_menus(self) -> None:
+        super().setup_extra_menus()
 
         self.database_menu = self.add_new_menu("Database", add_before=self.help_menu.menuAction())
         self.single_update_action = self.add_new_action(self.database_menu, "Update Once")
@@ -107,14 +107,16 @@ class LogbookMenuBar(BaseMenuBar):
 
         self.exit_action.setIcon(AllResourceItems.close_cancel_image.get_as_icon())
 
-        self.show_folder_action = self.add_new_action(self.help_menu, "Show Folder", add_before=self.help_separator)
+        self.show_folder_action = self.add_new_action(self.help_menu, "Show Folder", add_before=self.help_separator, icon=self.style().standardIcon(QStyle.SP_DirIcon))
+
         self.show_app_log_action = self.add_new_action(self.help_menu, "Show App Log", add_before=self.help_separator)
-        self.show_errors_action = self.add_new_action(self.help_menu, "Show Errors", add_before=self.help_separator)
+        self.show_errors_action = self.add_new_action(self.help_menu, "Show Errors", add_before=self.help_separator, icon=AllResourceItems.error_symbol_image.get_as_icon())
         self.open_credentials_managment_action = self.add_new_action(self.settings_menu, "Credentials Managment")
 
         self.data_menu = self.add_new_menu("Data", parent_menu=self.view_menu)
         self.show_game_maps_action = self.add_action(self.data_menu, DataMenuAction(GameMap, self.data_menu))
-        self.show_antistasi_function_action = self.add_action(self.data_menu, DataMenuAction(AntstasiFunction, self.data_menu))
+        self.show_arma_function_action = self.add_action(self.data_menu, DataMenuAction(ArmaFunction, self.data_menu))
+        self.show_arma_function_author_prefix_action = self.add_action(self.data_menu, DataMenuAction(ArmaFunctionAuthorPrefix, self.data_menu))
         self.show_mods_action = self.add_action(self.data_menu, DataMenuAction(Mod, self.data_menu))
         self.show_origins_action = self.add_action(self.data_menu, DataMenuAction(RecordOrigin, self.data_menu))
         self.show_versions_action = self.add_action(self.data_menu, DataMenuAction(Version, self.data_menu))
@@ -124,7 +126,8 @@ class LogbookMenuBar(BaseMenuBar):
 
         self.data_menu_actions_group = DataMenuActionGroup(self.data_menu)
         self.data_menu_actions_group.add_action(self.show_game_maps_action)
-        self.data_menu_actions_group.add_action(self.show_antistasi_function_action)
+        self.data_menu_actions_group.add_action(self.show_arma_function_action)
+        self.data_menu_actions_group.add_action(self.show_arma_function_author_prefix_action)
         self.data_menu_actions_group.add_action(self.show_mods_action)
         self.data_menu_actions_group.add_action(self.show_origins_action)
         self.data_menu_actions_group.add_action(self.show_versions_action)

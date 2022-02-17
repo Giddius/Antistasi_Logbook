@@ -54,7 +54,7 @@ class LogbookSystemTray(QSystemTrayIcon):
         self.menu: QMenu = None
         self.menu_title: QLabel = None
 
-        super().__init__(self.tray_icon, self.main_window)
+        super().__init__(self.tray_icon, self.app)
         self.setup()
 
     def setup(self) -> None:
@@ -98,7 +98,8 @@ class LogbookSystemTray(QSystemTrayIcon):
         self.main_window.setVisible(not main_window_visible)
         for dock_widget in self.main_window.dock_widgets:
             dock_widget.setVisible(not main_window_visible)
-
+        for window in self.app.extra_windows.values():
+            window.setVisible(not main_window_visible)
         text = "Minimize to Tray" if main_window_visible is False else "Open"
         icon = AllResourceItems.hidden_image.get_as_icon() if main_window_visible is False else AllResourceItems.view_image.get_as_icon()
         self.hide_show_action.setText(text)

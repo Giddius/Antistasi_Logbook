@@ -7,13 +7,14 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
+from typing import Mapping, Iterable
 from pathlib import Path
-from typing import Any, Optional, Hashable, Mapping, Iterable
 from functools import cached_property
+
 # * Qt Imports --------------------------------------------------------------------------------------->
+from PySide6.QtGui import QFont, QColor
 from PySide6.QtCore import Qt, QSize
-from PySide6.QtGui import QFont, QColor, QBrush
-from PySide6.QtWidgets import QLabel, QListWidget, QTableWidget, QTableWidgetItem, QTreeWidget, QTreeWidgetItem
+from PySide6.QtWidgets import QLabel, QListWidget, QTreeWidget, QTreeWidgetItem
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger

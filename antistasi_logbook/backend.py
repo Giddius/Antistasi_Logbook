@@ -16,11 +16,11 @@ from itertools import chain
 from threading import Lock, Event
 from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor, wait
 
-# * Third Party Imports --------------------------------------------------------------------------------->
-import attr
-
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtWidgets import QApplication
+
+# * Third Party Imports --------------------------------------------------------------------------------->
+import attr
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
@@ -265,8 +265,8 @@ class Backend:
 
         self.database.connect(True)
         self.fill_record_class_manager()
-        _ = self.foreign_key_cache.all_antistasi_file_objects
-        _ = self.foreign_key_cache.all_antistasi_file_objects_by_id
+        _ = self.foreign_key_cache.all_arma_file_objects
+        _ = self.foreign_key_cache.all_arma_file_objects_by_id
         _ = self.foreign_key_cache.all_game_map_objects
         _ = self.foreign_key_cache.all_game_map_objects_by_id
         _ = self.foreign_key_cache.all_log_levels
@@ -296,7 +296,7 @@ class Backend:
         for ctx in self.all_parsing_context:
             log.debug("checking ctx %r", ctx)
             while ctx.is_open is True:
-                sleep(0.1)
+                sleep(0.0001)
             all_futures += ctx.futures
         log.debug("waiting for all futures to finish")
         wait(all_futures, return_when=ALL_COMPLETED, timeout=3.0)

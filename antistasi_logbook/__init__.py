@@ -1,6 +1,6 @@
 """Antistasi Logbook"""
 
-__version__ = '0.4.1'
+__version__ = '0.4.3'
 
 import os
 
@@ -21,7 +21,7 @@ from rich.box import DOUBLE_EDGE
 from rich.text import Text
 import rich.traceback
 from pathlib import Path
-from gidapptools import setup_main_logger, setup_main_logger_with_file_logging, get_meta_paths, get_meta_config, get_meta_info
+from gidapptools import setup_main_logger, setup_main_logger_with_file_logging, get_meta_paths, get_meta_config, get_meta_info, get_handlers, get_logger, get_main_logger
 from gidapptools.meta_data import setup_meta_data
 
 from gidapptools.gidapptools_qt.widgets.std_stream_widget import BaseStdStreamCapturer, LimitedStdStreamCapturer
@@ -95,6 +95,7 @@ if "apsw" not in sys.modules:
     except ImportError:
         on_init_error()
         print_apsw_import_error_msg()
+        sys.exit(1)
 
 
 # _extra_logger = ["peewee"]
@@ -111,6 +112,7 @@ def setup():
     global IS_SETUP
     if IS_SETUP is True:
         return
+    os.environ["_MAIN_DIR"] = str(Path(__file__).resolve().parent)
     setup_meta_data(__file__,
                     configs_to_create=[THIS_FILE_DIR.joinpath("data", "general_config.ini"), THIS_FILE_DIR.joinpath("data", "color_config.ini")],
                     spec_to_create=[THIS_FILE_DIR.joinpath("data", "general_configspec.json"), THIS_FILE_DIR.joinpath("data", "color_configspec.json")],
@@ -136,3 +138,6 @@ def setup():
 
 
 setup()
+
+que_handlers = get_main_logger().all_handlers["que_handlers"]
+storage_handler = [i for i in que_handlers if i.__class__.__name__ == "GidStoringHandler"][0]

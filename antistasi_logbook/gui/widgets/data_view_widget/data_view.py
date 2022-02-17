@@ -14,7 +14,7 @@ from pathlib import Path
 import PySide6
 from PySide6.QtGui import QFont
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QLabel, QWidget, QFormLayout, QApplication, QFrame
+from PySide6.QtWidgets import QFrame, QLabel, QWidget, QFormLayout, QApplication
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -22,7 +22,7 @@ from gidapptools.general_helper.enums import MiscEnum
 from gidapptools.general_helper.string_helper import StringCase, StringCaseConverter
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.gui.widgets.data_view_widget.type_fields import TYPE_FIELD_TABLE, TypeFieldProtocol, get_type_widget
+from antistasi_logbook.gui.widgets.data_view_widget.type_fields import TypeFieldProtocol, get_type_widget
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:

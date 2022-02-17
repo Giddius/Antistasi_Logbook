@@ -7,10 +7,11 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
+from time import sleep
 from typing import TYPE_CHECKING, Any
 from pathlib import Path
 from threading import Event
-from time import sleep
+
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 
@@ -70,7 +71,7 @@ class Parser:
         with context.open(cleanup=False) as file:
 
             text = file.read(self.log_file_data_scan_chunk_initial)
-            finder = MetaFinder(context=context, regex_keeper=self.regex_keeper)
+            finder = MetaFinder(context=context, regex_keeper=self.regex_keeper, force=context.force)
 
             while True:
                 finder.search(text)

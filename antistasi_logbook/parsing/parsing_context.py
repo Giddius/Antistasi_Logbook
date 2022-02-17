@@ -7,12 +7,12 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
+import re
 from typing import TYPE_CHECKING, Any, TextIO, Callable, Iterable, Generator
 from pathlib import Path
 from datetime import timedelta
 from threading import Lock, RLock
 from contextlib import contextmanager
-import re
 from collections import deque
 from concurrent.futures import FIRST_EXCEPTION, Future, wait
 
@@ -149,7 +149,7 @@ class LogParsingContext:
     new_log_record_signal = get_signal("new_log_record")
     mem_cache_regex = re.compile(r"-MaxMem\=(?P<max_mem>\d+)")
     __slots__ = ("__weakref__", "_log_file", "record_lock", "log_file_data", "data_lock", "foreign_key_cache", "line_cache", "_line_iterator",
-                 "_current_line", "_current_line_number", "futures", "record_storage", "inserter", "_bulk_create_batch_size", "database", "config", "is_open", "done_signal")
+                 "_current_line", "_current_line_number", "futures", "record_storage", "inserter", "_bulk_create_batch_size", "database", "config", "is_open", "done_signal", "force")
 
     def __init__(self, log_file: "LogFile", inserter: "RecordInserter", config: "GidIniConfig", foreign_key_cache: "ForeignKeyCache") -> None:
         self._log_file = log_file
@@ -169,6 +169,7 @@ class LogParsingContext:
         self.record_lock = Lock()
         self.is_open: bool = False
         self.done_signal: Callable[[], None] = None
+        self.force: bool = False
 
     @property
     def _log_record_batch_size(self) -> int:
@@ -233,7 +234,6 @@ class LogParsingContext:
             self.done_signal()
 
     def set_header_text(self, lines: Iterable["RecordLine"]) -> None:
-        # takes about 0.0003763 s
         if lines:
             text = '\n'.join(i.content for i in lines if i.content)
             if match := self.mem_cache_regex.search(text):
@@ -242,7 +242,6 @@ class LogParsingContext:
             self.log_file_data["header_text"] = text
 
     def set_startup_text(self, lines: Iterable["RecordLine"]) -> None:
-        # takes about 0.0103124 s
         if lines:
             text = '\n'.join(i.content for i in lines if i.content)
             self.log_file_data["startup_text"] = text
@@ -256,6 +255,7 @@ class LogParsingContext:
                     continue
                 line = line.rstrip()
                 self._current_line_number = line_number
+
                 yield RecordLine(content=line, start=line_number)
 
     @property
@@ -285,6 +285,7 @@ class LogParsingContext:
         self.wait_on_futures()
         with self.data_lock:
             log.debug("updating log-file %r", self._log_file)
+            self.log_file_data.pop("original_file")
             task = self.inserter.update_log_file_from_dict(log_file=self._log_file, in_dict=self.log_file_data)
             log.debug("waiting for result of 'updating log-file %r'", self._log_file)
             task.result()
@@ -295,7 +296,7 @@ class LogParsingContext:
         log.debug("cleaning up log-file %r", self._log_file)
         self._log_file._cleanup()
         self.is_open = False
-        log.debug("sending done signal")
+
         if self.done_signal:
             self.done_signal()
 

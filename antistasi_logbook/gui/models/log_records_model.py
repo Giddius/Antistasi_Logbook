@@ -12,13 +12,13 @@ from typing import TYPE_CHECKING, Any
 from pathlib import Path
 from functools import partial
 
-# * Third Party Imports --------------------------------------------------------------------------------->
-import attr
-from peewee import Field, Query
-
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QFont, QAction, QFontMetrics
 from PySide6.QtCore import Qt, Slot, QSize, Signal, QModelIndex
+
+# * Third Party Imports --------------------------------------------------------------------------------->
+import attr
+from peewee import Field, Query
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -28,9 +28,10 @@ from gidapptools.general_helper.color.color_item import Color
 from antistasi_logbook.gui.misc import CustomRole
 from antistasi_logbook.records.enums import MessageFormat
 from antistasi_logbook.storage.models.models import LogRecord, RecordClass
-from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel, INDEX_TYPE
-from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
+from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE, BaseQueryDataModel
 from antistasi_logbook.gui.models.proxy_models.base_proxy_model import BaseProxyModel
+from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
+
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.records.base_record import BaseRecord

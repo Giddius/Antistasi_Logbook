@@ -106,7 +106,7 @@ def datetime_from_date_time_match(in_match: re.Match):
     return datetime.strptime(date_time_string, DEFAULT_DATE_TIME_FORMAT)
 
 
-def _validate_date_time_frame_tzinfo(instance: "DateTimeFrame", attribute: attr.Attribute, value: datetime):
+def _validate_date_time_frame_tzinfo(instance: "DateTimeFrame"):
     if instance.start.tzinfo is None or instance.end.tzinfo is None:
         raise DurationTimezoneError(instance, instance.start.tzinfo, instance.end.tzinfo, 'start time and end time need to be timezone aware')
     if instance.start.tzinfo != instance.end.tzinfo:
@@ -116,8 +116,11 @@ def _validate_date_time_frame_tzinfo(instance: "DateTimeFrame", attribute: attr.
 @attr.s(auto_attribs=True, auto_detect=True, frozen=True)
 @total_ordering
 class DateTimeFrame:
-    start: datetime = attr.ib(validator=_validate_date_time_frame_tzinfo)
-    end: datetime = attr.ib(validator=_validate_date_time_frame_tzinfo)
+    start: datetime = attr.ib()
+    end: datetime = attr.ib()
+
+    def __attrs_post_init__(self):
+        _validate_date_time_frame_tzinfo(self)
 
     @property
     def delta(self) -> timedelta:

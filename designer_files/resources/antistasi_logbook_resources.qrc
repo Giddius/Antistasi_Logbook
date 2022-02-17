@@ -5,11 +5,16 @@
 		<file>antistasi_logbook_splash_preparing_database.png</file>
 		<file>antistasi_logbook_splash_shutdown_backend.png</file>
 		<file>antistasi_logbook_splash_starting_backend.png</file>
+		<file>antstasifunction_tab_icon.png</file>
 		<file>app_icon.png</file>
+		<file>armafunction_tab_icon.png</file>
+		<file>loglevel_tab_icon.png</file>
 		<file>mark.png</file>
 		<file>placeholder.png</file>
+		<file>txt_file.png</file>
 		<file>unmark.png</file>
 		<file>warning_sign_triangle_red.png</file>
+		<file>armafunctionauthorprefix_tab_icon.svg</file>
 		<file>check_mark_black.svg</file>
 		<file>check_mark_green.svg</file>
 		<file>close-cancel.svg</file>
@@ -21,8 +26,10 @@
 		<file>database_settings.svg</file>
 		<file>debug_settings.svg</file>
 		<file>downloading_settings.svg</file>
+		<file>error_symbol.svg</file>
 		<file>filter_page_symbol.svg</file>
 		<file>folder_settings.svg</file>
+		<file>gamemap_tab_icon.svg</file>
 		<file>general_settings.svg</file>
 		<file>gui_settings.svg</file>
 		<file>hidden.svg</file>
@@ -31,6 +38,8 @@
 		<file>log_records_tab_icon.svg</file>
 		<file>open_eye.svg</file>
 		<file>parsing_settings.svg</file>
+		<file>recordorigin_tab_icon.svg</file>
+		<file>remotestorage_tab_icon.svg</file>
 		<file>search_page_symbol.svg</file>
 		<file>select_path_symbol.svg</file>
 		<file>server_tab_icon.svg</file>

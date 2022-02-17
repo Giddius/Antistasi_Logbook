@@ -10,28 +10,28 @@ Soon.
 from typing import TYPE_CHECKING, Any, Union, Callable, Optional
 from pathlib import Path
 
-# * Third Party Imports --------------------------------------------------------------------------------->
-from apsw import SQLError
-from peewee import Field, Query, IntegerField, ForeignKeyField
-from natsort import natsorted
-
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
 from PySide6 import QtCore
-from PySide6.QtGui import QIcon, QColor, QAction, QFontMetrics
-from PySide6.QtCore import Qt, Slot, Signal, QModelIndex, QAbstractTableModel, QPersistentModelIndex, QSize
+from PySide6.QtGui import QIcon, QColor, QAction
+from PySide6.QtCore import Qt, Slot, QSize, Signal, QModelIndex, QAbstractTableModel, QPersistentModelIndex, QSettings
 from PySide6.QtWidgets import QApplication, QColorDialog
+
+# * Third Party Imports --------------------------------------------------------------------------------->
+from apsw import SQLError
+from peewee import Field, Query, IntegerField
+from natsort import natsorted
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger, get_meta_config
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.storage.models.models import BaseModel, GameMap, Version
+from antistasi_logbook.gui.misc import CustomRole
+from antistasi_logbook.storage.models.models import GameMap, Version, BaseModel
 from antistasi_logbook.gui.widgets.markdown_editor import MarkdownEditorDialog
 from antistasi_logbook.storage.models.custom_fields import URLField, PathField
 from antistasi_logbook.gui.widgets.better_color_dialog import BetterColorDialog
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-from antistasi_logbook.gui.misc import CustomRole
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
@@ -320,16 +320,19 @@ class BaseQueryDataModel(QAbstractTableModel):
             return self.on_display_data_none(Qt.DisplayRole, item, column)
         return str(data)
 
+    @profile
     def columnCount(self, parent: Union[PySide6.QtCore.QModelIndex, PySide6.QtCore.QPersistentModelIndex] = None) -> int:
         if self.columns is None:
             return 0
         return len(self.columns)
 
+    @profile
     def rowCount(self, parent: Union[PySide6.QtCore.QModelIndex, PySide6.QtCore.QPersistentModelIndex] = None) -> int:
         if self.content_items is None:
             return 0
         return len(self.content_items)
 
+    @profile
     def data(self, index: INDEX_TYPE, role: int = None) -> Any:
         if not index.isValid():
             return
@@ -344,6 +347,7 @@ class BaseQueryDataModel(QAbstractTableModel):
 
                 return handler(index=self.modify_index(index))
 
+    @profile
     def _get_raw_data(self, index: INDEX_TYPE) -> Any:
         item, column = self.get(index)
         return getattr(item, column.name, None)
@@ -356,6 +360,7 @@ class BaseQueryDataModel(QAbstractTableModel):
     def _get_foreground_data(self, index: INDEX_TYPE) -> Any:
         pass
 
+    @profile
     def _get_background_data(self, index: INDEX_TYPE) -> Any:
         item, column = self.get(index)
         value = getattr(item, column.name)
@@ -377,9 +382,11 @@ class BaseQueryDataModel(QAbstractTableModel):
     def _get_user_data(self, index: INDEX_TYPE) -> Any:
         pass
 
+    @profile
     def _get_size_hint_data(self, index: INDEX_TYPE) -> Any:
         return QSize(0, 35)
 
+    @profile
     def _get_decoration_data(self, index: INDEX_TYPE) -> Any:
 
         data = getattr(index.row_item, index.column_item.name)
@@ -397,6 +404,7 @@ class BaseQueryDataModel(QAbstractTableModel):
     def _get_check_state_data(self, index: INDEX_TYPE) -> Any:
         pass
 
+    @profile
     def _get_text_alignment_data(self, index: INDEX_TYPE) -> Any:
         return Qt.AlignCenter
 
@@ -421,6 +429,7 @@ class BaseQueryDataModel(QAbstractTableModel):
     def _get_accessible_description_data(self, index: INDEX_TYPE) -> Any:
         pass
 
+    @profile
     def headerData(self, section: int, orientation: Qt.Orientation, role: int = None) -> Any:
         if role not in self.header_data_role_table:
             return
@@ -430,6 +439,7 @@ class BaseQueryDataModel(QAbstractTableModel):
             if handler is not None:
                 return handler(section, orientation)
 
+    @profile
     def _get_display_header_data(self, section: int, orientation: Qt.Orientation) -> Any:
         if orientation == Qt.Horizontal:
             _out = self.columns[section].verbose_name
@@ -446,6 +456,7 @@ class BaseQueryDataModel(QAbstractTableModel):
     def _get_font_header_data(self, section: int, orientation: Qt.Orientation) -> Any:
         pass
 
+    @profile
     def _get_tool_tip_header_data(self, section: int, orientation: Qt.Orientation) -> Any:
         if orientation == Qt.Horizontal:
             return self.columns[section].help_text

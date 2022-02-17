@@ -101,7 +101,7 @@ class PathField(Field):
             return Path(value)
 
 
-class VersionField(Field):
+class VersionField(TextField):
     field_type = "VERSION"
 
     def db_value(self, value: VersionItem):
@@ -109,9 +109,8 @@ class VersionField(Field):
             return str(value)
 
     def python_value(self, value) -> Optional[VersionItem]:
-        if value is None:
-            return None
-        return VersionItem.from_string(value)
+        if value is not None:
+            return VersionItem.from_string(str(value))
 
 
 class URLField(Field):

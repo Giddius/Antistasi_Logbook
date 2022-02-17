@@ -1,6 +1,6 @@
 from .base_query_data_model import BaseQueryDataModel
 
-from .antistasi_function_model import AntistasiFunctionModel
+from .arma_function_model import ArmaFunctionModel
 
 from .game_map_model import GameMapModel
 

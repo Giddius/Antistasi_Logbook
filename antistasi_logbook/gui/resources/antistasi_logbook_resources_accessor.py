@@ -26,91 +26,109 @@ from . import antistasi_logbook_resources
 log = get_logger(__name__)
 
 
-ANTISTASI_LOGBOOK_SPLASH_PREPARING_DATABASE_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/antistasi_logbook_splash_preparing_database.png', qt_path=':/images/antistasi_logbook_splash_preparing_database.png')
+ANTISTASI_LOGBOOK_SPLASH_PREPARING_DATABASE_IMAGE = ressource_item_factory(file_path='antistasi_logbook_splash_preparing_database.png', qt_path=':/images/antistasi_logbook_splash_preparing_database.png')
 
-FILTER_PAGE_SYMBOL_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/filter_page_symbol.svg', qt_path=':/images/filter_page_symbol.svg')
+FILTER_PAGE_SYMBOL_IMAGE = ressource_item_factory(file_path='filter_page_symbol.svg', qt_path=':/images/filter_page_symbol.svg')
 
-OPEN_EYE_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/open_eye.svg', qt_path=':/images/open_eye.svg')
+ARMAFUNCTION_TAB_ICON_IMAGE = ressource_item_factory(file_path='armafunction_tab_icon.png', qt_path=':/images/armafunction_tab_icon.png')
 
-MARK_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/mark.png', qt_path=':/images/mark.png')
+OPEN_EYE_IMAGE = ressource_item_factory(file_path='open_eye.svg', qt_path=':/images/open_eye.svg')
 
-FOLDER_SETTINGS_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/folder_settings.svg', qt_path=':/images/folder_settings.svg')
+MARK_IMAGE = ressource_item_factory(file_path='mark.png', qt_path=':/images/mark.png')
 
-LOG_FILES_TAB_ICON_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/log_files_tab_icon.svg', qt_path=':/images/log_files_tab_icon.svg')
+FOLDER_SETTINGS_IMAGE = ressource_item_factory(file_path='folder_settings.svg', qt_path=':/images/folder_settings.svg')
 
-TIME_SETTINGS_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/time_settings.svg', qt_path=':/images/time_settings.svg')
+LOG_FILES_TAB_ICON_IMAGE = ressource_item_factory(file_path='log_files_tab_icon.svg', qt_path=':/images/log_files_tab_icon.svg')
 
-CLOSE_CANCEL_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/close-cancel.svg', qt_path=':/images/close-cancel.svg')
+TIME_SETTINGS_IMAGE = ressource_item_factory(file_path='time_settings.svg', qt_path=':/images/time_settings.svg')
 
-SERVER_TAB_ICON_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/server_tab_icon.svg', qt_path=':/images/server_tab_icon.svg')
+CLOSE_CANCEL_IMAGE = ressource_item_factory(file_path='close-cancel.svg', qt_path=':/images/close-cancel.svg')
 
-DOWNLOADING_SETTINGS_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/downloading_settings.svg', qt_path=':/images/downloading_settings.svg')
+SERVER_TAB_ICON_IMAGE = ressource_item_factory(file_path='server_tab_icon.svg', qt_path=':/images/server_tab_icon.svg')
 
-CHECK_MARK_BLACK_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/check_mark_black.svg', qt_path=':/images/check_mark_black.svg')
+DOWNLOADING_SETTINGS_IMAGE = ressource_item_factory(file_path='downloading_settings.svg', qt_path=':/images/downloading_settings.svg')
 
-APP_ICON_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/app_icon.png', qt_path=':/images/app_icon.png')
+REMOTESTORAGE_TAB_ICON_IMAGE = ressource_item_factory(file_path='remotestorage_tab_icon.svg', qt_path=':/images/remotestorage_tab_icon.svg')
 
-LOG_RECORDS_TAB_ICON_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/log_records_tab_icon.svg', qt_path=':/images/log_records_tab_icon.svg')
+CHECK_MARK_BLACK_IMAGE = ressource_item_factory(file_path='check_mark_black.svg', qt_path=':/images/check_mark_black.svg')
 
-COLORING_ICON_1_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/coloring_icon_1.svg', qt_path=':/images/coloring_icon_1.svg')
+APP_ICON_IMAGE = ressource_item_factory(file_path='app_icon.png', qt_path=':/images/app_icon.png')
 
-WARNING_SIGN_TRIANGLE_RED_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/warning_sign_triangle_red.png', qt_path=':/images/warning_sign_triangle_red.png')
+LOG_RECORDS_TAB_ICON_IMAGE = ressource_item_factory(file_path='log_records_tab_icon.svg', qt_path=':/images/log_records_tab_icon.svg')
 
-CHECK_MARK_GREEN_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/check_mark_green.svg', qt_path=':/images/check_mark_green.svg')
+COLORING_ICON_1_IMAGE = ressource_item_factory(file_path='coloring_icon_1.svg', qt_path=':/images/coloring_icon_1.svg')
 
-SETTINGS_WINDOW_SYMBOL_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/settings_window_symbol.svg', qt_path=':/images/settings_window_symbol.svg')
+WARNING_SIGN_TRIANGLE_RED_IMAGE = ressource_item_factory(file_path='warning_sign_triangle_red.png', qt_path=':/images/warning_sign_triangle_red.png')
 
-CLOSE_BLACK_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/close_black.svg', qt_path=':/images/close_black.svg')
+CHECK_MARK_GREEN_IMAGE = ressource_item_factory(file_path='check_mark_green.svg', qt_path=':/images/check_mark_green.svg')
 
-PLACEHOLDER_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/placeholder.png', qt_path=':/images/placeholder.png')
+SETTINGS_WINDOW_SYMBOL_IMAGE = ressource_item_factory(file_path='settings_window_symbol.svg', qt_path=':/images/settings_window_symbol.svg')
 
-ANTISTASI_LOGBOOK_SPLASH_BACKUP_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/antistasi_logbook_splash_backup.png', qt_path=':/images/antistasi_logbook_splash_backup.png')
+ERROR_SYMBOL_IMAGE = ressource_item_factory(file_path='error_symbol.svg', qt_path=':/images/error_symbol.svg')
 
-ANTISTASI_LOGBOOK_SPLASH_STARTING_BACKEND_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/antistasi_logbook_splash_starting_backend.png', qt_path=':/images/antistasi_logbook_splash_starting_backend.png')
+CLOSE_BLACK_IMAGE = ressource_item_factory(file_path='close_black.svg', qt_path=':/images/close_black.svg')
 
-WARNING_SIGN_ROUND_YELLOW_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/warning_sign_round_yellow.svg', qt_path=':/images/warning_sign_round_yellow.svg')
+PLACEHOLDER_IMAGE = ressource_item_factory(file_path='placeholder.png', qt_path=':/images/placeholder.png')
 
-UNMARK_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/unmark.png', qt_path=':/images/unmark.png')
+ANTISTASI_LOGBOOK_SPLASH_BACKUP_IMAGE = ressource_item_factory(file_path='antistasi_logbook_splash_backup.png', qt_path=':/images/antistasi_logbook_splash_backup.png')
 
-CLOSED_EYE_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/closed_eye.svg', qt_path=':/images/closed_eye.svg')
+ANTISTASI_LOGBOOK_SPLASH_STARTING_BACKEND_IMAGE = ressource_item_factory(file_path='antistasi_logbook_splash_starting_backend.png', qt_path=':/images/antistasi_logbook_splash_starting_backend.png')
 
-ANTISTASI_LOGBOOK_SPLASH_SHUTDOWN_BACKEND_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/antistasi_logbook_splash_shutdown_backend.png', qt_path=':/images/antistasi_logbook_splash_shutdown_backend.png')
+WARNING_SIGN_ROUND_YELLOW_IMAGE = ressource_item_factory(file_path='warning_sign_round_yellow.svg', qt_path=':/images/warning_sign_round_yellow.svg')
 
-DATABASE_SETTINGS_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/database_settings.svg', qt_path=':/images/database_settings.svg')
+UNMARK_IMAGE = ressource_item_factory(file_path='unmark.png', qt_path=':/images/unmark.png')
 
-SPINNER_GIF = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/spinner.gif', qt_path=':/gifs/spinner.gif')
+CLOSED_EYE_IMAGE = ressource_item_factory(file_path='closed_eye.svg', qt_path=':/images/closed_eye.svg')
 
-STATS_ICON_2_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/stats_icon_2.svg', qt_path=':/images/stats_icon_2.svg')
+ANTISTASI_LOGBOOK_SPLASH_SHUTDOWN_BACKEND_IMAGE = ressource_item_factory(file_path='antistasi_logbook_splash_shutdown_backend.png', qt_path=':/images/antistasi_logbook_splash_shutdown_backend.png')
 
-HIDDEN_ICON_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/hidden_icon.svg', qt_path=':/images/hidden_icon.svg')
+DATABASE_SETTINGS_IMAGE = ressource_item_factory(file_path='database_settings.svg', qt_path=':/images/database_settings.svg')
 
-COLORING_ICON_3_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/coloring_icon_3.svg', qt_path=':/images/coloring_icon_3.svg')
+SPINNER_GIF = ressource_item_factory(file_path='spinner.gif', qt_path=':/gifs/spinner.gif')
 
-SELECT_PATH_SYMBOL_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/select_path_symbol.svg', qt_path=':/images/select_path_symbol.svg')
+STATS_ICON_2_IMAGE = ressource_item_factory(file_path='stats_icon_2.svg', qt_path=':/images/stats_icon_2.svg')
 
-VISIBLE_ICON_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/visible_icon.svg', qt_path=':/images/visible_icon.svg')
+HIDDEN_ICON_IMAGE = ressource_item_factory(file_path='hidden_icon.svg', qt_path=':/images/hidden_icon.svg')
 
-GENERAL_SETTINGS_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/general_settings.svg', qt_path=':/images/general_settings.svg')
+COLORING_ICON_3_IMAGE = ressource_item_factory(file_path='coloring_icon_3.svg', qt_path=':/images/coloring_icon_3.svg')
 
-WEBDAV_SETTINGS_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/webdav_settings.svg', qt_path=':/images/webdav_settings.svg')
+ARMAFUNCTIONAUTHORPREFIX_TAB_ICON_IMAGE = ressource_item_factory(file_path='armafunctionauthorprefix_tab_icon.svg', qt_path=':/images/armafunctionauthorprefix_tab_icon.svg')
 
-DEBUG_SETTINGS_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/debug_settings.svg', qt_path=':/images/debug_settings.svg')
+SELECT_PATH_SYMBOL_IMAGE = ressource_item_factory(file_path='select_path_symbol.svg', qt_path=':/images/select_path_symbol.svg')
 
-SEARCH_PAGE_SYMBOL_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/search_page_symbol.svg', qt_path=':/images/search_page_symbol.svg')
+GAMEMAP_TAB_ICON_IMAGE = ressource_item_factory(file_path='gamemap_tab_icon.svg', qt_path=':/images/gamemap_tab_icon.svg')
 
-HIDDEN_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/hidden.svg', qt_path=':/images/hidden.svg')
+LOGLEVEL_TAB_ICON_IMAGE = ressource_item_factory(file_path='loglevel_tab_icon.png', qt_path=':/images/loglevel_tab_icon.png')
 
-COLORING_ICON_2_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/coloring_icon_2.svg', qt_path=':/images/coloring_icon_2.svg')
+VISIBLE_ICON_IMAGE = ressource_item_factory(file_path='visible_icon.svg', qt_path=':/images/visible_icon.svg')
 
-UPDATING_SETTINGS_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/updating_settings.svg', qt_path=':/images/updating_settings.svg')
+GENERAL_SETTINGS_IMAGE = ressource_item_factory(file_path='general_settings.svg', qt_path=':/images/general_settings.svg')
 
-ANTISTASI_LOGBOOK_SPLASH_PREPARING_BACKEND_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/antistasi_logbook_splash_preparing_backend.png', qt_path=':/images/antistasi_logbook_splash_preparing_backend.png')
+WEBDAV_SETTINGS_IMAGE = ressource_item_factory(file_path='webdav_settings.svg', qt_path=':/images/webdav_settings.svg')
 
-GUI_SETTINGS_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/gui_settings.svg', qt_path=':/images/gui_settings.svg')
+DEBUG_SETTINGS_IMAGE = ressource_item_factory(file_path='debug_settings.svg', qt_path=':/images/debug_settings.svg')
 
-STATS_ICON_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/stats_icon.svg', qt_path=':/images/stats_icon.svg')
+SEARCH_PAGE_SYMBOL_IMAGE = ressource_item_factory(file_path='search_page_symbol.svg', qt_path=':/images/search_page_symbol.svg')
 
-PARSING_SETTINGS_IMAGE = ressource_item_factory(file_path='D:/Dropbox/hobby/Modding/Programs/Github/My_Repos/Antistasi_Logbook/designer_files/resources/parsing_settings.svg', qt_path=':/images/parsing_settings.svg')
+HIDDEN_IMAGE = ressource_item_factory(file_path='hidden.svg', qt_path=':/images/hidden.svg')
+
+COLORING_ICON_2_IMAGE = ressource_item_factory(file_path='coloring_icon_2.svg', qt_path=':/images/coloring_icon_2.svg')
+
+RECORDORIGIN_TAB_ICON_IMAGE = ressource_item_factory(file_path='recordorigin_tab_icon.svg', qt_path=':/images/recordorigin_tab_icon.svg')
+
+UPDATING_SETTINGS_IMAGE = ressource_item_factory(file_path='updating_settings.svg', qt_path=':/images/updating_settings.svg')
+
+ANTISTASI_LOGBOOK_SPLASH_PREPARING_BACKEND_IMAGE = ressource_item_factory(file_path='antistasi_logbook_splash_preparing_backend.png', qt_path=':/images/antistasi_logbook_splash_preparing_backend.png')
+
+ANTSTASIFUNCTION_TAB_ICON_IMAGE = ressource_item_factory(file_path='antstasifunction_tab_icon.png', qt_path=':/images/antstasifunction_tab_icon.png')
+
+GUI_SETTINGS_IMAGE = ressource_item_factory(file_path='gui_settings.svg', qt_path=':/images/gui_settings.svg')
+
+STATS_ICON_IMAGE = ressource_item_factory(file_path='stats_icon.svg', qt_path=':/images/stats_icon.svg')
+
+TXT_FILE_IMAGE = ressource_item_factory(file_path='txt_file.png', qt_path=':/images/txt_file.png')
+
+PARSING_SETTINGS_IMAGE = ressource_item_factory(file_path='parsing_settings.svg', qt_path=':/images/parsing_settings.svg')
 
 
 class AllResourceItems(metaclass=AllResourceItemsMeta):
@@ -119,6 +137,7 @@ class AllResourceItems(metaclass=AllResourceItemsMeta):
 
     antistasi_logbook_splash_preparing_database_image = ANTISTASI_LOGBOOK_SPLASH_PREPARING_DATABASE_IMAGE
     filter_page_symbol_image = FILTER_PAGE_SYMBOL_IMAGE
+    armafunction_tab_icon_image = ARMAFUNCTION_TAB_ICON_IMAGE
     open_eye_image = OPEN_EYE_IMAGE
     mark_image = MARK_IMAGE
     folder_settings_image = FOLDER_SETTINGS_IMAGE
@@ -127,6 +146,7 @@ class AllResourceItems(metaclass=AllResourceItemsMeta):
     close_cancel_image = CLOSE_CANCEL_IMAGE
     server_tab_icon_image = SERVER_TAB_ICON_IMAGE
     downloading_settings_image = DOWNLOADING_SETTINGS_IMAGE
+    remotestorage_tab_icon_image = REMOTESTORAGE_TAB_ICON_IMAGE
     check_mark_black_image = CHECK_MARK_BLACK_IMAGE
     app_icon_image = APP_ICON_IMAGE
     log_records_tab_icon_image = LOG_RECORDS_TAB_ICON_IMAGE
@@ -134,6 +154,7 @@ class AllResourceItems(metaclass=AllResourceItemsMeta):
     warning_sign_triangle_red_image = WARNING_SIGN_TRIANGLE_RED_IMAGE
     check_mark_green_image = CHECK_MARK_GREEN_IMAGE
     settings_window_symbol_image = SETTINGS_WINDOW_SYMBOL_IMAGE
+    error_symbol_image = ERROR_SYMBOL_IMAGE
     close_black_image = CLOSE_BLACK_IMAGE
     placeholder_image = PLACEHOLDER_IMAGE
     antistasi_logbook_splash_backup_image = ANTISTASI_LOGBOOK_SPLASH_BACKUP_IMAGE
@@ -146,7 +167,10 @@ class AllResourceItems(metaclass=AllResourceItemsMeta):
     stats_icon_2_image = STATS_ICON_2_IMAGE
     hidden_icon_image = HIDDEN_ICON_IMAGE
     coloring_icon_3_image = COLORING_ICON_3_IMAGE
+    armafunctionauthorprefix_tab_icon_image = ARMAFUNCTIONAUTHORPREFIX_TAB_ICON_IMAGE
     select_path_symbol_image = SELECT_PATH_SYMBOL_IMAGE
+    gamemap_tab_icon_image = GAMEMAP_TAB_ICON_IMAGE
+    loglevel_tab_icon_image = LOGLEVEL_TAB_ICON_IMAGE
     visible_icon_image = VISIBLE_ICON_IMAGE
     general_settings_image = GENERAL_SETTINGS_IMAGE
     webdav_settings_image = WEBDAV_SETTINGS_IMAGE
@@ -154,10 +178,13 @@ class AllResourceItems(metaclass=AllResourceItemsMeta):
     search_page_symbol_image = SEARCH_PAGE_SYMBOL_IMAGE
     hidden_image = HIDDEN_IMAGE
     coloring_icon_2_image = COLORING_ICON_2_IMAGE
+    recordorigin_tab_icon_image = RECORDORIGIN_TAB_ICON_IMAGE
     updating_settings_image = UPDATING_SETTINGS_IMAGE
     antistasi_logbook_splash_preparing_backend_image = ANTISTASI_LOGBOOK_SPLASH_PREPARING_BACKEND_IMAGE
+    antstasifunction_tab_icon_image = ANTSTASIFUNCTION_TAB_ICON_IMAGE
     gui_settings_image = GUI_SETTINGS_IMAGE
     stats_icon_image = STATS_ICON_IMAGE
+    txt_file_image = TXT_FILE_IMAGE
     parsing_settings_image = PARSING_SETTINGS_IMAGE
     spinner_gif = SPINNER_GIF
 

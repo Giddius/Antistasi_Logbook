@@ -1,4 +1,4 @@
-from invoke import task, Result, Context
+from invoke import task, Result, Context, Collection
 import sqlite3
 import os
 import logging
@@ -35,7 +35,17 @@ import logging
 import xml.etree.ElementTree as et
 from pathlib import Path
 from pprint import pprint
-import attr
+# import attr
+# from gid_tasks.project_info.project import Project
+# from gid_tasks.actions import doc_collection, clean_collection, update_collection
+
+# ns = Collection()
+# ns.add_collection(doc_collection)
+# ns.add_collection(clean_collection)
+# ns.add_collection(update_collection)
+# PROJECT = Project()
+# Context.project = PROJECT
+
 loggers = list(logging.Logger.manager.loggerDict)
 
 
@@ -58,6 +68,7 @@ def rprint(*args, **kwargs):
 
 
 print = rprint
+Context.console = CONSOLE
 CONSOLE.print(RULE)
 
 
@@ -568,7 +579,7 @@ def _write_resource_list_mapping(raw_text: str, tgt_file: Path, converted_file_p
             cat_name = make_attribute_name(qt_path.removeprefix(":/").split("/")[0]).upper()
             cat_name = _make_singular(cat_name)
             all_obj_names[cat_name].append(obj_name)
-            text_lines.append(f"{obj_name}_{cat_name} = ressource_item_factory(file_path={_file_path.as_posix()!r}, qt_path={qt_path!r})\n")
+            text_lines.append(f"{obj_name}_{cat_name} = ressource_item_factory(file_path={_file_path.name!r}, qt_path={qt_path!r})\n")
 
         text_lines.append(RESOURCE_ITEM_COLLECTION_TEXT.format(category_names="{" + ', '.join(f'{cat!r}'.casefold() for cat in all_obj_names.keys()) + '}'))
         for cat_name, obj_names in all_obj_names.items():

@@ -13,13 +13,14 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from threading import Thread
 
-# * Third Party Imports --------------------------------------------------------------------------------->
-from dateutil.tz import UTC
-
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
+from PySide6 import QtCore
 from PySide6.QtCore import Qt, Slot, Signal, QObject
 from PySide6.QtWidgets import QLabel, QStatusBar, QApplication, QProgressBar
+
+# * Third Party Imports --------------------------------------------------------------------------------->
+from dateutil.tz import UTC
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -97,6 +98,7 @@ class LastUpdatedLabel(QLabel):
         self.last_triggered: datetime = None
         self.label_text: str = None
         self.is_running = False
+        self.start()
 
     def set_refresh_interval(self, new_interval: int) -> None:
         if new_interval == self.refresh_interval:
@@ -142,6 +144,7 @@ class LastUpdatedLabel(QLabel):
         # self.running_thread.start()
 
     def start_timer(self) -> None:
+        log.debug("Starting timer for %r", self)
         if self.timer_id is not None:
             self.killTimer(self.timer_id)
         self.timer_id = self.startTimer(self.refresh_interval, Qt.VeryCoarseTimer)
@@ -178,7 +181,6 @@ class LogbookStatusBar(QStatusBar):
         self.update_running_label: QLabel = None
         self.update_progress: QProgressBar = None
         self.timer: int = None
-        self.setup()
 
     @property
     def app(self) -> "AntistasiLogbookApplication":
@@ -206,7 +208,7 @@ class LogbookStatusBar(QStatusBar):
             self.update_running_label.hide()
             self.insertWidget(1, self.update_running_label, 1)
 
-        self.last_updated_label.start()
+        # self.last_updated_label.start()
         self.current_label = self.last_updated_label
 
     def switch_labels(self, update_start: bool) -> None:

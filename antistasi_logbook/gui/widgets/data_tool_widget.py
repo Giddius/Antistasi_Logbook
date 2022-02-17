@@ -13,38 +13,22 @@ from datetime import datetime, timezone, timedelta
 from operator import and_
 from functools import reduce, cached_property
 
+# * Qt Imports --------------------------------------------------------------------------------------->
+import PySide6
+from PySide6.QtGui import QIcon
+from PySide6.QtCore import Qt, QSize, QTimer, Signal, QLocale, QDateTime, QRegularExpression, QSortFilterProxyModel
+from PySide6.QtWidgets import QWidget, QToolBox, QCheckBox, QComboBox, QGroupBox, QLineEdit, QCompleter, QFormLayout, QGridLayout, QHBoxLayout, QApplication, QRadioButton, QDateTimeEdit
+
 # * Third Party Imports --------------------------------------------------------------------------------->
 from tzlocal import get_localzone
 from dateutil.tz import UTC
-
-# * Qt Imports --------------------------------------------------------------------------------------->
-import PySide6
-from PySide6 import (QtCore, QtGui, QtWidgets, Qt3DAnimation, Qt3DCore, Qt3DExtras, Qt3DInput, Qt3DLogic, Qt3DRender, QtAxContainer, QtBluetooth,
-                     QtCharts, QtConcurrent, QtDataVisualization, QtDesigner, QtHelp, QtMultimedia, QtMultimediaWidgets, QtNetwork, QtNetworkAuth,
-                     QtOpenGL, QtOpenGLWidgets, QtPositioning, QtPrintSupport, QtQml, QtQuick, QtQuickControls2, QtQuickWidgets, QtRemoteObjects,
-                     QtScxml, QtSensors, QtSerialPort, QtSql, QtStateMachine, QtSvg, QtSvgWidgets, QtTest, QtUiTools, QtWebChannel, QtWebEngineCore,
-                     QtWebEngineQuick, QtWebEngineWidgets, QtWebSockets, QtXml)
-
-from PySide6.QtCore import (QByteArray, QTimer, QBasicTimer, QTimerEvent, QRegularExpression, QCoreApplication, QDate, QDateTime, QSortFilterProxyModel, QEvent, QLocale, QMetaObject, QModelIndex, QModelRoleData, QMutex,
-                            QMutexLocker, QObject, QPoint, QRect, QRecursiveMutex, QRunnable, QSettings, QSize, QThread, QThreadPool, QTime, QUrl,
-                            QWaitCondition, Qt, QAbstractItemModel, QAbstractListModel, QAbstractTableModel, Signal, Slot)
-
-from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
-                           QKeySequence, QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform)
-
-from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QCompleter, QDialogButtonBox,
-                               QDockWidget, QDoubleSpinBox, QFontComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
-                               QLCDNumber, QLabel, QLayout, QLineEdit, QListView, QListWidget, QMainWindow, QMenu, QMenuBar, QMessageBox,
-                               QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
-                               QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
-                               QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.gui.models import LogLevelsModel, RecordClassesModel, RecordOriginsModel, AntistasiFunctionModel
-from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord, AntstasiFunction
+from antistasi_logbook.gui.models import LogLevelsModel, RecordClassesModel, RecordOriginsModel, ArmaFunctionModel
+from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord, ArmaFunction
 from antistasi_logbook.gui.models.server_model import ServerModel
 from antistasi_logbook.gui.models.version_model import VersionModel
 from antistasi_logbook.gui.models.game_map_model import GameMapModel
@@ -308,7 +292,7 @@ class LogFileFilterPage(BaseDataToolPage):
         self.filter_by_campaign_id_combo_box = QComboBox()
         self.filter_by_campaign_id_combo_box.addItem("")
         self.filter_by_campaign_id_combo_box.addItems([str(i) for i in self.app.backend.database.get_unique_campaign_ids()])
-        self.layout.addRow("Filter by Campaing-ID", self.filter_by_campaign_id_combo_box)
+        self.layout.addRow("Filter by Campaign-ID", self.filter_by_campaign_id_combo_box)
 
         self.filter_by_new_campaign = QCheckBox()
 
@@ -316,6 +300,9 @@ class LogFileFilterPage(BaseDataToolPage):
 
         self.filter_by_marked = QCheckBox()
         self.layout.addRow("Show only Marked", self.filter_by_marked)
+
+        self.show_unparsable_check_box = QCheckBox()
+        self.layout.addRow("Show Unparsable", self.show_unparsable_check_box)
 
     def setup(self) -> "LogFileFilterPage":
         self.setup_signals()
@@ -485,7 +472,6 @@ class AntistasiFunctionSelectComboBox(QComboBox):
 
     def on_index_change(self, *args):
 
-        log.debug("args: %r", args)
         self.setEditText(self.itemData(self.currentIndex(), Qt.DisplayRole))
         self.lineEdit().setPlaceholderText(self.itemData(self.currentIndex(), Qt.DisplayRole))
 
@@ -534,6 +520,7 @@ class LogRecordSearchPage(BaseDataToolPage):
 
     def delay_text_execution(self, *args):
         if self.timer is None or self.timer.isActive() is False:
+            log.debug("creating timer for %r", self)
             self.timer = QTimer()
             self.timer.setSingleShot(True)
             self.timer.setTimerType(Qt.CoarseTimer)
@@ -573,8 +560,8 @@ class LogRecordFilterPage(BaseDataToolPage):
         self.layout.addRow("Filter by Log-Level", self.filter_by_log_level_combo_box)
 
         self.filter_by_logged_from_combo_box = AntistasiFunctionSelectComboBox()
-        logged_from_model = AntistasiFunctionModel()
-        logged_from_model.ordered_by = (AntstasiFunction.name,)
+        logged_from_model = ArmaFunctionModel()
+        logged_from_model.ordered_by = (ArmaFunction.name,)
         logged_from_model.refresh()
         logged_from_model.add_empty_item()
         self.filter_by_logged_from_combo_box.setModel(logged_from_model)
@@ -584,8 +571,8 @@ class LogRecordFilterPage(BaseDataToolPage):
         self.layout.addRow("Filter by Logged-from", self.filter_by_logged_from_combo_box)
 
         self.filter_by_called_by_combo_box = AntistasiFunctionSelectComboBox()
-        called_by_model = AntistasiFunctionModel()
-        called_by_model.ordered_by = (AntstasiFunction.name,)
+        called_by_model = ArmaFunctionModel()
+        called_by_model.ordered_by = (ArmaFunction.name,)
         called_by_model.refresh()
         called_by_model.add_empty_item()
         self.filter_by_called_by_combo_box.setModel(called_by_model)

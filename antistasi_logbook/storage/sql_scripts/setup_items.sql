@@ -270,7 +270,7 @@ VALUES
     );
 
 INSERT
-    OR IGNORE INTO AntstasiFunction (id, name)
+    OR IGNORE INTO ArmaFunction (id, name)
 VALUES
     (1, "init"),
     (2, "initServer"),
@@ -284,7 +284,7 @@ VALUES
     (10, "compatibilityLoadFaction");
 
 INSERT
-    OR IGNORE INTO AntstasiFunction (id, name)
+    OR IGNORE INTO ArmaFunction (id, name)
 VALUES
     (11, "registerUnitType"),
     (12, "aceModCompat"),
@@ -298,7 +298,7 @@ VALUES
     (20, "returnSavedStat");
 
 INSERT
-    OR IGNORE INTO AntstasiFunction (id, name)
+    OR IGNORE INTO ArmaFunction (id, name)
 VALUES
     (21, "getStatVariable"),
     (22, "loadStat"),
@@ -312,7 +312,7 @@ VALUES
     (30, "advancedTowingInit");
 
 INSERT
-    OR IGNORE INTO AntstasiFunction (id, name)
+    OR IGNORE INTO ArmaFunction (id, name)
 VALUES
     (31, "logPerformance"),
     (32, "initServer"),
@@ -326,7 +326,7 @@ VALUES
     (40, "retrievePlayerStat");
 
 INSERT
-    OR IGNORE INTO AntstasiFunction (id, name)
+    OR IGNORE INTO ArmaFunction (id, name)
 VALUES
     (41, "resetPlayer"),
     (42, "HR_GRG_fnc_addVehicle"),
@@ -340,7 +340,7 @@ VALUES
     (50, "promotePlayer");
 
 INSERT
-    OR IGNORE INTO AntstasiFunction (id, name)
+    OR IGNORE INTO ArmaFunction (id, name)
 VALUES
     (51, "reinforcementsAI"),
     (52, "AAFroadPatrol"),
@@ -354,7 +354,7 @@ VALUES
     (60, "convoyMovement");
 
 INSERT
-    OR IGNORE INTO AntstasiFunction (id, name)
+    OR IGNORE INTO ArmaFunction (id, name)
 VALUES
     (61, "rebelAttack"),
     (62, "rebelAttack"),
@@ -368,7 +368,7 @@ VALUES
     (70, "chooseSupport");
 
 INSERT
-    OR IGNORE INTO AntstasiFunction (id, name)
+    OR IGNORE INTO ArmaFunction (id, name)
 VALUES
     (71, "AIreactOnKill"),
     (72, "findBaseForQRF"),
@@ -382,7 +382,7 @@ VALUES
     (80, "zoneCheck");
 
 INSERT
-    OR IGNORE INTO AntstasiFunction (id, name)
+    OR IGNORE INTO ArmaFunction (id, name)
 VALUES
     (81, "AIVEHinit"),
     (82, "createAIResources"),
@@ -396,7 +396,7 @@ VALUES
     (90, "createAttackVehicle");
 
 INSERT
-    OR IGNORE INTO AntstasiFunction (id, name)
+    OR IGNORE INTO ArmaFunction (id, name)
 VALUES
     (91, "SUP_QRFRoutine"),
     (92, "spawnConvoy"),
@@ -410,7 +410,7 @@ VALUES
     (100, "airspaceControl");
 
 INSERT
-    OR IGNORE INTO AntstasiFunction (id, name)
+    OR IGNORE INTO ArmaFunction (id, name)
 VALUES
     (101, "callForSupport"),
     (102, "SUP_airstrikeRoutine"),
@@ -424,7 +424,7 @@ VALUES
     (110, "wavedCA");
 
 INSERT
-    OR IGNORE INTO AntstasiFunction (id, name)
+    OR IGNORE INTO ArmaFunction (id, name)
 VALUES
     (111, "garbageCleaner"),
     (112, "missionRequest"),
@@ -438,7 +438,7 @@ VALUES
     (120, "replenishGarrison");
 
 INSERT
-    OR IGNORE INTO AntstasiFunction (id, name)
+    OR IGNORE INTO ArmaFunction (id, name)
 VALUES
     (121, "HQGameOptions"),
     (122, "vehicleConvoyTravel"),
@@ -452,7 +452,7 @@ VALUES
     (130, "SUP_SAM");
 
 INSERT
-    OR IGNORE INTO AntstasiFunction (id, name)
+    OR IGNORE INTO ArmaFunction (id, name)
 VALUES
     (131, "cleanserVeh"),
     (132, "SUP_SAMRoutine"),
@@ -466,7 +466,7 @@ VALUES
     (140, "taskUpdate");
 
 INSERT
-    OR IGNORE INTO AntstasiFunction (id, name)
+    OR IGNORE INTO ArmaFunction (id, name)
 VALUES
     (141, "punishment_FF_addEH"),
     (142, "askHelp"),
@@ -480,7 +480,7 @@ VALUES
     (150, "detector");
 
 INSERT
-    OR IGNORE INTO AntstasiFunction (id, name)
+    OR IGNORE INTO ArmaFunction (id, name)
 VALUES
     (151, "selector"),
     (152, "TV_verifyLoadoutsData"),
@@ -494,7 +494,7 @@ VALUES
     (160, "getNearestNavPoint");
 
 INSERT
-    OR IGNORE INTO AntstasiFunction (id, name)
+    OR IGNORE INTO ArmaFunction (id, name)
 VALUES
     (161, "arePositionsConnected"),
     (162, "surrenderAction"),
@@ -508,7 +508,7 @@ VALUES
     (170, "HR_GRG_fnc_validateGarage");
 
 INSERT
-    OR IGNORE INTO AntstasiFunction (id, name)
+    OR IGNORE INTO ArmaFunction (id, name)
 VALUES
     (171, "HR_GRG_fnc_loadSaveData"),
     (172, "compatabilityLoadFaction"),

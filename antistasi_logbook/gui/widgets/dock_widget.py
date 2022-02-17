@@ -60,6 +60,7 @@ class BaseDockWidget(QDockWidget):
         self.first_shown: bool = False
         self.setHidden(start_hidden)
         self.setFloating(start_floating)
+        allowed_areas = Qt.DockWidgetAreas() | allowed_areas
         self.setAllowedAreas(allowed_areas)
         self.setFeatures(features)
         if add_to_menu is not None:
@@ -69,6 +70,7 @@ class BaseDockWidget(QDockWidget):
         view_action = self.toggleViewAction()
         view_action.setText(f"{self.title} Window")
         add_to_menu.addAction(view_action)
+        add_to_menu.setEnabled(True)
 
     @property
     def app(self) -> "AntistasiLogbookApplication":

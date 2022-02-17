@@ -9,36 +9,21 @@ Soon.
 # * Standard Library Imports ---------------------------------------------------------------------------->
 from typing import TYPE_CHECKING, Union, Optional
 from pathlib import Path
-from concurrent.futures import Future, wait, ALL_COMPLETED
+from concurrent.futures import Future
+from functools import cached_property
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
-from PySide6 import (QtCore, QtGui, QtWidgets, Qt3DAnimation, Qt3DCore, Qt3DExtras, Qt3DInput, Qt3DLogic, Qt3DRender, QtAxContainer, QtBluetooth,
-                     QtCharts, QtConcurrent, QtDataVisualization, QtDesigner, QtHelp, QtMultimedia, QtMultimediaWidgets, QtNetwork, QtNetworkAuth,
-                     QtOpenGL, QtOpenGLWidgets, QtPositioning, QtPrintSupport, QtQml, QtQuick, QtQuickControls2, QtQuickWidgets, QtRemoteObjects,
-                     QtScxml, QtSensors, QtSerialPort, QtSql, QtStateMachine, QtSvg, QtSvgWidgets, QtTest, QtUiTools, QtWebChannel, QtWebEngineCore,
-                     QtWebEngineQuick, QtWebEngineWidgets, QtWebSockets, QtXml)
-
-from PySide6.QtCore import (QByteArray, QCoreApplication, QDate, QDateTime, QEvent, QLocale, QMetaObject, QModelIndex, QItemSelection, QModelRoleData, QMutex,
-                            QMutexLocker, QObject, QPoint, QRect, QRecursiveMutex, QRunnable, QSettings, QSize, QThread, QThreadPool, QTime, QUrl,
-                            QWaitCondition, Qt, QAbstractItemModel, QAbstractListModel, QAbstractTableModel, QSortFilterProxyModel, Signal, Slot)
-
-from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
-                           QKeySequence, QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform)
-
-from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QScrollBar, QDialogButtonBox,
-                               QDockWidget, QDoubleSpinBox, QFontComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
-                               QLCDNumber, QLabel, QLayout, QLineEdit, QListView, QListWidget, QMainWindow, QMenu, QMenuBar, QMessageBox,
-                               QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
-                               QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
-                               QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
-
+from PySide6.QtGui import QIcon, QAction
+from PySide6.QtCore import Qt, Slot, QPoint, Signal, QSettings, QModelIndex, QItemSelection, QByteArray
+from PySide6.QtWidgets import QMenu, QTreeView, QScrollBar, QHeaderView, QApplication, QAbstractItemView, QToolBar
+import pp
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-from antistasi_logbook.gui.misc import CustomRole
 from antistasi_logbook.gui.views.delegates.universal_delegates import BoolImageDelegate, MarkedImageDelegate
+from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
+from antistasi_logbook.gui.widgets.tool_bars import BaseToolBar
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend
@@ -110,10 +95,12 @@ class CustomContextMenu(QMenu):
 
 class BaseQueryTreeView(QTreeView):
     initially_hidden_columns: set[str] = set()
-    default_item_size = 75
-    _item_size_by_column_name: dict[str, int] = {"id": 30, "marked": 60}
+    default_item_size = 150
+    _item_size_by_column_name: dict[str, int] = {"id": 75, "marked": 60, "comments": 100}
+    default_colum_order = {"marked": 999, "comments": 998}
     single_item_selected = Signal(QModelIndex)
     multiple_items_selected = Signal(list)
+    current_items_changed = Signal(list)
 
     def __init__(self, name: str, icon: QIcon = None, parent=None) -> None:
         super().__init__(parent=parent)
@@ -124,6 +111,7 @@ class BaseQueryTreeView(QTreeView):
             self.icon = getattr(AllResourceItems, f"{self.name.casefold().replace('-','_').replace(' ','_').replace('.','_')}_tab_icon_image").get_as_icon()
         self.item_size_by_column_name = self._item_size_by_column_name.copy()
         self.original_model: BaseQueryDataModel = None
+        self._tool_bar_item: QToolBar = None
 
     @property
     def app(self) -> "AntistasiLogbookApplication":
@@ -149,6 +137,37 @@ class BaseQueryTreeView(QTreeView):
     def model(self) -> "BaseQueryDataModel":
         return super().model()
 
+    @property
+    def column_order(self) -> dict[str, int]:
+        settings = QSettings()
+        data = settings.value(f"{self.name}_column_order", None)
+        if data is None:
+            data = {}
+
+        return self.default_colum_order | data
+
+    @property
+    def tool_bar_item(self) -> QToolBar:
+        if self._tool_bar_item is None:
+            self._tool_bar_item = self.create_tool_bar_item()
+        return self._tool_bar_item
+
+    def create_tool_bar_item(self) -> QToolBar:
+        return BaseToolBar(title=self.name)
+
+    def store_new_column_order(self, logical_index: int, old_visual_index: int, new_visual_index: int):
+        column_order = self.column_order
+        for idx, column in enumerate(self.model.columns):
+            vis_idx = self.header_view.visualIndex(idx)
+            column_order[column.name] = vis_idx
+
+        column = self.model.columns[logical_index]
+        column_order[column.name] = new_visual_index
+
+        settings = QSettings()
+        settings.setValue(f"{self.name}_column_order", column_order)
+
+    @profile
     def setup(self) -> "BaseQueryTreeView":
 
         self.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -191,14 +210,16 @@ class BaseQueryTreeView(QTreeView):
         self.add_free_context_menu_options(menu)
         if self.model is not None:
             self.model.add_context_menu_actions(menu=menu, index=index)
-        log.debug("actions of menu %r : %r", menu, menu.actions())
+
         menu.exec(self.mapToGlobal(pos))
 
+    @profile
     def get_hidden_header_names(self) -> set[str]:
         settings = QSettings()
         hidden_header = settings.value(f"{self.name}_hidden_headers", set())
         return hidden_header
 
+    @profile
     def set_hidden_header_names(self):
         hidden_section_names = []
         for column in self.model.columns:
@@ -217,11 +238,26 @@ class BaseQueryTreeView(QTreeView):
                 self.header_view.hideSection(index)
         for column_name in self.get_hidden_header_names():
             index = self.model.get_column_index(column_name)
+
             if index is not None:
                 self.header_view.hideSection(index)
+        column_order_map = self.column_order
+        original_order = list(self.model.columns)
+        new_order = sorted([i.name for i in original_order], key=lambda x: column_order_map.get(x, 0))
+
+        self.header_view.sectionMoved.disconnect(self.store_new_column_order)
+
+        for idx, column in enumerate(original_order):
+            new_idx = new_order.index(column.name)
+            vis_idx = self.header_view.visualIndex(idx)
+
+            self.header_view.moveSection(vis_idx, new_idx)
+
         self.header_view.setContextMenuPolicy(Qt.CustomContextMenu)
         self.header_view.customContextMenuRequested.connect(self.handle_header_custom_context_menu)
+        self.header_view.sectionMoved.connect(self.store_new_column_order)
 
+    @profile
     def handle_header_custom_context_menu(self, pos: QPoint):
         def get_amount_not_hidden():
             not_hidden = []
@@ -254,6 +290,7 @@ class BaseQueryTreeView(QTreeView):
             menu.addAction(change_visibility_action)
         menu.exec(self.header_view.mapToGlobal(pos))
 
+    @profile
     def force_refresh(self):
         log.debug("starting force refreshing %r", self)
         log.debug("repainting %r", self)
@@ -262,6 +299,7 @@ class BaseQueryTreeView(QTreeView):
         self.doItemsLayout()
         log.debug("finished force refreshing %r", self)
 
+    @profile
     def toggle_header_section_hidden(self, section: int):
         is_hidden = self.header_view.isSectionHidden(section)
         if is_hidden:
@@ -275,6 +313,7 @@ class BaseQueryTreeView(QTreeView):
     def extra_setup(self):
         pass
 
+    @profile
     def setup_scrollbars(self):
         self.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
@@ -303,6 +342,7 @@ class BaseQueryTreeView(QTreeView):
         self.setEnabled(True)
         self.setSortingEnabled(self._temp_original_sorting_enabled)
 
+    @profile
     def set_delegates(self):
         marked_col_index = self.model.get_column_index("marked")
         if marked_col_index is not None:
@@ -322,9 +362,12 @@ class BaseQueryTreeView(QTreeView):
                 raise future.exception()
             else:
                 self.reset()
+
         try:
             self.pre_set_model()
             super().setModel(model)
+            if hasattr(model, "_item_size_by_column_names"):
+                self.item_size_by_column_name |= model._item_size_by_column_names.copy()
             self.model.setParent(self)
             self.model.get_columns()
             self.set_delegates()
@@ -332,8 +375,10 @@ class BaseQueryTreeView(QTreeView):
             self.resize_header_sections()
 
             if model.content_items is None:
-                task = self.app.gui_thread_pool.submit(self.model.refresh)
-                task.add_done_callback(_callback)
+                self.model.refresh()
+                self.reset()
+                # task = self.app.gui_thread_pool.submit(self.model.refresh)
+                # task.add_done_callback(_callback)
 
         finally:
             self.post_set_model()
@@ -363,6 +408,10 @@ class BaseQueryTreeView(QTreeView):
 
             self.single_item_selected.emit(current_selection[-1])
             self.multiple_items_selected.emit(list(indexes))
+
+        items = [self.model.get(i.row()) for i in current_selection]
+
+        self.current_items_changed.emit(items)
         super().selectionChanged(selected, deselected)
 
 

@@ -2,7 +2,6 @@ autoflake==1.4
 autopep8
 cairosvg
 dateparser
-grip
 https://github.com/pyinstaller/pyinstaller/tarball/develop
 invoke
 isort

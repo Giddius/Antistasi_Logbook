@@ -15,7 +15,7 @@ from threading import Event
 import PySide6
 from PySide6.QtGui import QMovie
 from PySide6.QtCore import Qt, QSize, Signal, QThread, QByteArray, QModelIndex
-from PySide6.QtWidgets import QLabel, QDialog, QWidget, QGroupBox, QTabWidget, QGridLayout, QSizePolicy, QVBoxLayout, QApplication
+from PySide6.QtWidgets import QLabel, QDialog, QWidget, QTabWidget, QGridLayout, QSizePolicy, QVBoxLayout, QApplication
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -32,7 +32,7 @@ from antistasi_logbook.gui.views.log_files_query_view import LogFilesQueryTreeVi
 from antistasi_logbook.gui.widgets.detail_view_widget import ServerDetailWidget, LogFileDetailWidget, LogRecordDetailView
 from antistasi_logbook.gui.views.log_records_query_view import LogRecordsQueryView
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-
+from antistasi_logbook.gui.widgets.tool_bars import LogFileToolBar
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
@@ -179,8 +179,12 @@ class MainWidget(QWidget):
         self.query_widget.setVisible(False)
 
     def on_tab_changed(self, index: int):
+        # TODO change it so, that the view has all the widgets and provides it
 
         if index == self.main_tabs_widget.indexOf(self.log_files_tab):
+            log.debug("setting tool_bar %r", self.log_files_tab.tool_bar_item)
+            self.main_window.set_tool_bar(self.log_files_tab.tool_bar_item)
+            self.main_window.tool_bar.show_records_action.triggered.connect(self.query_log_file)
             if self.log_files_tab.model is None:
 
                 return
@@ -190,12 +194,14 @@ class MainWidget(QWidget):
                 self.query_widget.add_page(widget, name="log_file")
                 self.log_files_tab.model.data_tool = widget
                 widget.pages["filter"].query_filter_changed.connect(self.log_files_tab.model.on_query_filter_changed)
+                widget.pages["filter"].show_unparsable_check_box.toggled.connect(self.log_files_tab.model.change_show_unparsable)
 
             self.query_widget.set_current_index(self.log_files_tab.model.data_tool)
             self.query_widget.resize(self.query_widget.sizeHint())
             self.log_files_tab.resize_header_sections()
 
         elif index == self.main_tabs_widget.indexOf(self.server_tab):
+            self.main_window.set_tool_bar(self.server_tab.tool_bar_item)
             if self.server_tab.model is None:
 
                 return
@@ -208,7 +214,9 @@ class MainWidget(QWidget):
             self.query_widget.set_current_index(self.server_tab.model.data_tool)
             self.query_widget.resize(self.query_widget.sizeHint())
             self.server_tab.resize_header_sections()
+
         elif index == self.main_tabs_widget.indexOf(self.query_result_tab):
+            self.main_window.set_tool_bar(self.query_result_tab.tool_bar_item)
             if self.query_result_tab.model is None:
                 self.query_widget.resize(self.query_widget.sizeHint())
                 return
@@ -225,6 +233,7 @@ class MainWidget(QWidget):
             self.query_widget.set_current_index(self.query_result_tab.model.data_tool)
             self.query_widget.resize(self.query_widget.sizeHint())
             self.query_result_tab.resize_header_sections()
+
         self.query_widget.resize(self.query_widget.sizeHint())
 
     def setup_views(self) -> None:
@@ -241,9 +250,6 @@ class MainWidget(QWidget):
         self.log_files_tab.resize_header_sections()
         self.log_files_tab.single_item_selected.connect(self.show_log_file_detail)
         self.log_files_tab.clicked.connect(self.show_log_file_detail)
-
-        self.log_files_tab.model.refresh()
-        self.server_tab.model.refresh()
 
     def show_server_detail(self, index):
         item = self.server_tab.model.content_items[index.row()]
@@ -285,7 +291,9 @@ class MainWidget(QWidget):
             self.detail_widget.adjustSize()
 
     def query_log_file(self, index: QModelIndex):
-
+        index = index or self.log_files_tab.currentIndex()
+        if not index.isValid():
+            return
         log_file = self.log_files_tab.model.content_items[index.row()]
         log_record_model = LogRecordsModel(parent=self.query_result_tab)
         log_record_model._base_filter_item = log_record_model._base_filter_item & (LogRecord.log_file_id == log_file.id)

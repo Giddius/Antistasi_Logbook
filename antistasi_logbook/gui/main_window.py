@@ -5,33 +5,37 @@ WiP.
 Soon.
 """
 
+
 # region [Imports]
+
+# * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook import setup
+
 setup()
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
-from antistasi_logbook import stream_capturer
 import sys
 from time import sleep
 from typing import TYPE_CHECKING
 from pathlib import Path
 from threading import Thread
 
-# * Third Party Imports --------------------------------------------------------------------------------->
-
-
 # * Qt Imports --------------------------------------------------------------------------------------->
-from PySide6.QtGui import QColor, QCloseEvent, QMouseEvent
-from PySide6.QtCore import Qt, Slot, Signal, QObject, QSettings, QByteArray
-from PySide6.QtWidgets import QWidget, QMenuBar, QGridLayout, QHeaderView, QMainWindow, QMessageBox, QSizePolicy, QSplashScreen, QToolBar, QTabBar, QPushButton, QDockWidget
+from PySide6.QtGui import QColor, QCloseEvent, QMouseEvent, QCursor, QScreen
+from PySide6.QtCore import Qt, Slot, QSysInfo, Signal, QObject, QSettings, QPoint, QRect, QByteArray, QSize, QMetaProperty, Property, PyClassProperty, QtMsgType, qInstallMessageHandler, QMessageLogContext
+from PySide6.QtWidgets import QWidget, QMenuBar, QToolBar, QDockWidget, QGridLayout, QMainWindow, QMessageBox, QSizePolicy, QSplashScreen, QLabel
+
+# * Third Party Imports --------------------------------------------------------------------------------->
 import qt_material
+
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 from gidapptools.general_helper.string_helper import StringCaseConverter
 from gidapptools.gidapptools_qt.widgets.app_log_viewer import AppLogViewer
-
+from gidapptools.gidapptools_qt.widgets.std_stream_widget import StdStreamWidget
+import random
 # * Local Imports --------------------------------------------------------------------------------------->
-
+from antistasi_logbook import stream_capturer
 from antistasi_logbook.errors import ExceptionHandlerManager, MissingLoginAndPasswordError
 from antistasi_logbook.backend import Backend, GidSqliteApswDatabase
 from antistasi_logbook.gui.misc import UpdaterSignaler
@@ -43,6 +47,8 @@ from antistasi_logbook.gui.application import AntistasiLogbookApplication
 from antistasi_logbook.gui.main_widget import MainWidget
 from antistasi_logbook.gui.settings_window import SettingsWindow, CredentialsManagmentWindow
 from antistasi_logbook.gui.models.mods_model import ModsModel
+from antistasi_logbook.storage.models.models import LogFile
+
 from antistasi_logbook.gui.models.version_model import VersionModel
 from antistasi_logbook.gui.models.game_map_model import GameMapModel
 from antistasi_logbook.gui.widgets.debug_widgets import DebugDockWidget
@@ -50,14 +56,14 @@ from antistasi_logbook.gui.resources.style_sheets import get_style_sheet_data
 from antistasi_logbook.gui.views.base_query_tree_view import BaseQueryTreeView
 from antistasi_logbook.gui.models.record_classes_model import RecordClassesModel
 from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel
+
 from antistasi_logbook.gui.models.remote_storages_model import RemoteStoragesModel
-from antistasi_logbook.gui.models.antistasi_function_model import AntistasiFunctionModel
+from antistasi_logbook.gui.models.arma_function_model import ArmaFunctionModel
 from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-from gidapptools.gidapptools_qt.widgets.std_stream_widget import StdStreamWidget
-from antistasi_logbook.call_tree.call_tree_item import CallTree
-from antistasi_logbook.storage.models.models import LogFile
-
+import pp
+from gidapptools.gid_logger.misc import QtMessageHandler
+from antistasi_logbook.gui.widgets.tool_bars import BaseToolBar
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
@@ -93,6 +99,23 @@ class ErrorSignaler(QObject):
     show_error_signal = Signal(str, BaseException)
 
 
+class SecondaryWindow(QWidget):
+    close_signal = Signal(QWidget)
+
+    @property
+    def app(self) -> "AntistasiLogbookApplication":
+        return AntistasiLogbookApplication.instance()
+
+    def show(self) -> None:
+        self.app.extra_windows.add_window(self)
+
+        return super().show()
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        # self.close_signal.emit(self)
+        return super().closeEvent(event)
+
+
 class AntistasiLogbookMainWindow(QMainWindow):
     update_started = Signal()
     update_finished = Signal()
@@ -117,8 +140,6 @@ class AntistasiLogbookMainWindow(QMainWindow):
         flags = flags or Qt.WindowFlags()
         super().__init__(None, flags)
 
-        self.setup()
-
     @property
     def backend(self):
         return self.app.backend
@@ -136,7 +157,9 @@ class AntistasiLogbookMainWindow(QMainWindow):
         return self.config.get("gui", "style")
 
     def set_app_style_sheet(self, styleSheet: str) -> None:
+
         data = get_style_sheet_data(styleSheet)
+
         if data is None:
             data = styleSheet
         self.app.setStyleSheet(data)
@@ -149,17 +172,18 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.dock_widgets.append(dockwidget)
 
     def setup(self) -> None:
+        self.setContextMenuPolicy(Qt.NoContextMenu)
         qt_material.add_fonts()
         self.set_app_style_sheet(self.current_app_style_sheet)
-        settings = QSettings(f"{META_INFO.app_name}_settings", "main_window")
+
         self.name = StringCaseConverter.convert_to(META_INFO.app_name, StringCaseConverter.TITLE)
         self.title = f"{self.name} {META_INFO.version}"
         self.setWindowTitle(self.title)
-        self.addToolBar(Qt.TopToolBarArea, QToolBar(self))
+
         self.set_menubar(LogbookMenuBar(self))
         self.menubar.show_folder_action.triggered.connect(self.show_folder_window)
         self.menubar.open_credentials_managment_action.triggered.connect(self.show_credentials_managment_window)
-
+        log.debug("finished setting up %r", self.menubar)
         self.setWindowIcon(self.app.icon)
         settings = QSettings()
         geometry = settings.value('main_window_geometry', QByteArray())
@@ -167,14 +191,19 @@ class AntistasiLogbookMainWindow(QMainWindow):
             self.restoreGeometry(geometry)
         else:
             self.resize(*self.initial_size)
+        self.tool_bar = BaseToolBar(self)
+        self.addToolBar(Qt.TopToolBarArea, self.tool_bar)
+        log.debug("starting to set main widget")
         self.set_main_widget(MainWidget(self))
+        log.debug("finished setting up main widget %r", self.main_widget)
         self.main_widget.server_tab.resize_header_sections()
         self.sys_tray = LogbookSystemTray(self, self.app)
         self.app.sys_tray = self.sys_tray
         self.sys_tray.show()
 
-        self.setup_backend()
         self.setup_statusbar()
+        self.setup_backend()
+
         ExceptionHandlerManager.signaler.show_error_signal.connect(self.statusbar.show_error)
         ExceptionHandlerManager.signaler.show_error_signal.connect(self.show_error_dialog)
         self.backend.updater.signaler.update_started.connect(self.statusbar.switch_labels)
@@ -211,7 +240,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
             return
 
         self.debug_dock_widget = DebugDockWidget(parent=self, add_to_menu=self.menubar.windows_menu)
-        self.addDockWidget(Qt.NoDockWidgetArea, self.debug_dock_widget)
+        self.addDockWidget(Qt.TopDockWidgetArea, self.debug_dock_widget)
 
         for attr_name in ["applicationVersion",
                           "organizationName",
@@ -234,14 +263,28 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
         self.debug_dock_widget.add_show_attr_button(attr_name="colorNames", obj=QColor)
 
-        close_all_db_conn_button = QPushButton("Close All Db Connections")
-        close_all_db_conn_button.pressed.connect(self.backend.database.close_all)
-        self.debug_dock_widget.add_widget("close_all_db_conn", "Database", close_all_db_conn_button)
+        self.sys_info = QSysInfo()
 
-    def do_the_call_tree(self):
-        c = CallTree(self.backend.database.get_log_files(ordered_by=LogFile.size)[-1])
-        c.populate()
-        c.save_to_png()
+        for attr_name in ["bootUniqueId",
+                          "buildAbi",
+                          "buildCpuArchitecture",
+                          "currentCpuArchitecture",
+                          "kernelType",
+                          "kernelVersion",
+                          "machineHostName",
+                          "machineUniqueId",
+                          "prettyProductName",
+                          "productType",
+                          "productVersion"]:
+            self.debug_dock_widget.add_show_attr_button(attr_name=attr_name, obj=self.sys_info)
+
+    def set_tool_bar(self, tool_bar: QToolBar):
+        if self.tool_bar:
+            self.removeToolBar(self.tool_bar)
+            self.tool_bar = tool_bar
+            tool_bar.setParent(self)
+            self.addToolBar(Qt.TopToolBarArea, tool_bar)
+            self.tool_bar.setVisible(True)
 
     def show_app_log_window(self):
         log_folder = Path(self.app.meta_paths.log_dir)
@@ -258,10 +301,14 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
     def setup_statusbar(self) -> None:
         self.statusbar = LogbookStatusBar(self)
+        log.debug("setting up %r", self.statusbar)
+        self.statusbar.setup()
         self.setStatusBar(self.statusbar)
 
     def set_menubar(self, menubar: QMenuBar) -> None:
         self.menubar = menubar
+        self.menubar.setParent(self)
+        self.menubar.setup()
         self.setMenuBar(menubar)
 
     def set_main_widget(self, main_widget: QWidget) -> None:
@@ -284,6 +331,8 @@ class AntistasiLogbookMainWindow(QMainWindow):
             log.critical("Unable to delete DB at %r", path.as_posix())
 
     def start_backend(self):
+
+        log.debug("starting backend")
         config = META_CONFIG.get_config('general')
         db_path = config.get('database', "database_path", default=THIS_FILE_DIR.parent.joinpath("storage"))
 
@@ -291,10 +340,9 @@ class AntistasiLogbookMainWindow(QMainWindow):
         backend = Backend(database=database, config=config, update_signaler=UpdaterSignaler())
         backend.start_up()
         self.app.backend = backend
-        self.statusbar.setup()
 
     def show_secondary_model_data(self, db_model: "BaseModel"):
-        models = {"AntstasiFunction": AntistasiFunctionModel,
+        models = {"ArmaFunction": ArmaFunctionModel,
                   "GameMap": GameMapModel,
                   "Version": VersionModel,
                   "Mod": ModsModel,
@@ -302,27 +350,35 @@ class AntistasiLogbookMainWindow(QMainWindow):
                   "RecordClass": RecordClassesModel,
                   "LogLevel": LogLevelsModel,
                   "RecordOrigin": RecordOriginsModel}
-        window = QWidget()
+        window = SecondaryWindow()
+
         window.setLayout(QGridLayout())
         view = BaseQueryTreeView(db_model.get_meta().table_name)
+
         model_class = models.get(db_model.get_meta().table_name, None)
         if model_class is None:
             model = BaseQueryDataModel(db_model=db_model).refresh()
         else:
             model = model_class().refresh()
 
+        name = view.name
+        window.setObjectName(name)
         view.setModel(model)
-
+        icon_label = QLabel(window)
+        icon_label.setPixmap(view.icon.pixmap(QSize(100, 100)))
+        icon_label.setAlignment(Qt.AlignCenter)
+        window.layout().addWidget(icon_label)
         window.layout().addWidget(view)
         view.setup()
         width = 150 * (view.header_view.count() - view.header_view.hiddenSectionCount())
 
         height = min(800, 50 * model.rowCount())
 
-        self.secondary_model_data_window = window
-        self.secondary_model_data_window.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
-        self.secondary_model_data_window.resize(width, height)
-        self.secondary_model_data_window.show()
+        window.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
+        window.resize(width, height)
+        window.setWindowIcon(view.icon)
+
+        window.show()
 
     def show_folder_window(self):
         self._temp_folder_window = DataView()
@@ -332,6 +388,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self._temp_folder_window.add_row("Database", self.backend.database.database_path.resolve())
         self._temp_folder_window.add_row("Config", self.config.config.file_path.resolve())
         self._temp_folder_window.add_row("Log", self.app.meta_paths.log_dir.resolve())
+        self._temp_folder_window.add_row("Cache", self.app.meta_paths.cache_dir.resolve())
         self._temp_folder_window.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self._temp_folder_window.setFixedHeight(self.sizeHint().height())
         self._temp_folder_window.show()
@@ -385,6 +442,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
             log.info("closing %r", self)
             splash = QSplashScreen(AllResourceItems.app_icon_image.get_as_pixmap(), Qt.WindowStaysOnTopHint)
             settings = QSettings()
+            log.debug("saving main window geometry")
             settings.setValue('main_window_geometry', self.saveGeometry())
             self.setVisible(False)
             if self.config.get("database", "backup_database") is True:
@@ -400,13 +458,14 @@ class AntistasiLogbookMainWindow(QMainWindow):
             self.statusbar.shutdown()
             log.info("Starting shutting down %r", self.backend)
             self.backend.shutdown()
-            sleep(3)
+
             log.info("Finished shutting down %r", self.backend)
             splash.close()
 
             log.info("closing all windows of %r", self.app)
             self.app.closeAllWindows()
             log.info("Quiting %r", self.app)
+
             self.app.quit()
             log.info('%r accepting event %r', self, event.type().name)
             event.accept()
@@ -431,6 +490,8 @@ def start_gui():
     # TODO: Rewrite so everything starts through the app
 
     app = AntistasiLogbookApplication.with_high_dpi_scaling(argvs=sys.argv)
+    app.message_handler = QtMessageHandler().install()
+
     if app.is_full_gui is False:
         return
     start_splash = app.show_splash_screen("start_up")

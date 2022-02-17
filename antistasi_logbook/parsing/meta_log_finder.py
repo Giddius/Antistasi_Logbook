@@ -53,14 +53,22 @@ class MetaFinder:
 
     __slots__ = ("game_map", "full_datetime", "version", "mods", "campaign_id", "is_new_campaign", "regex_keeper")
 
-    def __init__(self, regex_keeper: "SimpleRegexKeeper", context: "ParsingContext") -> None:
+    def __init__(self, regex_keeper: "SimpleRegexKeeper", context: "ParsingContext", force: bool = False) -> None:
         self.regex_keeper = regex_keeper
-        self.game_map: str = MiscEnum.NOT_FOUND if not context._log_file.has_game_map() else MiscEnum.DEFAULT
-        self.full_datetime: FullDateTimes = MiscEnum.NOT_FOUND if not context._log_file.utc_offset else MiscEnum.DEFAULT
-        self.version: VersionItem = MiscEnum.NOT_FOUND if not context._log_file.version else MiscEnum.DEFAULT
-        self.mods: list[ModItem] = MiscEnum.NOT_FOUND if not context._log_file.has_mods() else MiscEnum.DEFAULT
-        self.campaign_id: int = MiscEnum.NOT_FOUND if context._log_file.campaign_id is None else MiscEnum.DEFAULT
-        self.is_new_campaign: bool = MiscEnum.NOT_FOUND if context._log_file.is_new_campaign is None else MiscEnum.DEFAULT
+        if force is True:
+            self.game_map: str = MiscEnum.NOT_FOUND
+            self.full_datetime: FullDateTimes = MiscEnum.NOT_FOUND
+            self.version: VersionItem = MiscEnum.NOT_FOUND
+            self.mods: list[ModItem] = MiscEnum.NOT_FOUND
+            self.campaign_id: int = MiscEnum.NOT_FOUND
+            self.is_new_campaign: bool = MiscEnum.NOT_FOUND
+        else:
+            self.game_map: str = MiscEnum.NOT_FOUND if not context._log_file.has_game_map() else MiscEnum.DEFAULT
+            self.full_datetime: FullDateTimes = MiscEnum.NOT_FOUND if not context._log_file.utc_offset else MiscEnum.DEFAULT
+            self.version: VersionItem = MiscEnum.NOT_FOUND if not context._log_file.version else MiscEnum.DEFAULT
+            self.mods: list[ModItem] = MiscEnum.NOT_FOUND if not context._log_file.has_mods() else MiscEnum.DEFAULT
+            self.campaign_id: int = MiscEnum.NOT_FOUND if context._log_file.campaign_id is None else MiscEnum.DEFAULT
+            self.is_new_campaign: bool = MiscEnum.NOT_FOUND if context._log_file.is_new_campaign is None else MiscEnum.DEFAULT
 
     def all_found(self) -> bool:
         # takes about 0.000742 s
@@ -73,17 +81,19 @@ class MetaFinder:
             self.full_datetime = FullDateTimes(utc_datetime=datetime(tzinfo=UTC, **utc_datetime_kwargs), local_datetime=datetime(tzinfo=UTC, **local_datetime_kwargs))
 
     def _resolve_version(self, text: str) -> None:
-        if match := self.regex_keeper.game_file.search(text):
+        if match := self.regex_keeper.version.search(text):
+            version = VersionItem.from_string(match.group("version").strip())
+
+            self.version = version
+        elif match := self.regex_keeper.game_file.search(text):
             raw = match.group('game_file')
-            version_args = [c for c in raw if c.isnumeric()]
+            version_args = [i for i in raw if i.isnumeric()]
             if version_args:
                 while len(version_args) < 3:
                     version_args.append('MISSING')
                 version = VersionItem(*version_args)
+
                 self.version = version
-            else:
-                log.debug("incomplete version from line: %r", match.group('game_file'))
-                self.version = None
 
     def _resolve_game_map(self, text: str) -> None:
         # takes about 0.170319 s
@@ -117,6 +127,7 @@ class MetaFinder:
             self._resolve_game_map(text)
 
         if self.version is MiscEnum.NOT_FOUND:
+
             self._resolve_version(text)
 
         if self.full_datetime is MiscEnum.NOT_FOUND:
