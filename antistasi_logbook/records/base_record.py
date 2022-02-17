@@ -181,7 +181,7 @@ class BaseRecord(AbstractRecord):
 
     @classmethod
     def set_background_color(cls, color: QColor):
-        cls.color_config.set("record", cls.__name__, color)
+        cls.color_config.set("record", cls.__name__, color, create_missing_section=True)
         cls.reset_colors()
 
     @profile
