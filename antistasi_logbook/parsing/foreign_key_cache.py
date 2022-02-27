@@ -234,6 +234,19 @@ class ForeignKeyCache:
         self.__class__._all_version_objects_by_id = None
         log.info("all cached foreign keys were reseted.")
 
+    def preload_all(self) -> None:
+        _ = self.all_log_levels
+        _ = self.all_arma_file_objects
+        _ = self.all_game_map_objects
+        _ = self.all_log_levels_by_id
+        _ = self.all_arma_file_objects_by_id
+        _ = self.all_game_map_objects_by_id
+        _ = self.all_origin_objects
+        _ = self.all_origin_objects_by_id
+        _ = self.all_version_objects
+        _ = self.all_version_objects_by_id
+        log.info("all cached foreign keys preloaded.")
+
     def _on_save_handler(self, sender, instance, created):
         """
         Invalidates the cache of the Model that was changed.

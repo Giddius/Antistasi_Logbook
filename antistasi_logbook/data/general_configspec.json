@@ -5,6 +5,11 @@
             "default": "5",
             "verbose_name": "Maximum amount of Threads",
             "short_description": "How many Threads should the App maximal use"
+        },
+        "is_first_start": {
+            "converter": "boolean",
+            "default": "False",
+            "gui_visible": false
         }
     },
     "database": {
@@ -33,8 +38,7 @@
         },
         "update_interval": {
             "converter": "timedelta",
-            "default": "5 min",
-            "implemented": false
+            "default": "5 min"
         },
         "max_update_time_frame": {
             "converter": "timedelta",

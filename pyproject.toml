@@ -15,6 +15,7 @@ dependencies = [
     "anyio==3.5.0",
     "appdirs==1.4.4",
     "attrs<=21.4.0",
+    "PyGithub==1.55",
     "certifi==2021.10.8",
     "cffi==1.15.0",
     "charset-normalizer==2.0.10",

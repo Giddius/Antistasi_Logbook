@@ -62,8 +62,15 @@ class UpdaterSignaler(QObject):
     def send_update_info(self, amount, name):
         self.update_info.emit(amount, name)
 
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 # region[Main_Exec]
+
 
 if __name__ == '__main__':
     pass

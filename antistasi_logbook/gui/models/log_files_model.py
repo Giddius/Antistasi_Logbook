@@ -141,21 +141,11 @@ class LogFilesModel(BaseQueryDataModel):
         return query.order_by(*self.ordered_by)
 
     def get_content(self) -> "BaseQueryDataModel":
-        def _load_probs(in_log_file: "LogFile") -> "LogFile":
-            try:
-                with self.database.connection_context() as ctx:
-                    _ = in_log_file.pretty_time_frame
-                    _ = in_log_file.pretty_utc_offset
-                    _ = in_log_file.amount_log_records
-                    _ = in_log_file.amount_errors
-                    _ = in_log_file.amount_warnings
-            except AttributeError as error:
-                log.debug("attribute_error %r for %r", error, in_log_file)
-            return in_log_file
+
         with self.backend.database.connection_context() as ctx:
             self.content_items = []
             for log_file in self.get_query().execute():
-                self.app.gui_thread_pool.submit(_load_probs, log_file)
+
                 self.content_items.append(log_file)
 
         return self

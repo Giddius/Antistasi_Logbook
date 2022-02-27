@@ -45,7 +45,7 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 RECORD_CLASS_TYPE = Union[type["AbstractRecord"], type["BaseRecord"]]
 
 
-@attr.s(auto_attribs=True, auto_detect=True, frozen=True, slots=True)
+@attr.s(auto_attribs=True, auto_detect=True, frozen=True, slots=True, weakref_slot=True)
 class StoredRecordClass:
     concrete_class: RECORD_CLASS_TYPE = attr.ib()
     model: RecordClass = attr.ib()
@@ -95,15 +95,13 @@ class RecordClassManager:
         if RecordFamily.ANTISTASI in record_class.___record_family___:
             cls.antistasi_record_classes.add(stored_item)
 
-    
     def get_by_name(self, name: str) -> RECORD_CLASS_TYPE:
         return self.record_class_registry.get(name, self.default_record_class).concrete_class
 
-    
     def get_by_id(self, model_id: int) -> RECORD_CLASS_TYPE:
         return self.record_class_registry_by_id.get(str(model_id), self.default_record_class).concrete_class
 
-    
+    @profile
     def determine_record_class(self, log_record: LogRecord) -> "RecordClass":
         # TODO: make generic regarding record_classes selection
         record_classes = self.antistasi_record_classes if log_record.origin_id == 1 else self.generic_record_classes

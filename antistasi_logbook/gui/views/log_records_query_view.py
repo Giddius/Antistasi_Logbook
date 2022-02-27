@@ -12,7 +12,7 @@ from pathlib import Path
 
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QAction
-from PySide6.QtCore import Signal, QMargins, QStandardPaths, QItemSelectionModel
+from PySide6.QtCore import Signal, QMargins, QStandardPaths, QItemSelectionModel, QItemSelection
 from PySide6.QtWidgets import QHeaderView
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
@@ -25,6 +25,7 @@ from antistasi_logbook.gui.views.base_query_tree_view import BaseQueryTreeView, 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.gui.models.log_records_model import LogRecordsModel
+    from antistasi_logbook.gui.models.proxy_models.base_proxy_model import BaseProxyModel
 
 # endregion[Imports]
 
@@ -117,6 +118,13 @@ class LogRecordsQueryView(BaseQueryTreeView):
 
         self.screenshot_finished.emit()
 
+    @property
+    def model(self) -> "BaseProxyModel":
+        _out = super().model
+        if callable(_out):
+            _out = _out()
+        return _out
+
     @ property
     def header_view(self) -> QHeaderView:
         return self.header()
@@ -131,6 +139,33 @@ class LogRecordsQueryView(BaseQueryTreeView):
         self.original_model = model
         model = model.proxy_model
         return super().setModel(model)
+
+    def selectionChanged(self, selected: QItemSelection, deselected: QItemSelection) -> None:
+
+        current_selection = self.selectionModel().selectedRows()
+
+        current_selection = [self.model.mapToSource(idx) for idx in current_selection]
+
+        amount_selection = len(current_selection)
+
+        if amount_selection == 0:
+
+            return
+
+        if amount_selection == 1:
+
+            self.single_item_selected.emit(current_selection[-1])
+
+        else:
+
+            indexes = current_selection
+
+            self.single_item_selected.emit(current_selection[-1])
+            self.multiple_items_selected.emit(list(indexes))
+
+        items = [self.model.get(i.row()) for i in current_selection]
+
+        self.current_items_changed.emit(items)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}"

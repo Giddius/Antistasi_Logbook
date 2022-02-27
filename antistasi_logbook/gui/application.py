@@ -179,6 +179,10 @@ class AntistasiLogbookApplication(QApplication):
         return self.backend.config
 
     @property
+    def settings(self) -> QSettings:
+        return QSettings()
+
+    @property
     def is_dev(self) -> bool:
         dev_mode = self.config.get("debug", "dev_mode")
         return any(value is True for value in [dev_mode, self.meta_info.is_dev])
@@ -271,14 +275,19 @@ class AntistasiLogbookApplication(QApplication):
         log.debug("temp_path: %r", temp_path.as_posix())
         for item in temp_path.iterdir():
             if item.is_file():
+                log.debug(f"deleting file {item.as_posix()!r}")
                 item.unlink(missing_ok=True)
             elif item.is_dir():
+                log.debug(f"deleting folder {item.as_posix()!r}")
                 shutil.rmtree(item)
 
         log.debug(pp.fmt(self.extra_windows.windows))
 
-    def __repr__(self) -> str:
+    def __str__(self) -> str:
         return f"{self.__class__.__name__}(name={self.applicationDisplayName()!r})"
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(argvs={self.arguments()[1:]!r})"
 
 
 # region[Main_Exec]

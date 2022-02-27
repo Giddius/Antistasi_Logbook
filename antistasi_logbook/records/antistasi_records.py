@@ -23,7 +23,7 @@ from gidapptools.general_helper.color.color_item import Color
 from antistasi_logbook.records.base_record import BaseRecord, RecordFamily
 from antistasi_logbook.utilities.parsing_misc import parse_text_array
 from antistasi_logbook.records.abstract_record import RecordFamily, MessageFormat
-
+from datetime import datetime
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from PySide6.QtGui import QColor
@@ -116,12 +116,15 @@ class PerformanceRecord(BaseAntistasiRecord):
     @property
     def stats(self) -> dict[str, Union[int, float]]:
         if self._stats is None:
-            self._stats = self._get_stats()
+            self._stats = self._get_stats(self.message, self.recorded_at)
         return self._stats
 
-    def _get_stats(self) -> dict[str, Union[int, float]]:
-        data = {item.group('name'): item.group('value') for item in self.performance_regex.finditer(self.message)}
-        return {k: float(v) if '.' in v else int(v) for k, v in data.items()} | {"timestamp": self.recorded_at}
+    @classmethod
+    @profile
+    def _get_stats(cls, message: str, recorded_at: datetime) -> dict[str, Union[int, float]]:
+        data = {item.group('name'): item.group('value') for item in cls.performance_regex.finditer(message)}
+        data = {k: float(v) if '.' in v else int(v) for k, v in data.items()}
+        return data | {"timestamp": recorded_at}
 
     def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
         if msg_format is MessageFormat.PRETTY:
@@ -717,6 +720,42 @@ class ToggleLockRecord(BaseAntistasiRecord):
 
 
 ALL_ANTISTASI_RECORD_CLASSES.add(ToggleLockRecord)
+
+
+class QRFAvailableRecord(BaseAntistasiRecord):
+    ___specificity___ = 20
+    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
+
+    __slots__ = ("record_id",
+                 "log_file",
+                 "origin",
+                 "start",
+                 "end",
+                 "message",
+                 "recorded_at",
+                 "log_level",
+                 "marked",
+                 "called_by",
+                 "logged_from",
+                 "qt_attributes",
+                 "pretty_attribute_cache")
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+    @classmethod
+    def check(cls, log_record: "LogRecord") -> bool:
+        logged_from = log_record.logged_from
+
+        if logged_from is None:
+            return
+        if logged_from.function_name in {"A3A_fnc_SUP_QRFAvailable"}:
+            return True
+        return False
+
+
+ALL_ANTISTASI_RECORD_CLASSES.add(QRFAvailableRecord)
+
 
 # region[Main_Exec]
 

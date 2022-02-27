@@ -85,6 +85,13 @@ class CategorySelectionWidget(QListWidget):
         item.page_number = category_page_number
         self.addItem(item)
 
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
 
 class CategoryPicture(QFrame):
     clicked = Signal(int)
@@ -134,6 +141,13 @@ class CategoryPicture(QFrame):
     def layout(self) -> QVBoxLayout:
         return super().layout()
 
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
 
 class PictureCategorySelector(QGroupBox):
 
@@ -171,6 +185,13 @@ class PictureCategorySelector(QGroupBox):
         max_heights = max(heights)
         for category in self.categories.values():
             category.resize(max_width, max_heights)
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 
 SETTINGS_VALUE_FIELD_TYPE = Union[QTextEdit, QComboBox, QFontComboBox, QSpinBox, QCheckBox, QDoubleSpinBox, QDateTimeEdit, QTimeEdit]
@@ -221,6 +242,13 @@ class SettingsField:
         self.key_field.setToolTip(tool_tip)
         self.value_field.setToolTip(tool_tip)
 
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
 
 class SettingsForm(QFrame):
 
@@ -263,6 +291,13 @@ class SettingsForm(QFrame):
 
         return instance
 
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
 
 class ContentStackedwidget(QStackedWidget):
 
@@ -277,6 +312,13 @@ class ContentStackedwidget(QStackedWidget):
     def addWidget(self, w: "SettingsForm") -> int:
         self.pages[w.section_name] = w
         return super().addWidget(w)
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 
 class SettingsWindow(QWidget):
@@ -372,13 +414,21 @@ class SettingsWindow(QWidget):
                 if field.value_field.value_is_changed():
                     log.debug("sect_name=%r, field.name=%r, field.value_field.get_value()=%r", sect_name, field.name, field.value_field.get_value())
                     self.general_config.set(sect_name, field.name, field.value_field.get_value())
-
+                    if sect_name == "updating" and field.name == "update_interval":
+                        self.main_window.start_update_timer()
         # self.general_config.config.save()
         self.general_config.config.auto_write = old_auto_write
 
     def show(self) -> None:
 
         return super().show()
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 
 class CredentialsBox(QGroupBox):
@@ -464,6 +514,13 @@ class CredentialsBox(QGroupBox):
         self.remote_storage.set_login_and_password(login=login, password=password, store_in_db=store_in_db)
         self.indicate_success()
 
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
 
 class CredentialsManagmentWindow(QWidget):
 
@@ -484,6 +541,13 @@ class CredentialsManagmentWindow(QWidget):
     @property
     def layout(self) -> QVBoxLayout:
         return super().layout()
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 # region[Main_Exec]
 

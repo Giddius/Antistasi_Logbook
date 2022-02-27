@@ -10,6 +10,7 @@ Soon.
 from time import sleep
 from typing import TYPE_CHECKING, Iterable, Optional
 from pathlib import Path
+import pp
 from weakref import WeakSet
 from datetime import datetime
 from itertools import chain
@@ -264,15 +265,8 @@ class Backend:
         self.database.start_up(overwrite=overwrite)
 
         self.database.connect(True)
+
         self.fill_record_class_manager()
-        _ = self.foreign_key_cache.all_arma_file_objects
-        _ = self.foreign_key_cache.all_arma_file_objects_by_id
-        _ = self.foreign_key_cache.all_game_map_objects
-        _ = self.foreign_key_cache.all_game_map_objects_by_id
-        _ = self.foreign_key_cache.all_log_levels
-        _ = self.foreign_key_cache.all_log_levels_by_id
-        _ = self.foreign_key_cache.all_origin_objects
-        _ = self.foreign_key_cache.all_origin_objects_by_id
 
         self.signals.new_log_record.connect(self.database.session_meta_data.increment_added_log_records)
         self.signals.new_log_file.connect(self.database.session_meta_data.increment_new_log_file)

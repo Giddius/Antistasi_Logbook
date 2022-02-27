@@ -50,14 +50,16 @@ from urllib.parse import urlparse
 from importlib.util import find_spec, module_from_spec, spec_from_file_location
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from importlib.machinery import SourceFileLoader
+from github import Github
+import github
+import pp
 
-from playhouse.migrate import SqliteMigrator, migrate
-from playhouse.reflection import Introspector
-from natsort import natsorted, natsort_key
-from sortedcontainers import SortedDict, sorteddict
-import apsw
+from gidapptools import get_logger
+
 if TYPE_CHECKING:
-    from antistasi_logbook.storage.database import GidSqliteApswDatabase
+    from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow
+    from antistasi_logbook.gui.application import AntistasiLogbookApplication
+
 # endregion[Imports]
 
 # region [TODO]
@@ -72,40 +74,54 @@ if TYPE_CHECKING:
 
 # region [Constants]
 
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
+log = get_logger(__name__)
 
 # endregion[Constants]
-
-migrations = SortedDict(natsort_key)
-
-
-def version_migration(func: Callable):
-    version_string = func.__name__.removeprefix("migrate_").strip().replace("_", ".")
-    migrations[version_string] = func
-    return func
+GITHUB_CLIENT = Github()
 
 
-@version_migration
-def migrate_0_5_0(migrator: SqliteMigrator):
-
-    try:
-        migrate(migrator.add_index("LogRecord", ("log_file", "log_level"), False))
-    except apsw.SQLError:
-        pass
-
-    try:
-        migrate(migrator.add_index("LogRecord", ("log_file", "record_class"), False))
-    except apsw.SQLError:
-        pass
+def url_to_identifier(in_url: str) -> str:
+    _out = in_url.removeprefix("https://").removeprefix("github.com/").split("/")
+    _out = _out[0] + '/' + _out[1]
+    return _out
 
 
-def run_migration(database: "GidSqliteApswDatabase"):
-    migrator = SqliteMigrator(database)
-    for version, func in migrations.items():
-        func(migrator)
+def get_repo(in_url: str):
+    return GITHUB_CLIENT.get_repo(url_to_identifier(in_url))
 
+
+def get_branch(repo, branch_name: str = None):
+    branch_name = branch_name or repo.default_branch
+    return repo.get_branch(branch_name)
+
+
+def get_repo_file_list(url: str, branch_name: str = None):
+    repo = get_repo(url)
+    branch = get_branch(repo, branch_name=branch_name)
+    latest_sha = branch.commit.sha
+    tree = repo.get_git_tree(latest_sha, True)
+    file_items = {}
+    for item in tree.tree:
+        path = str(item.path)
+        content_item = repo.get_contents(path, ref=branch.name)
+
+        name = os.path.basename(path)
+        try:
+            file_items[name] = str(content_item.html_url)
+        except AttributeError:
+            continue
+    return file_items
+
+
+print(GITHUB_CLIENT.rate_limiting_resettime)
+fi = get_repo_file_list("https://github.com/official-antistasi-community/A3-Antistasi")
+
+
+pp(fi)
 # region[Main_Exec]
-
 
 if __name__ == '__main__':
     pass

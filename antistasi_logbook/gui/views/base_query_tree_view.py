@@ -63,6 +63,13 @@ class HeaderContextMenuAction(QAction):
     def on_triggered(self):
         self.clicked.emit(self.section)
 
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
 
 class CustomContextMenu(QMenu):
 
@@ -79,7 +86,6 @@ class CustomContextMenu(QMenu):
         sub_menu = self.__class__(name, add_to)
         self.sub_menus[name.casefold()] = sub_menu
         self.addMenu(sub_menu)
-        log.debug("added menu %r to context-menu %r of %r", sub_menu, self, self.parent())
 
     def add_action(self, action: QAction, sub_menu: Union[str, "CustomContextMenu", QMenu] = None):
         if sub_menu is None:
@@ -90,7 +96,13 @@ class CustomContextMenu(QMenu):
         if not action.parent():
             action.setParent(sub_menu)
         sub_menu.addAction(action)
-        log.debug("added action %r to menu %r of context-menu %r of %r", action, sub_menu, self, self.parent())
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 
 class BaseQueryTreeView(QTreeView):
@@ -139,12 +151,14 @@ class BaseQueryTreeView(QTreeView):
 
     @property
     def column_order(self) -> dict[str, int]:
-        settings = QSettings()
+        settings = self.app.settings
         data = settings.value(f"{self.name}_column_order", None)
         if data is None:
             data = {}
 
-        return self.default_colum_order | data
+        _out = self.default_colum_order | data
+
+        return _out
 
     @property
     def tool_bar_item(self) -> QToolBar:
@@ -157,17 +171,18 @@ class BaseQueryTreeView(QTreeView):
 
     def store_new_column_order(self, logical_index: int, old_visual_index: int, new_visual_index: int):
         column_order = self.column_order
-        for idx, column in enumerate(self.model.columns):
-            vis_idx = self.header_view.visualIndex(idx)
-            column_order[column.name] = vis_idx
-
         column = self.model.columns[logical_index]
+
         column_order[column.name] = new_visual_index
+
+        # column = self.model.columns[logical_index]
+        # column_order[column.name] = new_visual_index
 
         settings = QSettings()
         settings.setValue(f"{self.name}_column_order", column_order)
 
-    @profile
+        log.debug("setting column %r position to %r", column.name, new_visual_index)
+
     def setup(self) -> "BaseQueryTreeView":
 
         self.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -213,13 +228,11 @@ class BaseQueryTreeView(QTreeView):
 
         menu.exec(self.mapToGlobal(pos))
 
-    @profile
     def get_hidden_header_names(self) -> set[str]:
         settings = QSettings()
         hidden_header = settings.value(f"{self.name}_hidden_headers", set())
         return hidden_header
 
-    @profile
     def set_hidden_header_names(self):
         hidden_section_names = []
         for column in self.model.columns:
@@ -230,7 +243,6 @@ class BaseQueryTreeView(QTreeView):
         settings = QSettings()
         settings.setValue(f"{self.name}_hidden_headers", set(hidden_section_names))
 
-    @profile
     def setup_headers(self):
         for column_name in self.initially_hidden_columns:
             index = self.model.get_column_index(column_name)
@@ -242,22 +254,19 @@ class BaseQueryTreeView(QTreeView):
             if index is not None:
                 self.header_view.hideSection(index)
         column_order_map = self.column_order
-        original_order = list(self.model.columns)
-        new_order = sorted([i.name for i in original_order], key=lambda x: column_order_map.get(x, 0))
-
         self.header_view.sectionMoved.disconnect(self.store_new_column_order)
-
-        for idx, column in enumerate(original_order):
-            new_idx = new_order.index(column.name)
-            vis_idx = self.header_view.visualIndex(idx)
-
-            self.header_view.moveSection(vis_idx, new_idx)
+        for idx, column in enumerate(self.model.columns):
+            pos = column_order_map.get(column.name, None)
+            if pos is None:
+                continue
+            orig_vis_index = self.header_view.visualIndex(idx)
+            self.header_view.moveSection(orig_vis_index, pos)
+            log.debug("moved %r from %r to %r", column.name, orig_vis_index, pos)
 
         self.header_view.setContextMenuPolicy(Qt.CustomContextMenu)
         self.header_view.customContextMenuRequested.connect(self.handle_header_custom_context_menu)
         self.header_view.sectionMoved.connect(self.store_new_column_order)
 
-    @profile
     def handle_header_custom_context_menu(self, pos: QPoint):
         def get_amount_not_hidden():
             not_hidden = []
@@ -270,8 +279,6 @@ class BaseQueryTreeView(QTreeView):
 
         column_section = self.header_view.logicalIndexAt(pos)
         col = self.model.columns[column_section]
-
-        log.debug("logical index: %r, column from logical index: %r", column_section, col)
 
         menu = QMenu(self.header_view)
 
@@ -290,7 +297,6 @@ class BaseQueryTreeView(QTreeView):
             menu.addAction(change_visibility_action)
         menu.exec(self.header_view.mapToGlobal(pos))
 
-    @profile
     def force_refresh(self):
         log.debug("starting force refreshing %r", self)
         log.debug("repainting %r", self)
@@ -299,7 +305,6 @@ class BaseQueryTreeView(QTreeView):
         self.doItemsLayout()
         log.debug("finished force refreshing %r", self)
 
-    @profile
     def toggle_header_section_hidden(self, section: int):
         is_hidden = self.header_view.isSectionHidden(section)
         if is_hidden:
@@ -313,13 +318,11 @@ class BaseQueryTreeView(QTreeView):
     def extra_setup(self):
         pass
 
-    @profile
     def setup_scrollbars(self):
         self.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
         self.vertical_scrollbar.setSingleStep(3)
 
-    @profile
     def resize_header_sections(self):
 
         self.header_view.setSectionResizeMode(QHeaderView.Interactive)
@@ -329,7 +332,6 @@ class BaseQueryTreeView(QTreeView):
             new_size = int(self.item_size_by_column_name.get(section.name, self.default_item_size))
             self.header_view.resizeSection(idx, new_size)
 
-    @profile
     def pre_set_model(self):
         self.setEnabled(False)
         self.setUniformRowHeights(True)
@@ -337,12 +339,10 @@ class BaseQueryTreeView(QTreeView):
         if self._temp_original_sorting_enabled is True:
             self.setSortingEnabled(False)
 
-    @profile
     def post_set_model(self):
         self.setEnabled(True)
         self.setSortingEnabled(self._temp_original_sorting_enabled)
 
-    @profile
     def set_delegates(self):
         marked_col_index = self.model.get_column_index("marked")
         if marked_col_index is not None:
@@ -355,7 +355,6 @@ class BaseQueryTreeView(QTreeView):
                 idx = self.model.get_column_index(column.name)
                 self.setItemDelegateForColumn(idx, BoolImageDelegate(self))
 
-    @profile
     def setModel(self, model: PySide6.QtCore.QAbstractItemModel) -> None:
         def _callback(future: Future):
             if future.exception():

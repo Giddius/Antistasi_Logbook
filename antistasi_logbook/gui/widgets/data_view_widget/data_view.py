@@ -201,13 +201,13 @@ class DataView(QFrame):
         self._is_built = True
 
     def show(self):
-        self.app.extra_windows.add(self)
+        self.app.extra_windows.add_window(self)
         self.rebuild()
 
         return super().show()
 
     def closeEvent(self, event: PySide6.QtGui.QCloseEvent) -> None:
-        self.app.extra_windows.remove(self)
+        self.app.extra_windows.remove_window(self)
         return super().closeEvent(event)
 
     def repaint(self):

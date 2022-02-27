@@ -109,6 +109,8 @@ class LogbookSystemTray(QSystemTrayIcon):
 
         self.showMessage("Update finished!", "The Database is now up to date!", QSystemTrayIcon.MessageIcon.Information, 15 * 1000)
 
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(main_window={self.main_window!r}, app={self.app!r})"
     # region[Main_Exec]
 
 

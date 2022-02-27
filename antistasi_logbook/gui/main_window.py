@@ -9,9 +9,9 @@ Soon.
 # region [Imports]
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook import setup
 
-setup()
+from datetime import datetime, timedelta, timezone
+
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import sys
 from time import sleep
@@ -21,7 +21,7 @@ from threading import Thread
 
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QColor, QCloseEvent, QMouseEvent, QCursor, QScreen
-from PySide6.QtCore import Qt, Slot, QSysInfo, Signal, QObject, QSettings, QPoint, QRect, QByteArray, QSize, QMetaProperty, Property, PyClassProperty, QtMsgType, qInstallMessageHandler, QMessageLogContext
+from PySide6.QtCore import Qt, Slot, QSysInfo, QTimerEvent, Signal, QTimer, QObject, QSettings, QPoint, QRect, QByteArray, QSize, QMetaProperty, Property, PyClassProperty, QtMsgType, qInstallMessageHandler, QMessageLogContext
 from PySide6.QtWidgets import QWidget, QMenuBar, QToolBar, QDockWidget, QGridLayout, QMainWindow, QMessageBox, QSizePolicy, QSplashScreen, QLabel
 
 # * Third Party Imports --------------------------------------------------------------------------------->
@@ -31,7 +31,7 @@ import qt_material
 from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 from gidapptools.general_helper.string_helper import StringCaseConverter
-from gidapptools.gidapptools_qt.widgets.app_log_viewer import AppLogViewer
+from gidapptools.gidapptools_qt.widgets.app_log_viewer import FileAppLogViewer, StoredAppLogViewer
 from gidapptools.gidapptools_qt.widgets.std_stream_widget import StdStreamWidget
 import random
 # * Local Imports --------------------------------------------------------------------------------------->
@@ -98,6 +98,13 @@ META_INFO = get_meta_info()
 class ErrorSignaler(QObject):
     show_error_signal = Signal(str, BaseException)
 
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
 
 class SecondaryWindow(QWidget):
     close_signal = Signal(QWidget)
@@ -112,8 +119,15 @@ class SecondaryWindow(QWidget):
         return super().show()
 
     def closeEvent(self, event: QCloseEvent) -> None:
-        # self.close_signal.emit(self)
+        self.close_signal.emit(self)
         return super().closeEvent(event)
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 
 class AntistasiLogbookMainWindow(QMainWindow):
@@ -137,6 +151,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.title: str = None
         self.update_thread: Thread = None
         self.dock_widgets: list[QDockWidget] = []
+        self.update_timer: QTimer = None
         flags = flags or Qt.WindowFlags()
         super().__init__(None, flags)
 
@@ -222,8 +237,48 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.menubar.data_menu_actions_group.triggered.connect(self.show_secondary_model_data)
         self.menubar.show_app_log_action.triggered.connect(self.show_app_log_window)
         self.menubar.show_errors_action.triggered.connect(self.show_errors_window)
-
+        self.menubar.cyclic_update_action.triggered.connect(self.start_update_timer)
         self.development_setup()
+
+    def start_update_timer(self):
+        interval: timedelta = self.config.get("updating", "update_interval")
+        interval_msec = int(interval.total_seconds() * 1000)
+        if self.update_timer is not None:
+            log.debug("killing timer with id %r", self.update_timer.timerId())
+            self.update_timer.stop()
+
+        self.update_timer = QTimer(self)
+        self.update_timer.setInterval(interval_msec)
+        self.update_timer.setTimerType(Qt.CoarseTimer)
+        self.update_timer.timeout.connect(self._single_update)
+        self.update_timer.start()
+        self.menubar.cyclic_update_remaining.start(self.update_timer)
+        log.debug("started timer with id %r and interval of %r s", self.update_timer.timerId(), self.update_timer.interval() / 1000)
+        try:
+            self.menubar.cyclic_update_action.triggered.disconnect(self.start_update_timer)
+            self.menubar.cyclic_update_action.triggered.connect(self.stop_update_timer)
+        except Exception as e:
+            log.critical("Ecountered exception %r", e)
+        self.menubar.cyclic_update_action.setText("Stop Cyclic Update")
+        self._single_update()
+
+    def stop_update_timer(self):
+        if self.update_timer is not None:
+            log.debug("killing timer with id %r", self.update_timer.timerId())
+            self.update_timer.stop()
+            self.menubar.cyclic_update_remaining.stop()
+            self.update_timer = None
+            try:
+                self.menubar.cyclic_update_action.triggered.disconnect(self.stop_update_timer)
+                self.menubar.cyclic_update_action.triggered.connect(self.start_update_timer)
+            except Exception as e:
+                log.critical("Ecountered exception %r", e)
+            self.menubar.cyclic_update_action.setText("Start Cyclic Update")
+
+    def timerEvent(self, event: QTimerEvent) -> None:
+        if event.timerId() == self.update_timer_id:
+            log.debug("starting single update")
+            self._single_update()
 
     def show_error_dialog(self, text: str, exception: BaseException):
         QMessageBox.critical(None, "Error", text)
@@ -287,13 +342,18 @@ class AntistasiLogbookMainWindow(QMainWindow):
             self.tool_bar.setVisible(True)
 
     def show_app_log_window(self):
-        log_folder = Path(self.app.meta_paths.log_dir)
-        try:
-            log_file = sorted([p for p in log_folder.iterdir() if p.is_file() and p.suffix == ".log"], key=lambda x: x.stat().st_ctime, reverse=True)[0]
-            self.temp_add_log_window = AppLogViewer(log_file=log_file).setup()
-            self.temp_add_log_window.show()
-        except IndexError:
-            QMessageBox.warning(self, "Error", f"Unable to retrieve the Application Log File from Folder {log_folder.as_posix()!r}")
+        # log_folder = Path(self.app.meta_paths.log_dir)
+        # try:
+        #     log_file = sorted([p for p in log_folder.iterdir() if p.is_file() and p.suffix == ".log"], key=lambda x: x.stat().st_ctime, reverse=True)[0]
+        #     self.temp_add_log_window = FileAppLogViewer(log_file=log_file).setup()
+        #     self.temp_add_log_window.show()
+        # except IndexError:
+        #     QMessageBox.warning(self, "Error", f"Unable to retrieve the Application Log File from Folder {log_folder.as_posix()!r}")
+        return
+        viewer = StoredAppLogViewer()
+        viewer.setup()
+        self.temp_app_log_window = viewer
+        viewer.show()
 
     def setup_backend(self) -> None:
         self.menubar.single_update_action.triggered.connect(self._single_update)
@@ -396,11 +456,12 @@ class AntistasiLogbookMainWindow(QMainWindow):
     def _reassing_record_classes(self):
 
         def _run_reassingment():
+
             self.menubar.single_update_action.setEnabled(False)
             self.menubar.reassign_record_classes_action.setEnabled(False)
             self.update_started.emit()
             try:
-                self.backend.updater.update_record_classes(force=True)
+                self.backend.updater.only_update_record_classes(force=True)
             finally:
                 self.update_finished.emit()
                 self.menubar.single_update_action.setEnabled(True)
@@ -440,6 +501,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
             except AttributeError:
                 pass
             log.info("closing %r", self)
+            self.stop_update_timer()
             splash = QSplashScreen(AllResourceItems.app_icon_image.get_as_pixmap(), Qt.WindowStaysOnTopHint)
             settings = QSettings()
             log.debug("saving main window geometry")
@@ -483,7 +545,11 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self._temp_credentials_managment_window.show()
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}"
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 
 def start_gui():
@@ -494,9 +560,13 @@ def start_gui():
 
     if app.is_full_gui is False:
         return
-    start_splash = app.show_splash_screen("start_up")
 
     config = META_CONFIG.get_config('general')
+
+    if config.get("general", "is_first_start") is True:
+        temp_db_path = config.get('database', "database_path", default=None)
+        config.set("general", "is_first_start", False)
+    start_splash = app.show_splash_screen("start_up")
     db_path = config.get('database', "database_path", default=None)
     database = GidSqliteApswDatabase(db_path, config=config, thread_safe=True, autoconnect=True)
 

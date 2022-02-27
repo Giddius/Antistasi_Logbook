@@ -133,6 +133,13 @@ class ModModel(QAbstractTableModel):
         except IntegrityError:
             link_item.update()
 
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
 
 class ModDataView(DataView):
     def __init__(self, mod: Mod, parent: Optional[PySide6.QtWidgets.QWidget] = None, show_none: bool = False) -> None:
@@ -149,6 +156,13 @@ class ModDataView(DataView):
         if column.name.casefold() == "marked":
             return -1
         return len(column.verbose_name or column.name)
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 
 class ModView(QListView):
@@ -228,6 +242,13 @@ class ModView(QListView):
             menu.addAction(self.open_mod_data_view_action)
             menu.exec(event.globalPos())
 
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
 
 class ValueLineEdit(QLineEdit):
     style_sheet_data = """
@@ -239,6 +260,13 @@ class ValueLineEdit(QLineEdit):
         self.setAlignment(Qt.AlignCenter)
         self.setProperty("display_only", True)
         self.setStyleSheet(self.style_sheet_data)
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 
 class GameMapValue(QWidget):
@@ -269,6 +297,13 @@ class GameMapValue(QWidget):
     def layout(self) -> QVBoxLayout:
         return super().layout()
 
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
 
 class BaseDetailWidget(QWidget):
 
@@ -291,6 +326,13 @@ class BaseDetailWidget(QWidget):
     @property
     def config(self) -> "GidIniConfig":
         return self.backend.config
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 
 class ServerDetailWidget(BaseDetailWidget):
@@ -341,6 +383,13 @@ class ServerDetailWidget(BaseDetailWidget):
             y.append(item.stats.get("Players"))
 
         return x, y
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 
 class LogFileDetailWidget(BaseDetailWidget):
@@ -433,6 +482,13 @@ class LogFileDetailWidget(BaseDetailWidget):
         if valid and link:
             self.mods_value.model().add_link(index, link)
 
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
 
 class LineNumberValueBox(QGroupBox):
 
@@ -450,6 +506,13 @@ class LineNumberValueBox(QGroupBox):
     @ property
     def layout(self) -> QFormLayout:
         return super().layout()
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 
 class BoolLabel(QWidget):
@@ -476,6 +539,13 @@ class BoolLabel(QWidget):
     @ property
     def layout(self) -> QFormLayout:
         return super().layout()
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 
 def _re_pattern_converter(in_data: Union[str, re.Pattern]):
@@ -504,6 +574,13 @@ class AbstractSyntaxHighlightRule(ABC):
             start, end = match.span()
 
             yield start, end - start, self.style_format
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 
 class SeparatorHighlightRule(AbstractSyntaxHighlightRule):
@@ -689,13 +766,23 @@ class MessageValue(QTextEdit):
         self.highlighter.add_rule(KVHighlightRule())
         self.highlighter.setDocument(self.document())
 
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
 
 class LogRecordDetailView(BaseDetailWidget):
 
     def __init__(self, record: "BaseRecord", parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
         super().__init__(parent=parent)
         self.record = record
-
+        try:
+            log.debug("record logged_from function name: %r", self.record.logged_from.function_name)
+        except Exception as e:
+            log.critical("encountered exception %r, with record %r", e, self.record)
         self.recorded_at_value = ValueLineEdit(text=self.app.format_datetime(self.record.recorded_at))
         self.layout.addRow("Recorded at", self.recorded_at_value)
 
@@ -744,6 +831,13 @@ class LogRecordDetailView(BaseDetailWidget):
 
         self.temp_plot_widget.add_marked_records(self.record.log_file.get_marked_records())
         self.temp_plot_widget.show()
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 
 # region[Main_Exec]

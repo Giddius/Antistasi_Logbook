@@ -78,6 +78,13 @@ class SpinnerWidget(QDialog):
         self.spinner_movie.stop()
         return super().close()
 
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
 
 class Spinner(QThread):
 
@@ -91,6 +98,13 @@ class Spinner(QThread):
 
     def request_term(self):
         self.term_requested = True
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 
 class MainWidget(QWidget):
@@ -305,6 +319,13 @@ class MainWidget(QWidget):
         self.on_tab_changed(self.main_tabs_widget.currentIndex())
 
         self.query_result_tab.single_item_selected.connect(self.show_log_record_detail)
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 
 # region[Main_Exec]

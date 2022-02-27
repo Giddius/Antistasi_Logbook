@@ -14,11 +14,12 @@ from weakref import WeakSet
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
 from PySide6.QtGui import QAction
-from PySide6.QtCore import Signal, QObject
-from PySide6.QtWidgets import QWidget, QApplication, QStyle
+from PySide6.QtCore import Signal, QObject, QTimer, Qt, QTimerEvent
+from PySide6.QtWidgets import QWidget, QApplication, QStyle, QWidgetAction, QLabel
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
+from gidapptools.general_helper.conversion import seconds2human
 from gidapptools.general_helper.string_helper import StringCase, StringCaseConverter
 from gidapptools.gidapptools_qt.basics.menu_bar import BaseMenuBar
 
@@ -43,7 +44,8 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 
@@ -73,6 +75,13 @@ class DataMenuAction(QAction):
     def on_triggered(self):
         self.new_triggered.emit(self.db_model)
 
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
 
 class DataMenuActionGroup(QObject):
     triggered = Signal(object)
@@ -84,6 +93,52 @@ class DataMenuActionGroup(QObject):
     def add_action(self, action: DataMenuAction):
         self.actions.add(action)
         action.new_triggered.connect(self.triggered.emit)
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
+
+class TimeRemainingAction(QAction):
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setEnabled(False)
+        self.setText("")
+        self.timer_id: int = None
+        self.timer_to_watch: QTimer = None
+
+    def start(self, timer: QTimer):
+        self.timer_to_watch = timer
+        if self.timer_id is None:
+            self.timer_id = self.startTimer(1000 * 0.9, Qt.VeryCoarseTimer)
+
+    def stop(self):
+        if self.timer_id is not None:
+            self.killTimer(self.timer_id)
+            self.timer_id = None
+        self.setText("")
+
+    @profile
+    def timerEvent(self, event: QTimerEvent) -> None:
+        if self.timer_id is not None and event.timerId() == self.timer_id:
+            time_remaining = self.timer_to_watch.remainingTime() // 1000
+            if time_remaining <= 0:
+                text = "updating now!"
+            else:
+                text = f"updating in {seconds2human(time_remaining, with_year=False)}"
+
+            self.setText(text)
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 
 class LogbookMenuBar(BaseMenuBar):
@@ -100,6 +155,10 @@ class LogbookMenuBar(BaseMenuBar):
 
         self.database_menu = self.add_new_menu("Database", add_before=self.help_menu.menuAction())
         self.single_update_action = self.add_new_action(self.database_menu, "Update Once")
+        self.cyclic_update_action = self.add_new_action(self.database_menu, "Start Cyclic Update")
+        self.cyclic_update_remaining = TimeRemainingAction()
+
+        self.add_action(self.database_menu, self.cyclic_update_remaining)
         self.database_menu.addSeparator()
         self.reassign_record_classes_action = self.add_new_action(self.database_menu, "Reassign Record-Classes")
 

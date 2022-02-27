@@ -11,10 +11,11 @@ import queue
 from time import sleep
 from typing import TYPE_CHECKING, Any, Optional
 from pathlib import Path
+from functools import partial
 from datetime import datetime, timezone
-from threading import Event
+from threading import Event, current_thread
 from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor, wait
-
+from copy import deepcopy
 # * Third Party Imports --------------------------------------------------------------------------------->
 from dateutil.tz import UTC
 
@@ -25,7 +26,8 @@ from gidapptools.gid_signal.interface import get_signal
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord, RecordClass
 from antistasi_logbook.updating.remote_managers import remote_manager_registry
-
+from antistasi_logbook.records.record_class_manager import RecordClassManager
+from contextvars import ContextVar
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend
@@ -126,6 +128,7 @@ class Updater:
             return False
         return self.config.get(self.config_name, "remove_items_older_than_max_update_time_frame", default=False)
 
+    @profile
     def get_cutoff_datetime(self) -> Optional[datetime]:
         """
         The max_update_time_frame converted to an absolute aware-datetime.
@@ -140,6 +143,7 @@ class Updater:
             return None
         return datetime.now(tz=UTC) - delta
 
+    @profile
     def _create_new_log_file(self, server: "Server", remote_info: "InfoItem") -> LogFile:
         """
         Helper method to create a new `LogFile` instance.
@@ -158,6 +162,7 @@ class Updater:
         self.new_log_file_signal.emit(log_file=new_log_file)
         return new_log_file
 
+    @profile
     def _update_log_file(self, log_file: LogFile, remote_info: "InfoItem") -> LogFile:
         """
         Helper Method to update an existing `LogFile`-model instance, from remote_info.
@@ -176,6 +181,7 @@ class Updater:
         self.updated_log_file_signal.emit(log_file=log_file)
         return log_file
 
+    @profile
     def _get_updated_log_files(self, server: "Server"):
         """
         [summary]
@@ -208,6 +214,7 @@ class Updater:
 
         return sorted(to_update_files, key=lambda x: x.modified_at, reverse=True)
 
+    @profile
     def _handle_old_log_files(self, server: "Server") -> None:
         if self.remove_items_older_than_max_update_time_frame is False:
             return 0
@@ -223,6 +230,7 @@ class Updater:
             amount_deleted += 1
         return amount_deleted
 
+    @profile
     def process_log_file(self, log_file: "LogFile", force: bool = False) -> None:
         if force is True:
             log_file.last_parsed_line_number = 0
@@ -248,6 +256,7 @@ class Updater:
                 context.insert_record(processed_record)
             context._dump_rest()
 
+    @profile
     def process(self, server: "Server") -> None:
 
         tasks = []
@@ -260,7 +269,8 @@ class Updater:
 
         wait(tasks, return_when=ALL_COMPLETED, timeout=None)
 
-    def update_record_classes(self, server: Server = None, force: bool = False):
+    @profile
+    def _update_record_classes(self, server: Server = None, force: bool = False):
         if force is True:
             self.signaler.change_update_text.emit("Updating Record-Classes")
 
@@ -316,18 +326,21 @@ class Updater:
         log.debug("emiting after_updates_signal")
         self.signaler.send_update_finished()
         remote_manager_registry.close()
+        self.database.checkpoint()
         self.database.close()
 
+    @profile
     def update(self) -> None:
 
         if self.is_updating_event.is_set() is True:
+            log.info("update already running, returning!")
             return
         self.is_updating_event.set()
         self.before_updates()
         tasks = []
         try:
 
-            self.database.session_meta_data.last_update_started_at = datetime.now(tz=timezone.utc)
+            self.database.session_meta_data.update_started()
             for server in self.database.get_all_server():
                 if server.is_updatable() is False:
                     continue
@@ -337,7 +350,7 @@ class Updater:
                         sleep(0.25)
                     log.info("STARTED updating %r", server)
                     self.process(server=server)
-                    tasks.append(self.thread_pool.submit(self.update_record_classes, server=server))
+                    tasks.append(self.thread_pool.submit(self._update_record_classes, server=server))
                     log.info("FINISHED updating server %r", server)
 
             log.debug("waiting for %r tasks to finish", len(tasks))
@@ -357,11 +370,20 @@ class Updater:
                     self.database.vacuum()
                     self.database.optimize()
 
-            self.database.session_meta_data.last_update_finished_at = datetime.now(tz=timezone.utc)
-
+            self.database.session_meta_data.update_finished()
         finally:
             self.is_updating_event.clear()
             self.after_updates()
+
+    def only_update_record_classes(self, server: Server = None, force: bool = False):
+        if self.is_updating_event.is_set():
+            log.info("update already running, returning!")
+            return
+        self.is_updating_event.set()
+        try:
+            self._update_record_classes(server=server, force=force)
+        finally:
+            self.is_updating_event.clear()
 
     def __call__(self) -> Any:
         return self.update()

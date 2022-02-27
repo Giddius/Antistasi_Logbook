@@ -7,7 +7,7 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from typing import TYPE_CHECKING, Any, Union, Optional
+from typing import TYPE_CHECKING, Any, Union, Optional, Generator
 from pathlib import Path
 from datetime import datetime
 
@@ -106,7 +106,6 @@ class BaseRecord(AbstractRecord):
                  "qt_attributes",
                  "pretty_attribute_cache"]
 
-    @profile
     def __init__(self,
                  record_id: int,
                  log_file: "LogFile",
@@ -133,7 +132,6 @@ class BaseRecord(AbstractRecord):
         self.qt_attributes: QtAttributes = QtAttributes()
         self.pretty_attribute_cache: PrettyAttributeCache = PrettyAttributeCache()
 
-    @profile
     def get_data(self, name: str):
         try:
             return getattr(self, f"pretty_{name}")
@@ -148,21 +146,18 @@ class BaseRecord(AbstractRecord):
         return self.pretty_attribute_cache.pretty_log_file
 
     @property
-    @profile
     def pretty_message(self) -> str:
         if self.pretty_attribute_cache.pretty_message is MiscEnum.NOTHING:
             self.pretty_attribute_cache.pretty_message = self.get_formated_message(MessageFormat.PRETTY)
         return self.pretty_attribute_cache.pretty_message
 
     @property
-    @profile
     def pretty_log_level(self) -> Optional[str]:
         if self.pretty_attribute_cache.pretty_log_level is MiscEnum.NOTHING:
             self.pretty_attribute_cache.pretty_log_level = str(self.log_level) if self.log_level.id != 0 else None
         return self.pretty_attribute_cache.pretty_log_level
 
     @property
-    @profile
     def pretty_recorded_at(self) -> str:
         if self.pretty_attribute_cache.pretty_recorded_at is MiscEnum.NOTHING:
             self.pretty_attribute_cache.pretty_recorded_at = self.log_file.format_datetime(self.recorded_at)
@@ -184,7 +179,6 @@ class BaseRecord(AbstractRecord):
         cls.color_config.set("record", cls.__name__, color, create_missing_section=True)
         cls.reset_colors()
 
-    @profile
     def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
         if msg_format is MessageFormat.SHORT:
             return shorten_string(self.message, max_length=30)
@@ -193,7 +187,6 @@ class BaseRecord(AbstractRecord):
             return f"{self.pretty_recorded_at} {self.message}"
         return self.message
 
-    @profile
     def get_db_item(self, database: "GidSqliteApswDatabase") -> "LogRecord":
         from antistasi_logbook.storage.models.models import LogRecord
 
@@ -243,18 +236,23 @@ class BaseRecord(AbstractRecord):
         raise AttributeError(f"{self.__class__.__name__!r} does not have an attribute {name!r}")
 
     @property
-    @profile
     def pretty_name(self) -> str:
         return str(self)
 
-    @profile
     def __str__(self) -> str:
         return f"{self.origin}-Record at {self.pretty_recorded_at}"
 
     @classmethod
     def reset_colors(cls) -> None:
+        def _get_recursive_sub_classe(in_class: type[BaseRecord]) -> Generator[type[BaseRecord], None, None]:
+            for sub_class in in_class.__subclasses__():
+                yield sub_class
+                yield from _get_recursive_sub_classe(sub_class)
+
+        log.debug("reseting colors for record-class %r", BaseRecord)
         BaseRecord._background_qcolor = MiscEnum.NOTHING
-        for sub_class in BaseRecord.__subclasses__():
+        for sub_class in _get_recursive_sub_classe(BaseRecord):
+            log.debug("reseting color for record-class %r", sub_class)
             sub_class._background_qcolor = MiscEnum.NOTHING
 
 

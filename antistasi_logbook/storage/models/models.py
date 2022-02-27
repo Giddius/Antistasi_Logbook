@@ -2,12 +2,18 @@
 import os
 import re
 import json
+from statistics import mean
 from io import TextIOWrapper
 from time import sleep
 from typing import TYPE_CHECKING, Any, Literal, Optional, Generator
 from pathlib import Path
-from datetime import datetime
-from functools import cached_property
+from datetime import datetime, timedelta, timezone
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+from functools import cached_property, reduce
+from operator import add
+
+from collections import defaultdict
+from functools import partial
 from threading import Lock, RLock
 from contextlib import contextmanager
 from zipfile import ZipFile, ZIP_LZMA
@@ -16,7 +22,7 @@ from PySide6.QtGui import QColor
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 from yarl import URL
-from peewee import DatabaseProxy, IntegrityError, fn
+from peewee import DatabaseProxy, IntegrityError, fn, JOIN
 from tzlocal import get_localzone
 from dateutil.tz import UTC
 from playhouse.signals import Model
@@ -108,7 +114,6 @@ class BaseModel(Model):
     def color_config(self) -> "GidIniConfig":
         return get_meta_config().get_config("color")
 
-    @profile
     def get_data(self, attr_name: str, default: Any = "") -> Any:
         _out = getattr(self, f"pretty_{attr_name}", MiscEnum.NOTHING)
         if _out is MiscEnum.NOTHING:
@@ -231,6 +236,30 @@ class GameMap(BaseModel):
     class Meta:
         table_name = 'GameMap'
 
+    @profile
+    def get_avg_players_per_hour(self) -> float:
+        with self.database:
+            log_files_query = LogFile.select().where(LogFile.game_map == self)
+            record_class = RecordClass.get(name="PerformanceRecord")
+            query = LogRecord.select(LogRecord.message, LogRecord.recorded_at).where((LogRecord.record_class == record_class) & (LogRecord.log_file << log_files_query))
+            player_data = defaultdict(list)
+            performance_record_class = record_class.record_class
+
+            for (message, recorded_at) in query.tuples():
+                stats = performance_record_class._get_stats(message, recorded_at)
+                players: int = stats["Players"]
+                timestamp: datetime = stats["timestamp"].replace(microsecond=0, second=0, minute=0)
+                player_data[timestamp].append(players)
+
+        avg_player_data = {}
+        for k, v in player_data.items():
+            if len(v) > 1:
+                avg_player_data[k] = mean(v)
+            else:
+                avg_player_data[k] = v[0]
+
+        return mean(list(avg_player_data.values()))
+
     def __str__(self):
         return self.full_name
 
@@ -304,17 +333,14 @@ class Server(BaseModel):
         table_name = 'Server'
 
     @cached_property
-    @profile
     def background_color(self):
         return self.color_config.get("server", self.name, default=None)
 
     @cached_property
-    @profile
     def pretty_name(self) -> str:
         return self.name.replace('_', ' ').title()
 
     @cached_property
-    @profile
     def pretty_remote_path(self) -> str:
         return self.remote_path.as_posix()
 
@@ -446,6 +472,7 @@ class LogFile(BaseModel):
         table_name = 'LogFile'
         indexes = (
             (('name', 'server', 'remote_path'), True),
+
         )
 
     def __init__(self, *args, **kwargs):
@@ -479,11 +506,13 @@ class LogFile(BaseModel):
 
     @cached_property
     def amount_errors(self) -> int:
-        return LogRecord.select(LogRecord.id).where((LogRecord.log_file_id == self.id) & (LogRecord.log_level_id == self.database.foreign_key_cache.all_log_levels.get("ERROR").id)).count()
+        error_log_level = self.database.foreign_key_cache.all_log_levels.get("ERROR")
+        return LogRecord.select(LogRecord.id).where(LogRecord.log_file_id == self.id, LogRecord.log_level_id == error_log_level.id).count()
 
     @cached_property
     def amount_warnings(self) -> int:
-        return LogRecord.select(LogRecord.id).where((LogRecord.log_file_id == self.id) & (LogRecord.log_level_id == self.database.foreign_key_cache.all_log_levels.get("WARNING").id)).count()
+        warning_log_level = self.database.foreign_key_cache.all_log_levels.get("WARNING")
+        return LogRecord.select(LogRecord.id).where(LogRecord.log_file_id == self.id, LogRecord.log_level_id == warning_log_level.id).count()
 
     @cached_property
     def pretty_size(self) -> str:
@@ -708,7 +737,7 @@ class LogLevel(BaseModel):
 
 
 class RecordClass(BaseModel):
-    name = TextField(unique=True)
+    name = TextField(unique=True, index=True)
     record_class_manager: "RecordClassManager" = None
     comments = CommentsField()
     marked = MarkedField()
@@ -720,19 +749,19 @@ class RecordClass(BaseModel):
     def background_color(self) -> "QColor":
         return self.record_class.background_color
 
-    @property
+    @cached_property
     def specificity(self) -> int:
         return self.record_class.___specificity___
 
-    @property
+    @cached_property
     def pretty_record_family(self):
         return str(self.record_family).removeprefix("RecordFamily.")
 
-    @property
+    @cached_property
     def record_family(self):
         return self.record_class.___record_family___
 
-    @ property
+    @ cached_property
     def record_class(self) -> "RECORD_CLASS_TYPE":
         return self.record_class_manager.get_by_name(self.name)
 
@@ -741,8 +770,8 @@ class RecordClass(BaseModel):
 
 
 class RecordOrigin(BaseModel):
-    name = TextField(unique=True, verbose_name="Name")
-    identifier = CaselessTextField(unique=True, verbose_name="Identifier")
+    name = TextField(unique=True, verbose_name="Name", index=True)
+    identifier = CaselessTextField(unique=True, verbose_name="Identifier", index=True)
     is_default = BooleanField(default=False, verbose_name="Is Default Origin")
     comments = CommentsField()
     marked = MarkedField()
@@ -759,11 +788,11 @@ class LogRecord(BaseModel):
     end = IntegerField(help_text="End Line number of the Record", verbose_name="End")
     message = TextField(help_text="Message part of the Record", verbose_name="Message")
     recorded_at = AwareTimeStampField(index=True, utc=True, verbose_name="Recorded at")
-    called_by = ForeignKeyField(column_name='called_by', field='id', model=ArmaFunction, backref="log_records_called_by", lazy_load=True, null=True, index=True, verbose_name="Called by")
+    called_by = ForeignKeyField(column_name='called_by', field='id', model=ArmaFunction, backref="log_records_called_by", lazy_load=True, null=True, index=False, verbose_name="Called by")
     origin = ForeignKeyField(column_name="origin", field="id", model=RecordOrigin, backref="records", lazy_load=True, verbose_name="Origin", default=0)
-    logged_from = ForeignKeyField(column_name='logged_from', field='id', model=ArmaFunction, backref="log_records_logged_from", lazy_load=True, null=True, index=True, verbose_name="Logged from")
-    log_file = ForeignKeyField(column_name='log_file', field='id', model=LogFile, lazy_load=True, backref="log_records", null=False, verbose_name="Log-File", index=True)
-    log_level = ForeignKeyField(column_name='log_level', default=0, field='id', model=LogLevel, null=True, lazy_load=True, index=True, verbose_name="Log-Level")
+    logged_from = ForeignKeyField(column_name='logged_from', field='id', model=ArmaFunction, backref="log_records_logged_from", lazy_load=True, null=True, index=False, verbose_name="Logged from")
+    log_file = ForeignKeyField(column_name='log_file', field='id', model=LogFile, lazy_load=True, backref="log_records", null=False, verbose_name="Log-File", index=False)
+    log_level = ForeignKeyField(column_name='log_level', default=0, field='id', model=LogLevel, null=True, lazy_load=True, index=False, verbose_name="Log-Level")
     record_class = ForeignKeyField(column_name='record_class', field='id', model=RecordClass, lazy_load=True, index=True, verbose_name="Record Class", null=True)
     marked = MarkedField()
     ___has_multiline_message___: bool = False
@@ -773,6 +802,11 @@ class LogRecord(BaseModel):
         table_name = 'LogRecord'
         indexes = (
             (('start', 'end', 'log_file'), True),
+            (("log_file", "log_level"), False),
+            (("log_file", "record_class"), False),
+            (("log_file", "logged_from"), False),
+            (("log_file", "called_by"), False),
+            (("log_file", "origin"), False)
         )
 
     @cached_property
@@ -799,11 +833,6 @@ class LogRecord(BaseModel):
         return self.get_formated_message(MessageFormat.PRETTY)
 
     def __str__(self) -> str:
-        if self.is_antistasi_record is True:
-            called_by = '| ' + f'Called By: {self.called_by.function_name}'.ljust(40) + ' |' if self.called_by is not None else "|"
-            logged_from = f"File: {self.logged_from.function_name}".ljust(40)
-            return f"{self.recorded_at.isoformat(sep=' ')} | Antistasi | {self.log_level.name.title().center(11)} | {logged_from} {called_by} {self.message}"
-
         return f"{self.recorded_at.isoformat(sep=' ')} {self.message}"
 
 
@@ -835,17 +864,10 @@ class DatabaseMetaData(BaseModel):
         return item
 
     def get_absolute_last_update_finished_at(self) -> datetime:
-        with self.database.connection_context() as ctx:
-            item = DatabaseMetaData.select(DatabaseMetaData.last_update_finished_at).where(DatabaseMetaData.last_update_finished_at != None).order_by(-DatabaseMetaData.last_update_finished_at).scalar()
-
-            if self.last_update_finished_at is None:
-                return item
-            if item is None:
-                return self.last_update_finished_at
-            if item < self.last_update_finished_at:
-                return self.last_update_finished_at
-
-            return item
+        if self.last_update_finished_at is None:
+            with self.database.connection_context() as ctx:
+                self.last_update_finished_at = DatabaseMetaData.select(DatabaseMetaData.last_update_finished_at).where(DatabaseMetaData.last_update_finished_at != None).order_by(-DatabaseMetaData.last_update_finished_at).scalar()
+        return self.last_update_finished_at
 
     def count_log_files(self, server: "Server" = None) -> int:
         if server is None:
@@ -876,6 +898,18 @@ class DatabaseMetaData(BaseModel):
         with DATABASE_META_LOCK:
             amount = kwargs.get("amount", 1)
             self.added_log_records += amount
+
+    def update_started(self) -> None:
+        now = datetime.now(tz=timezone.utc)
+        self.last_update_started_at = now
+        with self.database.connection_context():
+            DatabaseMetaData.update(last_update_started_at=now).where(DatabaseMetaData.id == self.id).execute()
+
+    def update_finished(self) -> None:
+        now = datetime.now(tz=timezone.utc)
+        self.last_update_finished_at = now
+        with self.database.connection_context():
+            DatabaseMetaData.update(last_update_finished_at=now).where(DatabaseMetaData.id == self.id).execute()
 
 
 def setup_db(database: "GidSqliteApswDatabase"):

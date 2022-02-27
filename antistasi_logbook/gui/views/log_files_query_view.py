@@ -73,7 +73,7 @@ class LogFilesQueryTreeView(BaseQueryTreeView):
                                                                                  "size": 75,
                                                                                  "version": 125,
                                                                                  "game_map": 125,
-                                                                                 "is_new_campaign": 50,
+                                                                                 "is_new_campaign": 100,
                                                                                  "campaign_id": 100,
                                                                                  "server": 100,
                                                                                  "max_mem": 100,

@@ -97,6 +97,13 @@ class BaseDockWidget(QDockWidget):
         if self.first_shown is False:
             self.first_shown = True
 
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
 
 class QueryWidget(BaseDockWidget):
 

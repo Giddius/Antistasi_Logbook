@@ -138,6 +138,3 @@ def setup():
 
 
 setup()
-
-que_handlers = get_main_logger().all_handlers["que_handlers"]
-storage_handler = [i for i in que_handlers if i.__class__.__name__ == "GidStoringHandler"][0]

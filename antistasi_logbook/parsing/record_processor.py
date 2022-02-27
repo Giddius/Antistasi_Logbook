@@ -290,9 +290,8 @@ class RecordProcessor:
         record_class = self.record_class_manager.determine_record_class(raw_record)
         return record_class
 
-    @profile
     def _convert_raw_record_foreign_keys(self, parsed_data: Optional[dict[str, Any]], utc_offset: tzoffset) -> Optional[dict[str, Any]]:
-        @profile
+
         def _get_or_create_antistasi_file(raw_name: str) -> ArmaFunction:
             parsed_function_data = ArmaFunction.parse_raw_function_name(raw_name)
             try:
@@ -350,7 +349,6 @@ class RecordProcessor:
         raw_record.parsed_data = self._convert_raw_record_foreign_keys(parsed_data=raw_record.parsed_data, utc_offset=utc_offset)
 
         return raw_record
-
 
         # region[Main_Exec]
 if __name__ == '__main__':

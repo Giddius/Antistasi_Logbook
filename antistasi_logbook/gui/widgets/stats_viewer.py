@@ -513,8 +513,9 @@ class StatsWindow(QMainWindow):
     def closeEvent(self, event: PySide6.QtGui.QCloseEvent) -> None:
         self.close_signal.emit(self)
         return super().closeEvent(event)
-# region[Main_Exec]
 
+
+# region[Main_Exec]
 
 if __name__ == '__main__':
     pass

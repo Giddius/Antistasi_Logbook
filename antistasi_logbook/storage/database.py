@@ -15,7 +15,7 @@ from functools import cached_property
 from threading import Lock
 
 # * Third Party Imports --------------------------------------------------------------------------------->
-from apsw import Connection, SQLITE_CHECKPOINT_TRUNCATE
+from apsw import Connection, SQLITE_CHECKPOINT_TRUNCATE, SQLITE_OK
 from peewee import JOIN, DatabaseProxy
 from playhouse.apsw_ext import APSWDatabase
 
@@ -30,7 +30,7 @@ from antistasi_logbook import setup
 from antistasi_logbook.storage.models.models import (Server, GameMap, LogFile, Version, LogLevel, LogRecord, RecordClass, RecordOrigin,
                                                      RemoteStorage, ArmaFunction, DatabaseMetaData, setup_db, ArmaFunctionAuthorPrefix)
 from antistasi_logbook.storage.models.migration import run_migration
-
+from gidapptools.general_helper.conversion import ns_to_s
 setup()
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
@@ -117,6 +117,19 @@ class GidSqliteDatabase(Protocol):
 # pylint: disable=abstract-method
 
 
+def wal_hook(conn, db_name, pages):
+    log.debug("WAL-Hook was called with: db_name: %r, pages: %r, conn: %r", db_name, pages, conn)
+    return SQLITE_OK
+
+
+def rollback_hook():
+    log.debug("Rollback-Hook was called")
+
+
+def profile_hook(stmt, time_taken):
+    log.debug("statement %r took %r s", stmt, ns_to_s(time_taken))
+
+
 class GidSqliteApswDatabase(APSWDatabase):
 
     default_extensions = {"json_contains": True,
@@ -133,15 +146,8 @@ class GidSqliteApswDatabase(APSWDatabase):
                  pragmas=None,
                  extensions=None):
         self.all_connections: WeakSet[Connection] = WeakSet()
-        self.database_path = self.default_db_path.joinpath(DEFAULT_DB_NAME)
-        if database_path is not None:
-            in_path = Path(database_path)
-            if in_path.suffix == "":
-                in_path.mkdir(parents=True, exist_ok=True)
-                self.database_path = in_path.joinpath(DEFAULT_DB_NAME)
-            else:
-                in_path.parent.mkdir(exist_ok=True, parents=True)
-                self.database_path = in_path
+        self.database_path = self.resolve_db_path(database_path=database_path)
+        self.database_path.parent.mkdir(exist_ok=True, parents=True)
         self.database_existed: bool = self.database_path.is_file()
         self.database_name = self.database_path.name
         self.config = CONFIG if config is None else config
@@ -156,6 +162,16 @@ class GidSqliteApswDatabase(APSWDatabase):
         self.record_processor: "RecordProcessor" = None
         self.record_inserter: "RecordInserter" = None
 
+    @classmethod
+    def resolve_db_path(cls, database_path: Path = None) -> Path:
+        if database_path is not None:
+            database_path = Path(database_path)
+            if database_path.suffix == "":
+                database_path = database_path.joinpath(DEFAULT_DB_NAME)
+        else:
+            database_path = cls.default_db_path.joinpath(DEFAULT_DB_NAME)
+        return database_path
+
     @property
     def backup_folder(self) -> Path:
         return self.database_path.parent.joinpath("backups")
@@ -166,7 +182,9 @@ class GidSqliteApswDatabase(APSWDatabase):
 
     def _add_conn_hooks(self, conn):
         super()._add_conn_hooks(conn)
-        # self.all_connections.add(conn)
+        # conn.setwalhook(wal_hook)
+        # conn.setprofile(profile_hook)
+        # conn.setrollbackhook(rollback_hook)
 
     def _pre_start_up(self, overwrite: bool = False) -> None:
         self.database_path.parent.mkdir(exist_ok=True, parents=True)
@@ -238,6 +256,7 @@ class GidSqliteApswDatabase(APSWDatabase):
 
         return result
 
+    @profile
     def get_log_files(self, server: Server = None, ordered_by=LogFile.id) -> tuple[LogFile]:
         with self:
             query = LogFile.select(LogFile, Server, GameMap, Version)
@@ -276,6 +295,7 @@ class GidSqliteApswDatabase(APSWDatabase):
             result = tuple(Version.select().order_by(ordered_by))
         return result
 
+    @profile
     def iter_all_records(self, server: Server = None, only_missing_record_class: bool = False) -> Generator[LogRecord, None, None]:
         self.connect(True)
 

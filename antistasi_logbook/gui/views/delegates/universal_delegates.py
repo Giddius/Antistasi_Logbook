@@ -49,12 +49,11 @@ log = get_logger(__name__)
 
 
 class MarkedImageDelegate(QStyledItemDelegate):
-    @profile
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.pixmaps = {True: AllResourceItems.mark_image.get_as_pixmap(25, 25), False: AllResourceItems.unmark_image.get_as_pixmap(25, 25)}
 
-    @profile
     def paint(self, painter: QPainter, option, index: QModelIndex):
         self.handle_background(painter, option, index)
         raw_data = index.model().data(index, CustomRole.RAW_DATA)
@@ -65,7 +64,6 @@ class MarkedImageDelegate(QStyledItemDelegate):
         target_rect.moveCenter(option.rect.center())
         painter.drawPixmap(target_rect, self.pixmaps[raw_data])
 
-    @profile
     def handle_background(self, painter: QPainter, option, index: QModelIndex):
 
         item_background = index.model().data(index, Qt.BackgroundRole)
@@ -84,14 +82,20 @@ class MarkedImageDelegate(QStyledItemDelegate):
         """ Returns the size needed to display the item in a QSize object. """
         return QSize(20, 20)
 
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
 
 class BoolImageDelegate(QStyledItemDelegate):
-    @profile
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.pixmaps = {True: AllResourceItems.check_mark_green_image.get_as_pixmap(25, 25), False: AllResourceItems.close_cancel_image.get_as_pixmap(25, 25)}
 
-    @profile
     def paint(self, painter: QPainter, option, index: QModelIndex):
         self.handle_background(painter, option, index)
 
@@ -104,7 +108,6 @@ class BoolImageDelegate(QStyledItemDelegate):
             target_rect.moveCenter(option.rect.center())
             painter.drawPixmap(target_rect, self.pixmaps[raw_data])
 
-    @profile
     def handle_background(self, painter: QPainter, option, index: QModelIndex):
 
         item_background = index.model().data(index, Qt.BackgroundRole)
@@ -119,13 +122,19 @@ class BoolImageDelegate(QStyledItemDelegate):
             color.setAlpha(25)
             painter.fillRect(option.rect, color)
 
-    @profile
     def sizeHint(self, option, index):
         """ Returns the size needed to display the item in a QSize object. """
         return QSize(20, 20)
 
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 # region[Main_Exec]
+
 
 if __name__ == '__main__':
     pass

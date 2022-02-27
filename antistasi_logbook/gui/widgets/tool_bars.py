@@ -177,6 +177,13 @@ class DragIconLabel(QWidget):
         else:
             super().mouseMoveEvent(event)
 
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
 
 class BaseToolBar(QToolBar):
 
@@ -193,6 +200,13 @@ class BaseToolBar(QToolBar):
 
     def setup_actions(self):
         self.addSeparator()
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 
 class LogFileToolBar(BaseToolBar):

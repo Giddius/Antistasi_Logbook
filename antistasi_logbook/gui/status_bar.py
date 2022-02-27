@@ -93,7 +93,7 @@ class LastUpdatedLabel(QLabel):
         super().__init__(parent=parent)
         self.status_bar = status_bar
         self.timer_id: int = None
-        self.refresh_interval: int = 1000 * 30
+        self.refresh_interval: int = 1000 * 1
         self.min_unit = "second"
         self.last_triggered: datetime = None
         self.label_text: str = None
@@ -121,14 +121,15 @@ class LastUpdatedLabel(QLabel):
         self.setText(self.label_text)
         self.update()
 
+    @profile
     def _refresh_text_helper(self):
-        log.debug("refreshing %s text", self)
         if self.last_update_finished_at is None:
             self.label_text = "Never Updated"
         else:
             delta = self._time_since_last_update_finished()
             try:
-                delta_text = seconds2human(round(delta.total_seconds(), -1), min_unit=[v for k, v in self.min_unit_progression_table.items() if k <= delta][-1])
+                min_unit = [v for k, v in self.min_unit_progression_table.items() if k <= delta][-1]
+                delta_text = seconds2human(delta.total_seconds(), min_unit=min_unit)
                 self.label_text = f"Last update finished {delta_text} ago"
             except IndexError:
                 log.error("indexerror with self.last_update_finished_at = %r, now = %r, now-self.last_update_finished_at = %r", self.last_update_finished_at.isoformat(sep=" "), datetime.now(tz=UTC).isoformat(sep=" "), delta)
@@ -161,6 +162,7 @@ class LastUpdatedLabel(QLabel):
     def shutdown(self):
         if self.timer_id is not None:
             self.killTimer(self.timer_id)
+            self.timer_id = None
         self.is_running = False
 
     def __repr__(self) -> str:
@@ -168,11 +170,12 @@ class LastUpdatedLabel(QLabel):
 
     def __str__(self) -> str:
         last_triggered = f"last_triggered={self.last_triggered.strftime('%Y-%m-%d %H:%M:%S UTC')!r}" if self.last_triggered is not None else f"last_triggered={self.last_triggered!r}"
-        return f"{self.__class__.__name__}(interval={seconds2human(self.refresh_interval/1000)!r}, {last_triggered})"
+        return f"{self.__class__.__name__}(interval={self.refresh_interval/1000}s, {last_triggered})"
 
 
 class LogbookStatusBar(QStatusBar):
     change_status_bar_color = Signal(bool)
+    request_clear_error = Signal()
 
     def __init__(self, main_window: "AntistasiLogbookMainWindow") -> None:
         super().__init__(parent=main_window)
@@ -197,6 +200,7 @@ class LogbookStatusBar(QStatusBar):
         self.insertWidget(2, self.update_progress, 2)
         self.update_progress.hide()
         self.change_status_bar_color.connect(self.set_showing_error)
+        self.request_clear_error.connect(self.clearMessage)
 
     def setup_labels(self) -> None:
         if self.last_updated_label is None:
@@ -214,11 +218,13 @@ class LogbookStatusBar(QStatusBar):
     def switch_labels(self, update_start: bool) -> None:
         if update_start is True:
             self.last_updated_label.hide()
+            self.last_updated_label.shutdown()
             self.update_running_label.show()
             self.update_progress.show()
         else:
             self.update_running_label.hide()
             self.update_progress.hide()
+            self.last_updated_label.start()
             self.last_updated_label.show()
 
     @Slot(int, str)
@@ -236,7 +242,7 @@ class LogbookStatusBar(QStatusBar):
 
     def clear_error(self, future):
         self.change_status_bar_color.emit(False)
-        self.clearMessage()
+        self.request_clear_error.emit()
 
     @Slot(str, BaseException)
     def show_error(self, message: str, exception: BaseException):
@@ -257,6 +263,9 @@ class LogbookStatusBar(QStatusBar):
 
     def shutdown(self):
         self.last_updated_label.shutdown()
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(main_window={self.main_window!r})"
 
 
 # region[Main_Exec]

@@ -7,7 +7,7 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 from pathlib import Path
 
 # * Qt Imports --------------------------------------------------------------------------------------->
@@ -49,7 +49,7 @@ log = get_logger(__name__)
 
 
 class BaseProxyModel(QSortFilterProxyModel):
-    @profile
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setRecursiveFilteringEnabled(False)
@@ -60,14 +60,18 @@ class BaseProxyModel(QSortFilterProxyModel):
     def source(self) -> "BaseQueryDataModel":
         return super().sourceModel()
 
-    @profile
     def add_context_menu_actions(self, menu: "CustomContextMenu", index: QModelIndex):
         self.source.add_context_menu_actions(menu=menu, index=self.mapToSource(index))
 
-    def get(self, index: QModelIndex) -> Optional[tuple["Field", "BaseModel"]]:
-        return self.source.get(self.mapToSource(index))
-
     @profile
+    def get(self, index: Union[QModelIndex, int]) -> Optional[tuple["Field", "BaseModel"]]:
+        if isinstance(index, int):
+            actual_index = self.index(index, 0, QModelIndex())
+            actual_index = self.mapToSource(actual_index).row()
+        else:
+            actual_index = self.mapToSource(index)
+        return self.source.get(actual_index)
+
     def __getattr__(self, name: str):
         return getattr(self.sourceModel(), name)
 
