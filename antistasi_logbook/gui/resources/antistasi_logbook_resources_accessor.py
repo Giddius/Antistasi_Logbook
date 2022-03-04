@@ -100,6 +100,8 @@ GAMEMAP_TAB_ICON_IMAGE = ressource_item_factory(file_path='gamemap_tab_icon.svg'
 
 LOGLEVEL_TAB_ICON_IMAGE = ressource_item_factory(file_path='loglevel_tab_icon.png', qt_path=':/images/loglevel_tab_icon.png')
 
+AVERAGE_PLAYERS_ICON_IMAGE = ressource_item_factory(file_path='average_players_icon.png', qt_path=':/images/average_players_icon.png')
+
 VISIBLE_ICON_IMAGE = ressource_item_factory(file_path='visible_icon.svg', qt_path=':/images/visible_icon.svg')
 
 GENERAL_SETTINGS_IMAGE = ressource_item_factory(file_path='general_settings.svg', qt_path=':/images/general_settings.svg')
@@ -171,6 +173,7 @@ class AllResourceItems(metaclass=AllResourceItemsMeta):
     select_path_symbol_image = SELECT_PATH_SYMBOL_IMAGE
     gamemap_tab_icon_image = GAMEMAP_TAB_ICON_IMAGE
     loglevel_tab_icon_image = LOGLEVEL_TAB_ICON_IMAGE
+    average_players_icon_image = AVERAGE_PLAYERS_ICON_IMAGE
     visible_icon_image = VISIBLE_ICON_IMAGE
     general_settings_image = GENERAL_SETTINGS_IMAGE
     webdav_settings_image = WEBDAV_SETTINGS_IMAGE

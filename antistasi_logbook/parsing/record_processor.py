@@ -13,7 +13,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 from threading import Lock, RLock
 from concurrent.futures import Future, ThreadPoolExecutor
-
+from time import sleep
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
 from dateutil.tz import UTC, tzoffset
@@ -100,16 +100,20 @@ class RecordInserter:
     def write_lock(self) -> Lock:
         return self.database.write_lock
 
+    e
     def _insert_func(self, records: Iterable["RawRecord"], context: "LogParsingContext") -> ManyRecordsInsertResult:
 
         # LogRecord.insert_many(i.to_log_record_dict(log_file=context._log_file) for i in records).execute()
+        records = [r for r in records if r]
         params = (i.to_sql_params(log_file=context._log_file) for i in records)
+        sleep(0.005)
         with self.write_lock:
-            with self.database:
+            with self.database.atomic() as txn:
                 cur = self.database.cursor(True)
 
                 cur.executemany(self.insert_records_phrase, params)
-
+                txn.commit()
+                log.debug("inserted %r", len(records))
         # for record in records:
         #     params = record.to_sql_params(log_file=context._log_file)
         #     self.database.execute_sql(self.insert_phrase, params=params)
@@ -167,11 +171,12 @@ class RecordInserter:
         return self.thread_pool.submit(self._execute_insert_mods, mod_items=mod_items, log_file=log_file)
 
     def _execute_update_log_file_from_dict(self, log_file: LogFile, in_dict: dict):
-        item = update_model_from_dict(log_file, in_dict)
+
         with self.write_lock:
             with self.database:
-
+                item = update_model_from_dict(LogFile.get_by_id(log_file.id), in_dict)
                 item.save()
+                log.debug("logfile %r modified_at: %r, game_map: %r, version: %r, campaign_id: %r", item, item.modified_at, item.game_map, item.version, item.campaign_id)
 
     def update_log_file_from_dict(self, log_file: LogFile, in_dict: dict) -> Future:
         return self.thread_pool.submit(self._execute_update_log_file_from_dict, log_file=log_file, in_dict=in_dict)
@@ -259,7 +264,7 @@ class RecordProcessor:
 
         match = self.regex_keeper.full_datetime.match(datetime_part)
         if not match:
-
+            log.critical("unable to parse full datetime for Antistasi record with rest %r", rest)
             return None
 
         _out = {"recorded_at": datetime(tzinfo=UTC,

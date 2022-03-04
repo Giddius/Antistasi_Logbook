@@ -51,6 +51,8 @@ log = get_logger(__name__)
 
 
 def main():
+    import os
+    print(os.getpid())
     start_gui()
 
 

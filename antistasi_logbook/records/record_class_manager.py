@@ -101,7 +101,6 @@ class RecordClassManager:
     def get_by_id(self, model_id: int) -> RECORD_CLASS_TYPE:
         return self.record_class_registry_by_id.get(str(model_id), self.default_record_class).concrete_class
 
-    @profile
     def determine_record_class(self, log_record: LogRecord) -> "RecordClass":
         # TODO: make generic regarding record_classes selection
         record_classes = self.antistasi_record_classes if log_record.origin_id == 1 else self.generic_record_classes

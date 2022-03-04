@@ -45,7 +45,7 @@ if TYPE_CHECKING:
 
 # region [Constants]
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
-get_dummy_profile_decorator_in_globals()
+
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 
@@ -122,7 +122,6 @@ class TimeRemainingAction(QAction):
             self.timer_id = None
         self.setText("")
 
-    @profile
     def timerEvent(self, event: QTimerEvent) -> None:
         if self.timer_id is not None and event.timerId() == self.timer_id:
             time_remaining = self.timer_to_watch.remainingTime() // 1000

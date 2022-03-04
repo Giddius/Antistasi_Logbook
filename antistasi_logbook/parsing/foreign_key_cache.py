@@ -80,11 +80,10 @@ class ForeignKeyCache:
     _all_version_objects: dict[str, Version] = None
     _all_version_objects_by_id: dict[str, Version]
 
-    __slots__ = ("update_map", "backend")
+    __slots__ = ("update_map", "database")
 
-    def __init__(self, backend: "Backend") -> None:
-        self.backend = backend
-        self.backend.database.foreign_key_cache = self
+    def __init__(self, database: "GidSqliteApswDatabase") -> None:
+        self.database = database
         self.update_map = {ArmaFunction: (self.arma_file_model_blocker, ("_all_arma_file_objects", "_all_arma_file_objects_by_id")),
                            GameMap: (self.game_map_model_blocker, ("_all_game_map_objects", "_all_game_map_objects_by_id")),
                            LogLevel: (self.log_levels_blocker, ("_all_log_levels", "_all_log_levels_by_id")),
@@ -102,16 +101,6 @@ class ForeignKeyCache:
                 post_save.connect(self._on_save_handler, sender=model_class)
             except ValueError:
                 continue
-
-    @property
-    def database(self) -> "GidSqliteApswDatabase":
-        """
-        Provides the Database-instance.
-
-        convenience-method
-
-        """
-        return self.backend.database
 
     @property
     def all_log_levels(self) -> dict[str, LogLevel]:

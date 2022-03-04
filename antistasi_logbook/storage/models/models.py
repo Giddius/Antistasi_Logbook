@@ -2,13 +2,13 @@
 import os
 import re
 import json
-from statistics import mean
+from statistics import mean, StatisticsError
 from io import TextIOWrapper
 from time import sleep
-from typing import TYPE_CHECKING, Any, Literal, Optional, Generator
+from typing import TYPE_CHECKING, Any, Literal, Optional, Generator, Union
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, Future, wait, ALL_COMPLETED, FIRST_EXCEPTION, FIRST_COMPLETED
 from functools import cached_property, reduce
 from operator import add
 
@@ -62,8 +62,6 @@ if TYPE_CHECKING:
     from antistasi_logbook.records.record_class_manager import RECORD_CLASS_TYPE, RecordClassManager
 
 
-get_dummy_profile_decorator_in_globals()
-
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 
@@ -77,6 +75,7 @@ database_proxy = DatabaseProxy()
 
 
 LOCAL_TIMEZONE = get_localzone()
+get_dummy_profile_decorator_in_globals()
 
 
 class BaseModel(Model):
@@ -236,29 +235,38 @@ class GameMap(BaseModel):
     class Meta:
         table_name = 'GameMap'
 
-    @profile
-    def get_avg_players_per_hour(self) -> float:
-        with self.database:
-            log_files_query = LogFile.select().where(LogFile.game_map == self)
-            record_class = RecordClass.get(name="PerformanceRecord")
-            query = LogRecord.select(LogRecord.message, LogRecord.recorded_at).where((LogRecord.record_class == record_class) & (LogRecord.log_file << log_files_query))
-            player_data = defaultdict(list)
-            performance_record_class = record_class.record_class
+    e
 
-            for (message, recorded_at) in query.tuples():
-                stats = performance_record_class._get_stats(message, recorded_at)
-                players: int = stats["Players"]
-                timestamp: datetime = stats["timestamp"].replace(microsecond=0, second=0, minute=0)
-                player_data[timestamp].append(players)
+    def get_avg_players_per_hour(self) -> tuple[Optional[float], Optional[int]]:
+        self.database.connect(True)
+        log_files_query = LogFile.select().where(LogFile.game_map == self)
+        record_class = RecordClass.get(name="PerformanceRecord")
+        query = LogRecord.select(LogRecord.message, LogRecord.recorded_at).where((LogRecord.record_class_id == record_class.id) & (LogRecord.log_file << log_files_query))
+        player_data = defaultdict(list)
+        performance_record_class = record_class.record_class
 
-        avg_player_data = {}
-        for k, v in player_data.items():
-            if len(v) > 1:
-                avg_player_data[k] = mean(v)
-            else:
-                avg_player_data[k] = v[0]
+        log.debug("SQL for 'get_avg_players_per_hour' of %r: %r", self, query.sql())
+        # cursor = self.database.execute_sql('SELECT "t1"."message", "t1"."recorded_at" FROM "LogRecord" AS "t1" WHERE (("t1"."record_class" = ?) AND ("t1"."log_file" IN (SELECT "t2"."id" FROM "LogFile" AS "t2" WHERE ("t2"."game_map" = ?))))', (record_class.id, self.id))
 
-        return mean(list(avg_player_data.values()))
+        for (message, recorded_at) in self.database.execute(query):
+
+            recorded_at = LogRecord.recorded_at.python_value(recorded_at)
+            stats = performance_record_class._get_stats(message, recorded_at)
+
+            players: int = stats["Players"]
+            timestamp: datetime = stats["timestamp"].replace(microsecond=0, second=0, minute=0)
+            player_data[timestamp].append(players)
+        try:
+            avg_player_data = {}
+            for k, v in player_data.items():
+                if len(v) > 1:
+                    avg_player_data[k] = mean(v)
+                else:
+                    avg_player_data[k] = v[0]
+
+            return round(mean(avg_player_data.values()), 3), len(avg_player_data)
+        except StatisticsError:
+            return None, None
 
     def __str__(self):
         return self.full_name
@@ -456,7 +464,7 @@ class LogFile(BaseModel):
     startup_text = CompressedTextField(null=True, verbose_name="Startup Text")
     last_parsed_line_number = IntegerField(default=0, null=True, verbose_name="Last Parsed Line Number")
     utc_offset = TzOffsetField(null=True, verbose_name="UTC Offset")
-    version = ForeignKeyField(null=True, model=Version, field="id", column_name="version", lazy_load=True, index=True, verbose_name="Version")
+    version = ForeignKeyField(null=True, model=Version, field="id", column_name="version", lazy_load=True, index=False, verbose_name="Version")
     game_map = ForeignKeyField(column_name='game_map', field='id', model=GameMap, null=True, lazy_load=True, index=True, verbose_name="Game-Map")
     is_new_campaign = BooleanField(null=True, index=True, verbose_name="New Campaign")
     campaign_id = IntegerField(null=True, index=True, verbose_name="Campaign Id")
@@ -477,11 +485,21 @@ class LogFile(BaseModel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.is_downloaded = False
+        self.is_downloaded: bool = False
+        self._amount_log_records: Union[int, Future] = None
+        self._amount_warnings: Union[int, Future] = None
+        self._amount_errors: Union[int, Future] = None
+
+    def pre_get_properties(self):
+        if self.unparsable is not True:
+            self._amount_log_records = self.database.backend.thread_pool.submit(self.get_amount_log_records)
+            self._amount_warnings = self.database.backend.thread_pool.submit(self.get_amount_warnings)
+            self._amount_errors = self.database.backend.thread_pool.submit(self.get_amount_errors)
 
     @cached_property
     def time_frame(self) -> DateTimeFrame:
-        min_date_time, max_date_time = LogRecord.select(fn.Min(LogRecord.recorded_at), fn.Max(LogRecord.recorded_at)).where(LogRecord.log_file_id == self.id).scalar(as_tuple=True)
+        self.database.connect(True)
+        min_date_time, max_date_time = LogRecord.select(fn.Min(LogRecord.recorded_at), fn.Max(LogRecord.recorded_at)).where(LogRecord.log_file == self).scalar(as_tuple=True)
         return DateTimeFrame(min_date_time, max_date_time)
 
     @cached_property
@@ -500,19 +518,40 @@ class LogFile(BaseModel):
 
         return f"UTC{offset_hours:+}"
 
-    @cached_property
-    def amount_log_records(self) -> int:
+    def get_amount_log_records(self) -> int:
         return LogRecord.select(LogRecord.id).where(LogRecord.log_file_id == self.id).count()
 
-    @cached_property
-    def amount_errors(self) -> int:
+    @property
+    def amount_log_records(self) -> int:
+        if isinstance(self._amount_log_records, Future):
+            self._amount_log_records = self._amount_log_records.result()
+        elif self._amount_log_records is None:
+            self._amount_log_records = self.get_amount_log_records()
+        return self._amount_log_records
+
+    def get_amount_errors(self) -> int:
         error_log_level = self.database.foreign_key_cache.all_log_levels.get("ERROR")
         return LogRecord.select(LogRecord.id).where(LogRecord.log_file_id == self.id, LogRecord.log_level_id == error_log_level.id).count()
 
-    @cached_property
-    def amount_warnings(self) -> int:
+    @property
+    def amount_errors(self) -> int:
+        if isinstance(self._amount_errors, Future):
+            self._amount_errors = self._amount_errors.result()
+        elif self._amount_errors is None:
+            self._amount_errors = self.get_amount_errors()
+        return self._amount_errors
+
+    def get_amount_warnings(self) -> int:
         warning_log_level = self.database.foreign_key_cache.all_log_levels.get("WARNING")
         return LogRecord.select(LogRecord.id).where(LogRecord.log_file_id == self.id, LogRecord.log_level_id == warning_log_level.id).count()
+
+    @property
+    def amount_warnings(self) -> int:
+        if isinstance(self._amount_warnings, Future):
+            self._amount_warnings = self._amount_warnings.result()
+        elif self._amount_warnings is None:
+            self._amount_warnings = self.get_amount_warnings()
+        return self._amount_warnings
 
     @cached_property
     def pretty_size(self) -> str:
@@ -555,11 +594,12 @@ class LogFile(BaseModel):
     def get_stats(self):
         all_stats: list[dict[str, Any]] = []
         self.database.connect(True)
-        query = LogRecord.select().where(LogRecord.log_file_id == self.id).where(LogRecord.record_class_id == RecordClass.get(name="PerformanceRecord").id).order_by(-LogRecord.recorded_at)
+        record_class = RecordClass.get(name="PerformanceRecord")
+        query = LogRecord.select().where(LogRecord.log_file_id == self.id).where(LogRecord.record_class_id == record_class.id).order_by(-LogRecord.recorded_at)
+        conc_record_class = record_class.record_class
         for item_data in query.dicts().iterator():
-            record_class = RecordClass.record_class_manager.get_by_id(item_data["record_class"])
-            item = record_class.from_model_dict(item_data, log_file=self)
-            all_stats.append(item.stats)
+            item_stats = conc_record_class._get_stats(item_data["message"], item_data["recorded_at"])
+            all_stats.append(item_stats)
         self.database.close()
         return all_stats
 
@@ -591,7 +631,15 @@ class LogFile(BaseModel):
         return self.server.full_local_path.joinpath(self.remote_path.name)
 
     def download(self) -> Path:
-        return self.server.remote_manager.download_file(self)
+        try:
+            return self.server.remote_manager.download_file(self)
+        except Exception as e:
+            log.warning("unable to download log-file %r because of %r", self, e)
+            log.error(e, exc_info=True)
+            if self.original_file is not None:
+                return self.original_file.to_file()
+            else:
+                raise
 
     @ contextmanager
     def open(self, cleanup: bool = True) -> TextIOWrapper:
@@ -611,7 +659,12 @@ class LogFile(BaseModel):
             log.debug("creating new orginal log file for logfile %r, because logfile.original_file=%r", self, self.original_file)
             with self.database.write_lock:
                 with self.database:
-                    original_file = OriginalLogFile.create(text=self.local_path.read_text(encoding='utf-8', errors='ignore'))
+                    text = self.local_path.read_text(encoding='utf-8', errors='ignore')
+                    try:
+                        original_file = OriginalLogFile.create(text=text)
+                    except IntegrityError as e:
+                        log.critical("error %r while creating OriginalLogFile for LogFile %r", e, self)
+                        original_file = OriginalLogFile.get(text=text)
                     self.update(original_file=original_file).where(LogFile.id == self.id).execute()
         else:
             with self.database.write_lock:
@@ -791,7 +844,7 @@ class LogRecord(BaseModel):
     called_by = ForeignKeyField(column_name='called_by', field='id', model=ArmaFunction, backref="log_records_called_by", lazy_load=True, null=True, index=False, verbose_name="Called by")
     origin = ForeignKeyField(column_name="origin", field="id", model=RecordOrigin, backref="records", lazy_load=True, verbose_name="Origin", default=0)
     logged_from = ForeignKeyField(column_name='logged_from', field='id', model=ArmaFunction, backref="log_records_logged_from", lazy_load=True, null=True, index=False, verbose_name="Logged from")
-    log_file = ForeignKeyField(column_name='log_file', field='id', model=LogFile, lazy_load=True, backref="log_records", null=False, verbose_name="Log-File", index=False)
+    log_file = ForeignKeyField(column_name='log_file', field='id', model=LogFile, lazy_load=True, backref="log_records", null=False, verbose_name="Log-File", index=True)
     log_level = ForeignKeyField(column_name='log_level', default=0, field='id', model=LogLevel, null=True, lazy_load=True, index=False, verbose_name="Log-Level")
     record_class = ForeignKeyField(column_name='record_class', field='id', model=RecordClass, lazy_load=True, index=True, verbose_name="Record Class", null=True)
     marked = MarkedField()

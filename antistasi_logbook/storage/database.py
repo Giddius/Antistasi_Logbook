@@ -32,12 +32,13 @@ from antistasi_logbook.storage.models.models import (Server, GameMap, LogFile, V
 from antistasi_logbook.storage.models.migration import run_migration
 from gidapptools.general_helper.conversion import ns_to_s
 setup()
+from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
-
+    from antistasi_logbook.backend import Backend
     from antistasi_logbook.parsing.record_processor import RecordInserter, RecordProcessor
-    from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
+
 
 # endregion[Imports]
 
@@ -52,7 +53,7 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-get_dummy_profile_decorator_in_globals()
+
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 META_PATHS: MetaPaths = get_meta_paths()
 META_INFO = get_meta_info()
@@ -70,8 +71,10 @@ DEFAULT_PRAGMAS = {
     "ignore_check_constraints": 0,
     "foreign_keys": 1,
     "temp_store": "MEMORY",
-    "mmap_size": human2bytes("500 mb"),
-    "journal_size_limit": human2bytes("100mb")
+    "mmap_size": 268435456 * 4,
+    "journal_size_limit": human2bytes("100mb"),
+    "page_size": 32768,
+    "analysis_limit": 500
 }
 
 
@@ -156,11 +159,13 @@ class GidSqliteApswDatabase(APSWDatabase):
         self.session_meta_data: "DatabaseMetaData" = None
         extensions = self.default_extensions.copy() | (extensions or {})
         pragmas = DEFAULT_PRAGMAS.copy() | (pragmas or {})
-        super().__init__(make_db_path(self.database_path), thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, timeout=30, statementcachesize=1000, ** extensions)
-        self.foreign_key_cache: "ForeignKeyCache" = None
+        super().__init__(make_db_path(self.database_path), thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, timeout=45, statementcachesize=10000, ** extensions)
+
+        self.foreign_key_cache: "ForeignKeyCache" = ForeignKeyCache(database=self)
         self.write_lock = Lock()
         self.record_processor: "RecordProcessor" = None
         self.record_inserter: "RecordInserter" = None
+        self.backend: "Backend" = None
 
     @classmethod
     def resolve_db_path(cls, database_path: Path = None) -> Path:
@@ -222,14 +227,18 @@ class GidSqliteApswDatabase(APSWDatabase):
         self._post_start_up()
         self.started_up = True
         self.foreign_key_cache.reset_all()
+        self.foreign_key_cache.preload_all()
         log.info("finished starting up %r", self)
+        self.checkpoint()
+        self.optimize()
         return self
 
     def optimize(self) -> "GidSqliteApswDatabase":
         log.info("optimizing %r", self)
-        with self.write_lock:
-            self.pragma("OPTIMIZE")
-            self.checkpoint()
+        # with self.write_lock:
+        self.pragma("analysis_limit", None)
+        self.pragma("OPTIMIZE")
+        log.info("finished optimizing %r", self)
         return self
 
     def vacuum(self) -> "GidSqliteApswDatabase":
@@ -243,8 +252,9 @@ class GidSqliteApswDatabase(APSWDatabase):
         log.debug("shutting down %r", self)
         with self.write_lock:
             self.session_meta_data.save()
+
+        self.checkpoint()
         with self.write_lock:
-            self.checkpoint()
             self.close()
 
         log.debug("finished shutting down %r", self)
@@ -256,7 +266,6 @@ class GidSqliteApswDatabase(APSWDatabase):
 
         return result
 
-    @profile
     def get_log_files(self, server: Server = None, ordered_by=LogFile.id) -> tuple[LogFile]:
         with self:
             query = LogFile.select(LogFile, Server, GameMap, Version)
@@ -274,35 +283,38 @@ class GidSqliteApswDatabase(APSWDatabase):
         return result
 
     def get_all_arma_functions(self, ordered_by=ArmaFunction.id) -> tuple[ArmaFunction]:
-        with self.connection_context() as ctx:
-            result = tuple(ArmaFunction.select(ArmaFunction).join(ArmaFunctionAuthorPrefix).order_by(ordered_by))
+        self.connect(True)
+        result = tuple(ArmaFunction.select(ArmaFunction).join(ArmaFunctionAuthorPrefix).order_by(ordered_by).execute())
 
         return result
 
     def get_all_game_maps(self, ordered_by=GameMap.id) -> tuple[GameMap]:
-        with self.connection_context() as ctx:
-            result = tuple(GameMap.select().order_by(ordered_by))
+        self.connect(True)
+        result = tuple(GameMap.select(GameMap).order_by(ordered_by))
 
         return result
 
     def get_all_origins(self, ordered_by=RecordOrigin.id) -> tuple[RecordOrigin]:
-        with self.connection_context() as ctx:
-            result = tuple(RecordOrigin.select().order_by(ordered_by))
+        self.connect(True)
+        result = tuple(RecordOrigin.select(RecordOrigin).order_by(ordered_by))
         return result
 
     def get_all_versions(self, ordered_by=Version) -> tuple[Version]:
-        with self.connection_context() as ctx:
-            result = tuple(Version.select().order_by(ordered_by))
+        self.connect(True)
+        result = tuple(Version.select(Version).order_by(ordered_by))
         return result
 
-    @profile
-    def iter_all_records(self, server: Server = None, only_missing_record_class: bool = False) -> Generator[LogRecord, None, None]:
+    def iter_all_records(self, server: Server = None, log_file: LogFile = None, only_missing_record_class: bool = False) -> Generator[LogRecord, None, None]:
+        self.foreign_key_cache.preload_all()
         self.connect(True)
 
         query = LogRecord.select(LogRecord, RecordClass).join(RecordClass, join_type=JOIN.LEFT_OUTER)
-        if server is not None:
+        if log_file is not None:
+            query = query.where(LogRecord.log_file_id == log_file.id)
+        elif server is not None:
             nested = LogFile.select().where(LogFile.server_id == server.id)
             query = query.where((LogRecord.log_file << nested))
+
         if only_missing_record_class is True:
             query = query.where((LogRecord.record_class >> None))
         for record in query.iterator():

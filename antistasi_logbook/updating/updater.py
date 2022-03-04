@@ -39,6 +39,7 @@ if TYPE_CHECKING:
 
 # region [TODO]
 
+# TODO: Refractor whole class
 
 # endregion [TODO]
 
@@ -97,10 +98,6 @@ class Updater:
         return self.backend.database
 
     @property
-    def parser(self):
-        return self.backend.parser
-
-    @property
     def thread_pool(self) -> ThreadPoolExecutor:
         return self.backend.thread_pool
 
@@ -128,7 +125,6 @@ class Updater:
             return False
         return self.config.get(self.config_name, "remove_items_older_than_max_update_time_frame", default=False)
 
-    @profile
     def get_cutoff_datetime(self) -> Optional[datetime]:
         """
         The max_update_time_frame converted to an absolute aware-datetime.
@@ -143,7 +139,6 @@ class Updater:
             return None
         return datetime.now(tz=UTC) - delta
 
-    @profile
     def _create_new_log_file(self, server: "Server", remote_info: "InfoItem") -> LogFile:
         """
         Helper method to create a new `LogFile` instance.
@@ -162,7 +157,6 @@ class Updater:
         self.new_log_file_signal.emit(log_file=new_log_file)
         return new_log_file
 
-    @profile
     def _update_log_file(self, log_file: LogFile, remote_info: "InfoItem") -> LogFile:
         """
         Helper Method to update an existing `LogFile`-model instance, from remote_info.
@@ -181,7 +175,6 @@ class Updater:
         self.updated_log_file_signal.emit(log_file=log_file)
         return log_file
 
-    @profile
     def _get_updated_log_files(self, server: "Server"):
         """
         [summary]
@@ -214,7 +207,6 @@ class Updater:
 
         return sorted(to_update_files, key=lambda x: x.modified_at, reverse=True)
 
-    @profile
     def _handle_old_log_files(self, server: "Server") -> None:
         if self.remove_items_older_than_max_update_time_frame is False:
             return 0
@@ -230,7 +222,6 @@ class Updater:
             amount_deleted += 1
         return amount_deleted
 
-    @profile
     def process_log_file(self, log_file: "LogFile", force: bool = False) -> None:
         if force is True:
             log_file.last_parsed_line_number = 0
@@ -243,20 +234,21 @@ class Updater:
             log_file.startup_text = None
             log_file.header_text = None
             log_file.max_mem = None
+            log_file.is_downloaded = True
         context = self.parsing_context_factory(log_file=log_file)
+        parser = self.backend.get_parser()
         if force is True:
             context.force = True
         context.done_signal = self.signaler.send_update_increment
         with context:
 
             log.debug("starting to parse %s", log_file)
-            for processed_record in self.parser(context=context):
+            for processed_record in parser(context=context):
                 if self.stop_event.is_set() is True:
                     break
                 context.insert_record(processed_record)
             context._dump_rest()
 
-    @profile
     def process(self, server: "Server") -> None:
 
         tasks = []
@@ -269,8 +261,7 @@ class Updater:
 
         wait(tasks, return_when=ALL_COMPLETED, timeout=None)
 
-    @profile
-    def _update_record_classes(self, server: Server = None, force: bool = False):
+    def _update_record_classes(self, server: Server = None, log_file: LogFile = None, force: bool = False):
         if force is True:
             self.signaler.change_update_text.emit("Updating Record-Classes")
 
@@ -281,6 +272,10 @@ class Updater:
         log.info("updating record classes")
         # batch_size = (32767 // 2) - 1
         batch_size = 1_000_000
+        if server is not None:
+            batch_size = batch_size // 10
+        elif log_file is not None:
+            batch_size = batch_size // 10
         report_size = batch_size // 100
 
         tasks = []
@@ -288,7 +283,7 @@ class Updater:
 
         idx = 0
 
-        for record, record_class in (_find_record_class(r) for r in self.database.iter_all_records(server=server, only_missing_record_class=not force)):
+        for record, record_class in (_find_record_class(r) for r in self.database.iter_all_records(server=server, log_file=log_file, only_missing_record_class=not force)):
             idx += 1
             if idx % report_size == 0:
 
@@ -296,7 +291,7 @@ class Updater:
                     self.signaler.change_update_text.emit(f"Updating Record-Classes --- Checked {idx:,} Records")
             if idx % (report_size * 10) == 0:
                 sleep(0)
-            if record.record_class_id != record_class.id:
+            if record.record_class != record_class:
 
                 to_update.append((int(record_class.id), int(record.id)))
                 if len(to_update) >= batch_size:
@@ -329,7 +324,6 @@ class Updater:
         self.database.checkpoint()
         self.database.close()
 
-    @profile
     def update(self) -> None:
 
         if self.is_updating_event.is_set() is True:

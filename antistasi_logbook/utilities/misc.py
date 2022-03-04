@@ -23,7 +23,7 @@ from gidapptools.general_helper.conversion import str_to_bool
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.utilities.path_utilities import RemotePath
 
-get_dummy_profile_decorator_in_globals()
+
 log = get_logger(__name__)
 
 

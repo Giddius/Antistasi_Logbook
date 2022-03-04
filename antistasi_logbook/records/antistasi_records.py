@@ -7,10 +7,10 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-import re
+
 from typing import TYPE_CHECKING, Any, Union
 from pathlib import Path
-
+import re
 # * Third Party Imports --------------------------------------------------------------------------------->
 import pp
 
@@ -120,7 +120,6 @@ class PerformanceRecord(BaseAntistasiRecord):
         return self._stats
 
     @classmethod
-    @profile
     def _get_stats(cls, message: str, recorded_at: datetime) -> dict[str, Union[int, float]]:
         data = {item.group('name'): item.group('value') for item in cls.performance_regex.finditer(message)}
         data = {k: float(v) if '.' in v else int(v) for k, v in data.items()}

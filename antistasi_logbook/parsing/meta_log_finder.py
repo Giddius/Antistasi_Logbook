@@ -24,7 +24,7 @@ from antistasi_logbook.utilities.misc import ModItem, VersionItem
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-    from antistasi_logbook.regex.regex_keeper import SimpleRegexKeeper
+    from antistasi_logbook.regex_store.regex_keeper import SimpleRegexKeeper
     from antistasi_logbook.parsing.parsing_context import ParsingContext
 
 # endregion[Imports]

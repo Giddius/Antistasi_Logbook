@@ -34,7 +34,7 @@ from antistasi_logbook.parsing.parser import Parser
 from antistasi_logbook.utilities.locks import FILE_LOCKS
 from antistasi_logbook.storage.database import GidSqliteApswDatabase
 from antistasi_logbook.updating.updater import Updater
-from antistasi_logbook.regex.regex_keeper import SimpleRegexKeeper
+from antistasi_logbook.regex_store.regex_keeper import SimpleRegexKeeper
 from antistasi_logbook.storage.models.models import LogFile, RecordClass, DatabaseMetaData
 from antistasi_logbook.updating.time_handling import TimeClock
 from antistasi_logbook.parsing.parsing_context import LogParsingContext
@@ -144,15 +144,15 @@ class Backend:
         self.signals = Signals()
         self.config = config
         self.database = database
+        self.database.backend = self
         self.update_signaler = update_signaler
-        self.foreign_key_cache = ForeignKeyCache(self)
+        self.foreign_key_cache = self.database.foreign_key_cache
 
         self.record_class_manager = RecordClassManager(foreign_key_cache=self.foreign_key_cache)
 
         self.time_clock = TimeClock(config=self.config, stop_event=self.events.stop)
         self.remote_manager_registry = remote_manager_registry
         self.record_processor = RecordProcessor(backend=self, regex_keeper=SimpleRegexKeeper())
-        self.parser = Parser(backend=self, regex_keeper=SimpleRegexKeeper(), stop_event=self.events.stop)
         self.updater = Updater(stop_event=self.events.stop, pause_event=self.events.pause, backend=self, signaler=self.update_signaler)
         self.records_inserter = RecordInserter(config=self.config, backend=self)
 
@@ -191,7 +191,7 @@ class Backend:
             ThreadPoolExecutor: [description]
         """
         if self._thread_pool is None:
-            self._thread_pool = ThreadPoolExecutor(max_workers=max(1, int(self.config.get("general", "max_threads") * 0.34)), thread_name_prefix="backend")
+            self._thread_pool = ThreadPoolExecutor(max_workers=max(1, int(self.config.get("general", "max_threads") * 0.34)), thread_name_prefix="backend", initializer=self.database.connect, initargs=(True,))
         return self._thread_pool
 
     @property
@@ -209,7 +209,7 @@ class Backend:
             ThreadPoolExecutor: [description]
         """
         if self._inserting_thread_pool is None:
-            self._inserting_thread_pool = ThreadPoolExecutor(max_workers=max(1, int(self.config.get("general", "max_threads") * 0.67)), thread_name_prefix="backend_inserting")
+            self._inserting_thread_pool = ThreadPoolExecutor(max_workers=max(1, int(self.config.get("general", "max_threads") * 0.67)), thread_name_prefix="backend_inserting", initializer=self.database.connect, initargs=(True,))
         return self._inserting_thread_pool
 
     @property
@@ -242,6 +242,9 @@ class Backend:
         context = LogParsingContext(log_file=log_file, inserter=self.records_inserter, foreign_key_cache=self.foreign_key_cache, config=self.config)
         self.all_parsing_context.add(context)
         return context
+
+    def get_parser(self) -> Parser:
+        return Parser(self, stop_event=self.events.stop)
 
     def register_record_classes(self, record_classes: Iterable[RECORD_CLASS_TYPE]) -> "Backend":
         for record_class in record_classes:
@@ -313,8 +316,7 @@ class Backend:
         self.events.stop.clear()
         FILE_LOCKS.reset()
 
-        self.parser = Parser(backend=self, regex_keeper=SimpleRegexKeeper(), stop_event=self.events.stop)
-        self.updater = Updater(config=self.config, parsing_context_factory=self.get_parsing_context, parser=self.parser, stop_event=self.events.stop, pause_event=self.events.pause, database=self.database, signaler=self.update_signaler)
+        self.updater = Updater(self, stop_event=self.events.stop, pause_event=self.events.pause, signaler=self.update_signaler)
         self.records_inserter = RecordInserter(config=self.config, backend=self)
         self.update_manager: UpdateManager = None
         self.foreign_key_cache.reset_all()

@@ -60,7 +60,7 @@ if TYPE_CHECKING:
 
 # region [Constants]
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
-get_dummy_profile_decorator_in_globals()
+
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
@@ -310,6 +310,7 @@ class BaseDetailWidget(QWidget):
     def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
         super().__init__(parent=parent)
         self.setLayout(QFormLayout(self))
+        self.layout.setLabelAlignment(Qt.AlignCenter)
 
     @ property
     def layout(self) -> QFormLayout:

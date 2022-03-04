@@ -99,10 +99,12 @@ class LogFilesModel(BaseQueryDataModel):
     def reparse_log_file(self, item: LogFile, column: Field, index: QModelIndex):
         def _actual_reparse(log_file: LogFile):
             self.backend.updater.process_log_file(log_file=log_file, force=True)
-            self.backend.updater.update_record_classes(server=log_file.server, force=True)
+            self.backend.updater._update_record_classes(log_file=log_file, force=True)
             self.refresh()
 
         def _callback(future):
+            if future.exception():
+                raise future.exception()
             self.layoutChanged.emit()
             self.currently_reparsing = False
 
@@ -145,7 +147,7 @@ class LogFilesModel(BaseQueryDataModel):
         with self.backend.database.connection_context() as ctx:
             self.content_items = []
             for log_file in self.get_query().execute():
-
+                log_file.pre_get_properties()
                 self.content_items.append(log_file)
 
         return self

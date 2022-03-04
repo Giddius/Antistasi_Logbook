@@ -15,14 +15,14 @@ from datetime import datetime, timedelta, timezone
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import sys
 from time import sleep
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 from pathlib import Path
 from threading import Thread
 
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QColor, QCloseEvent, QMouseEvent, QCursor, QScreen
 from PySide6.QtCore import Qt, Slot, QSysInfo, QTimerEvent, Signal, QTimer, QObject, QSettings, QPoint, QRect, QByteArray, QSize, QMetaProperty, Property, PyClassProperty, QtMsgType, qInstallMessageHandler, QMessageLogContext
-from PySide6.QtWidgets import QWidget, QMenuBar, QToolBar, QDockWidget, QGridLayout, QMainWindow, QMessageBox, QSizePolicy, QSplashScreen, QLabel
+from PySide6.QtWidgets import QWidget, QHBoxLayout, QTableWidgetItem, QPushButton, QTableWidget, QMenuBar, QToolBar, QDockWidget, QGridLayout, QMainWindow, QMessageBox, QSizePolicy, QSplashScreen, QLabel
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 import qt_material
@@ -47,7 +47,7 @@ from antistasi_logbook.gui.application import AntistasiLogbookApplication
 from antistasi_logbook.gui.main_widget import MainWidget
 from antistasi_logbook.gui.settings_window import SettingsWindow, CredentialsManagmentWindow
 from antistasi_logbook.gui.models.mods_model import ModsModel
-from antistasi_logbook.storage.models.models import LogFile
+from antistasi_logbook.storage.models.models import LogFile, GameMap
 
 from antistasi_logbook.gui.models.version_model import VersionModel
 from antistasi_logbook.gui.models.game_map_model import GameMapModel
@@ -83,8 +83,9 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 get_dummy_profile_decorator_in_globals()
+
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 META_CONFIG = get_meta_config()
@@ -108,6 +109,11 @@ class ErrorSignaler(QObject):
 
 class SecondaryWindow(QWidget):
     close_signal = Signal(QWidget)
+
+    def __init__(self, parent: QWidget = None, f: Qt.WindowFlags = None, name: str = None) -> None:
+        super().__init__(*[i for i in [parent, f] if i is not None])
+        if name is not None:
+            self.setObjectName(name)
 
     @property
     def app(self) -> "AntistasiLogbookApplication":
@@ -133,6 +139,7 @@ class SecondaryWindow(QWidget):
 class AntistasiLogbookMainWindow(QMainWindow):
     update_started = Signal()
     update_finished = Signal()
+    calculated_average_players = Signal(list)
 
     def __init__(self, app: "AntistasiLogbookApplication", flags=None) -> None:
         ExceptionHandlerManager.signaler = ErrorSignaler()
@@ -212,7 +219,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.set_main_widget(MainWidget(self))
         log.debug("finished setting up main widget %r", self.main_widget)
         self.main_widget.server_tab.resize_header_sections()
-        self.sys_tray = LogbookSystemTray(self, self.app)
+        self.sys_tray = LogbookSystemTray()
         self.app.sys_tray = self.sys_tray
         self.sys_tray.show()
 
@@ -429,6 +436,10 @@ class AntistasiLogbookMainWindow(QMainWindow):
         icon_label.setAlignment(Qt.AlignCenter)
         window.layout().addWidget(icon_label)
         window.layout().addWidget(view)
+        if isinstance(model, GameMapModel):
+            get_average_players_button = QPushButton("Get Average Player per Hour", view)
+            get_average_players_button.pressed.connect(self.show_avg_player_window)
+            window.layout().addWidget(get_average_players_button)
         view.setup()
         width = 150 * (view.header_view.count() - view.header_view.hiddenSectionCount())
 
@@ -438,6 +449,54 @@ class AntistasiLogbookMainWindow(QMainWindow):
         window.resize(width, height)
         window.setWindowIcon(view.icon)
 
+        window.show()
+
+    def show_avg_player_window(self):
+
+        def _get_item_data(in_game_map: "GameMap") -> dict[str, Union[float, int]]:
+            avg_players, sample_size = in_game_map.get_avg_players_per_hour()
+            return {"game_map": in_game_map.full_name, "avg_players": avg_players, "sample_size": sample_size}
+
+        def _get_all_data():
+            data = []
+            for item_data in self.backend.thread_pool.map(_get_item_data, iter(self.backend.database.foreign_key_cache.all_game_map_objects.values())):
+                if any(i is None for i in [item_data.get("avg_players"), item_data.get("sample_size")]):
+                    continue
+                data.append(item_data)
+            data = sorted(data, key=lambda x: (x.get("avg_players"), x.get("sample_size")), reverse=True)
+            self.calculated_average_players.emit(data)
+
+        self.calculated_average_players.connect(self.show_avg_player_window_helper)
+        self.backend.thread_pool.submit(_get_all_data)
+
+    e
+    def show_avg_player_window_helper(self, data: list):
+
+        icon = AllResourceItems.average_players_icon_image.get_as_pixmap(75, 75)
+        window = SecondaryWindow(name="avg_player_window")
+        window.setWindowTitle("Average Players per Hour")
+        window.setWindowIcon(icon)
+        window.setLayout(QHBoxLayout())
+        image_widget = QLabel(window)
+        image_widget.setPixmap(icon)
+        window.layout().addWidget(image_widget)
+        data_widget = QTableWidget(window)
+        row_count = (len(data))
+        columns = ["game_map", "avg_players", "sample_size"]
+        column_count = (len(columns))
+        data_widget.setColumnCount(column_count)
+        data_widget.setRowCount(row_count)
+
+        data_widget.setHorizontalHeaderLabels(["Map", "Average Players per Hour", "Sample Size (Hours)"])
+
+        for row in range(row_count):  # add items from array to QTableWidget
+            for col_idx, column in enumerate(columns):
+                item = str(data[row][column])
+                data_widget.setItem(row, col_idx, QTableWidgetItem(item))
+        data_widget.horizontalHeader().setMinimumSectionSize(175)
+        data_widget.setEditTriggers(QTableWidget.NoEditTriggers)
+        window.layout().addWidget(data_widget)
+        window.resize(QSize(800, 600))
         window.show()
 
     def show_folder_window(self):
@@ -460,6 +519,8 @@ class AntistasiLogbookMainWindow(QMainWindow):
             self.menubar.single_update_action.setEnabled(False)
             self.menubar.reassign_record_classes_action.setEnabled(False)
             self.update_started.emit()
+            self.backend.database.close()
+            self.backend.database.connect(True)
             try:
                 self.backend.updater.only_update_record_classes(force=True)
             finally:
@@ -563,9 +624,9 @@ def start_gui():
 
     config = META_CONFIG.get_config('general')
 
-    if config.get("general", "is_first_start") is True:
+    if config.get("general", "is_first_start", default=True) is True:
         temp_db_path = config.get('database', "database_path", default=None)
-        config.set("general", "is_first_start", False)
+        config.set("general", "is_first_start", False, create_missing_section=True)
     start_splash = app.show_splash_screen("start_up")
     db_path = config.get('database', "database_path", default=None)
     database = GidSqliteApswDatabase(db_path, config=config, thread_safe=True, autoconnect=True)

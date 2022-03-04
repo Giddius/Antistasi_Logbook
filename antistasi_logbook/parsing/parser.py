@@ -17,7 +17,7 @@ from gidapptools import get_logger
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.parsing.raw_record import RawRecord
-from antistasi_logbook.regex.regex_keeper import SimpleRegexKeeper
+from antistasi_logbook.regex_store.regex_keeper import SimpleRegexKeeper
 from antistasi_logbook.parsing.meta_log_finder import MetaFinder
 from antistasi_logbook.parsing.parsing_context import RecordLine, LogParsingContext
 from antistasi_logbook.parsing.record_processor import RecordProcessor
@@ -40,7 +40,6 @@ if TYPE_CHECKING:
 
 # region [Constants]
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
-get_dummy_profile_decorator_in_globals()
 
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
@@ -58,9 +57,9 @@ class Parser:
 
     __slots__ = ("backend", "regex_keeper", "stop_event")
 
-    def __init__(self, backend: "Backend", regex_keeper: "SimpleRegexKeeper", stop_event: Event) -> None:
+    def __init__(self, backend: "Backend", stop_event: Event) -> None:
         self.backend = backend
-        self.regex_keeper = regex_keeper
+        self.regex_keeper = SimpleRegexKeeper()
         self.stop_event = stop_event
 
     @property

@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 # region [Constants]
 
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
-get_dummy_profile_decorator_in_globals()
+
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 
@@ -63,7 +63,6 @@ class BaseProxyModel(QSortFilterProxyModel):
     def add_context_menu_actions(self, menu: "CustomContextMenu", index: QModelIndex):
         self.source.add_context_menu_actions(menu=menu, index=self.mapToSource(index))
 
-    @profile
     def get(self, index: Union[QModelIndex, int]) -> Optional[tuple["Field", "BaseModel"]]:
         if isinstance(index, int):
             actual_index = self.index(index, 0, QModelIndex())

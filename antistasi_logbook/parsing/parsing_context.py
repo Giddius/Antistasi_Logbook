@@ -15,7 +15,7 @@ from threading import Lock, RLock
 from contextlib import contextmanager
 from collections import deque
 from concurrent.futures import FIRST_EXCEPTION, Future, wait
-
+import pp
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
 from dateutil.tz import UTC, tzoffset
@@ -51,7 +51,7 @@ if TYPE_CHECKING:
 
 # region [Constants]
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
-get_dummy_profile_decorator_in_globals()
+
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
@@ -155,7 +155,8 @@ class LogParsingContext:
         self._log_file = log_file
         self.database = self._log_file.get_meta().database
         self.inserter = inserter
-        self.log_file_data = model_to_dict(self._log_file, exclude=[LogFile.log_records, LogFile.mods, LogFile.comments, LogFile.marked])
+        self.log_file_data = model_to_dict(self._log_file, exclude=[LogFile.log_records, LogFile.mods, LogFile.comments, LogFile.marked], extra_attrs=["is_downloaded"])
+        log.debug("logfile %r is_downloaded %r", self.log_file_data["name"], self.log_file_data["is_downloaded"])
         self.data_lock = RLock()
         self.foreign_key_cache = foreign_key_cache
         self.config = config
@@ -175,7 +176,7 @@ class LogParsingContext:
     def _log_record_batch_size(self) -> int:
 
         if self._bulk_create_batch_size is None:
-            self._bulk_create_batch_size = min(self.config.get("parsing", "record_insert_batch_size", default=99999), (32767 // (len(LogRecord.get_meta().columns) * 1)))
+            self._bulk_create_batch_size = max(self.config.get("parsing", "record_insert_batch_size", default=99999), (32767 // (len(LogRecord.get_meta().columns) * 1)))
 
         return self._bulk_create_batch_size
 
@@ -286,15 +287,18 @@ class LogParsingContext:
         with self.data_lock:
             log.debug("updating log-file %r", self._log_file)
             self.log_file_data.pop("original_file")
+            self.log_file_data.pop("is_downloaded")
             task = self.inserter.update_log_file_from_dict(log_file=self._log_file, in_dict=self.log_file_data)
             log.debug("waiting for result of 'updating log-file %r'", self._log_file)
-            task.result()
+            if task.exception():
+                raise task.exception()
+            _ = task.result()
 
         log.debug("closing line iterator")
         if self._line_iterator is not None:
             self._line_iterator.close()
         log.debug("cleaning up log-file %r", self._log_file)
-        self._log_file._cleanup()
+        # self._log_file._cleanup()
         self.is_open = False
 
         if self.done_signal:
@@ -333,6 +337,7 @@ class LogParsingContext:
 
     def _dump_rest(self) -> None:
         if len(self.record_storage) > 0:
+            log.debug("dumping rest for context %r", self)
             self.futures.append(self.inserter(records=tuple(self.record_storage), context=self))
             self.record_storage.clear()
 
@@ -349,7 +354,7 @@ class LogParsingContext:
                 log.critical("error %r encountered with log-file %r", e, self._log_file)
         else:
             with self.data_lock:
-                log.debug("setting log-file-data last_parsed_time to max (%r) for %r", self.log_file_data.get("modified_at"), self._log_file)
+                log.debug("setting log-file-data last_parsed_time to %r for %r", self.log_file_data.get("modified_at"), self._log_file)
                 self.log_file_data["last_parsed_datetime"] = self.log_file_data.get("modified_at")
 
     def __enter__(self) -> "LogParsingContext":

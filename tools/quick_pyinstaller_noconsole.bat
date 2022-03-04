@@ -21,7 +21,7 @@ pushd %THIS_FOLDER%\..
 RD /S /Q %THIS_FOLDER%\..\pyinstaller_output_%_NAME%
 mkdir %THIS_FOLDER%\..\pyinstaller_output_%_NAME%
 
-set PYTHONOPTIMIZE=1
+set PYTHONOPTIMIZE=2
 pyinstaller --clean --noconfirm --log-level=INFO ^
 -n %_NAME% ^
 --upx-dir D:\Dropbox\hobby\Modding\Ressources\python\upx\upx-3.96-win64 ^

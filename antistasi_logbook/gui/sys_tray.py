@@ -13,7 +13,7 @@ from pathlib import Path
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QIcon, QAction
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QMenu, QLabel, QWidgetAction, QSystemTrayIcon
+from PySide6.QtWidgets import QMenu, QLabel, QWidgetAction, QSystemTrayIcon, QApplication, QMainWindow
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 
 # region [Constants]
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
-get_dummy_profile_decorator_in_globals()
+
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
@@ -47,15 +47,21 @@ log = get_logger(__name__)
 
 class LogbookSystemTray(QSystemTrayIcon):
 
-    def __init__(self, main_window: "AntistasiLogbookMainWindow", app: "AntistasiLogbookApplication") -> None:
-        self.main_window = main_window
-        self.app = app
+    def __init__(self) -> None:
         self.tray_icon = self.app.icon
         self.menu: QMenu = None
         self.menu_title: QLabel = None
 
         super().__init__(self.tray_icon, self.app)
         self.setup()
+
+    @property
+    def app(self):
+        return QApplication.instance()
+
+    @property
+    def main_window(self):
+        return self.app.main_window
 
     def setup(self) -> None:
         self.setup_menu()
@@ -110,7 +116,7 @@ class LogbookSystemTray(QSystemTrayIcon):
         self.showMessage("Update finished!", "The Database is now up to date!", QSystemTrayIcon.MessageIcon.Information, 15 * 1000)
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(main_window={self.main_window!r}, app={self.app!r})"
+        return f"{self.__class__.__name__}(app={self.app!r})"
     # region[Main_Exec]
 
 

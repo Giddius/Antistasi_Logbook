@@ -40,7 +40,7 @@ from antistasi_logbook.utilities.path_utilities import RemotePath
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
-get_dummy_profile_decorator_in_globals()
+
 log = get_logger(__name__)
 # endregion[Constants]
 
