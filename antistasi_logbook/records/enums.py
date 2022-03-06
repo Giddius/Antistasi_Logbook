@@ -9,7 +9,9 @@ Soon.
 # * Standard Library Imports ---------------------------------------------------------------------------->
 from enum import Enum, Flag, auto, unique
 from pathlib import Path
-
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from antistasi_logbook.storage.models.models import RecordOrigin
 # endregion[Imports]
 
 # region [TODO]
@@ -88,6 +90,11 @@ class MessageFormat(Enum):
 class RecordFamily(Flag):
     GENERIC = auto()
     ANTISTASI = auto()
+
+    @classmethod
+    def from_record_origin(cls, record_origin: "RecordOrigin") -> "RecordFamily":
+        name = record_origin.name
+        return cls._member_map_.get(name.upper())
 
 
 class MessageTypus(Enum):

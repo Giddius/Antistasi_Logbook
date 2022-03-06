@@ -780,10 +780,7 @@ class LogRecordDetailView(BaseDetailWidget):
     def __init__(self, record: "BaseRecord", parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
         super().__init__(parent=parent)
         self.record = record
-        try:
-            log.debug("record logged_from function name: %r", self.record.logged_from.function_name)
-        except Exception as e:
-            log.critical("encountered exception %r, with record %r", e, self.record)
+
         self.recorded_at_value = ValueLineEdit(text=self.app.format_datetime(self.record.recorded_at))
         self.layout.addRow("Recorded at", self.recorded_at_value)
 

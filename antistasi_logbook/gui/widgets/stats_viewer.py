@@ -14,7 +14,8 @@ from pathlib import Path
 from datetime import datetime
 from functools import cached_property
 from threading import RLock
-
+from statistics import mean, stdev, median
+from numpy import average
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
 import pyqtgraph as pg
@@ -515,8 +516,54 @@ class StatsWindow(QMainWindow):
         return super().closeEvent(event)
 
 
-# region[Main_Exec]
+class LabeledAxisItem(pg.AxisItem):
 
+    def __init__(self, names: list[str], **kwargs):
+        self.names = names
+        super().__init__(**kwargs)
+
+    def tickStrings(self, values, scale, spacing):
+        return self.names
+
+
+class AvgMapPlayersPlotWidget(pg.PlotWidget):
+    close_signal = Signal(pg.PlotWidget)
+
+    def __init__(self, data: list[dict[str, float]], parent=None, background='default', plotItem=None, **kargs):
+        self.data = data
+
+        self.available_colors = COLORS.copy()
+        random.shuffle(self.available_colors)
+        self.colors = self.available_colors[:len(self.data)]
+
+        tick_dict = {idx * 10: i["game_map"] for idx, i in enumerate(self.data)}
+        string_axis = pg.AxisItem(orientation="bottom")
+        string_axis.setTicks([tick_dict.items()])
+        string_axis.setStyle(tickTextWidth=45)
+        super().__init__(parent, background, plotItem, axisItems={"bottom": string_axis}, **kargs)
+
+        self.plot_item = pg.BarGraphItem(x=list(tick_dict.keys()), height=[i["avg_players"] for i in self.data], width=5, brushes=self.colors)
+        self.addItem(self.plot_item)
+
+        view_box: pg.ViewBox = self.getPlotItem().getViewBox()
+        x_max = max(tick_dict.keys()) * 1.1
+        y_max = max([i["avg_players"] for i in self.data]) * 1.1
+        view_box.setLimits(xMin=-10, xMax=x_max, yMin=0, yMax=y_max)
+
+    @property
+    def app(self) -> "AntistasiLogbookApplication":
+        return QApplication.instance()
+
+    def show(self) -> None:
+        self.app.extra_windows.add_window(self)
+        return super().show()
+
+    def closeEvent(self, event: PySide6.QtGui.QCloseEvent) -> None:
+        self.close_signal.emit(self)
+        return super().closeEvent(event)
+
+
+# region[Main_Exec]
 if __name__ == '__main__':
     pass
 

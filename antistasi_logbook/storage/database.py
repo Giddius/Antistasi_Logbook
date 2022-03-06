@@ -74,7 +74,7 @@ DEFAULT_PRAGMAS = {
     "mmap_size": 268435456 * 4,
     "journal_size_limit": human2bytes("100mb"),
     "page_size": 32768,
-    "analysis_limit": 500
+    "analysis_limit": 1000
 }
 
 
@@ -254,6 +254,7 @@ class GidSqliteApswDatabase(APSWDatabase):
             self.session_meta_data.save()
 
         self.checkpoint()
+        self.optimize()
         with self.write_lock:
             self.close()
 
@@ -296,7 +297,7 @@ class GidSqliteApswDatabase(APSWDatabase):
 
     def get_all_origins(self, ordered_by=RecordOrigin.id) -> tuple[RecordOrigin]:
         self.connect(True)
-        result = tuple(RecordOrigin.select(RecordOrigin).order_by(ordered_by))
+        result = tuple(RecordOrigin.select().order_by(ordered_by))
         return result
 
     def get_all_versions(self, ordered_by=Version) -> tuple[Version]:

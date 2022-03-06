@@ -100,7 +100,6 @@ class RecordInserter:
     def write_lock(self) -> Lock:
         return self.database.write_lock
 
-    e
     def _insert_func(self, records: Iterable["RawRecord"], context: "LogParsingContext") -> ManyRecordsInsertResult:
 
         # LogRecord.insert_many(i.to_log_record_dict(log_file=context._log_file) for i in records).execute()
@@ -354,6 +353,7 @@ class RecordProcessor:
         raw_record.parsed_data = self._convert_raw_record_foreign_keys(parsed_data=raw_record.parsed_data, utc_offset=utc_offset)
 
         return raw_record
+
 
         # region[Main_Exec]
 if __name__ == '__main__':

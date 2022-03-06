@@ -17,7 +17,7 @@ from pyparsing import pyparsing_common as ppc
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
-
+from gidapptools.general_helper.enums import MiscEnum
 # endregion[Imports]
 
 # region [TODO]
@@ -72,7 +72,7 @@ def parse_text_array(in_text: str) -> list[list[Any]]:
     except pp.ParseException as e:
         log.error(e, exc_info=1, extra={"in_text": in_text}, stacklevel=3)
         log.critical("%r was caused by %r", e, in_text)
-        return "ERROR"
+        return MiscEnum.ERROR
 # region[Main_Exec]
 
 

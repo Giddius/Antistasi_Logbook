@@ -69,7 +69,9 @@ log = get_logger(__name__)
 
 
 class RecordClassesModel(BaseQueryDataModel):
-    extra_columns = {FakeField(name="record_family", verbose_name="Record Family"), FakeField(name="specificity", verbose_name="Specificity")}
+    extra_columns = {FakeField(name="record_family", verbose_name="Record Family"),
+                     FakeField(name="specificity", verbose_name="Specificity"),
+                     FakeField(name="amount_stored", verbose_name="Amount")}
     color_config_name = "record"
     _item_size_by_column_name: dict[str, int] = {"id": 30, "marked": 60, "record_family": 200, "specificity": 100, "name": 250}
 

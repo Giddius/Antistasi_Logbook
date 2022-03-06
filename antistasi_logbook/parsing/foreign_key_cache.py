@@ -164,7 +164,8 @@ class ForeignKeyCache:
         if self.__class__._all_origin_objects is None:
             self.origin_blocker.wait()
             self.__class__._all_origin_objects = {origin.identifier: origin for origin in self.database.get_all_origins()}
-
+            for origin in self.__class__._all_origin_objects.values():
+                _ = origin.record_family
         return self.__class__._all_origin_objects
 
     @property
@@ -172,6 +173,8 @@ class ForeignKeyCache:
         if self.__class__._all_origin_objects_by_id is None:
             self.origin_blocker.wait()
             self.__class__._all_origin_objects_by_id = {str(origin.id): origin for origin in self.database.get_all_origins()}
+            for origin in self.__class__._all_origin_objects_by_id.values():
+                _ = origin.record_family
         return self.__class__._all_origin_objects_by_id
 
     @property

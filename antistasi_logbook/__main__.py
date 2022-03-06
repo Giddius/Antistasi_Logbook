@@ -51,12 +51,11 @@ log = get_logger(__name__)
 
 
 def main():
-    import os
-    print(os.getpid())
     start_gui()
 
 
 # region[Main_Exec]
 if __name__ == '__main__':
+
     main()
 # endregion[Main_Exec]

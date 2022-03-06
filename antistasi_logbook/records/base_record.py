@@ -193,6 +193,10 @@ class BaseRecord(AbstractRecord):
         return LogRecord.get_by_id(self.record_id)
 
     @classmethod
+    def parse(cls, message: str) -> dict[str, Any]:
+        return {}
+
+    @classmethod
     def check(cls, log_record: "LogRecord") -> bool:
         return True
 

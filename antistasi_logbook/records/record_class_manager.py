@@ -9,7 +9,7 @@ Soon.
 # * Standard Library Imports ---------------------------------------------------------------------------->
 from typing import TYPE_CHECKING, Union
 from pathlib import Path
-
+from collections import defaultdict
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
 from sortedcontainers import SortedSet
@@ -54,17 +54,24 @@ class StoredRecordClass:
         return self.concrete_class.check(log_record=log_record)
 
 
+def new_sorted_set() -> SortedSet:
+    return SortedSet(key=lambda x: -x.concrete_class.___specificity___)
+
+
 class RecordClassManager:
     record_class_registry: dict[str, StoredRecordClass] = {}
     record_class_registry_by_id: dict[str, StoredRecordClass] = {}
     generic_record_classes: SortedSet[StoredRecordClass] = SortedSet(key=lambda x: -x.concrete_class.___specificity___)
-    antistasi_record_classes: SortedSet[StoredRecordClass] = SortedSet(key=lambda x: -x.concrete_class.___specificity___)
+    antistasi_record_classes: dict[str, SortedSet] = defaultdict(new_sorted_set)
 
     def __init__(self, foreign_key_cache: "ForeignKeyCache", default_record_class: RECORD_CLASS_TYPE = None) -> None:
         self.foreign_key_cache = foreign_key_cache
         BaseRecord.foreign_key_cache = self.foreign_key_cache
         self._default_record_concrete_class = BaseRecord if default_record_class is None else default_record_class
         self._default_record_class: "StoredRecordClass" = None
+
+        self.family_handler_table = {RecordFamily.GENERIC: self._determine_generic_record_class,
+                                     RecordFamily.ANTISTASI: self._determine_antistasi_record_class}
 
     @property
     def default_record_class(self) -> StoredRecordClass:
@@ -87,13 +94,20 @@ class RecordClassManager:
         except IndexError:
             model = RecordClass(name=name)
             model.save()
+        model._record_class = record_class
         stored_item = StoredRecordClass(record_class, model)
         cls.record_class_registry[name] = stored_item
         cls.record_class_registry_by_id[str(model.id)] = stored_item
         if RecordFamily.GENERIC in record_class.___record_family___:
             cls.generic_record_classes.add(stored_item)
         if RecordFamily.ANTISTASI in record_class.___record_family___:
-            cls.antistasi_record_classes.add(stored_item)
+            if record_class.___function___ is None:
+                cls.antistasi_record_classes["DEFAULT"] = stored_item
+            elif isinstance(record_class.___function___, tuple):
+                for f in record_class.___function___:
+                    cls.antistasi_record_classes[f].add(stored_item)
+            else:
+                cls.antistasi_record_classes[record_class.___function___].add(stored_item)
 
     def get_by_name(self, name: str) -> RECORD_CLASS_TYPE:
         return self.record_class_registry.get(name, self.default_record_class).concrete_class
@@ -101,13 +115,30 @@ class RecordClassManager:
     def get_by_id(self, model_id: int) -> RECORD_CLASS_TYPE:
         return self.record_class_registry_by_id.get(str(model_id), self.default_record_class).concrete_class
 
-    def determine_record_class(self, log_record: LogRecord) -> "RecordClass":
-        # TODO: make generic regarding record_classes selection
-        record_classes = self.antistasi_record_classes if log_record.origin_id == 1 else self.generic_record_classes
-        for stored_class in record_classes:
+    def _determine_generic_record_class(self, log_record: LogRecord) -> "RecordClass":
+        for stored_class in list(self.generic_record_classes):
             if stored_class.check(log_record) is True:
                 return stored_class.model
-        return self.default_record_class.model
+
+    def _determine_antistasi_record_class(self, log_record: LogRecord) -> "RecordClass":
+        function_name = log_record.logged_from.function_name
+        sub_set = self.antistasi_record_classes.get(function_name, None)
+        if sub_set is None:
+            return self.antistasi_record_classes["DEFAULT"].model
+
+        for stored_class in list(sub_set):
+            if stored_class.check(log_record) is True:
+                return stored_class.model
+        return self.antistasi_record_classes["DEFAULT"].model
+
+    def determine_record_class(self, log_record: LogRecord) -> "RecordClass":
+
+        family = self.foreign_key_cache.get_origin_by_id(log_record.origin_id).record_family
+        handler = self.family_handler_table.get(family, self._determine_generic_record_class)
+        _out = handler(log_record)
+        if _out is None:
+            _out = self.default_record_class.model
+        return _out
 
     def reset(self) -> None:
         all_registered_classes = list(self.record_class_registry.values())

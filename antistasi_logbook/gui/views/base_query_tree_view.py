@@ -181,8 +181,6 @@ class BaseQueryTreeView(QTreeView):
         settings = QSettings()
         settings.setValue(f"{self.name}_column_order", column_order)
 
-        log.debug("setting column %r position to %r", column.name, new_visual_index)
-
     def setup(self) -> "BaseQueryTreeView":
 
         self.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -261,7 +259,6 @@ class BaseQueryTreeView(QTreeView):
                 continue
             orig_vis_index = self.header_view.visualIndex(idx)
             self.header_view.moveSection(orig_vis_index, pos)
-            log.debug("moved %r from %r to %r", column.name, orig_vis_index, pos)
 
         self.header_view.setContextMenuPolicy(Qt.CustomContextMenu)
         self.header_view.customContextMenuRequested.connect(self.handle_header_custom_context_menu)

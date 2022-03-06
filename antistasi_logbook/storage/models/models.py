@@ -34,7 +34,7 @@ from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_conf
 from gidapptools.general_helper.enums import MiscEnum
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 from gidapptools.general_helper.conversion import bytes2human
-
+from antistasi_logbook.records.enums import RecordFamily
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook import setup
 from antistasi_logbook.data.misc import LOG_FILE_DATE_REGEX
@@ -235,8 +235,6 @@ class GameMap(BaseModel):
     class Meta:
         table_name = 'GameMap'
 
-    e
-
     def get_avg_players_per_hour(self) -> tuple[Optional[float], Optional[int]]:
         self.database.connect(True)
         log_files_query = LogFile.select().where(LogFile.game_map == self)
@@ -245,16 +243,15 @@ class GameMap(BaseModel):
         player_data = defaultdict(list)
         performance_record_class = record_class.record_class
 
-        log.debug("SQL for 'get_avg_players_per_hour' of %r: %r", self, query.sql())
-        # cursor = self.database.execute_sql('SELECT "t1"."message", "t1"."recorded_at" FROM "LogRecord" AS "t1" WHERE (("t1"."record_class" = ?) AND ("t1"."log_file" IN (SELECT "t2"."id" FROM "LogFile" AS "t2" WHERE ("t2"."game_map" = ?))))', (record_class.id, self.id))
+        # log.debug("SQL for 'get_avg_players_per_hour' of %r: %r", self, query.sql())
 
         for (message, recorded_at) in self.database.execute(query):
 
             recorded_at = LogRecord.recorded_at.python_value(recorded_at)
-            stats = performance_record_class._get_stats(message, recorded_at)
+            stats = performance_record_class.parse(message)
 
             players: int = stats["Players"]
-            timestamp: datetime = stats["timestamp"].replace(microsecond=0, second=0, minute=0)
+            timestamp: datetime = recorded_at.replace(microsecond=0, second=0, minute=0)
             player_data[timestamp].append(players)
         try:
             avg_player_data = {}
@@ -598,7 +595,7 @@ class LogFile(BaseModel):
         query = LogRecord.select().where(LogRecord.log_file_id == self.id).where(LogRecord.record_class_id == record_class.id).order_by(-LogRecord.recorded_at)
         conc_record_class = record_class.record_class
         for item_data in query.dicts().iterator():
-            item_stats = conc_record_class._get_stats(item_data["message"], item_data["recorded_at"])
+            item_stats = conc_record_class.parse(item_data["message"]) | {"timestamp": item_data["recorded_at"]}
             all_stats.append(item_stats)
         self.database.close()
         return all_stats
@@ -794,6 +791,7 @@ class RecordClass(BaseModel):
     record_class_manager: "RecordClassManager" = None
     comments = CommentsField()
     marked = MarkedField()
+    _record_class: "RECORD_CLASS_TYPE" = None
 
     class Meta:
         table_name = 'RecordClass'
@@ -801,6 +799,10 @@ class RecordClass(BaseModel):
     @property
     def background_color(self) -> "QColor":
         return self.record_class.background_color
+
+    @cached_property
+    def amount_stored(self) -> int:
+        return LogRecord.select().where(LogRecord.record_class == self).count()
 
     @cached_property
     def specificity(self) -> int:
@@ -814,9 +816,11 @@ class RecordClass(BaseModel):
     def record_family(self):
         return self.record_class.___record_family___
 
-    @ cached_property
+    @property
     def record_class(self) -> "RECORD_CLASS_TYPE":
-        return self.record_class_manager.get_by_name(self.name)
+        if self._record_class is None:
+            self._record_class = self.record_class_manager.get_by_name(self.name)
+        return self._record_class
 
     def __str__(self) -> str:
         return self.name
@@ -835,6 +839,10 @@ class RecordOrigin(BaseModel):
     def check(self, raw_record: "RawRecord") -> bool:
         return self.identifier in raw_record.content.casefold()
 
+    @cached_property
+    def record_family(self) -> RecordFamily:
+        return RecordFamily.from_record_origin(self)
+
 
 class LogRecord(BaseModel):
     start = IntegerField(help_text="Start Line number of the Record", verbose_name="Start")
@@ -848,7 +856,7 @@ class LogRecord(BaseModel):
     log_level = ForeignKeyField(column_name='log_level', default=0, field='id', model=LogLevel, null=True, lazy_load=True, index=False, verbose_name="Log-Level")
     record_class = ForeignKeyField(column_name='record_class', field='id', model=RecordClass, lazy_load=True, index=True, verbose_name="Record Class", null=True)
     marked = MarkedField()
-    ___has_multiline_message___: bool = False
+
     message_size_hint = None
 
     class Meta:

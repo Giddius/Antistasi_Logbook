@@ -8,7 +8,7 @@ Soon.
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING, Iterable, Any
 from pathlib import Path
 from functools import cached_property
 
@@ -41,7 +41,7 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 class AbstractRecord(ABC):
     ___record_family___: RecordFamily = ...
     ___specificity___: int = ...
-    ___has_multiline_message___: bool = False
+
     extra_detail_views: Iterable[str] = []
 
     @classmethod
@@ -58,6 +58,10 @@ class AbstractRecord(ABC):
     # @abstractmethod
     # def check_from_log_record(cls, log_record:"LogRecord")->bool:
     #     ...
+
+    @abstractmethod
+    def parse(cls, message: str) -> dict[str, Any]:
+        ...
 
     @abstractmethod
     def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:

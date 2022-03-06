@@ -20,9 +20,9 @@ from pathlib import Path
 from threading import Thread
 
 # * Qt Imports --------------------------------------------------------------------------------------->
-from PySide6.QtGui import QColor, QCloseEvent, QMouseEvent, QCursor, QScreen
+from PySide6.QtGui import QColor, QPixmap, QMovie, QCloseEvent, QMouseEvent, QCursor, QScreen
 from PySide6.QtCore import Qt, Slot, QSysInfo, QTimerEvent, Signal, QTimer, QObject, QSettings, QPoint, QRect, QByteArray, QSize, QMetaProperty, Property, PyClassProperty, QtMsgType, qInstallMessageHandler, QMessageLogContext
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QTableWidgetItem, QPushButton, QTableWidget, QMenuBar, QToolBar, QDockWidget, QGridLayout, QMainWindow, QMessageBox, QSizePolicy, QSplashScreen, QLabel
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QTableWidgetItem, QPushButton, QTableWidget, QMenuBar, QToolBar, QDockWidget, QGridLayout, QMainWindow, QMessageBox, QSizePolicy, QSplashScreen, QLabel
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 import qt_material
@@ -48,7 +48,7 @@ from antistasi_logbook.gui.main_widget import MainWidget
 from antistasi_logbook.gui.settings_window import SettingsWindow, CredentialsManagmentWindow
 from antistasi_logbook.gui.models.mods_model import ModsModel
 from antistasi_logbook.storage.models.models import LogFile, GameMap
-
+from antistasi_logbook.gui.widgets.stats_viewer import AvgMapPlayersPlotWidget
 from antistasi_logbook.gui.models.version_model import VersionModel
 from antistasi_logbook.gui.models.game_map_model import GameMapModel
 from antistasi_logbook.gui.widgets.debug_widgets import DebugDockWidget
@@ -63,6 +63,7 @@ from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 import pp
 from gidapptools.gid_logger.misc import QtMessageHandler
+from gidapptools.gidapptools_qt.widgets.spinner_widget import BusyPushButton
 from antistasi_logbook.gui.widgets.tool_bars import BaseToolBar
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
@@ -437,9 +438,9 @@ class AntistasiLogbookMainWindow(QMainWindow):
         window.layout().addWidget(icon_label)
         window.layout().addWidget(view)
         if isinstance(model, GameMapModel):
-            get_average_players_button = QPushButton("Get Average Player per Hour", view)
-            get_average_players_button.pressed.connect(self.show_avg_player_window)
-            window.layout().addWidget(get_average_players_button)
+            self.get_average_players_button = BusyPushButton(text="Get Average Player per Hour", parent=view, spinner_gif="busy_spinner_cat.gif", spinner_size=QSize(100, 100))
+            self.get_average_players_button.pressed.connect(self.show_avg_player_window)
+            window.layout().addWidget(self.get_average_players_button)
         view.setup()
         width = 150 * (view.header_view.count() - view.header_view.hiddenSectionCount())
 
@@ -467,36 +468,50 @@ class AntistasiLogbookMainWindow(QMainWindow):
             self.calculated_average_players.emit(data)
 
         self.calculated_average_players.connect(self.show_avg_player_window_helper)
-        self.backend.thread_pool.submit(_get_all_data)
 
-    e
+        self.get_average_players_button.start_spinner_while_future(self.backend.thread_pool.submit(_get_all_data))
+
     def show_avg_player_window_helper(self, data: list):
-
+        plot_widget = AvgMapPlayersPlotWidget(data)
         icon = AllResourceItems.average_players_icon_image.get_as_pixmap(75, 75)
         window = SecondaryWindow(name="avg_player_window")
         window.setWindowTitle("Average Players per Hour")
         window.setWindowIcon(icon)
-        window.setLayout(QHBoxLayout())
+        sub_layout = QVBoxLayout()
+        sub_layout.setAlignment(Qt.AlignCenter)
+
+        window.setLayout(sub_layout)
+
         image_widget = QLabel(window)
         image_widget.setPixmap(icon)
-        window.layout().addWidget(image_widget)
+        image_widget.setAlignment(Qt.AlignCenter)
+
+        sub_layout.addWidget(image_widget)
+        sub_sub_layout = QHBoxLayout()
+        sub_layout.addLayout(sub_sub_layout)
+        plot_widget.setMinimumSize(QSize(1250, 600))
+        sub_sub_layout.addWidget(plot_widget)
         data_widget = QTableWidget(window)
         row_count = (len(data))
         columns = ["game_map", "avg_players", "sample_size"]
         column_count = (len(columns))
         data_widget.setColumnCount(column_count)
         data_widget.setRowCount(row_count)
+        data_widget.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.MinimumExpanding)
 
         data_widget.setHorizontalHeaderLabels(["Map", "Average Players per Hour", "Sample Size (Hours)"])
 
         for row in range(row_count):  # add items from array to QTableWidget
             for col_idx, column in enumerate(columns):
                 item = str(data[row][column])
-                data_widget.setItem(row, col_idx, QTableWidgetItem(item))
+                table_item = QTableWidgetItem(item)
+                table_item.setData(Qt.InitialSortOrderRole, data[row][column])
+                data_widget.setItem(row, col_idx, table_item)
         data_widget.horizontalHeader().setMinimumSectionSize(175)
         data_widget.setEditTriggers(QTableWidget.NoEditTriggers)
-        window.layout().addWidget(data_widget)
-        window.resize(QSize(800, 600))
+        data_widget.setMinimumSize(QSize(600, 600))
+        sub_sub_layout.addWidget(data_widget)
+
         window.show()
 
     def show_folder_window(self):

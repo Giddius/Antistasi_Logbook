@@ -22,7 +22,7 @@ from PySide6.QtWidgets import QApplication
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
-
+import shutil
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
 from gidapptools.gid_signal.interface import get_signal
@@ -32,7 +32,7 @@ from gidapptools.general_helper.compress import compress_file
 from antistasi_logbook.records import ALL_GENERIC_RECORD_CLASSES, ALL_ANTISTASI_RECORD_CLASSES
 from antistasi_logbook.parsing.parser import Parser
 from antistasi_logbook.utilities.locks import FILE_LOCKS
-from antistasi_logbook.storage.database import GidSqliteApswDatabase
+from antistasi_logbook.storage.database import GidSqliteApswDatabase, make_db_path
 from antistasi_logbook.updating.updater import Updater
 from antistasi_logbook.regex_store.regex_keeper import SimpleRegexKeeper
 from antistasi_logbook.storage.models.models import LogFile, RecordClass, DatabaseMetaData
@@ -146,7 +146,6 @@ class Backend:
         self.database = database
         self.database.backend = self
         self.update_signaler = update_signaler
-        self.foreign_key_cache = self.database.foreign_key_cache
 
         self.record_class_manager = RecordClassManager(foreign_key_cache=self.foreign_key_cache)
 
@@ -161,6 +160,10 @@ class Backend:
 
         # thread
         self.update_manager: UpdateManager = None
+
+    @property
+    def foreign_key_cache(self) -> ForeignKeyCache:
+        return self.database.foreign_key_cache
 
     @property
     def app(self) -> Optional["AntistasiLogbookApplication"]:
@@ -261,6 +264,7 @@ class Backend:
         Start up the database, populates the database with all necessary tables and default entries ("or_ignore"), registers all record_classes and connects basic signals.
 
         """
+        self.record_class_manager.foreign_key_cache = self.foreign_key_cache
         self.events.stop.clear()
         self.events.pause.clear()
         self.database.record_inserter = self.records_inserter
@@ -311,35 +315,14 @@ class Backend:
         except Exception as e:
             log.debug(e, exc_info=True)
 
-    def remove_and_reset_database(self) -> None:
+    def move_db(self, new_path: Path):
+        # TODO: make this work consistently and not with prayers, also make one general function for moving, backup and backup-compress
         self.shutdown()
-        self.events.stop.clear()
-        FILE_LOCKS.reset()
-
-        self.updater = Updater(self, stop_event=self.events.stop, pause_event=self.events.pause, signaler=self.update_signaler)
-        self.records_inserter = RecordInserter(config=self.config, backend=self)
-        self.update_manager: UpdateManager = None
-        self.foreign_key_cache.reset_all()
-
-        self.start_up(True)
-        self.record_class_manager.reset()
-
-    def backup_db(self, backup_folder: Path = None):
-
-        def limit_backups(_folder: Path):
-            limit_amount = self.config.get("database", "backup_limit")
-            backups = [p for p in _folder.iterdir() if p.is_file() and f"{self.database.database_path.stem}_backup" in p.stem]
-            backups = sorted(backups, key=lambda x: x.stat().st_ctime)
-            while len(backups) > limit_amount:
-                to_delete = backups.pop(0)
-                to_delete.unlink(missing_ok=True)
-
-        if backup_folder is None:
-            backup_folder = self.database.backup_folder
-        backup_folder.mkdir(parents=True, exist_ok=True)
-        backup_path = backup_folder.joinpath(f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{self.database.database_path.stem}_backup{self.database.database_path.suffix}")
-        compress_file(source=self.database.database_path, target=backup_path)
-        limit_backups(backup_folder)
+        path = self.database.database_path
+        self.database.shutdown()
+        shutil.move(src=path, dst=new_path)
+        self.database.database = make_db_path(new_path)
+        self.start_up()
 
     def start_update_loop(self) -> "Backend":
         if self.update_manager is None:
