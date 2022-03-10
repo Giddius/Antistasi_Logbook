@@ -136,8 +136,10 @@ def profile_hook(stmt, time_taken):
 
 class GidSqliteApswDatabase(APSWDatabase):
 
-    default_extensions = {"json_contains": True,
-                          "regexp_function": False}
+    default_extensions = {"c_extensions": True,
+                          "json_contains": True,
+                          "regexp_function": False,
+                          "bloomfilter": True}
 
     default_db_path = META_PATHS.db_dir if os.getenv('IS_DEV', 'false') == "false" else THIS_FILE_DIR
     conns = WeakSet()

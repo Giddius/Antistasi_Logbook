@@ -11,10 +11,11 @@ readme = "README.md"
 dynamic = ['version', 'description']
 requires-python = ">=3.9"
 dependencies = [
-    "pyside6>=6.2.3",
+    "Cython>=0.29.28",
+    "PySide6>=6.2.3",
     "anyio==3.5.0",
     "appdirs==1.4.4",
-    "attrs<=21.4.0",
+    "attrs>=21.4.0",
     "PyGithub==1.55",
     "certifi==2021.10.8",
     "cffi==1.15.0",
@@ -41,7 +42,7 @@ dependencies = [
     "numpy==1.22.0",
     "orjson==3.6.5",
     "packaging==21.3",
-    "peewee==3.14.8",
+    "peewee>=3.14.8",
     "pillow~=8.4.0",
     "platformdirs==2.4.1",
     "pp-ez==0.2.0",

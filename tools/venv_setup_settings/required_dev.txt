@@ -22,3 +22,5 @@ pylint
 pympler
 tabulate
 tomlkit
+pip-tools==6.5.1
+pipreqs

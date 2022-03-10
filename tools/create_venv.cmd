@@ -158,16 +158,7 @@ ECHO.
 ECHO.
 ECHO.
 
-Echo +++++++++++++++++++++++++++++ GUI Packages +++++++++++++++++++++++++++++
-ECHO.
 
-ECHO.
-CALL pip install -r %TOOLS_FOLDER%\venv_setup_settings\required_gui.txt
-ECHO.
-
-
-ECHO.
-ECHO.
 
 Echo +++++++++++++++++++++++++++++ Packages From Github +++++++++++++++++++++++++++++
 ECHO.
