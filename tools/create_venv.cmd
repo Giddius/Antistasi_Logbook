@@ -132,7 +132,14 @@ ECHO.
 
 
 
-
+ECHO -------------------------------------------- INSTALL THE PROJECT ITSELF AS -DEV PACKAGE --------------------------------------------
+echo.
+PUSHD %WORKSPACE_FOLDER%
+rem call pip install -e .
+call flit install -s
+echo.
+POPD
+ECHO.
 
 
 ECHO.
@@ -196,14 +203,7 @@ ECHO.
 ECHO.
 
 
-ECHO -------------------------------------------- INSTALL THE PROJECT ITSELF AS -DEV PACKAGE --------------------------------------------
-echo.
-PUSHD %WORKSPACE_FOLDER%
-rem call pip install -e .
-call flit install -s
-echo.
-POPD
-ECHO.
+
 
 ECHO.
 ECHO.
