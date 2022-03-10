@@ -11,7 +11,6 @@ matplotlib
 memory-profiler
 mypy
 objectgraph
-peewee-erd
 pep517
 pipdeptree
 pipreqs
