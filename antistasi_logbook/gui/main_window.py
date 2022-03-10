@@ -75,6 +75,7 @@ if TYPE_CHECKING:
 
 # region [TODO]
 
+# TODO: Refractor the Hell out of this and split it into classes and functions!
 
 # endregion [TODO]
 
@@ -629,6 +630,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
 
 def start_gui():
+
     # TODO: Rewrite so everything starts through the app
 
     app = AntistasiLogbookApplication.with_high_dpi_scaling(argvs=sys.argv)

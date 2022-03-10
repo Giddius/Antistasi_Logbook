@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Iterable, Optional
 from pathlib import Path
 import pp
 from weakref import WeakSet
+
 from datetime import datetime
 from itertools import chain
 from threading import Lock, Event
@@ -194,7 +195,7 @@ class Backend:
             ThreadPoolExecutor: [description]
         """
         if self._thread_pool is None:
-            self._thread_pool = ThreadPoolExecutor(max_workers=max(1, int(self.config.get("general", "max_threads") * 0.34)), thread_name_prefix="backend", initializer=self.database.connect, initargs=(True,))
+            self._thread_pool = ThreadPoolExecutor(max_workers=max(1, int(self.config.get("general", "max_threads") * 0.34)), thread_name_prefix="backend")
         return self._thread_pool
 
     @property
@@ -212,7 +213,7 @@ class Backend:
             ThreadPoolExecutor: [description]
         """
         if self._inserting_thread_pool is None:
-            self._inserting_thread_pool = ThreadPoolExecutor(max_workers=max(1, int(self.config.get("general", "max_threads") * 0.67)), thread_name_prefix="backend_inserting", initializer=self.database.connect, initargs=(True,))
+            self._inserting_thread_pool = ThreadPoolExecutor(max_workers=max(1, int(self.config.get("general", "max_threads") * 0.67)), thread_name_prefix="backend_inserting")
         return self._inserting_thread_pool
 
     @property
@@ -312,6 +313,7 @@ class Backend:
             self.inserting_thread_pool.shutdown(cancel_futures=True, wait=True)
             self._thread_pool = None
             self._inserting_thread_pool = None
+
         except Exception as e:
             log.debug(e, exc_info=True)
 

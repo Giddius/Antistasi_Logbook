@@ -41,7 +41,7 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 class AbstractRecord(ABC):
     ___record_family___: RecordFamily = ...
     ___specificity___: int = ...
-
+    __slots__ = tuple()
     extra_detail_views: Iterable[str] = []
 
     @classmethod

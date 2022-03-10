@@ -102,6 +102,12 @@ class PathField(Field):
 
 
 class VersionField(TextField):
+    """
+    Field to store a version.
+
+    Version has to be in the format `MAJOR.MINOR.PATCH.EXTRA` where `EXTRA` is optional.
+
+    """
     field_type = "VERSION"
 
     def db_value(self, value: VersionItem):

@@ -21,6 +21,7 @@ from playhouse.shortcuts import update_model_from_dict
 from peewee import DoesNotExist, DatabaseError
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
+from gidapptools.general_helper.conversion import number_to_pretty
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.parsing.raw_record import RawRecord
@@ -81,6 +82,7 @@ class ManyRecordsInsertResult:
 
 
 class RecordInserter:
+    __slots__ = ("config", "backend")
     insert_records_phrase = """INSERT OR IGNORE INTO "LogRecord" ("start", "end", "message", "recorded_at", "called_by", "origin", "logged_from", "log_file", "log_level", "marked") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
     update_record_record_class_phrase = """UPDATE "LogRecord" SET "record_class" = ? WHERE "id" = ?"""
 
@@ -112,7 +114,7 @@ class RecordInserter:
 
                 cur.executemany(self.insert_records_phrase, params)
                 txn.commit()
-                log.debug("inserted %r", len(records))
+                log.debug("inserted %s", number_to_pretty(len(records)))
         # for record in records:
         #     params = record.to_sql_params(log_file=context._log_file)
         #     self.database.execute_sql(self.insert_phrase, params=params)
@@ -138,7 +140,7 @@ class RecordInserter:
     def _execute_many_update_record_class(self, pairs: list[tuple[int, int]]) -> int:
 
         with self.write_lock:
-            with self.database:
+            with self.database.atomic() as txn:
                 cur = self.database.cursor(True)
                 cur.executemany(self.update_record_record_class_phrase, pairs)
 
@@ -154,7 +156,7 @@ class RecordInserter:
         mod_data = [mod_item.as_dict() for mod_item in mod_items]
         q_1 = Mod.insert_many(mod_data).on_conflict_ignore()
         with self.write_lock:
-            with self.database:
+            with self.database.atomic() as txn:
 
                 q_1.execute()
 
@@ -162,7 +164,7 @@ class RecordInserter:
         q_2 = LogFileAndModJoin.insert_many({"log_file": log_file.id, "mod": refreshed_mod_id} for refreshed_mod_id in refreshed_mods_ids).on_conflict_ignore()
 
         with self.write_lock:
-            with self.database:
+            with self.database.atomic() as txn:
 
                 q_2.execute()
 
@@ -172,7 +174,7 @@ class RecordInserter:
     def _execute_update_log_file_from_dict(self, log_file: LogFile, in_dict: dict):
 
         with self.write_lock:
-            with self.database:
+            with self.database.atomic() as txn:
                 item = update_model_from_dict(LogFile.get_by_id(log_file.id), in_dict)
                 item.save()
                 log.debug("logfile %r modified_at: %r, game_map: %r, version: %r, campaign_id: %r", item, item.modified_at, item.game_map, item.version, item.campaign_id)
@@ -182,7 +184,7 @@ class RecordInserter:
 
     def _execute_insert_game_map(self, game_map: "GameMap"):
         with self.write_lock:
-            with self.database:
+            with self.database.atomic() as txn:
                 game_map.save()
 
     def insert_game_map(self, game_map: "GameMap") -> Future:
@@ -353,7 +355,6 @@ class RecordProcessor:
         raw_record.parsed_data = self._convert_raw_record_foreign_keys(parsed_data=raw_record.parsed_data, utc_offset=utc_offset)
 
         return raw_record
-
 
         # region[Main_Exec]
 if __name__ == '__main__':

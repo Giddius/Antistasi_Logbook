@@ -57,7 +57,7 @@ log = get_logger(__name__)
 # endregion[Constants]
 
 
-@attr.s(auto_detect=True, auto_attribs=True, slots=True, frozen=True)
+@attr.s(auto_detect=True, auto_attribs=True, slots=True, weakref_slot=True, frozen=True)
 class RecordLine:
     content: str = attr.ib()
     start: int = attr.ib()

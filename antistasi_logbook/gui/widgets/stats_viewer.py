@@ -12,7 +12,7 @@ from math import ceil
 from typing import TYPE_CHECKING, Any, Union, Iterable, Optional
 from pathlib import Path
 from datetime import datetime
-from functools import cached_property
+from functools import cached_property, partial
 from threading import RLock
 from statistics import mean, stdev, median
 from numpy import average
@@ -20,9 +20,9 @@ from numpy import average
 import PySide6
 import pyqtgraph as pg
 from PySide6 import QtCore
-from PySide6.QtGui import QPen, QFont, QColor
+from PySide6.QtGui import QPen, QFont, QColor, QBrush
 from PySide6.QtCore import Qt, Slot, QSize, Signal
-from PySide6.QtWidgets import QLabel, QWidget, QSpinBox, QGroupBox, QStatusBar, QFormLayout, QGridLayout, QHBoxLayout, QMainWindow, QPushButton, QVBoxLayout, QApplication
+from PySide6.QtWidgets import QLabel, QWidget, QSpinBox, QGroupBox, QStatusBar, QFormLayout, QDoubleSpinBox, QGridLayout, QHBoxLayout, QMainWindow, QPushButton, QVBoxLayout, QApplication
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -107,6 +107,41 @@ class ColorSelector(QGroupBox):
         return QApplication.instance()
 
 
+class PaddingOptionsBox(QGroupBox):
+    y_padding_factor_changed = Signal(float)
+    x_padding_factor_changed = Signal(float)
+
+    default_y_padding_factor: float = 0.15
+    default_x_padding_factor: float = 0.15
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setLayout(QFormLayout())
+        self.y_padding_factor_selector = QDoubleSpinBox(self)
+        self.y_padding_factor_selector.setValue(self.default_y_padding_factor)
+        self.y_padding_factor_selector.setSingleStep(0.05)
+        self.y_padding_factor_selector.valueChanged.connect(self.y_padding_factor_changed.emit)
+        self.layout.addRow("Y", self.y_padding_factor_selector)
+
+        self.x_padding_factor_selector = QDoubleSpinBox(self)
+        self.x_padding_factor_selector.setValue(self.default_x_padding_factor)
+        self.x_padding_factor_selector.setSingleStep(0.05)
+        self.x_padding_factor_selector.valueChanged.connect(self.x_padding_factor_changed.emit)
+        self.layout.addRow("X", self.x_padding_factor_selector)
+
+    @property
+    def layout(self) -> QFormLayout:
+        return super().layout()
+
+    @property
+    def y_padding_factor(self) -> float:
+        return self.y_padding_factor_selector.value()
+
+    @property
+    def x_padding_factor(self) -> float:
+        return self.x_padding_factor_selector.value()
+
+
 class ControlBox(QGroupBox):
     request_change_extra_lines_hidden = Signal(bool)
 
@@ -132,9 +167,13 @@ class ControlBox(QGroupBox):
 
         self.hide_extra_lines_toggle.clicked.connect(self.on_hide_extra_lines_pressed)
         self.form_layout.addRow("Hide extra Lines", self.hide_extra_lines_toggle)
-
+        self.padding_factor_select_box = PaddingOptionsBox(self)
+        self.form_layout.addRow("Axis Padding Factors", self.padding_factor_select_box)
         self.color_box = ColorSelector()
         self.extra_layout.addWidget(self.color_box)
+
+    def sizeHint(self) -> PySide6.QtCore.QSize:
+        return self.layout.sizeHint()
 
     @property
     def layout(self) -> QVBoxLayout:
@@ -225,8 +264,8 @@ class CrosshairDisplayBar(QStatusBar):
 class StatsWindow(QMainWindow):
     close_signal = Signal(QMainWindow)
     color_config_name = "stats"
-    y_padding_factor = 1.5
-    x_padding_factor = 0.125
+
+    grid_alpha: int = int(255 / 5)
 
     mouse_y_pos_changed = Signal(float)
     mouse_x_pos_changed = Signal(float)
@@ -265,8 +304,8 @@ class StatsWindow(QMainWindow):
     def x_padding_seconds(self) -> float:
         seconds_diff = max(self.all_timestamps) - min(self.all_timestamps)
 
-        _out = seconds_diff * self.x_padding_factor
-        log.debug("x_padding_seconds = %r from seconds %r and factor %r", _out, seconds_diff, self.x_padding_factor)
+        _out = seconds_diff * self.control_box.padding_factor_select_box.x_padding_factor
+        log.debug("x_padding_seconds = %r from seconds %r and factor %r", _out, seconds_diff, self.control_box.padding_factor_select_box.x_padding_factor)
         return _out
 
     @cached_property
@@ -287,7 +326,8 @@ class StatsWindow(QMainWindow):
                         data.append(v)
             if not data:
                 return None
-            return ceil(max(data) * self.y_padding_factor)
+            max_data = max(data)
+            return ceil(max_data + (max_data * self.control_box.padding_factor_select_box.y_padding_factor))
 
     @property
     def app(self) -> "AntistasiLogbookApplication":
@@ -323,6 +363,17 @@ class StatsWindow(QMainWindow):
         self.control_box.setFixedWidth(300)
         self.layout.addWidget(self.control_box, 0)
         self.layout.addWidget(self.plot_widget, 2)
+        self.tick_font = self._create_tick_font()
+
+    def _create_tick_font(self) -> QFont:
+        font: QFont = self.app.font()
+        font.setFamily("Lucida Console")
+
+        font.setWeight(QFont.Light)
+        font.setStyleHint(QFont.Monospace)
+        font.setStyleStrategy(QFont.PreferQuality)
+
+        return font
 
     def plot_setup(self):
         self.vertical_crosshair = pg.InfiniteLine(angle=90, movable=False, pen=pg.mkPen({"style": Qt.DashDotDotLine, "cosmetic": True, "color": (255, 255, 255)}))
@@ -333,6 +384,10 @@ class StatsWindow(QMainWindow):
         self.horizontal_crosshair.setVisible(True)
 
         self.y_axis.setTickSpacing(10, 1)
+        self.y_axis.setGrid(self.grid_alpha)
+        self.y_axis.setTickFont(self.tick_font)
+        self.x_axis.setGrid(self.grid_alpha)
+        self.x_axis.setTickFont(self.tick_font)
         self.plot_widget.setMouseEnabled(True)
 
         self.view_box.setLimits(xMin=self.min_timestamp, xMax=self.max_timestamp, yMin=0, yMax=self.max_value)
@@ -360,15 +415,16 @@ class StatsWindow(QMainWindow):
 
         self.view_box.setMouseEnabled(x=True, y=False)
 
-    def change_limits(self, item: pg.PlotDataItem):
-        name = item.name()
-        is_visible = item.isVisible()
-        if is_visible is True:
-            with self.vis_items_lock:
-                self.visible_item_names.add(name)
-        elif name in self.visible_item_names:
-            with self.vis_items_lock:
-                self.visible_item_names.remove(name)
+    def change_limits(self, item: pg.PlotDataItem = None):
+        if item is not None:
+            name = item.name()
+            is_visible = item.isVisible()
+            if is_visible is True:
+                with self.vis_items_lock:
+                    self.visible_item_names.add(name)
+            elif name in self.visible_item_names:
+                with self.vis_items_lock:
+                    self.visible_item_names.remove(name)
         max_y = self.max_value
         if max_y is None:
             return
@@ -387,6 +443,7 @@ class StatsWindow(QMainWindow):
             self.y_axis.setTickSpacing(10, 1)
         self.view_box.setLimits(xMin=self.min_timestamp, xMax=self.max_timestamp, yMin=0, yMax=max_y)
         self.view_box.setYRange(min=0, max=max_y)
+        self.view_box.setXRange(min=self.min_timestamp, max=self.max_timestamp)
         for label, line in self.marked_records.values():
             line.viewTransformChanged()
             label.viewTransformChanged()
@@ -413,6 +470,18 @@ class StatsWindow(QMainWindow):
             if record_box_found is False:
                 self.status_bar.clearMessage()
 
+    def y_factor_changed(self, factor: float):
+        log.debug("y_padding_factor changed to %r", factor)
+        self.change_limits()
+
+    def x_factor_changed(self, factor: float):
+        log.debug("x_padding_factor changed to %r", factor)
+        del self.x_padding_seconds
+        del self.min_timestamp
+        del self.max_timestamp
+
+        self.change_limits()
+
     def control_setup(self):
         self.control_box.line_width_selector.setValue(1)
         self.control_box.line_width_selector.valueChanged.connect(self.change_pen_widths)
@@ -420,6 +489,8 @@ class StatsWindow(QMainWindow):
             self.control_box.color_box.add_key(key)
         self.control_box.color_box.color_changed.connect(self.change_pen_color)
         self.control_box.request_change_extra_lines_hidden.connect(self.change_hide_extra_lines)
+        self.control_box.padding_factor_select_box.y_padding_factor_changed.connect(self.y_factor_changed)
+        self.control_box.padding_factor_select_box.x_padding_factor_changed.connect(self.x_factor_changed)
 
     @ Slot(bool)
     def change_hide_extra_lines(self, hide: bool):
@@ -476,7 +547,8 @@ class StatsWindow(QMainWindow):
         for record in marked_records:
             try:
                 text = record.get_formated_message(MessageFormat.SHORT) + '\n' + record.pretty_recorded_at
-            except:
+            except Exception as e:
+                log.error(e, exc_info=True)
                 text = "-"
             label, line = self.add_record_label_line(record,
                                                      line_color=(255, 255, 0, 255),
@@ -531,16 +603,39 @@ class AvgMapPlayersPlotWidget(pg.PlotWidget):
 
     def __init__(self, data: list[dict[str, float]], parent=None, background='default', plotItem=None, **kargs):
         self.data = data
-
+        self.tick_font = self._create_tick_font()
+        self.x_axis_tick_font = self._create_tick_font()
+        self.x_axis_tick_font.setPointSize(int(self.x_axis_tick_font.pointSize() * 0.75))
         self.available_colors = COLORS.copy()
         random.shuffle(self.available_colors)
-        self.colors = self.available_colors[:len(self.data)]
+        self.colors = [QColor(*i, 200) for i in [
+            (112, 112, 168),
+            (114, 255, 110),
+            (254, 167, 110),
+            (112, 214, 255),
+            (238, 110, 255),
+            (225, 254, 120),
+            (165, 191, 162),
+            (212, 185, 254),
+            (195, 109, 119),
+            (136, 140, 255),
+            (177, 253, 209),
+            (113, 160, 110),
+            (252, 210, 183),
+            (219, 146, 184),
+            (110, 233, 181),
+        ]]
 
         tick_dict = {idx * 10: i["game_map"] for idx, i in enumerate(self.data)}
-        string_axis = pg.AxisItem(orientation="bottom")
-        string_axis.setTicks([tick_dict.items()])
-        string_axis.setStyle(tickTextWidth=45)
-        super().__init__(parent, background, plotItem, axisItems={"bottom": string_axis}, **kargs)
+        y_axis = pg.AxisItem(orientation="left")
+        y_axis.setTickSpacing(levels=[(1, 0), (0.1, 0)])
+        y_axis.setGrid(255 // 5)
+        y_axis.setTickFont(self.tick_font)
+        x_axis = pg.AxisItem(orientation="bottom")
+        x_axis.setTicks([tick_dict.items()])
+        x_axis.setTickFont(self.x_axis_tick_font)
+        x_axis.setStyle(tickTextWidth=45)
+        super().__init__(parent, background, plotItem, axisItems={"bottom": x_axis, "left": y_axis}, **kargs)
 
         self.plot_item = pg.BarGraphItem(x=list(tick_dict.keys()), height=[i["avg_players"] for i in self.data], width=5, brushes=self.colors)
         self.addItem(self.plot_item)
@@ -549,6 +644,16 @@ class AvgMapPlayersPlotWidget(pg.PlotWidget):
         x_max = max(tick_dict.keys()) * 1.1
         y_max = max([i["avg_players"] for i in self.data]) * 1.1
         view_box.setLimits(xMin=-10, xMax=x_max, yMin=0, yMax=y_max)
+
+    def _create_tick_font(self) -> QFont:
+        font: QFont = self.app.font()
+        font.setFamily("Lucida Console")
+
+        font.setWeight(QFont.Light)
+        font.setStyleHint(QFont.Monospace)
+        font.setStyleStrategy(QFont.PreferQuality)
+
+        return font
 
     @property
     def app(self) -> "AntistasiLogbookApplication":

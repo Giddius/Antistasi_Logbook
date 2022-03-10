@@ -73,6 +73,7 @@ DEFAULT_PRAGMAS = {
     "temp_store": "MEMORY",
     "mmap_size": 268435456 * 4,
     "journal_size_limit": human2bytes("100mb"),
+    "wal_autocheckpoint": 100,
     "page_size": 32768,
     "analysis_limit": 1000
 }
@@ -139,6 +140,7 @@ class GidSqliteApswDatabase(APSWDatabase):
                           "regexp_function": False}
 
     default_db_path = META_PATHS.db_dir if os.getenv('IS_DEV', 'false') == "false" else THIS_FILE_DIR
+    conns = WeakSet()
 
     def __init__(self,
                  database_path: Path = None,
@@ -159,7 +161,7 @@ class GidSqliteApswDatabase(APSWDatabase):
         self.session_meta_data: "DatabaseMetaData" = None
         extensions = self.default_extensions.copy() | (extensions or {})
         pragmas = DEFAULT_PRAGMAS.copy() | (pragmas or {})
-        super().__init__(make_db_path(self.database_path), thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, timeout=45, statementcachesize=10000, ** extensions)
+        super().__init__(make_db_path(self.database_path), thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, timeout=30, statementcachesize=100, ** extensions)
 
         self.foreign_key_cache: "ForeignKeyCache" = ForeignKeyCache(database=self)
         self.write_lock = Lock()
@@ -186,6 +188,7 @@ class GidSqliteApswDatabase(APSWDatabase):
         return RecordClass.select().where(RecordClass.name == "BaseRecord").scalar()
 
     def _add_conn_hooks(self, conn):
+        self.conns.add(conn)
         super()._add_conn_hooks(conn)
         # conn.setwalhook(wal_hook)
         # conn.setprofile(profile_hook)
@@ -200,11 +203,12 @@ class GidSqliteApswDatabase(APSWDatabase):
         self.session_meta_data = DatabaseMetaData.new_session()
 
     def checkpoint(self, mode=SQLITE_CHECKPOINT_TRUNCATE):
-        self.connect(True)
-        conn = self.connection()
-        result = conn.wal_checkpoint(mode=mode)
-        log.info("checkpoint wal with return: %r", result)
-        self.close()
+        with self.write_lock:
+            self.connect(True)
+            conn = self.connection()
+            result = conn.wal_checkpoint(mode=mode)
+            log.info("checkpoint wal with return: %r", result)
+            self.close()
 
     def start_up(self,
                  overwrite: bool = False,
@@ -256,52 +260,53 @@ class GidSqliteApswDatabase(APSWDatabase):
         self.checkpoint()
         self.optimize()
         with self.write_lock:
+            self.conns.clear()
             self.close()
 
         log.debug("finished shutting down %r", self)
         self.started_up = False
 
     def get_all_server(self, ordered_by=Server.id) -> tuple[Server]:
-        with self.connection_context() as ctx:
-            result = tuple(Server.select().join(RemoteStorage, on=Server.remote_storage).order_by(ordered_by))
+
+        result = tuple(Server.select().join(RemoteStorage, on=Server.remote_storage).order_by(ordered_by))
 
         return result
 
     def get_log_files(self, server: Server = None, ordered_by=LogFile.id) -> tuple[LogFile]:
-        with self:
-            query = LogFile.select(LogFile, Server, GameMap, Version)
-            query = query.join(Server, on=LogFile.server).join(RemoteStorage, on=Server.remote_storage).switch(LogFile)
-            query = query.join(GameMap, on=LogFile.game_map, join_type=JOIN.LEFT_OUTER).switch(LogFile)
-            query = query.join(Version, on=LogFile.version, join_type=JOIN.LEFT_OUTER).switch(LogFile)
-            if server is None:
-                return tuple(query.order_by(ordered_by))
-            return tuple(query.where(LogFile.server_id == server.id).order_by(ordered_by))
+
+        query = LogFile.select(LogFile, Server, GameMap, Version)
+        query = query.join(Server, on=LogFile.server).join(RemoteStorage, on=Server.remote_storage).switch(LogFile)
+        query = query.join(GameMap, on=LogFile.game_map, join_type=JOIN.LEFT_OUTER).switch(LogFile)
+        query = query.join(Version, on=LogFile.version, join_type=JOIN.LEFT_OUTER).switch(LogFile)
+        if server is None:
+            return tuple(query.order_by(ordered_by))
+        return tuple(query.where(LogFile.server_id == server.id).order_by(ordered_by))
 
     def get_all_log_levels(self, ordered_by=LogLevel.id) -> tuple[LogLevel]:
-        with self.connection_context() as ctx:
-            result = tuple(LogLevel.select().order_by(ordered_by))
+
+        result = tuple(LogLevel.select().order_by(ordered_by))
 
         return result
 
     def get_all_arma_functions(self, ordered_by=ArmaFunction.id) -> tuple[ArmaFunction]:
-        self.connect(True)
+
         result = tuple(ArmaFunction.select(ArmaFunction).join(ArmaFunctionAuthorPrefix).order_by(ordered_by).execute())
 
         return result
 
     def get_all_game_maps(self, ordered_by=GameMap.id) -> tuple[GameMap]:
-        self.connect(True)
+
         result = tuple(GameMap.select(GameMap).order_by(ordered_by))
 
         return result
 
     def get_all_origins(self, ordered_by=RecordOrigin.id) -> tuple[RecordOrigin]:
-        self.connect(True)
+
         result = tuple(RecordOrigin.select().order_by(ordered_by))
         return result
 
     def get_all_versions(self, ordered_by=Version) -> tuple[Version]:
-        self.connect(True)
+
         result = tuple(Version.select(Version).order_by(ordered_by))
         return result
 
@@ -326,20 +331,20 @@ class GidSqliteApswDatabase(APSWDatabase):
         self.close()
 
     def get_unique_server_ips(self) -> tuple[str]:
-        with self:
-            _out = tuple(set(s.ip for s in Server.select() if s.ip is not None))
 
-            return _out
+        _out = tuple(set(s.ip for s in Server.select() if s.ip is not None))
+
+        return _out
 
     def get_unique_campaign_ids(self) -> tuple[int]:
-        with self:
-            _out = set(l.campaign_id for l in LogFile.select().where(LogFile.unparsable == False).objects() if l.campaign_id is not None)
-            return tuple(sorted(_out))
+
+        _out = set(l.campaign_id for l in LogFile.select().where(LogFile.unparsable == False).objects() if l.campaign_id is not None)
+        return tuple(sorted(_out))
 
     def __repr__(self) -> str:
         repr_attrs = ("database_name", "config", "auto_backup", "thread_safe", "autoconnect")
         _repr = f"{self.__class__.__name__}"
-        attr_text = ', '.join(f"{attr_name}={getattr(self, attr_name)}" for attr_name in repr_attrs)
+        attr_text = ', '.join(f"{attr_name}={getattr(self, attr_name, None)}" for attr_name in repr_attrs)
         return f"{_repr}({attr_text})"
 
 

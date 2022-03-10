@@ -787,8 +787,8 @@ class LogLevel(BaseModel):
 
 
 class RecordClass(BaseModel):
-    name = TextField(unique=True, index=True)
     record_class_manager: "RecordClassManager" = None
+    name = TextField(unique=True, index=True)
     comments = CommentsField()
     marked = MarkedField()
     _record_class: "RECORD_CLASS_TYPE" = None

@@ -227,6 +227,7 @@ class ForeignKeyCache:
         log.info("all cached foreign keys were reseted.")
 
     def preload_all(self) -> None:
+        self.reset_all()
         _ = self.all_log_levels
         _ = self.all_arma_file_objects
         _ = self.all_game_map_objects

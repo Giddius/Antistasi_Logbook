@@ -14,7 +14,8 @@ from pathlib import Path
 from functools import partial
 from datetime import datetime, timezone
 from threading import Event, current_thread
-from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor, wait
+from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor, wait, Future
+
 from copy import deepcopy
 # * Third Party Imports --------------------------------------------------------------------------------->
 from dateutil.tz import UTC
@@ -22,7 +23,7 @@ from dateutil.tz import UTC
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.gid_signal.interface import get_signal
-
+from gidapptools.general_helper.conversion import number_to_pretty
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord, RecordClass
 from antistasi_logbook.updating.remote_managers import remote_manager_registry
@@ -266,17 +267,17 @@ class Updater:
             self.signaler.change_update_text.emit("Updating Record-Classes")
 
         def _find_record_class(_record: "LogRecord") -> tuple["LogRecord", "RecordClass"]:
-            _record_class = self.database.record_processor.determine_record_class(_record)
+            _record_class = self.backend.record_class_manager.determine_record_class(_record)
             return _record, _record_class
 
-        log.info("updating record classes")
+        log.info("updating record classes, Server: %r, LogFile: %r, force: %r", server, log_file, force)
         # batch_size = (32767 // 2) - 1
-        batch_size = 1_000_000
+        batch_size = 100_000
         if server is not None:
             batch_size = batch_size // 10
         elif log_file is not None:
             batch_size = batch_size // 10
-        report_size = batch_size // 100
+        report_size = batch_size // 10
 
         tasks = []
         to_update = []
@@ -289,13 +290,14 @@ class Updater:
 
                 if force is True:
                     self.signaler.change_update_text.emit(f"Updating Record-Classes --- Checked {idx:,} Records")
-            if idx % (report_size * 10) == 0:
-                sleep(0)
+                else:
+                    sleep(0.01)
+
             if record.record_class != record_class:
 
                 to_update.append((int(record_class.id), int(record.id)))
                 if len(to_update) >= batch_size:
-                    log.debug("updating %r records with their record class", len(to_update))
+                    log.debug("updating %s records with their record class", number_to_pretty(len(to_update)))
 
                     task = self.database.record_inserter.many_update_record_class(list(to_update))
                     tasks.append(task)
@@ -303,12 +305,20 @@ class Updater:
                     to_update.clear()
 
         if len(to_update) > 0:
-            log.debug("updating %r records with their record class", len(to_update))
+            log.debug("updating %s records with their record class", number_to_pretty(len(to_update)))
             task = self.database.record_inserter.many_update_record_class(list(to_update))
             tasks.append(task)
             to_update.clear()
+        running_tasks = [fu for fu in tasks if fu.done() is False]
+        old_len = len(running_tasks)
+        while running_tasks:
+            if len(running_tasks) < old_len:
+                log.info("waiting for %s tasks to finish", number_to_pretty(len(running_tasks)))
+            else:
+                sleep(1)
+            old_len = len(running_tasks)
+            running_tasks = [fu for fu in tasks if fu.done() is False]
 
-        wait(tasks, return_when=ALL_COMPLETED)
         log.info("finished updating record classes")
         if force is True:
             self.signaler.change_update_text.emit("")
@@ -321,7 +331,6 @@ class Updater:
         log.debug("emiting after_updates_signal")
         self.signaler.send_update_finished()
         remote_manager_registry.close()
-        self.database.checkpoint()
         self.database.close()
 
     def update(self) -> None:
@@ -361,6 +370,7 @@ class Updater:
 
             if amount_deleted > 0:
                 if self.stop_event.is_set() is False:
+                    self.database.checkpoint()
                     self.database.vacuum()
                     self.database.optimize()
 
