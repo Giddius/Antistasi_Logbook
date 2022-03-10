@@ -1,4 +1,4 @@
-autoflake==1.4
+autoflake
 autopep8
 cairosvg
 dateparser
@@ -11,16 +11,16 @@ matplotlib
 memory-profiler
 mypy
 objectgraph
-peewee-erd==0.1.3
+peewee-erd
 pep517
 pipdeptree
 pipreqs
-pp-ez==0.2.0
+pp-ez
 pprintpp
 pydeps
 pylint
 pympler
 tabulate
 tomlkit
-pip-tools==6.5.1
+pip-tools
 pipreqs
