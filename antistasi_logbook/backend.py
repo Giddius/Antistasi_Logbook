@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Iterable, Optional
 from pathlib import Path
 import pp
 from weakref import WeakSet
-
+import gc
 from datetime import datetime
 from itertools import chain
 from threading import Lock, Event
@@ -136,6 +136,7 @@ class Backend:
 
     """
     all_parsing_context: WeakSet["LogParsingContext"] = WeakSet()
+    minimum_thread_amount = 10
 
     def __init__(self, database: "GidSqliteApswDatabase", config: "GidIniConfig", update_signaler: "UpdaterSignaler" = NoneSignaler()) -> None:
         self._thread_pool: ThreadPoolExecutor = None
@@ -181,6 +182,11 @@ class Backend:
         return QApplication.instance()
 
     @property
+    def max_threads(self) -> int:
+        max_threads = self.config.get("general", "max_threads")
+        return max(self.minimum_thread_amount, max_threads)
+
+    @property
     def thread_pool(self) -> ThreadPoolExecutor:
         """
         Provides the shared thread-pool each part of the Backend(except the `RecordInserter`) uses.
@@ -195,7 +201,7 @@ class Backend:
             ThreadPoolExecutor: [description]
         """
         if self._thread_pool is None:
-            self._thread_pool = ThreadPoolExecutor(max_workers=max(1, int(self.config.get("general", "max_threads") * 0.34)), thread_name_prefix="backend")
+            self._thread_pool = ThreadPoolExecutor(max_workers=max(1, int(self.max_threads * 0.34)), thread_name_prefix="backend")
         return self._thread_pool
 
     @property
@@ -213,7 +219,7 @@ class Backend:
             ThreadPoolExecutor: [description]
         """
         if self._inserting_thread_pool is None:
-            self._inserting_thread_pool = ThreadPoolExecutor(max_workers=max(1, int(self.config.get("general", "max_threads") * 0.67)), thread_name_prefix="backend_inserting")
+            self._inserting_thread_pool = ThreadPoolExecutor(max_workers=max(1, int(self.max_threads * 0.67)), thread_name_prefix="backend_inserting")
         return self._inserting_thread_pool
 
     @property
@@ -287,35 +293,35 @@ class Backend:
         """
         Signals the shutdown to all Backend sub_objects via the `stop`-event. Waits for a limited time on all parsing_context futures and then ensures thes shutdown of all sub_objects
         that can be shut down.
-
-
         """
-        for obj in self.dependent_objects:
-            obj.shutdown()
-        self.events.stop.set()
-        all_futures = []
-        log.debug("checking if all ctx are closed")
-        for ctx in self.all_parsing_context:
-            log.debug("checking ctx %r", ctx)
-            while ctx.is_open is True:
-                sleep(0.0001)
-            all_futures += ctx.futures
-        log.debug("waiting for all futures to finish")
-        wait(all_futures, return_when=ALL_COMPLETED, timeout=3.0)
         try:
+            for obj in self.dependent_objects:
+                obj.shutdown()
+            self.events.stop.set()
+            all_futures = []
+            log.debug("checking if all ctx are closed")
+            while len(self.all_parsing_context) > 0:
+                ctx = self.all_parsing_context.pop()
+                log.debug("checking ctx %r", ctx)
+                while ctx.is_open is True:
+                    sleep(0.0001)
+                all_futures += ctx.futures
+            log.debug("waiting for all futures to finish")
+            wait(all_futures, return_when=ALL_COMPLETED, timeout=3.0)
+            all_futures.clear()
             if self.update_manager is not None and self.update_manager.is_alive() is True:
                 self.update_manager.shutdown()
             self.remote_manager_registry.close()
             self.updater.shutdown()
             self.records_inserter.shutdown()
             self.database.shutdown()
-            self.thread_pool.shutdown(cancel_futures=True, wait=True)
-            self.inserting_thread_pool.shutdown(cancel_futures=True, wait=True)
-            self._thread_pool = None
-            self._inserting_thread_pool = None
-
+            self.thread_pool.shutdown(wait=True)
+            self.inserting_thread_pool.shutdown(wait=True)
+            self._thread_pool._threads.clear()
+            self._inserting_thread_pool._threads.clear()
+            gc.collect()
         except Exception as e:
-            log.debug(e, exc_info=True)
+            log.error(e, exc_info=True)
 
     def move_db(self, new_path: Path):
         # TODO: make this work consistently and not with prayers, also make one general function for moving, backup and backup-compress

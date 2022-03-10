@@ -163,6 +163,7 @@ class LastUpdatedLabel(QLabel):
             self.killTimer(self.timer_id)
             self.timer_id = None
         self.is_running = False
+        self.status_bar.backend.database.close()
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(status_bar={self.status_bar!r})"
@@ -262,6 +263,7 @@ class LogbookStatusBar(QStatusBar):
 
     def shutdown(self):
         self.last_updated_label.shutdown()
+        self.backend.database.close()
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(main_window={self.main_window!r})"

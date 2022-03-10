@@ -13,7 +13,7 @@ from pathlib import Path
 from weakref import WeakSet
 from functools import cached_property
 from threading import Lock
-
+import atexit
 # * Third Party Imports --------------------------------------------------------------------------------->
 from apsw import Connection, SQLITE_CHECKPOINT_TRUNCATE, SQLITE_OK
 from peewee import JOIN, DatabaseProxy
@@ -256,12 +256,12 @@ class GidSqliteApswDatabase(APSWDatabase):
         log.debug("shutting down %r", self)
         with self.write_lock:
             self.session_meta_data.save()
-
-        self.checkpoint()
-        self.optimize()
-        with self.write_lock:
-            self.conns.clear()
-            self.close()
+        with self.connection_context() as ctx:
+            self.checkpoint()
+            self.optimize()
+            self.checkpoint()
+            with self.write_lock:
+                self.conns.clear()
 
         log.debug("finished shutting down %r", self)
         self.started_up = False
@@ -279,50 +279,51 @@ class GidSqliteApswDatabase(APSWDatabase):
         query = query.join(GameMap, on=LogFile.game_map, join_type=JOIN.LEFT_OUTER).switch(LogFile)
         query = query.join(Version, on=LogFile.version, join_type=JOIN.LEFT_OUTER).switch(LogFile)
         if server is None:
-            return tuple(query.order_by(ordered_by))
-        return tuple(query.where(LogFile.server_id == server.id).order_by(ordered_by))
+            return tuple(query.order_by(ordered_by).iterator())
+        return tuple(query.where(LogFile.server_id == server.id).order_by(ordered_by).iterator())
 
     def get_all_log_levels(self, ordered_by=LogLevel.id) -> tuple[LogLevel]:
 
-        result = tuple(LogLevel.select().order_by(ordered_by))
+        result = tuple(LogLevel.select().order_by(ordered_by).iterator())
 
         return result
 
     def get_all_arma_functions(self, ordered_by=ArmaFunction.id) -> tuple[ArmaFunction]:
 
-        result = tuple(ArmaFunction.select(ArmaFunction).join(ArmaFunctionAuthorPrefix).order_by(ordered_by).execute())
+        result = tuple(ArmaFunction.select(ArmaFunction).join(ArmaFunctionAuthorPrefix).order_by(ordered_by).iterator())
 
         return result
 
     def get_all_game_maps(self, ordered_by=GameMap.id) -> tuple[GameMap]:
 
-        result = tuple(GameMap.select(GameMap).order_by(ordered_by))
+        result = tuple(GameMap.select(GameMap).order_by(ordered_by).iterator())
 
         return result
 
     def get_all_origins(self, ordered_by=RecordOrigin.id) -> tuple[RecordOrigin]:
 
-        result = tuple(RecordOrigin.select().order_by(ordered_by))
+        result = tuple(RecordOrigin.select().order_by(ordered_by).iterator())
         return result
 
     def get_all_versions(self, ordered_by=Version) -> tuple[Version]:
 
-        result = tuple(Version.select(Version).order_by(ordered_by))
+        result = tuple(Version.select(Version).order_by(ordered_by).iterator())
         return result
 
     def iter_all_records(self, server: Server = None, log_file: LogFile = None, only_missing_record_class: bool = False) -> Generator[LogRecord, None, None]:
-        self.foreign_key_cache.preload_all()
+
         self.connect(True)
+        self.foreign_key_cache.preload_all()
 
         query = LogRecord.select(LogRecord, RecordClass).join(RecordClass, join_type=JOIN.LEFT_OUTER)
         if log_file is not None:
-            query = query.where(LogRecord.log_file_id == log_file.id)
+            query = query.switch(LogRecord).join(LogFile).where(LogRecord.log_file_id == log_file.id)
         elif server is not None:
             nested = LogFile.select().where(LogFile.server_id == server.id)
-            query = query.where((LogRecord.log_file << nested))
+            query = query.switch(LogRecord).join(LogFile).where(LogRecord.log_file << nested)
 
         if only_missing_record_class is True:
-            query = query.where((LogRecord.record_class >> None))
+            query = query.where(LogRecord.record_class >> None)
         for record in query.iterator():
             record.called_by = self.foreign_key_cache.get_arma_file_by_id(record.called_by_id)
             record.logged_from = self.foreign_key_cache.get_arma_file_by_id(record.logged_from_id)
@@ -332,13 +333,13 @@ class GidSqliteApswDatabase(APSWDatabase):
 
     def get_unique_server_ips(self) -> tuple[str]:
 
-        _out = tuple(set(s.ip for s in Server.select() if s.ip is not None))
+        _out = tuple(set(s.ip for s in Server.select().iterator() if s.ip is not None))
 
         return _out
 
     def get_unique_campaign_ids(self) -> tuple[int]:
 
-        _out = set(l.campaign_id for l in LogFile.select().where(LogFile.unparsable == False).objects() if l.campaign_id is not None)
+        _out = set(l.campaign_id for l in LogFile.select().where(LogFile.unparsable == False).iterator() if l.campaign_id is not None)
         return tuple(sorted(_out))
 
     def __repr__(self) -> str:

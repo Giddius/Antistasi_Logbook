@@ -198,7 +198,7 @@ class LogParsingContext:
             return
 
         if self.log_file_data.get("game_map") is None:
-            game_map_item = self.foreign_key_cache.all_game_map_objects.get(finder.game_map)
+            game_map_item = self.foreign_key_cache.get_game_map_case_insensitive(finder.game_map)
             if game_map_item is None:
                 game_map_item = GameMap(name=finder.game_map, full_name=f"PLACE_HOLDER {finder.game_map}")
                 self.futures.append(self.inserter.insert_game_map(game_map=game_map_item))

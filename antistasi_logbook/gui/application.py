@@ -271,6 +271,8 @@ class AntistasiLogbookApplication(QApplication):
         super().quit()
 
     def on_quit(self):
+        if self._gui_thread_pool:
+            self._gui_thread_pool.shutdown(wait=True)
         temp_path = self.meta_paths.temp_dir
         log.debug("temp_path: %r", temp_path.as_posix())
         for item in temp_path.iterdir():

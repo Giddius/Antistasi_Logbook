@@ -22,7 +22,7 @@ import pyqtgraph as pg
 from PySide6 import QtCore
 from PySide6.QtGui import QPen, QFont, QColor, QBrush
 from PySide6.QtCore import Qt, Slot, QSize, Signal
-from PySide6.QtWidgets import QLabel, QWidget, QSpinBox, QGroupBox, QStatusBar, QFormLayout, QDoubleSpinBox, QGridLayout, QHBoxLayout, QMainWindow, QPushButton, QVBoxLayout, QApplication
+from PySide6.QtWidgets import QLabel, QWidget, QSpinBox, QGroupBox, QStatusBar, QAbstractSpinBox, QFormLayout, QDoubleSpinBox, QGridLayout, QHBoxLayout, QMainWindow, QPushButton, QVBoxLayout, QApplication
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -111,19 +111,22 @@ class PaddingOptionsBox(QGroupBox):
     y_padding_factor_changed = Signal(float)
     x_padding_factor_changed = Signal(float)
 
-    default_y_padding_factor: float = 0.15
-    default_x_padding_factor: float = 0.15
+    default_y_padding_factor: float = 0.35
+    default_x_padding_factor: float = 0.10
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setLayout(QFormLayout())
         self.y_padding_factor_selector = QDoubleSpinBox(self)
+        self.y_padding_factor_selector.setDecimals(2)
         self.y_padding_factor_selector.setValue(self.default_y_padding_factor)
+
         self.y_padding_factor_selector.setSingleStep(0.05)
         self.y_padding_factor_selector.valueChanged.connect(self.y_padding_factor_changed.emit)
         self.layout.addRow("Y", self.y_padding_factor_selector)
 
         self.x_padding_factor_selector = QDoubleSpinBox(self)
+        self.x_padding_factor_selector.setDecimals(2)
         self.x_padding_factor_selector.setValue(self.default_x_padding_factor)
         self.x_padding_factor_selector.setSingleStep(0.05)
         self.x_padding_factor_selector.valueChanged.connect(self.x_padding_factor_changed.emit)
@@ -135,11 +138,11 @@ class PaddingOptionsBox(QGroupBox):
 
     @property
     def y_padding_factor(self) -> float:
-        return self.y_padding_factor_selector.value()
+        return round(self.y_padding_factor_selector.value(), 2)
 
     @property
     def x_padding_factor(self) -> float:
-        return self.x_padding_factor_selector.value()
+        return round(self.x_padding_factor_selector.value(), 2)
 
 
 class ControlBox(QGroupBox):
@@ -305,7 +308,6 @@ class StatsWindow(QMainWindow):
         seconds_diff = max(self.all_timestamps) - min(self.all_timestamps)
 
         _out = seconds_diff * self.control_box.padding_factor_select_box.x_padding_factor
-        log.debug("x_padding_seconds = %r from seconds %r and factor %r", _out, seconds_diff, self.control_box.padding_factor_select_box.x_padding_factor)
         return _out
 
     @cached_property
@@ -353,6 +355,7 @@ class StatsWindow(QMainWindow):
         self.general_setup()
         self.plot_setup()
         self.control_setup()
+        self.resize(QSize(self.size().width() * 1.5, self.size().height()))
 
     def general_setup(self):
         self.resize(1500, 1000)
@@ -471,11 +474,9 @@ class StatsWindow(QMainWindow):
                 self.status_bar.clearMessage()
 
     def y_factor_changed(self, factor: float):
-        log.debug("y_padding_factor changed to %r", factor)
         self.change_limits()
 
     def x_factor_changed(self, factor: float):
-        log.debug("x_padding_factor changed to %r", factor)
         del self.x_padding_seconds
         del self.min_timestamp
         del self.max_timestamp

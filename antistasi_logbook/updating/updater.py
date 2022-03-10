@@ -262,6 +262,9 @@ class Updater:
 
         wait(tasks, return_when=ALL_COMPLETED, timeout=None)
 
+    def emit_change_update_text(self, text):
+        self.thread_pool.submit(self.signaler.change_update_text.emit, text)
+
     def _update_record_classes(self, server: Server = None, log_file: LogFile = None, force: bool = False):
         if force is True:
             self.signaler.change_update_text.emit("Updating Record-Classes")
@@ -272,7 +275,7 @@ class Updater:
 
         log.info("updating record classes, Server: %r, LogFile: %r, force: %r", server, log_file, force)
         # batch_size = (32767 // 2) - 1
-        batch_size = 100_000
+        batch_size = 10_000
         if server is not None:
             batch_size = batch_size // 10
         elif log_file is not None:
@@ -289,7 +292,7 @@ class Updater:
             if idx % report_size == 0:
 
                 if force is True:
-                    self.signaler.change_update_text.emit(f"Updating Record-Classes --- Checked {idx:,} Records")
+                    self.emit_change_update_text(f"Updating Record-Classes --- Checked {idx:,} Records")
                 else:
                     sleep(0.01)
 
@@ -321,7 +324,7 @@ class Updater:
 
         log.info("finished updating record classes")
         if force is True:
-            self.signaler.change_update_text.emit("")
+            self.emit_change_update_text("")
 
     def before_updates(self):
         log.debug("emiting before_updates_signal")

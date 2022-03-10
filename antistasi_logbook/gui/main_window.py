@@ -467,6 +467,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
                 data.append(item_data)
             data = sorted(data, key=lambda x: (x.get("avg_players"), x.get("sample_size")), reverse=True)
             self.calculated_average_players.emit(data)
+            self.backend.database.close()
 
         self.calculated_average_players.connect(self.show_avg_player_window_helper)
 
@@ -513,6 +514,10 @@ class AntistasiLogbookMainWindow(QMainWindow):
         data_widget.setMinimumSize(QSize(600, 600))
         sub_sub_layout.addWidget(data_widget)
 
+        screen_center_pos = self.app.screenAt(self.pos()).availableGeometry().center()
+        fg = window.frameGeometry()
+        new_center_pos = QPoint(screen_center_pos.x() - fg.width(), screen_center_pos.y() - fg.height())
+        window.move(new_center_pos)
         window.show()
 
     def show_folder_window(self):
@@ -544,6 +549,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
                 self.menubar.single_update_action.setEnabled(True)
                 self.menubar.reassign_record_classes_action.setEnabled(True)
                 self.backend.database.close()
+                self.update_thread = None
 
         self.update_thread = Thread(target=_run_reassingment, name="run_reassignment_Thread")
         self.update_thread.start()

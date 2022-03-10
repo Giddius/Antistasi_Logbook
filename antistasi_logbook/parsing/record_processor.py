@@ -114,7 +114,7 @@ class RecordInserter:
 
                 cur.executemany(self.insert_records_phrase, params)
                 txn.commit()
-                log.debug("inserted %s", number_to_pretty(len(records)))
+                log.info("inserted %s", number_to_pretty(len(records)))
         # for record in records:
         #     params = record.to_sql_params(log_file=context._log_file)
         #     self.database.execute_sql(self.insert_phrase, params=params)
@@ -143,7 +143,8 @@ class RecordInserter:
             with self.database.atomic() as txn:
                 cur = self.database.cursor(True)
                 cur.executemany(self.update_record_record_class_phrase, pairs)
-
+                txn.commit()
+                log.info("inserted new record class for %r records", len(pairs))
         return len(pairs)
 
     def update_record_class(self, log_record: LogRecord, record_class: RecordClass) -> Future:

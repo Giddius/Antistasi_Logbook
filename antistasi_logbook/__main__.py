@@ -18,7 +18,8 @@ from gidapptools.meta_data.interface import get_meta_config
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook import setup
 from antistasi_logbook.gui.main_window import start_gui
-
+import atexit
+from time import sleep
 setup()
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
