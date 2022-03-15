@@ -10,14 +10,19 @@ Soon.
 from typing import TYPE_CHECKING, Union
 from pathlib import Path
 from collections import defaultdict
+
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
 from sortedcontainers import SortedSet
+
+# * Gid Imports ----------------------------------------------------------------------------------------->
+from gidapptools import get_logger
 from gidapptools.general_helper.general_classes import GenericThreadsafePool
+
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.records.base_record import BaseRecord, RecordFamily
 from antistasi_logbook.storage.models.models import LogRecord, RecordClass
-from gidapptools import get_logger
+from frozendict import frozendict
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.records.abstract_record import AbstractRecord
@@ -66,8 +71,9 @@ class RecordClassChecker:
         self.default_record_class = default_record_class
         self.generic_record_classes = generic_record_classes
         self.antistasi_record_classes = antistasi_record_classes
-        self.family_handler_table = {RecordFamily.GENERIC: self._determine_generic_record_class,
-                                     RecordFamily.ANTISTASI: self._determine_antistasi_record_class}
+        self.family_handler_table = frozendict({RecordFamily.GENERIC: self._determine_generic_record_class,
+                                                RecordFamily.ANTISTASI: self._determine_antistasi_record_class})
+        self.foreign_key_cache.preload_all()
 
     def _determine_generic_record_class(self, log_record: LogRecord) -> "RecordClass":
         for stored_class in self.generic_record_classes:
@@ -78,7 +84,7 @@ class RecordClassChecker:
         try:
             function_name = log_record.logged_from.function_name
         except AttributeError as e:
-            log.critical("Error %r with log_record %r", e, log_record)
+            log.critical("Error %r with log_record %r, of log_file %r from server %r", e, log_record, log_record.log_file, log_record.log_file.server)
             return self.antistasi_record_classes["DEFAULT"].model
 
         sub_set = self.antistasi_record_classes.get(function_name, None)

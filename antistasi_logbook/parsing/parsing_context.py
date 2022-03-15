@@ -15,7 +15,7 @@ from threading import Lock, RLock
 from contextlib import contextmanager
 from collections import deque
 from concurrent.futures import FIRST_EXCEPTION, Future, wait
-import pp
+
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
 from dateutil.tz import UTC, tzoffset
@@ -25,15 +25,16 @@ from playhouse.shortcuts import model_to_dict
 from gidapptools import get_logger
 from gidapptools.general_helper.enums import MiscEnum
 from gidapptools.gid_signal.interface import get_signal
-
+from collections import namedtuple
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.storage.models.models import GameMap, LogFile, Version, LogRecord
+from antistasi_logbook.parsing.raw_record import RawRecord
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
 
-    from antistasi_logbook.parsing.parser import RawRecord, MetaFinder, ForeignKeyCache
+    from antistasi_logbook.parsing.parser import MetaFinder, ForeignKeyCache
     from antistasi_logbook.parsing.record_processor import RecordInserter, ManyRecordsInsertResult
     from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 
@@ -51,26 +52,29 @@ if TYPE_CHECKING:
 
 # region [Constants]
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
-
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
 
+try:
+    from antistasi_logbook.parsing.record_line import RecordLine
+except ImportError:
+    @attr.s(slots=True, weakref_slot=False, frozen=True)
+    class RecordLine:
+        content: str = attr.ib()
+        start: int = attr.ib()
 
-@attr.s(auto_detect=True, auto_attribs=True, slots=True, weakref_slot=True, frozen=True)
-class RecordLine:
-    content: str = attr.ib()
-    start: int = attr.ib()
+        def __repr__(self) -> str:
+            return self.content
 
-    def __repr__(self) -> str:
-        return self.content
+        def __str__(self) -> str:
+            return self.content
 
-    def __str__(self) -> str:
-        return self.content
-
-    def __eq__(self, o: object) -> bool:
-        if isinstance(o, self.__class__):
-            return self.content == o.content and self.start == o.start
+        def __eq__(self, o: object) -> bool:
+            if isinstance(o, self.__class__):
+                return self.content == o.content and self.start == o.start
+            return NotImplemented
 
 
 LINE_ITERATOR_TYPE = Generator[RecordLine, None, None]
@@ -176,7 +180,7 @@ class LogParsingContext:
     def _log_record_batch_size(self) -> int:
 
         if self._bulk_create_batch_size is None:
-            self._bulk_create_batch_size = max(self.config.get("parsing", "record_insert_batch_size", default=99999), (32767 // (len(LogRecord.get_meta().columns) * 1)))
+            self._bulk_create_batch_size = RawRecord.insert_sql_phrase.batch_size
 
         return self._bulk_create_batch_size
 
@@ -247,6 +251,7 @@ class LogParsingContext:
             text = '\n'.join(i.content for i in lines if i.content)
             self.log_file_data["startup_text"] = text
 
+    @profile
     def _get_line_iterator(self) -> LINE_ITERATOR_TYPE:
         line_number = 0
         with self._log_file.open() as f:
@@ -260,6 +265,7 @@ class LogParsingContext:
                 yield RecordLine(content=line, start=line_number)
 
     @property
+    @profile
     def line_iterator(self) -> LINE_ITERATOR_TYPE:
         if self._line_iterator is None:
             self._line_iterator = self._get_line_iterator()
@@ -272,6 +278,7 @@ class LogParsingContext:
 
         return self._current_line
 
+    @profile
     def advance_line(self) -> None:
         self._current_line = next(self.line_iterator, ...)
 

@@ -12,17 +12,16 @@ from math import ceil
 from typing import TYPE_CHECKING, Any, Union, Iterable, Optional
 from pathlib import Path
 from datetime import datetime
-from functools import cached_property, partial
+from functools import cached_property
 from threading import RLock
-from statistics import mean, stdev, median
-from numpy import average
+
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
 import pyqtgraph as pg
 from PySide6 import QtCore
-from PySide6.QtGui import QPen, QFont, QColor, QBrush
+from PySide6.QtGui import QPen, QFont, QColor
 from PySide6.QtCore import Qt, Slot, QSize, Signal
-from PySide6.QtWidgets import QLabel, QWidget, QSpinBox, QGroupBox, QStatusBar, QAbstractSpinBox, QFormLayout, QDoubleSpinBox, QGridLayout, QHBoxLayout, QMainWindow, QPushButton, QVBoxLayout, QApplication
+from PySide6.QtWidgets import QLabel, QWidget, QSpinBox, QGroupBox, QStatusBar, QFormLayout, QGridLayout, QHBoxLayout, QMainWindow, QPushButton, QVBoxLayout, QApplication, QDoubleSpinBox
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger

@@ -10,7 +10,7 @@ Soon.
 import os
 import base64
 from io import BytesIO
-from typing import Union, Literal, Optional
+from typing import Union, Literal, Optional, Any
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
@@ -205,9 +205,14 @@ class CompressedTextField(CompressedField):
 
 
 class MarkedField(BooleanField):
+    _default_kwarg_dict: dict[str, Any] = {"index": True,
+                                           "default": False,
+                                           "help_text": "Mark items to find them easier",
+                                           "verbose_name": "Marked"}
 
     def __init__(self, **kwargs):
-        super().__init__(index=True, default=False, help_text="Mark items to find them easier", verbose_name="Marked", **kwargs)
+        actual_kwargs = self._default_kwarg_dict | kwargs
+        super().__init__(**actual_kwargs)
 
 
 class CommentsField(CompressedTextField):

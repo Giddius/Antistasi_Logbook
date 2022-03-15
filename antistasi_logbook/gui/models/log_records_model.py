@@ -14,7 +14,7 @@ from functools import partial
 
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QFont, QAction, QFontMetrics
-from PySide6.QtCore import Qt, Slot, QSize, Signal, QModelIndex
+from PySide6.QtCore import Qt, Slot, QSize, Signal, QModelIndex, QSettings
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
@@ -52,7 +52,6 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
@@ -87,13 +86,21 @@ class LogRecordsModel(BaseQueryDataModel):
         self.proxy_model = BaseProxyModel()
         self.proxy_model.setSourceModel(self)
 
-    def _create_message_font(self) -> QFont:
-        font: QFont = self.app.font()
-        font.setFamily("Lucida Console")
+    def set_message_font(self, font):
+        self.message_font = font
+        settings = QSettings()
+        settings.setValue(f"{self.name}_message_font", font)
 
-        font.setWeight(QFont.Light)
-        font.setStyleHint(QFont.Monospace)
-        font.setStyleStrategy(QFont.PreferQuality)
+    def _create_message_font(self) -> QFont:
+        settings = QSettings()
+        font = settings.value(f"{self.name}_message_font", None)
+        if font is None:
+            font: QFont = self.app.font()
+            font.setFamily("Lucida Console")
+
+            font.setWeight(QFont.Light)
+            font.setStyleHint(QFont.Monospace)
+            font.setStyleStrategy(QFont.PreferQuality)
 
         return font
 
@@ -169,6 +176,7 @@ class LogRecordsModel(BaseQueryDataModel):
     def _get_font_data(self, index: "INDEX_TYPE") -> Any:
         if index.column_item.name in {"message"}:
             return self.message_font
+        return self.message_font
 
     def _get_record(self, _item_data, _all_log_files):
         record_class = self.backend.record_class_manager.get_by_id(_item_data.get('record_class'))

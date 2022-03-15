@@ -32,7 +32,7 @@ from antistasi_logbook.gui.views.log_files_query_view import LogFilesQueryTreeVi
 from antistasi_logbook.gui.widgets.detail_view_widget import ServerDetailWidget, LogFileDetailWidget, LogRecordDetailView
 from antistasi_logbook.gui.views.log_records_query_view import LogRecordsQueryView
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-from antistasi_logbook.gui.widgets.tool_bars import LogFileToolBar
+
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
@@ -314,7 +314,7 @@ class MainWidget(QWidget):
         log_record_model.request_view_change_visibility.connect(self.query_result_tab.setEnabled)
         log_record_model.request_view_change_visibility.connect(self.query_result_tab.setVisible)
         self.main_tabs_widget.setCurrentWidget(self.query_result_tab)
-
+        self.query_result_tab.tool_bar_item.set_title_from_log_file(log_file)
         self.query_result_tab.setModel(log_record_model)
         self.on_tab_changed(self.main_tabs_widget.currentIndex())
 

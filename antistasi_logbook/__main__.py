@@ -9,7 +9,7 @@ Soon.
 # * Standard Library Imports ---------------------------------------------------------------------------->
 from typing import TYPE_CHECKING
 from pathlib import Path
-import sys
+
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.meta_data import get_meta_info, get_meta_paths
@@ -18,8 +18,7 @@ from gidapptools.meta_data.interface import get_meta_config
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook import setup
 from antistasi_logbook.gui.main_window import start_gui
-import atexit
-from time import sleep
+
 setup()
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
@@ -57,6 +56,5 @@ def main():
 
 # region[Main_Exec]
 if __name__ == '__main__':
-
     main()
 # endregion[Main_Exec]

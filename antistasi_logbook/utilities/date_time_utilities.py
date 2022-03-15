@@ -34,7 +34,6 @@ from antistasi_logbook.errors import DurationTimezoneError
 
 # region [Logging]
 
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 
 log = get_logger(__name__)
 

@@ -7,16 +7,17 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from typing import TYPE_CHECKING, Any, Iterable, Optional
+from typing import TYPE_CHECKING, Any, Iterable, Optional, ClassVar
 from pathlib import Path
 from datetime import datetime
-
+import re
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.storage.models.models import LogFile, LogRecord, RecordOrigin
-
+from antistasi_logbook.storage.models.models import LogFile, LogRecord, RecordOrigin, BaseModel
+import attr
+from gidapptools.general_helper.string_helper import string_strip
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.parsing.parser import RecordLine, RecordClass
@@ -35,14 +36,31 @@ if TYPE_CHECKING:
 
 # region [Constants]
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
-
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
 
 
-class RawRecord:
+@attr.s(frozen=True, kw_only=True, slots=True, weakref_slot=True, auto_attribs=True, auto_detect=True)
+class RawSQLPhrase:
+    phrase: str = attr.ib(converter=string_strip)
+    value_names: tuple[str] = attr.ib()
+    value_names_regex: ClassVar = re.compile(r"\((?P<value_names>[\"\w\,\s]+)\)\s*VALUES")
 
+    @value_names.default
+    def _parse_value_names(self) -> tuple[str]:
+        raw_value_names = self.value_names_regex.search(self.phrase).group("value_names")
+        value_names = [name.strip().strip('"') for name in raw_value_names.split(",")]
+        return tuple(value_names)
+
+    @property
+    def batch_size(self) -> int:
+        return 327670 // len(self.value_names)
+
+
+class RawRecord:
+    insert_sql_phrase = RawSQLPhrase(phrase="""INSERT OR IGNORE INTO "LogRecord" ("start", "end", "message", "recorded_at", "called_by", "origin", "logged_from", "log_file", "log_level", "marked") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""")
     __slots__ = ("lines", "_is_antistasi_record", "start", "end", "_content", "parsed_data", "record_class", "record_origin")
 
     def __init__(self, lines: Iterable["RecordLine"]) -> None:
@@ -74,6 +92,7 @@ class RawRecord:
                 'called_by': self.parsed_data.get("called_by"), "record_origin": self.record_origin, 'logged_from': self.parsed_data.get("logged_from"),
                 "log_file": log_file.id, 'log_level': self.parsed_data.get("log_level"), "record_class": self.record_class.id, "marked": False}
 
+    @profile
     def to_sql_params(self, log_file: "LogFile") -> tuple:
         called_by = self.parsed_data.get("called_by")
         if called_by is not None:

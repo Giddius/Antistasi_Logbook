@@ -41,7 +41,6 @@ from antistasi_logbook.utilities.rich_styles import PANEL_STYLE, PANEL_BORDER_ST
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 
 log = get_logger(__name__)
 # endregion[Constants]

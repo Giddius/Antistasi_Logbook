@@ -7,25 +7,27 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
+from time import sleep
 from queue import Queue
 from typing import TYPE_CHECKING, Any, Iterable, Optional
 from pathlib import Path
 from datetime import datetime, timezone
 from threading import Lock, RLock
 from concurrent.futures import Future, ThreadPoolExecutor
-from time import sleep
+
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
+from peewee import DoesNotExist
 from dateutil.tz import UTC, tzoffset
 from playhouse.shortcuts import update_model_from_dict
-from peewee import DoesNotExist, DatabaseError
+
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.conversion import number_to_pretty
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.parsing.raw_record import RawRecord
-from antistasi_logbook.storage.models.models import Mod, GameMap, LogFile, LogRecord, RecordClass, RecordOrigin, ArmaFunction, LogFileAndModJoin, ArmaFunctionAuthorPrefix
+from antistasi_logbook.storage.models.models import Mod, GameMap, LogFile, LogRecord, RecordClass, ArmaFunction, RecordOrigin, LogFileAndModJoin, ArmaFunctionAuthorPrefix
 from antistasi_logbook.parsing.parsing_context import LogParsingContext
 from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 
@@ -83,7 +85,7 @@ class ManyRecordsInsertResult:
 
 class RecordInserter:
     __slots__ = ("config", "backend")
-    insert_records_phrase = """INSERT OR IGNORE INTO "LogRecord" ("start", "end", "message", "recorded_at", "called_by", "origin", "logged_from", "log_file", "log_level", "marked") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
+
     update_record_record_class_phrase = """UPDATE "LogRecord" SET "record_class" = ? WHERE "id" = ?"""
 
     def __init__(self, config: "GidIniConfig", backend: "Backend") -> None:
@@ -105,6 +107,7 @@ class RecordInserter:
     def _insert_func(self, records: Iterable["RawRecord"], context: "LogParsingContext") -> ManyRecordsInsertResult:
 
         # LogRecord.insert_many(i.to_log_record_dict(log_file=context._log_file) for i in records).execute()
+
         records = [r for r in records if r]
         params = (i.to_sql_params(log_file=context._log_file) for i in records)
         sleep(0.005)
@@ -112,7 +115,7 @@ class RecordInserter:
             with self.database.atomic() as txn:
                 cur = self.database.cursor(True)
 
-                cur.executemany(self.insert_records_phrase, params)
+                cur.executemany(RawRecord.insert_sql_phrase.phrase, params)
                 txn.commit()
                 log.info("inserted %s", number_to_pretty(len(records)))
         # for record in records:
@@ -201,19 +204,16 @@ class RecordInserter:
 class RecordProcessor:
     _default_origin: "RecordOrigin" = None
     _antistasi_origin: "RecordOrigin" = None
-    __slots__ = ("regex_keeper", "backend")
+    __slots__ = ("regex_keeper", "backend", "foreign_key_cache")
 
-    def __init__(self, backend: "Backend", regex_keeper: "SimpleRegexKeeper") -> None:
+    def __init__(self, backend: "Backend", regex_keeper: "SimpleRegexKeeper", foreign_key_cache: "ForeignKeyCache") -> None:
         self.backend = backend
         self.regex_keeper = regex_keeper
+        self.foreign_key_cache = foreign_key_cache
 
     @property
     def record_class_manager(self) -> "RecordClassManager":
         return self.backend.record_class_manager
-
-    @property
-    def foreign_key_cache(self) -> "ForeignKeyCache":
-        return self.backend.foreign_key_cache
 
     @property
     def database(self) -> "GidSqliteApswDatabase":

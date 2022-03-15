@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Iterable, Optional, Generator
 from pathlib import Path
 from zipfile import ZipFile
 from datetime import datetime, timedelta
-from threading import Lock, RLock
+from threading import Lock, RLock, Semaphore
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 import yarl
@@ -207,9 +207,7 @@ class WebdavManager(AbstractRemoteStorageManager):
     def _get_download_semaphore(self) -> MinDurationSemaphore:
         download_semaphore = self.download_semaphores.get(self.full_base_url)
         if download_semaphore is None:
-            delay = self.config.get(self.config_name, "delay_between_downloads", default=timedelta())
-            minimum_duration = CONFIG.get(self.config_name, "minimum_download_duration", default=timedelta())
-            download_semaphore = MinDurationSemaphore(self.max_connections, minimum_duration=minimum_duration, delay=delay)
+            download_semaphore = Semaphore(self.max_connections)
 
             self.download_semaphores[self.full_base_url] = download_semaphore
         return download_semaphore
@@ -260,17 +258,18 @@ class WebdavManager(AbstractRemoteStorageManager):
 
     @Retrier([httpx.ReadError, httpx.RemoteProtocolError], allowed_attempts=3, timeout=5, timeout_function=exponential_timeout)
     def download_file(self, log_file: "LogFile") -> "LogFile":
-        local_path = log_file.local_path
-        chunk_size = self.config.get("downloading", "chunk_size", default=None)
+        with self.download_semaphore:
+            local_path = log_file.local_path
+            chunk_size = self.config.get("downloading", "chunk_size", default=None)
 
-        log.info("downloading %s", log_file)
-        result = self.client.http.get(str(log_file.download_url), auth=(self.login, self.password))
-        with local_path.open("wb") as f:
-            for chunk in result.iter_bytes(chunk_size=chunk_size):
-                f.write(chunk)
-        log_file.is_downloaded = True
-        log.info("finished downloading %s", log_file)
-        return local_path
+            log.info("downloading %s", log_file)
+            result = self.client.http.get(str(log_file.download_url), auth=(self.login, self.password))
+            with local_path.open("wb") as f:
+                for chunk in result.iter_bytes(chunk_size=chunk_size):
+                    f.write(chunk)
+            log_file.is_downloaded = True
+            log.info("finished downloading %s", log_file)
+            return local_path
 
     def close(self) -> None:
         if self._client is not None:

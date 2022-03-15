@@ -34,7 +34,7 @@ from gidapptools.general_helper.string_helper import shorten_string
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
-    from antistasi_logbook.storage.models.models import LogFile, LogLevel, LogRecord, RecordOrigin, ArmaFunction
+    from antistasi_logbook.storage.models.models import LogFile, LogLevel, LogRecord, ArmaFunction, RecordOrigin
     from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 
 # endregion[Imports]
@@ -50,7 +50,6 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)

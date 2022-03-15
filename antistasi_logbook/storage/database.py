@@ -8,37 +8,40 @@ Soon.
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import os
+import sys
 from typing import TYPE_CHECKING, Union, Protocol, Generator
 from pathlib import Path
 from weakref import WeakSet
 from functools import cached_property
-from threading import Lock
-import atexit
+from threading import Lock, current_thread
+
 # * Third Party Imports --------------------------------------------------------------------------------->
-from apsw import Connection, SQLITE_CHECKPOINT_TRUNCATE, SQLITE_OK
+from apsw import SQLITE_OK, SQLITE_CHECKPOINT_TRUNCATE, Connection
 from peewee import JOIN, DatabaseProxy
 from playhouse.apsw_ext import APSWDatabase
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.meta_data.interface import MetaPaths, get_meta_info, get_meta_paths, get_meta_config
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
-from gidapptools.general_helper.conversion import human2bytes
+from gidapptools.general_helper.conversion import ns_to_s, human2bytes
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook import setup
-from antistasi_logbook.storage.models.models import (Server, GameMap, LogFile, Version, LogLevel, LogRecord, RecordClass, RecordOrigin,
-                                                     RemoteStorage, ArmaFunction, DatabaseMetaData, setup_db, ArmaFunctionAuthorPrefix)
+from antistasi_logbook.storage.models.models import (Server, GameMap, LogFile, Version, LogLevel, LogRecord, RecordClass, ArmaFunction,
+                                                     RecordOrigin, RemoteStorage, DatabaseMetaData, ArmaFunctionAuthorPrefix, setup_db)
 from antistasi_logbook.storage.models.migration import run_migration
-from gidapptools.general_helper.conversion import ns_to_s
+import inspect
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 setup()
+# * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
+from frozendict import frozendict
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
+
     from antistasi_logbook.backend import Backend
     from antistasi_logbook.parsing.record_processor import RecordInserter, RecordProcessor
-
 
 # endregion[Imports]
 
@@ -53,7 +56,7 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 META_PATHS: MetaPaths = get_meta_paths()
 META_INFO = get_meta_info()
@@ -64,19 +67,19 @@ log = get_logger(__name__)
 
 DEFAULT_DB_NAME = "storage.db"
 
-DEFAULT_PRAGMAS = {
-    "cache_size": -1 * 64000,
+DEFAULT_PRAGMAS = frozendict({
+    "cache_size": -1 * 128000,
     "journal_mode": 'wal',
     "synchronous": 0,
     "ignore_check_constraints": 0,
     "foreign_keys": 1,
     "temp_store": "MEMORY",
-    "mmap_size": 268435456 * 4,
-    "journal_size_limit": human2bytes("100mb"),
-    "wal_autocheckpoint": 100,
-    "page_size": 32768,
-    "analysis_limit": 1000
-}
+    "mmap_size": 268435456 * 8,
+    "journal_size_limit": human2bytes("200mb"),
+    "wal_autocheckpoint": 1000,
+    "page_size": 32768 * 2,
+    "analysis_limit": 100000
+})
 
 
 def make_db_path(in_path: Union[str, os.PathLike, Path]) -> str:
@@ -122,24 +125,22 @@ class GidSqliteDatabase(Protocol):
 
 
 def wal_hook(conn, db_name, pages):
-    log.debug("WAL-Hook was called with: db_name: %r, pages: %r, conn: %r", db_name, pages, conn)
+    log.debug('<<SQL-WAL>> {"db_name": "%s", "pages": %r, "conn": "%s"}', db_name, pages, conn)
     return SQLITE_OK
 
 
 def rollback_hook():
-    log.debug("Rollback-Hook was called")
+    log.debug("<<SQL-ROLLBACK>> Rollback-Hook was called")
 
 
 def profile_hook(stmt, time_taken):
-    log.debug("statement %r took %r s", stmt, ns_to_s(time_taken))
+    log.debug('<<SQL-PROFILING>> {"statement":"%s", "time":%r}', stmt, ns_to_s(time_taken, 6))
 
 
 class GidSqliteApswDatabase(APSWDatabase):
 
-    default_extensions = {"c_extensions": True,
-                          "json_contains": True,
-                          "regexp_function": False,
-                          "bloomfilter": True}
+    default_extensions = {"json_contains": True,
+                          "regexp_function": False}
 
     default_db_path = META_PATHS.db_dir if os.getenv('IS_DEV', 'false') == "false" else THIS_FILE_DIR
     conns = WeakSet()
@@ -162,7 +163,7 @@ class GidSqliteApswDatabase(APSWDatabase):
         self.started_up = False
         self.session_meta_data: "DatabaseMetaData" = None
         extensions = self.default_extensions.copy() | (extensions or {})
-        pragmas = DEFAULT_PRAGMAS.copy() | (pragmas or {})
+        pragmas = dict(DEFAULT_PRAGMAS | (pragmas or {}))
         super().__init__(make_db_path(self.database_path), thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, timeout=30, statementcachesize=100, ** extensions)
 
         self.foreign_key_cache: "ForeignKeyCache" = ForeignKeyCache(database=self)
@@ -189,12 +190,30 @@ class GidSqliteApswDatabase(APSWDatabase):
     def base_record_id(self) -> int:
         return RecordClass.select().where(RecordClass.name == "BaseRecord").scalar()
 
+    @profile
     def _add_conn_hooks(self, conn):
         self.conns.add(conn)
+
+        if self.config.get("database", "log_connection_creation") is True:
+            call_frame = sys._getframe().f_back.f_back.f_back.f_back
+            while Path(call_frame.f_code.co_filename).stem == "peewee" or Path(call_frame.f_code.co_filename).parent.stem == "playhouse":
+                call_frame = call_frame.f_back
+            caller = call_frame.f_code.co_name
+            caller_file = Path(call_frame.f_code.co_filename).resolve().name
+
+            log.debug("opening connection %r in thread %r and caller %r, file: %r", conn, current_thread(), caller, caller_file)
+
+            conn.setprofile(profile_hook)
+            conn.setwalhook(wal_hook)
+            conn.setrollbackhook(rollback_hook)
         super()._add_conn_hooks(conn)
-        # conn.setwalhook(wal_hook)
-        # conn.setprofile(profile_hook)
-        # conn.setrollbackhook(rollback_hook)
+
+    @profile
+    def _close(self, conn):
+        if self.config.get("database", "log_connection_creation") is True:
+            log.debug("closed connection %r of thread %r", conn, current_thread())
+        self.conns.remove(conn)
+        conn.close()
 
     def _pre_start_up(self, overwrite: bool = False) -> None:
         self.database_path.parent.mkdir(exist_ok=True, parents=True)
@@ -203,6 +222,7 @@ class GidSqliteApswDatabase(APSWDatabase):
 
     def _post_start_up(self, **kwargs) -> None:
         self.session_meta_data = DatabaseMetaData.new_session()
+        self.optimize()
 
     def checkpoint(self, mode=SQLITE_CHECKPOINT_TRUNCATE):
         with self.write_lock:
@@ -212,6 +232,7 @@ class GidSqliteApswDatabase(APSWDatabase):
             log.info("checkpoint wal with return: %r", result)
             self.close()
 
+    @profile
     def start_up(self,
                  overwrite: bool = False,
                  force: bool = False) -> "GidSqliteApswDatabase":
@@ -239,14 +260,16 @@ class GidSqliteApswDatabase(APSWDatabase):
         self.optimize()
         return self
 
+    @profile
     def optimize(self) -> "GidSqliteApswDatabase":
         log.info("optimizing %r", self)
         # with self.write_lock:
-        self.pragma("analysis_limit", None)
         self.pragma("OPTIMIZE")
+
         log.info("finished optimizing %r", self)
         return self
 
+    @profile
     def vacuum(self) -> "GidSqliteApswDatabase":
         log.info("vacuuming %r", self)
         with self.write_lock:
@@ -254,6 +277,7 @@ class GidSqliteApswDatabase(APSWDatabase):
             self.checkpoint()
         return self
 
+    @profile
     def shutdown(self, error: BaseException = None) -> None:
         log.debug("shutting down %r", self)
         with self.write_lock:
@@ -270,7 +294,7 @@ class GidSqliteApswDatabase(APSWDatabase):
 
     def get_all_server(self, ordered_by=Server.id) -> tuple[Server]:
 
-        result = tuple(Server.select().join(RemoteStorage, on=Server.remote_storage).order_by(ordered_by))
+        result = tuple(Server.select(Server, RemoteStorage).join(RemoteStorage, on=Server.remote_storage).order_by(ordered_by).iterator(self))
 
         return result
 
@@ -281,67 +305,65 @@ class GidSqliteApswDatabase(APSWDatabase):
         query = query.join(GameMap, on=LogFile.game_map, join_type=JOIN.LEFT_OUTER).switch(LogFile)
         query = query.join(Version, on=LogFile.version, join_type=JOIN.LEFT_OUTER).switch(LogFile)
         if server is None:
-            return tuple(query.order_by(ordered_by).iterator())
-        return tuple(query.where(LogFile.server_id == server.id).order_by(ordered_by).iterator())
+            return tuple(query.order_by(ordered_by).iterator(self))
+        return tuple(query.where(LogFile.server_id == server.id).order_by(ordered_by).iterator(self))
 
     def get_all_log_levels(self, ordered_by=LogLevel.id) -> tuple[LogLevel]:
 
-        result = tuple(LogLevel.select().order_by(ordered_by).iterator())
+        result = tuple(LogLevel.select().order_by(ordered_by).iterator(self))
 
         return result
 
     def get_all_arma_functions(self, ordered_by=ArmaFunction.id) -> tuple[ArmaFunction]:
 
-        result = tuple(ArmaFunction.select(ArmaFunction).join(ArmaFunctionAuthorPrefix).order_by(ordered_by).iterator())
+        result = tuple(ArmaFunction.select(ArmaFunction, ArmaFunctionAuthorPrefix).join(ArmaFunctionAuthorPrefix).order_by(ordered_by).iterator(self))
 
         return result
 
     def get_all_game_maps(self, ordered_by=GameMap.id) -> tuple[GameMap]:
 
-        result = tuple(GameMap.select(GameMap).order_by(ordered_by).iterator())
+        result = tuple(GameMap.select(GameMap).order_by(ordered_by).iterator(self))
 
         return result
 
     def get_all_origins(self, ordered_by=RecordOrigin.id) -> tuple[RecordOrigin]:
 
-        result = tuple(RecordOrigin.select().order_by(ordered_by).iterator())
+        result = tuple(RecordOrigin.select().order_by(ordered_by).iterator(self))
         return result
 
     def get_all_versions(self, ordered_by=Version) -> tuple[Version]:
 
-        result = tuple(Version.select(Version).order_by(ordered_by).iterator())
+        result = tuple(Version.select(Version).order_by(ordered_by).iterator(self))
         return result
 
+    @profile
     def iter_all_records(self, server: Server = None, log_file: LogFile = None, only_missing_record_class: bool = False) -> Generator[LogRecord, None, None]:
-
-        self.connect(True)
+        self.foreign_key_cache.reset_all()
         self.foreign_key_cache.preload_all()
-
         query = LogRecord.select(LogRecord, RecordClass).join(RecordClass, join_type=JOIN.LEFT_OUTER)
         if log_file is not None:
-            query = query.switch(LogRecord).join(LogFile).where(LogRecord.log_file_id == log_file.id)
+            query = query.switch(LogRecord).join(LogFile).where(LogRecord.log_file == log_file)
         elif server is not None:
-            nested = LogFile.select().where(LogFile.server_id == server.id)
+            nested = LogFile.select().where(LogFile.server == server)
             query = query.switch(LogRecord).join(LogFile).where(LogRecord.log_file << nested)
 
         if only_missing_record_class is True:
             query = query.where(LogRecord.record_class >> None)
-        for record in query.iterator():
+        for record in query.iterator(self):
             record.called_by = self.foreign_key_cache.get_arma_file_by_id(record.called_by_id)
             record.logged_from = self.foreign_key_cache.get_arma_file_by_id(record.logged_from_id)
             record.origin = self.foreign_key_cache.get_origin_by_id(record.origin_id)
             yield record
-        self.close()
 
     def get_unique_server_ips(self) -> tuple[str]:
 
-        _out = tuple(set(s.ip for s in Server.select().iterator() if s.ip is not None))
+        _out = tuple(set(s.ip for s in Server.select().iterator(self) if s.ip is not None))
 
         return _out
 
     def get_unique_campaign_ids(self) -> tuple[int]:
 
-        _out = set(l.campaign_id for l in LogFile.select().where(LogFile.unparsable == False).iterator() if l.campaign_id is not None)
+        _out = set(l.campaign_id for l in LogFile.select().where(LogFile.unparsable == False).iterator(self) if l.campaign_id is not None)
         return tuple(sorted(_out))
 
     def __repr__(self) -> str:

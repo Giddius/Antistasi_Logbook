@@ -24,7 +24,6 @@ from gidapptools.general_helper.enums import BaseGidEnum
 # region [Logging]
 
 
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 
 log = get_logger(__name__)
 # endregion[Logging]

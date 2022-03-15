@@ -18,6 +18,7 @@ from pyparsing import pyparsing_common as ppc
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.enums import MiscEnum
+
 # endregion[Imports]
 
 # region [TODO]
@@ -31,7 +32,6 @@ from gidapptools.general_helper.enums import MiscEnum
 # endregion[Logging]
 
 # region [Constants]
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)

@@ -28,7 +28,8 @@
             "converter": "integer",
             "default": "0",
             "implemented": false
-        }
+        },
+        "log_connection_creation": { "converter": "boolean", "default": "True" }
     },
     "updating": {
         "updates_enabled": {
@@ -94,6 +95,9 @@
     },
     "debug": {
         "dev_mode": { "converter": "boolean", "default": "False" }
+    },
+    "webdav": {
+        "max_concurrent_connections": { "converter": "integer" }
     },
     "logging": {
         "level": {

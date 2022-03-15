@@ -7,7 +7,7 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Union, Optional
 from pathlib import Path
 
 # * Qt Imports --------------------------------------------------------------------------------------->
@@ -40,7 +40,6 @@ if TYPE_CHECKING:
 
 # region [Constants]
 
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)

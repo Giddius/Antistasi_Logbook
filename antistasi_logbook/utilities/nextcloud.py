@@ -18,7 +18,6 @@ from gidapptools import get_logger
 # endregion[Imports]
 
 
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 
 
 log = get_logger(__name__)

@@ -98,7 +98,7 @@ if "apsw" not in sys.modules:
         sys.exit(1)
 
 
-# _extra_logger = ["peewee"]
+# _extra_logger = ["peewee", "py.warnings"]
 _extra_logger = ["py.warnings"]
 
 IS_SETUP: bool = False

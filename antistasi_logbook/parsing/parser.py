@@ -17,10 +17,10 @@ from gidapptools import get_logger
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.parsing.raw_record import RawRecord
-from antistasi_logbook.regex_store.regex_keeper import SimpleRegexKeeper
 from antistasi_logbook.parsing.meta_log_finder import MetaFinder
 from antistasi_logbook.parsing.parsing_context import RecordLine, LogParsingContext
 from antistasi_logbook.parsing.record_processor import RecordProcessor
+from antistasi_logbook.regex_store.regex_keeper import SimpleRegexKeeper
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 
 # region [Constants]
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
-
+get_dummy_profile_decorator_in_globals()
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
@@ -66,6 +66,7 @@ class Parser:
     def record_processor(self) -> "RecordProcessor":
         return self.backend.record_processor
 
+    @profile
     def _get_log_file_meta_data(self, context: LogParsingContext) -> "MetaFinder":
         with context.open(cleanup=False) as file:
 
@@ -85,6 +86,7 @@ class Parser:
 
         return finder
 
+    @profile
     def _parse_header_text(self, context: LogParsingContext) -> None:
 
         while not self.regex_keeper.only_time.match(context.current_line.content):
@@ -92,6 +94,7 @@ class Parser:
             context.advance_line()
         return context.line_cache.dump()
 
+    @profile
     def _parse_startup_entries(self, context: LogParsingContext) -> None:
 
         while not self.regex_keeper.local_datetime.match(context.current_line.content):
@@ -99,6 +102,7 @@ class Parser:
             context.advance_line()
         return context.line_cache.dump()
 
+    @profile
     def parse_entries(self, context: LogParsingContext) -> None:
         while context.current_line is not ... and not self.stop_event.is_set():
             if self.regex_keeper.local_datetime.match(context.current_line.content):

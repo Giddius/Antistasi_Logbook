@@ -12,12 +12,12 @@ from pathlib import Path
 
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QAction
-from PySide6.QtCore import Signal, QMargins, QStandardPaths, QItemSelectionModel, QItemSelection
-from PySide6.QtWidgets import QHeaderView
+from PySide6.QtCore import Signal, QMargins, QItemSelection, QStandardPaths, QItemSelectionModel
+from PySide6.QtWidgets import QHeaderView, QToolBar, QFontDialog
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
-
+from antistasi_logbook.gui.widgets.tool_bars import LogRecordToolBar
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.misc import CustomRole
 from antistasi_logbook.gui.views.base_query_tree_view import BaseQueryTreeView, CustomContextMenu
@@ -66,6 +66,17 @@ class LogRecordsQueryView(BaseQueryTreeView):
     def extra_setup(self):
         super().extra_setup()
         self.setSortingEnabled(False)
+
+    def create_tool_bar_item(self) -> QToolBar:
+        tool_bar = LogRecordToolBar()
+        tool_bar.font_settings_action.triggered.connect(self.show_font_settings_window)
+        return tool_bar
+
+    def show_font_settings_window(self):
+        _ok, font = QFontDialog.getFont(self.original_model.message_font, self, "Log-Record Font Settings", QFontDialog.FontDialogOptions() | QFontDialog.MonospacedFonts)
+        if _ok:
+            self.original_model.set_message_font(font)
+            self.repaint()
 
     def add_free_context_menu_options(self, menu: "CustomContextMenu"):
         super().add_free_context_menu_options(menu)

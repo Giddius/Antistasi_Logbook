@@ -1,28 +1,26 @@
 # * Standard Library Imports ---------------------------------------------------------------------------->
-import os
 import re
 import json
-from statistics import mean, StatisticsError
 from io import TextIOWrapper
 from time import sleep
-from typing import TYPE_CHECKING, Any, Literal, Optional, Generator, Union
+from typing import TYPE_CHECKING, Any, Union, Literal, Optional, Generator
 from pathlib import Path
-from datetime import datetime, timedelta, timezone
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, Future, wait, ALL_COMPLETED, FIRST_EXCEPTION, FIRST_COMPLETED
-from functools import cached_property, reduce
-from operator import add
-
-from collections import defaultdict
-from functools import partial
+from zipfile import ZIP_LZMA, ZipFile
+from datetime import datetime, timezone
+from functools import cached_property
 from threading import Lock, RLock
 from contextlib import contextmanager
-from zipfile import ZipFile, ZIP_LZMA
+from statistics import StatisticsError, mean
+from collections import defaultdict
+from concurrent.futures import Future
+
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QColor
 
 # * Third Party Imports --------------------------------------------------------------------------------->
+import keyring
 from yarl import URL
-from peewee import DatabaseProxy, IntegrityError, fn, JOIN
+from peewee import DatabaseProxy, IntegrityError, fn
 from tzlocal import get_localzone
 from dateutil.tz import UTC
 from playhouse.signals import Model
@@ -34,15 +32,16 @@ from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_conf
 from gidapptools.general_helper.enums import MiscEnum
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 from gidapptools.general_helper.conversion import bytes2human
-from antistasi_logbook.records.enums import RecordFamily
+
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook import setup
 from antistasi_logbook.data.misc import LOG_FILE_DATE_REGEX
+from antistasi_logbook.records.enums import RecordFamily
 from antistasi_logbook.utilities.misc import VersionItem
 from antistasi_logbook.utilities.locks import FILE_LOCKS
 from antistasi_logbook.records.abstract_record import MessageFormat
 from antistasi_logbook.updating.remote_managers import remote_manager_registry
-from antistasi_logbook.storage.models.custom_fields import (URLField, PathField, LoginField, MarkedField, VersionField, CommentsField, PasswordField, TzOffsetField,
+from antistasi_logbook.storage.models.custom_fields import (URLField, PathField, LoginField, MarkedField, VersionField, CommentsField, TzOffsetField,
                                                             RemotePathField, CaselessTextField, AwareTimeStampField, CompressedTextField, CompressedImageField)
 from antistasi_logbook.utilities.date_time_utilities import DateTimeFrame
 
@@ -235,8 +234,9 @@ class GameMap(BaseModel):
     class Meta:
         table_name = 'GameMap'
 
-    def get_avg_players_per_hour(self) -> tuple[Optional[float], Optional[int]]:
-        self.database.connect(True)
+    @profile
+    def get_avg_players_per_hour(self) -> dict[str, Union[float, int, datetime]]:
+
         log_files_query = LogFile.select().where(LogFile.game_map == self)
         record_class = RecordClass.get(name="PerformanceRecord")
         query = LogRecord.select(LogRecord.message, LogRecord.recorded_at).where((LogRecord.record_class_id == record_class.id) & (LogRecord.log_file << log_files_query))
@@ -244,15 +244,21 @@ class GameMap(BaseModel):
         performance_record_class = record_class.record_class
 
         # log.debug("SQL for 'get_avg_players_per_hour' of %r: %r", self, query.sql())
-
+        _all_timestamps = []
         for (message, recorded_at) in self.database.execute(query):
 
             recorded_at = LogRecord.recorded_at.python_value(recorded_at)
             stats = performance_record_class.parse(message)
 
             players: int = stats["Players"]
+            _all_timestamps.append(recorded_at)
+
             timestamp: datetime = recorded_at.replace(microsecond=0, second=0, minute=0)
+
             player_data[timestamp].append(players)
+
+        if len(player_data) == 0:
+            return {"avg_players": None, "sample_size": None, "min_timestamp": None, "max_timestamp": None}
         try:
             avg_player_data = {}
             for k, v in player_data.items():
@@ -261,9 +267,9 @@ class GameMap(BaseModel):
                 else:
                     avg_player_data[k] = v[0]
 
-            return round(mean(avg_player_data.values()), 3), len(avg_player_data)
+            return {"avg_players": round(mean(avg_player_data.values()), 3), "sample_size": len(avg_player_data), "min_timestamp": min(_all_timestamps), "max_timestamp": max(_all_timestamps)}
         except StatisticsError:
-            return None, None
+            return {"avg_players": None, "sample_size": None, "min_timestamp": None, "max_timestamp": None}
 
     def __str__(self):
         return self.full_name
@@ -272,48 +278,27 @@ class GameMap(BaseModel):
 class RemoteStorage(BaseModel):
     name = TextField(unique=True, index=True)
     base_url = URLField(null=True)
-    _login = LoginField(null=True)
-    _password = PasswordField(null=True)
+    login = LoginField(null=True)
     manager_type = TextField(index=True)
     credentials_required = BooleanField(default=False)
 
     class Meta:
         table_name = 'RemoteStorage'
         indexes = (
-            (('base_url', '_login', '_password', 'manager_type'), True),
+            (('base_url', 'login', 'manager_type'), True),
         )
 
-    @property
-    def password_env_var_name(self) -> str:
-        return f"{self.name}_password"
-
-    @property
-    def login_env_var_name(self) -> str:
-        return f"{self.name}_login"
-
     def get_password(self) -> Optional[str]:
-        if self._password is None:
-            return os.getenv(self.password_env_var_name, None)
-
-        return self._password
+        return keyring.get_password(self.name, self.login)
 
     def get_login(self) -> Optional[str]:
-        if self._login is None:
-            return os.getenv(self.login_env_var_name, None)
+        return self.login
 
-        return self._login
+    def set_login_and_password(self, login: str, password: str) -> None:
+        self.login = login
+        self.save()
 
-    def set_login_and_password(self, login: str, password: str, store_in_db: bool = True) -> None:
-
-        if store_in_db is True:
-            self._login = login
-            self._password = password
-            with self.database.write_lock:
-                with self.database:
-                    self.save()
-        else:
-            os.environ[self.login_env_var_name] = login
-            os.environ[self.password_env_var_name] = password
+        keyring.set_password(self.name, self.login, password)
 
     def as_remote_manager(self) -> "AbstractRemoteStorageManager":
         manager = remote_manager_registry.get_remote_manager(self)
@@ -364,8 +349,7 @@ class Server(BaseModel):
         yield from self.remote_manager.get_files(self.remote_path)
 
     def get_amount_log_files(self) -> int:
-        with self.database.connection_context() as ctx:
-            return LogFile.select().where(LogFile.server_id == self.id).count()
+        return LogFile.select().where(LogFile.server_id == self.id).count(self.database)
 
     @cached_property
     def full_local_path(self) -> Path:
@@ -688,7 +672,7 @@ class LogFile(BaseModel):
         return f"[u b blue]{self.server.name}/{self.name}[/u b blue]"
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(server={self.server.name!r}, modified_at={self.modified_at.strftime('%Y-%m-%d %H:%M:%S')!r})"
+        return f"{self.__class__.__name__}(name={self.name!r}, server={self.server.name!r}, modified_at={self.modified_at.strftime('%Y-%m-%d %H:%M:%S')!r})"
 
     def __str__(self) -> str:
         return f"{self.name}"
@@ -848,14 +832,14 @@ class LogRecord(BaseModel):
     start = IntegerField(help_text="Start Line number of the Record", verbose_name="Start")
     end = IntegerField(help_text="End Line number of the Record", verbose_name="End")
     message = TextField(help_text="Message part of the Record", verbose_name="Message")
-    recorded_at = AwareTimeStampField(index=True, utc=True, verbose_name="Recorded at")
-    called_by = ForeignKeyField(column_name='called_by', field='id', model=ArmaFunction, backref="log_records_called_by", lazy_load=True, null=True, index=False, verbose_name="Called by")
+    recorded_at = AwareTimeStampField(index=False, utc=True, verbose_name="Recorded at")
+    called_by = ForeignKeyField(column_name='called_by', field='id', model=ArmaFunction, backref="log_records_called_by", lazy_load=True, null=True, verbose_name="Called by")
     origin = ForeignKeyField(column_name="origin", field="id", model=RecordOrigin, backref="records", lazy_load=True, verbose_name="Origin", default=0)
-    logged_from = ForeignKeyField(column_name='logged_from', field='id', model=ArmaFunction, backref="log_records_logged_from", lazy_load=True, null=True, index=False, verbose_name="Logged from")
-    log_file = ForeignKeyField(column_name='log_file', field='id', model=LogFile, lazy_load=True, backref="log_records", null=False, verbose_name="Log-File", index=True)
-    log_level = ForeignKeyField(column_name='log_level', default=0, field='id', model=LogLevel, null=True, lazy_load=True, index=False, verbose_name="Log-Level")
-    record_class = ForeignKeyField(column_name='record_class', field='id', model=RecordClass, lazy_load=True, index=True, verbose_name="Record Class", null=True)
-    marked = MarkedField()
+    logged_from = ForeignKeyField(column_name='logged_from', field='id', model=ArmaFunction, backref="log_records_logged_from", lazy_load=True, null=True, verbose_name="Logged from")
+    log_file = ForeignKeyField(column_name='log_file', field='id', model=LogFile, lazy_load=True, backref="log_records", null=False, verbose_name="Log-File")
+    log_level = ForeignKeyField(column_name='log_level', default=0, field='id', model=LogLevel, null=True, lazy_load=True, verbose_name="Log-Level")
+    record_class = ForeignKeyField(column_name='record_class', field='id', model=RecordClass, lazy_load=True, verbose_name="Record Class", null=True)
+    marked = MarkedField(index=False)
 
     message_size_hint = None
 
@@ -869,6 +853,10 @@ class LogRecord(BaseModel):
             (("log_file", "called_by"), False),
             (("log_file", "origin"), False)
         )
+
+    @classmethod
+    def amount_log_records(cls) -> int:
+        return LogRecord.select(LogRecord.id).count()
 
     @cached_property
     def pretty_log_level(self) -> str:
@@ -909,6 +897,7 @@ class DatabaseMetaData(BaseModel):
     errored = TextField(null=True)
     last_update_started_at = AwareTimeStampField(null=True, utc=True)
     last_update_finished_at = AwareTimeStampField(null=True, utc=True)
+    stored_last_update_finished_at: datetime = MiscEnum.NOTHING
 
     class Meta:
         table_name = 'DatabaseMetaData'
@@ -925,10 +914,12 @@ class DatabaseMetaData(BaseModel):
         return item
 
     def get_absolute_last_update_finished_at(self) -> datetime:
+        if self.stored_last_update_finished_at is not MiscEnum.NOTHING:
+            return self.stored_last_update_finished_at
         if self.last_update_finished_at is None:
-            with self.database.connection_context() as ctx:
-                self.last_update_finished_at = DatabaseMetaData.select(DatabaseMetaData.last_update_finished_at).where(DatabaseMetaData.last_update_finished_at != None).order_by(-DatabaseMetaData.last_update_finished_at).scalar()
-        return self.last_update_finished_at
+            self.last_update_finished_at = DatabaseMetaData.select(DatabaseMetaData.last_update_finished_at).where(DatabaseMetaData.last_update_finished_at != None).order_by(-DatabaseMetaData.last_update_finished_at).scalar()
+        self.stored_last_update_finished_at = self.last_update_finished_at
+        return self.stored_last_update_finished_at
 
     def count_log_files(self, server: "Server" = None) -> int:
         if server is None:
@@ -969,6 +960,7 @@ class DatabaseMetaData(BaseModel):
     def update_finished(self) -> None:
         now = datetime.now(tz=timezone.utc)
         self.last_update_finished_at = now
+        self.stored_last_update_finished_at = self.last_update_finished_at
         with self.database.connection_context():
             DatabaseMetaData.update(last_update_finished_at=now).where(DatabaseMetaData.id == self.id).execute()
 

@@ -98,6 +98,8 @@ SELECT_PATH_SYMBOL_IMAGE = ressource_item_factory(file_path='select_path_symbol.
 
 GAMEMAP_TAB_ICON_IMAGE = ressource_item_factory(file_path='gamemap_tab_icon.svg', qt_path=':/images/gamemap_tab_icon.svg')
 
+FONT_SETTINGS_IMAGE = ressource_item_factory(file_path='font_settings.png', qt_path=':/images/font_settings.png')
+
 LOGLEVEL_TAB_ICON_IMAGE = ressource_item_factory(file_path='loglevel_tab_icon.png', qt_path=':/images/loglevel_tab_icon.png')
 
 AVERAGE_PLAYERS_ICON_IMAGE = ressource_item_factory(file_path='average_players_icon.png', qt_path=':/images/average_players_icon.png')
@@ -172,6 +174,7 @@ class AllResourceItems(metaclass=AllResourceItemsMeta):
     armafunctionauthorprefix_tab_icon_image = ARMAFUNCTIONAUTHORPREFIX_TAB_ICON_IMAGE
     select_path_symbol_image = SELECT_PATH_SYMBOL_IMAGE
     gamemap_tab_icon_image = GAMEMAP_TAB_ICON_IMAGE
+    font_settings_image = FONT_SETTINGS_IMAGE
     loglevel_tab_icon_image = LOGLEVEL_TAB_ICON_IMAGE
     average_players_icon_image = AVERAGE_PLAYERS_ICON_IMAGE
     visible_icon_image = VISIBLE_ICON_IMAGE

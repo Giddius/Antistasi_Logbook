@@ -7,13 +7,12 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
+import gc
+import shutil
 from time import sleep
 from typing import TYPE_CHECKING, Iterable, Optional
 from pathlib import Path
-import pp
 from weakref import WeakSet
-import gc
-from datetime import datetime
 from itertools import chain
 from threading import Lock, Event
 from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor, wait
@@ -23,24 +22,22 @@ from PySide6.QtWidgets import QApplication
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
-import shutil
+
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
 from gidapptools.gid_signal.interface import get_signal
-from gidapptools.general_helper.compress import compress_file
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.records import ALL_GENERIC_RECORD_CLASSES, ALL_ANTISTASI_RECORD_CLASSES
 from antistasi_logbook.parsing.parser import Parser
-from antistasi_logbook.utilities.locks import FILE_LOCKS
 from antistasi_logbook.storage.database import GidSqliteApswDatabase, make_db_path
 from antistasi_logbook.updating.updater import Updater
-from antistasi_logbook.regex_store.regex_keeper import SimpleRegexKeeper
 from antistasi_logbook.storage.models.models import LogFile, RecordClass, DatabaseMetaData
 from antistasi_logbook.updating.time_handling import TimeClock
 from antistasi_logbook.parsing.parsing_context import LogParsingContext
 from antistasi_logbook.updating.update_manager import UpdateManager
 from antistasi_logbook.parsing.record_processor import RecordInserter, RecordProcessor
+from antistasi_logbook.regex_store.regex_keeper import SimpleRegexKeeper
 from antistasi_logbook.updating.remote_managers import remote_manager_registry
 from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 from antistasi_logbook.records.record_class_manager import RECORD_CLASS_TYPE, RecordClassManager
@@ -153,7 +150,7 @@ class Backend:
 
         self.time_clock = TimeClock(config=self.config, stop_event=self.events.stop)
         self.remote_manager_registry = remote_manager_registry
-        self.record_processor = RecordProcessor(backend=self, regex_keeper=SimpleRegexKeeper())
+        self.record_processor = RecordProcessor(backend=self, regex_keeper=SimpleRegexKeeper(), foreign_key_cache=ForeignKeyCache(self.database))
         self.updater = Updater(stop_event=self.events.stop, pause_event=self.events.pause, backend=self, signaler=self.update_signaler)
         self.records_inserter = RecordInserter(config=self.config, backend=self)
 

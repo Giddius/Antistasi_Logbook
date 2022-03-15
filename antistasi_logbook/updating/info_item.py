@@ -16,7 +16,6 @@ import attr
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 from gidapptools.general_helper.dict_helper import replace_dict_keys
 
 # * Local Imports --------------------------------------------------------------------------------------->

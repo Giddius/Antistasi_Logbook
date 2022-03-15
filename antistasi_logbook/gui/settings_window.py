@@ -444,8 +444,6 @@ class CredentialsBox(QGroupBox):
         self.password_input_widget.setEchoMode(QLineEdit.Password)
         self.password_input_widget.setClearButtonEnabled(True)
 
-        self.store_in_db_checkbox = QCheckBox(self)
-
         self.show_password_checkbox = QCheckBox(self)
 
         self.submit_button = QPushButton("Submit")
@@ -453,7 +451,6 @@ class CredentialsBox(QGroupBox):
         self.layout.addRow("Login", self.login_input_widget)
         self.layout.addRow("Password", self.password_input_widget)
         self.layout.addRow("Show Password", self.show_password_checkbox)
-        self.layout.addRow("Store Credentials in Database", self.store_in_db_checkbox)
         self.layout.addWidget(self.submit_button)
 
         self.submit_button.pressed.connect(self.submit_credentials)
@@ -498,7 +495,6 @@ class CredentialsBox(QGroupBox):
     def submit_credentials(self):
         login = self.login_input_widget.text()
         password = self.password_input_widget.text()
-        store_in_db = self.store_in_db_checkbox.isChecked()
 
         if not login:
             self.login_input_widget.setStyleSheet("background-color: red")
@@ -511,7 +507,7 @@ class CredentialsBox(QGroupBox):
 
         self.login_input_widget.setStyleSheet("")
         self.password_input_widget.setStyleSheet("")
-        self.remote_storage.set_login_and_password(login=login, password=password, store_in_db=store_in_db)
+        self.remote_storage.set_login_and_password(login=login, password=password)
         self.indicate_success()
 
     def __repr__(self) -> str:

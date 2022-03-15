@@ -13,7 +13,7 @@ from pathlib import Path
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QIcon, QAction
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QMenu, QLabel, QWidgetAction, QSystemTrayIcon, QApplication, QMainWindow
+from PySide6.QtWidgets import QMenu, QLabel, QApplication, QWidgetAction, QSystemTrayIcon
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -23,7 +23,7 @@ from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-    from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow, AntistasiLogbookApplication
+    pass
 
 # endregion[Imports]
 
@@ -38,7 +38,6 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)

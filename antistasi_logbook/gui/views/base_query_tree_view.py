@@ -10,20 +10,21 @@ Soon.
 from typing import TYPE_CHECKING, Union, Optional
 from pathlib import Path
 from concurrent.futures import Future
-from functools import cached_property
+
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
 from PySide6.QtGui import QIcon, QAction
-from PySide6.QtCore import Qt, Slot, QPoint, Signal, QSettings, QModelIndex, QItemSelection, QByteArray
-from PySide6.QtWidgets import QMenu, QTreeView, QScrollBar, QHeaderView, QApplication, QAbstractItemView, QToolBar
-import pp
+from PySide6.QtCore import Qt, Slot, QPoint, Signal, QSettings, QModelIndex, QItemSelection, QAbstractTableModel
+from PySide6.QtWidgets import QMenu, QToolBar, QTreeView, QScrollBar, QHeaderView, QApplication, QAbstractItemView
+
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 
 # * Local Imports --------------------------------------------------------------------------------------->
+from antistasi_logbook.gui.widgets.tool_bars import BaseToolBar
 from antistasi_logbook.gui.views.delegates.universal_delegates import BoolImageDelegate, MarkedImageDelegate
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-from antistasi_logbook.gui.widgets.tool_bars import BaseToolBar
+
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend
@@ -44,7 +45,6 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
@@ -113,6 +113,7 @@ class BaseQueryTreeView(QTreeView):
     single_item_selected = Signal(QModelIndex)
     multiple_items_selected = Signal(list)
     current_items_changed = Signal(list)
+    model_was_set = Signal(QAbstractTableModel)
 
     def __init__(self, name: str, icon: QIcon = None, parent=None) -> None:
         super().__init__(parent=parent)
@@ -339,6 +340,7 @@ class BaseQueryTreeView(QTreeView):
     def post_set_model(self):
         self.setEnabled(True)
         self.setSortingEnabled(self._temp_original_sorting_enabled)
+        self.model_was_set.emit(self.model)
 
     def set_delegates(self):
         marked_col_index = self.model.get_column_index("marked")

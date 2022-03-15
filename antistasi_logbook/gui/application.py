@@ -7,37 +7,40 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-import argparse
 import shutil
+import argparse
 from typing import TYPE_CHECKING, Any, Iterable
 from pathlib import Path
-from weakref import WeakSet, WeakValueDictionary
 from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor
 from functools import cached_property
+from concurrent.futures import ThreadPoolExecutor
+
 # * Qt Imports --------------------------------------------------------------------------------------->
-from PySide6.QtGui import QFont, QIcon, QColor, QCloseEvent, QGuiApplication, QScreen
-from PySide6.QtCore import Qt, QSettings, QEvent, QRect
+from PySide6.QtGui import QFont, QIcon, QColor, QScreen, QGuiApplication
+from PySide6.QtCore import Qt, QRect, QSettings
 from PySide6.QtWidgets import QMainWindow, QMessageBox, QApplication, QSplashScreen
-import sys
+
 # * Third Party Imports --------------------------------------------------------------------------------->
 from jinja2 import BaseLoader, Environment
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
 from gidapptools.gid_config.interface import EntryTypus
+from gidapptools.gidapptools_qt.basics.application import WindowHolder
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-from gidapptools.gidapptools_qt.basics.application import WindowHolder
+
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
     from gidapptools.gidapptools_qt.resources.resources_helper import PixmapResourceItem
-
     from antistasi_logbook.backend import Backend
     from antistasi_logbook.gui.main_window import LogbookSystemTray, AntistasiLogbookMainWindow
+
+# * Third Party Imports --------------------------------------------------------------------------------->
 import pp
+
 # endregion[Imports]
 
 # region [TODO]

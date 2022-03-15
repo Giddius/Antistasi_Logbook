@@ -27,7 +27,7 @@ from dateutil.tz import UTC
 from gidapptools import get_logger
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.gui.models import LogLevelsModel, RecordClassesModel, RecordOriginsModel, ArmaFunctionModel
+from antistasi_logbook.gui.models import LogLevelsModel, ArmaFunctionModel, RecordClassesModel, RecordOriginsModel
 from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord, ArmaFunction
 from antistasi_logbook.gui.models.server_model import ServerModel
 from antistasi_logbook.gui.models.version_model import VersionModel

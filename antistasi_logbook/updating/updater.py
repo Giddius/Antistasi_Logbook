@@ -11,12 +11,10 @@ import queue
 from time import sleep
 from typing import TYPE_CHECKING, Any, Optional
 from pathlib import Path
-from functools import partial
-from datetime import datetime, timezone
-from threading import Event, current_thread
-from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor, wait, Future
+from datetime import datetime
+from threading import Event
+from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor, wait
 
-from copy import deepcopy
 # * Third Party Imports --------------------------------------------------------------------------------->
 from dateutil.tz import UTC
 
@@ -24,11 +22,11 @@ from dateutil.tz import UTC
 from gidapptools import get_logger
 from gidapptools.gid_signal.interface import get_signal
 from gidapptools.general_helper.conversion import number_to_pretty
+
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord, RecordClass
 from antistasi_logbook.updating.remote_managers import remote_manager_registry
-from antistasi_logbook.records.record_class_manager import RecordClassManager
-from contextvars import ContextVar
+
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend
@@ -265,21 +263,18 @@ class Updater:
     def emit_change_update_text(self, text):
         self.thread_pool.submit(self.signaler.change_update_text.emit, text)
 
+    @profile
     def _update_record_classes(self, server: Server = None, log_file: LogFile = None, force: bool = False):
         if force is True:
             self.signaler.change_update_text.emit("Updating Record-Classes")
 
         def _find_record_class(_record: "LogRecord") -> tuple["LogRecord", "RecordClass"]:
-            _record_class = self.backend.record_class_manager.determine_record_class(_record)
-            return _record, _record_class
+            return self.backend.record_class_manager.determine_record_class(_record)
 
         log.info("updating record classes, Server: %r, LogFile: %r, force: %r", server, log_file, force)
         # batch_size = (32767 // 2) - 1
-        batch_size = 10_000
-        if server is not None:
-            batch_size = batch_size // 10
-        elif log_file is not None:
-            batch_size = batch_size // 10
+        batch_size = 100_000
+
         report_size = batch_size // 10
 
         tasks = []
@@ -287,14 +282,15 @@ class Updater:
 
         idx = 0
 
-        for record, record_class in (_find_record_class(r) for r in self.database.iter_all_records(server=server, log_file=log_file, only_missing_record_class=not force)):
+        for record in self.database.iter_all_records(server=server, log_file=log_file, only_missing_record_class=not force):
+
+            record_class = self.backend.record_class_manager.determine_record_class(record)
+
             idx += 1
             if idx % report_size == 0:
 
                 if force is True:
                     self.emit_change_update_text(f"Updating Record-Classes --- Checked {idx:,} Records")
-                else:
-                    sleep(0.01)
 
             if record.record_class != record_class:
 
@@ -306,6 +302,7 @@ class Updater:
                     tasks.append(task)
 
                     to_update.clear()
+                    sleep(0.01)
 
         if len(to_update) > 0:
             log.debug("updating %s records with their record class", number_to_pretty(len(to_update)))
@@ -376,7 +373,8 @@ class Updater:
                     self.database.checkpoint()
                     self.database.vacuum()
                     self.database.optimize()
-
+                    self.database.vacuum()
+                    self.database.checkpoint()
             self.database.session_meta_data.update_finished()
         finally:
             self.is_updating_event.clear()

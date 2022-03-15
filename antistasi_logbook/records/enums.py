@@ -8,10 +8,13 @@ Soon.
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 from enum import Enum, Flag, auto, unique
-from pathlib import Path
 from typing import TYPE_CHECKING
+from pathlib import Path
+
+# * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.storage.models.models import RecordOrigin
+
 # endregion[Imports]
 
 # region [TODO]

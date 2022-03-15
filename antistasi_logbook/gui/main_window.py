@@ -8,32 +8,31 @@ Soon.
 
 # region [Imports]
 
-# * Local Imports --------------------------------------------------------------------------------------->
-
-from datetime import datetime, timedelta, timezone
-
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import sys
-from time import sleep
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union, Optional
 from pathlib import Path
+from datetime import timedelta, datetime
 from threading import Thread
-
+from antistasi_logbook.utilities.date_time_utilities import DateTimeFrame
 # * Qt Imports --------------------------------------------------------------------------------------->
-from PySide6.QtGui import QColor, QPixmap, QMovie, QCloseEvent, QMouseEvent, QCursor, QScreen
-from PySide6.QtCore import Qt, Slot, QSysInfo, QTimerEvent, Signal, QTimer, QObject, QSettings, QPoint, QRect, QByteArray, QSize, QMetaProperty, Property, PyClassProperty, QtMsgType, qInstallMessageHandler, QMessageLogContext
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QTableWidgetItem, QPushButton, QTableWidget, QMenuBar, QToolBar, QDockWidget, QGridLayout, QMainWindow, QMessageBox, QSizePolicy, QSplashScreen, QLabel
+from PySide6.QtGui import QColor, QCloseEvent
+from PySide6.QtCore import Qt, Slot, QSize, QPoint, QTimer, Signal, QObject, QSysInfo, QSettings, QByteArray, QTimerEvent
+from PySide6.QtWidgets import (QLabel, QWidget, QPushButton, QMenuBar, QToolBar, QDockWidget, QGridLayout, QHBoxLayout, QMainWindow,
+                               QMessageBox, QSizePolicy, QVBoxLayout, QTableWidget, QSplashScreen, QTableWidgetItem)
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 import qt_material
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
+from gidapptools.gid_logger.misc import QtMessageHandler
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 from gidapptools.general_helper.string_helper import StringCaseConverter
-from gidapptools.gidapptools_qt.widgets.app_log_viewer import FileAppLogViewer, StoredAppLogViewer
+from gidapptools.gidapptools_qt.widgets.app_log_viewer import StoredAppLogViewer
+from gidapptools.gidapptools_qt.widgets.spinner_widget import BusyPushButton
 from gidapptools.gidapptools_qt.widgets.std_stream_widget import StdStreamWidget
-import random
+
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook import stream_capturer
 from antistasi_logbook.errors import ExceptionHandlerManager, MissingLoginAndPasswordError
@@ -47,24 +46,21 @@ from antistasi_logbook.gui.application import AntistasiLogbookApplication
 from antistasi_logbook.gui.main_widget import MainWidget
 from antistasi_logbook.gui.settings_window import SettingsWindow, CredentialsManagmentWindow
 from antistasi_logbook.gui.models.mods_model import ModsModel
-from antistasi_logbook.storage.models.models import LogFile, GameMap
-from antistasi_logbook.gui.widgets.stats_viewer import AvgMapPlayersPlotWidget
+from antistasi_logbook.gui.widgets.tool_bars import BaseToolBar
+from antistasi_logbook.storage.models.models import GameMap, LogRecord
 from antistasi_logbook.gui.models.version_model import VersionModel
+from antistasi_logbook.gui.widgets.stats_viewer import AvgMapPlayersPlotWidget
 from antistasi_logbook.gui.models.game_map_model import GameMapModel
 from antistasi_logbook.gui.widgets.debug_widgets import DebugDockWidget
 from antistasi_logbook.gui.resources.style_sheets import get_style_sheet_data
+from antistasi_logbook.gui.models.arma_function_model import ArmaFunctionModel
 from antistasi_logbook.gui.views.base_query_tree_view import BaseQueryTreeView
 from antistasi_logbook.gui.models.record_classes_model import RecordClassesModel
 from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel
-
 from antistasi_logbook.gui.models.remote_storages_model import RemoteStoragesModel
-from antistasi_logbook.gui.models.arma_function_model import ArmaFunctionModel
 from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-import pp
-from gidapptools.gid_logger.misc import QtMessageHandler
-from gidapptools.gidapptools_qt.widgets.spinner_widget import BusyPushButton
-from antistasi_logbook.gui.widgets.tool_bars import BaseToolBar
+
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
@@ -85,7 +81,7 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+
 get_dummy_profile_decorator_in_globals()
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
@@ -311,36 +307,17 @@ class AntistasiLogbookMainWindow(QMainWindow):
                           "applicationDisplayName",
                           "desktopFileName",
                           "desktopSettingsAware",
-                          "devicePixelRatio",
-                          "highDpiScaleFactorRoundingPolicy",
-                          "platformName",
-                          "applicationState",
                           "font",
                           "applicationDirPath",
                           "applicationFilePath",
                           "applicationPid",
                           "arguments",
-                          "isQuitLockEnabled",
-                          "isSetuidAllowed",
                           "libraryPaths"]:
             self.debug_dock_widget.add_show_attr_button(attr_name=attr_name, obj=self.app)
 
         self.debug_dock_widget.add_show_attr_button(attr_name="colorNames", obj=QColor)
 
-        self.sys_info = QSysInfo()
-
-        for attr_name in ["bootUniqueId",
-                          "buildAbi",
-                          "buildCpuArchitecture",
-                          "currentCpuArchitecture",
-                          "kernelType",
-                          "kernelVersion",
-                          "machineHostName",
-                          "machineUniqueId",
-                          "prettyProductName",
-                          "productType",
-                          "productVersion"]:
-            self.debug_dock_widget.add_show_attr_button(attr_name=attr_name, obj=self.sys_info)
+        self.debug_dock_widget.add_show_attr_button(attr_name="amount_log_records", obj=LogRecord)
 
     def set_tool_bar(self, tool_bar: QToolBar):
         if self.tool_bar:
@@ -455,13 +432,15 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
     def show_avg_player_window(self):
 
-        def _get_item_data(in_game_map: "GameMap") -> dict[str, Union[float, int]]:
-            avg_players, sample_size = in_game_map.get_avg_players_per_hour()
-            return {"game_map": in_game_map.full_name, "avg_players": avg_players, "sample_size": sample_size}
+        def _get_item_data(in_game_map: "GameMap") -> Optional[dict[str, Union[float, int, datetime]]]:
+            data = in_game_map.get_avg_players_per_hour()
 
+            return data | {"game_map": in_game_map.full_name}
+
+        @profile
         def _get_all_data():
             data = []
-            for item_data in self.backend.thread_pool.map(_get_item_data, iter(self.backend.database.foreign_key_cache.all_game_map_objects.values())):
+            for item_data in self.backend.thread_pool.map(_get_item_data, self.backend.database.foreign_key_cache.all_game_map_objects.values()):
                 if any(i is None for i in [item_data.get("avg_players"), item_data.get("sample_size")]):
                     continue
                 data.append(item_data)
@@ -474,6 +453,8 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.get_average_players_button.start_spinner_while_future(self.backend.thread_pool.submit(_get_all_data))
 
     def show_avg_player_window_helper(self, data: list):
+        time_frame = DateTimeFrame(start=min(i.get("min_timestamp") for i in data), end=max(i.get("max_timestamp") for i in data))
+
         plot_widget = AvgMapPlayersPlotWidget(data)
         icon = AllResourceItems.average_players_icon_image.get_as_pixmap(75, 75)
         window = SecondaryWindow(name="avg_player_window")
@@ -499,7 +480,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
         column_count = (len(columns))
         data_widget.setColumnCount(column_count)
         data_widget.setRowCount(row_count)
-        data_widget.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.MinimumExpanding)
+        data_widget.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
 
         data_widget.setHorizontalHeaderLabels(["Map", "Average Players per Hour", "Sample Size (Hours)"])
 
@@ -512,8 +493,19 @@ class AntistasiLogbookMainWindow(QMainWindow):
         data_widget.horizontalHeader().setMinimumSectionSize(175)
         data_widget.setEditTriggers(QTableWidget.NoEditTriggers)
         data_widget.setMinimumSize(QSize(600, 600))
-        sub_sub_layout.addWidget(data_widget)
+        sub_sub_sub_layout = QVBoxLayout()
 
+        sub_sub_sub_layout.addWidget(data_widget)
+        overall_hours = QLabel("<b>Sum Hours:</b><br><i>" + str(sum(i["sample_size"] for i in data)) + "</i>")
+        overall_hours.setAlignment(Qt.AlignCenter)
+        overall_days = QLabel("<b>Amount Days:</b><br><i>" + str(int(time_frame.delta.days)) + "</i>")
+        overall_days.setAlignment(Qt.AlignCenter)
+        overall_time_frame = QLabel("<b>Time-Frame:</b><br><i>" + str(time_frame.to_pretty_string()) + "</i>")
+        overall_time_frame.setAlignment(Qt.AlignCenter)
+        sub_sub_sub_layout.addWidget(overall_hours)
+        sub_sub_sub_layout.addWidget(overall_days)
+        sub_sub_sub_layout.addWidget(overall_time_frame)
+        sub_sub_layout.addLayout(sub_sub_sub_layout)
         screen_center_pos = self.app.screenAt(self.pos()).availableGeometry().center()
         fg = window.frameGeometry()
         new_center_pos = QPoint(screen_center_pos.x() - fg.width(), screen_center_pos.y() - fg.height())
