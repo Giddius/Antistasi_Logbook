@@ -222,7 +222,8 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
         self.setup_statusbar()
         self.setup_backend()
-
+        self.update_started.connect(self.statusbar.last_updated_label.shutdown)
+        self.update_finished.connect(self.statusbar.last_updated_label.start)
         ExceptionHandlerManager.signaler.show_error_signal.connect(self.statusbar.show_error)
         ExceptionHandlerManager.signaler.show_error_signal.connect(self.show_error_dialog)
         self.backend.updater.signaler.update_started.connect(self.statusbar.switch_labels)
@@ -533,7 +534,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
             self.backend.database.close()
             self.backend.database.connect(True)
             try:
-                self.backend.updater.only_update_record_classes(force=True)
+                self.backend.updater.update_all_record_classes()
             finally:
                 self.update_finished.emit()
                 self.menubar.single_update_action.setEnabled(True)

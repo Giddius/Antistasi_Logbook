@@ -848,6 +848,8 @@ class LogRecord(BaseModel):
             (("log_file", "log_level"), False),
             (("log_file", "record_class"), False),
             (("log_file", "logged_from"), False),
+            (("log_file", "record_class", "logged_from"), False),
+            (("record_class", "logged_from"), False),
             (("log_file", "called_by"), False),
             (("log_file", "origin"), False)
         )

@@ -12,8 +12,8 @@ from time import sleep
 from typing import TYPE_CHECKING, Any, Optional
 from pathlib import Path
 from datetime import datetime
-from threading import Event
-from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor, wait
+from threading import Event, Lock, RLock
+from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor, wait, Future
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 from dateutil.tz import UTC
@@ -56,6 +56,32 @@ log = get_logger(__name__)
 # endregion[Constants]
 
 
+class ThreadSafeCounter:
+    __slots__ = ("initial_number", "_value", "_lock")
+
+    def __init__(self, initial_number: int = 0) -> None:
+        self.initial_number = initial_number
+        self._value = self.initial_number
+        self._lock = Lock()
+
+    @property
+    def value(self) -> int:
+        with self._lock:
+            return self._value
+
+    def increment(self, amount: int = 1):
+        with self._lock:
+            self._value += amount
+
+    def reset(self):
+        with self._lock:
+            self._value = self.initial_number
+
+    def __str__(self) -> str:
+        with self._lock:
+            return str(self.value)
+
+
 class Updater:
     """
     Class to run updates of log_files from the remote drive.
@@ -68,7 +94,7 @@ class Updater:
 
     is_updating_event: Event = Event()
 
-    __slots__ = ("backend", "stop_event", "pause_event", "_to_close_contexts", "signaler")
+    __slots__ = ("backend", "stop_event", "pause_event", "_to_close_contexts", "signaler", "record_class_updated_counter")
 
     def __init__(self,
                  backend: "Backend",
@@ -83,6 +109,7 @@ class Updater:
 
         self._to_close_contexts = queue.Queue()
         self.signaler = signaler
+        self.record_class_updated_counter: ThreadSafeCounter = None
 
     @property
     def config(self):
@@ -261,35 +288,46 @@ class Updater:
         wait(tasks, return_when=ALL_COMPLETED, timeout=None)
 
     def emit_change_update_text(self, text):
-        self.thread_pool.submit(self.signaler.change_update_text.emit, text)
+        self.signaler.change_update_text.emit(text)
+
+    def emit_amount_record_classes_updated(self, old_amount: int, amount=int):
+
+        def _do_it(in_old_amount: int, in_amount: int):
+            _amount = in_amount - in_old_amount
+            _amount = int(_amount / 10) * 10
+            self.record_class_updated_counter.increment(_amount)
+            self.signaler.change_update_text.emit(f"Updating Record-Classes --- Checked {self.record_class_updated_counter.value:,} Records")
+
+        self.thread_pool.submit(_do_it, old_amount, amount)
 
     def _update_record_classes(self, server: Server = None, log_file: LogFile = None, force: bool = False):
-        if force is True:
-            self.signaler.change_update_text.emit("Updating Record-Classes")
+        # if force is True:
+        #     self.signaler.change_update_text.emit("Updating Record-Classes")
 
         def _find_record_class(_record: "LogRecord") -> tuple["LogRecord", "RecordClass"]:
-            return self.backend.record_class_manager.determine_record_class(_record)
+            return _record, self.backend.record_class_manager.determine_record_class(_record)
 
         log.info("updating record classes, Server: %r, LogFile: %r, force: %r", server, log_file, force)
         # batch_size = (32767 // 2) - 1
         batch_size = 100_000
+        if log_file is not None:
+            batch_size = batch_size // 10
 
         report_size = batch_size // 10
 
         tasks = []
         to_update = []
-
+        old_idx = 0
         idx = 0
 
-        for record in self.database.iter_all_records(server=server, log_file=log_file, only_missing_record_class=not force):
-
-            record_class = self.backend.record_class_manager.determine_record_class(record)
+        for record, record_class in (_find_record_class(r) for r in self.database.iter_all_records(server=server, log_file=log_file, only_missing_record_class=not force)):
 
             idx += 1
             if idx % report_size == 0:
 
                 if force is True:
-                    self.emit_change_update_text(f"Updating Record-Classes --- Checked {idx:,} Records")
+                    self.emit_amount_record_classes_updated(old_idx, idx)
+                    old_idx = idx
 
             if record.record_class != record_class:
 
@@ -302,7 +340,7 @@ class Updater:
 
                     to_update.clear()
                     sleep(0.01)
-
+        self.emit_amount_record_classes_updated(idx - old_idx)
         if len(to_update) > 0:
             log.debug("updating %s records with their record class", number_to_pretty(len(to_update)))
             task = self.database.record_inserter.many_update_record_class(list(to_update))
@@ -318,7 +356,7 @@ class Updater:
             old_len = len(running_tasks)
             running_tasks = [fu for fu in tasks if fu.done() is False]
 
-        log.info("finished updating record classes")
+        log.info("finished updating record classes server: %r, log_file: %r, force: %r", server, log_file, force)
         if force is True:
             self.emit_change_update_text("")
 
@@ -378,6 +416,18 @@ class Updater:
         finally:
             self.is_updating_event.clear()
             self.after_updates()
+
+    def update_all_record_classes(self):
+        if self.is_updating_event.is_set():
+            log.info("update already running, returning!")
+            return
+        self.is_updating_event.set()
+        try:
+            self.record_class_updated_counter = ThreadSafeCounter()
+            self._update_record_classes(force=True)
+        finally:
+            self.is_updating_event.clear()
+            self.record_class_updated_counter = None
 
     def only_update_record_classes(self, server: Server = None, force: bool = False):
         if self.is_updating_event.is_set():

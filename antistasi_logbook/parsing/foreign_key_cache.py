@@ -97,7 +97,7 @@ class ForeignKeyCache:
         self._all_origin_objects_by_id: dict[str, RecordOrigin] = None
 
         self._all_version_objects: dict[str, Version] = None
-        self._all_version_objects_by_id: dict[str, Version]
+        self._all_version_objects_by_id: dict[str, Version] = None
         self.database = database
         self.update_map = frozendict({ArmaFunction: (self.arma_file_model_blocker, ("_all_arma_file_objects", "_all_arma_file_objects_by_id")),
                                       GameMap: (self.game_map_model_blocker, ("_all_game_map_objects", "_all_game_map_objects_by_id")),

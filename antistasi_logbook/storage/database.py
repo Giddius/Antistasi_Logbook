@@ -14,10 +14,10 @@ from pathlib import Path
 from weakref import WeakSet
 from functools import cached_property
 from threading import Lock, current_thread
-
+from time import sleep
 # * Third Party Imports --------------------------------------------------------------------------------->
 from apsw import SQLITE_OK, SQLITE_CHECKPOINT_TRUNCATE, Connection
-from peewee import JOIN, DatabaseProxy
+from peewee import JOIN, DatabaseProxy, chunked
 from playhouse.apsw_ext import APSWDatabase
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
@@ -239,6 +239,8 @@ class GidSqliteApswDatabase(APSWDatabase):
         log.info("starting up %r", self)
         self._pre_start_up(overwrite=overwrite)
         self.connect(reuse_if_open=True)
+        for k, v in DEFAULT_PRAGMAS.items():
+            self.pragma(k, v)
         with self.write_lock:
             if self.database_existed is True:
                 log.debug("starting migration for %r", self)
@@ -332,17 +334,19 @@ class GidSqliteApswDatabase(APSWDatabase):
 
     def iter_all_records(self, server: Server = None, log_file: LogFile = None, only_missing_record_class: bool = False) -> Generator[LogRecord, None, None]:
 
-        self.foreign_key_cache.preload_all()
-        query = LogRecord.select(LogRecord, RecordClass).join(RecordClass, join_type=JOIN.LEFT_OUTER)
+        logged_from_alias = ArmaFunction.alias()
+        query = LogRecord.select(LogRecord, RecordClass, logged_from_alias).join(RecordClass, join_type=JOIN.LEFT_OUTER).join_from(LogRecord, logged_from_alias, join_type=JOIN.LEFT_OUTER, on=(LogRecord.logged_from == logged_from_alias.id))
         if log_file is not None:
-            query = query.switch(LogRecord).join(LogFile).where(LogRecord.log_file == log_file)
+            query = query.switch(LogRecord).join(LogFile).where(LogRecord.log_file_id == log_file.id)
         elif server is not None:
             nested = LogFile.select().where(LogFile.server == server)
             query = query.switch(LogRecord).join(LogFile).where(LogRecord.log_file << nested)
 
         if only_missing_record_class is True:
             query = query.where(LogRecord.record_class >> None)
+
         for record in query.iterator(self):
+            record.origin = self.foreign_key_cache.get_origin_by_id(record.origin_id)
             record.called_by = self.foreign_key_cache.get_arma_file_by_id(record.called_by_id)
             record.logged_from = self.foreign_key_cache.get_arma_file_by_id(record.logged_from_id)
             record.origin = self.foreign_key_cache.get_origin_by_id(record.origin_id)

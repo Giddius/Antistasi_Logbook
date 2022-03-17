@@ -59,6 +59,14 @@ def migrate_0_5_0(migrator: SqliteMigrator):
         migrate(migrator.add_index("LogRecord", ("log_file", "record_class"), False))
     except apsw.SQLError:
         pass
+    try:
+        migrate(migrator.add_index("LogRecord", ("log_file", "record_class", "logged_from"), False))
+    except apsw.SQLError:
+        pass
+    try:
+        migrate(migrator.add_index("LogRecord", ("record_class", "logged_from"), False))
+    except apsw.SQLError:
+        pass
 
 
 def run_migration(database: "GidSqliteApswDatabase"):
