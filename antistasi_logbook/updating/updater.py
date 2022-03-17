@@ -48,8 +48,8 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
-get_dummy_profile_decorator_in_globals()
+
+
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 
@@ -263,7 +263,6 @@ class Updater:
     def emit_change_update_text(self, text):
         self.thread_pool.submit(self.signaler.change_update_text.emit, text)
 
-    @profile
     def _update_record_classes(self, server: Server = None, log_file: LogFile = None, force: bool = False):
         if force is True:
             self.signaler.change_update_text.emit("Updating Record-Classes")

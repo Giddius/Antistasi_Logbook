@@ -27,7 +27,7 @@ import qt_material
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
 from gidapptools.gid_logger.misc import QtMessageHandler
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+
 from gidapptools.general_helper.string_helper import StringCaseConverter
 from gidapptools.gidapptools_qt.widgets.app_log_viewer import StoredAppLogViewer
 from gidapptools.gidapptools_qt.widgets.spinner_widget import BusyPushButton
@@ -82,7 +82,6 @@ if TYPE_CHECKING:
 
 # region [Constants]
 
-get_dummy_profile_decorator_in_globals()
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
@@ -437,7 +436,6 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
             return data | {"game_map": in_game_map.full_name}
 
-        @profile
         def _get_all_data():
             data = []
             for item_data in self.backend.thread_pool.map(_get_item_data, self.backend.database.foreign_key_cache.all_game_map_objects.values()):

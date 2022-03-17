@@ -35,8 +35,8 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
-get_dummy_profile_decorator_in_globals()
+
+
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
@@ -92,7 +92,6 @@ class RawRecord:
                 'called_by': self.parsed_data.get("called_by"), "record_origin": self.record_origin, 'logged_from': self.parsed_data.get("logged_from"),
                 "log_file": log_file.id, 'log_level': self.parsed_data.get("log_level"), "record_class": self.record_class.id, "marked": False}
 
-    @profile
     def to_sql_params(self, log_file: "LogFile") -> tuple:
         called_by = self.parsed_data.get("called_by")
         if called_by is not None:

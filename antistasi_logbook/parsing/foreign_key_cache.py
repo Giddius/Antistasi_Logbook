@@ -38,8 +38,8 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
-get_dummy_profile_decorator_in_globals()
+
+
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
@@ -206,35 +206,28 @@ class ForeignKeyCache:
             self._all_version_objects_by_id = frozendict({str(version.id): Version for version in self.database.get_all_versions()})
         return self._all_version_objects_by_id
 
-    @profile
     def get_log_level_by_id(self, model_id: int) -> Optional[LogLevel]:
 
         return self.all_log_levels_by_id.get(model_id)
 
-    @profile
     def get_arma_file_by_id(self, model_id: int) -> Optional[ArmaFunction]:
 
         return self.all_arma_file_objects_by_id.get(str(model_id))
 
-    @profile
     def get_game_map_by_id(self, model_id: int) -> Optional[GameMap]:
 
         return self.all_game_map_objects_by_id.get(str(model_id))
 
-    @profile
     def get_game_map_case_insensitive(self, name: str) -> Optional[GameMap]:
         insensitive_game_map_data = frozendict({k.casefold(): v for k, v in self.all_game_map_objects.items()})
         return insensitive_game_map_data.get(name.casefold())
 
-    @profile
     def get_origin_by_id(self, model_id: int) -> Optional[RecordOrigin]:
         return self.all_origin_objects_by_id.get(str(model_id))
 
-    @profile
     def get_version_by_id(self, model_id: int) -> Optional[Version]:
         return self.all_version_objects_by_id.get(str(model_id))
 
-    @profile
     def reset_all(self) -> None:
         """
         Invalidate each cache.
@@ -252,9 +245,7 @@ class ForeignKeyCache:
         self._all_version_objects_by_id = None
         log.info("all cached foreign keys were reseted.")
 
-    @profile
     def preload_all(self) -> None:
-        self.reset_all()
         _ = self.all_log_levels
         _ = self.all_arma_file_objects
         _ = self.all_game_map_objects

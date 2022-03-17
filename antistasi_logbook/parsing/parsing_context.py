@@ -51,8 +51,8 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
-get_dummy_profile_decorator_in_globals()
+
+
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
@@ -251,7 +251,6 @@ class LogParsingContext:
             text = '\n'.join(i.content for i in lines if i.content)
             self.log_file_data["startup_text"] = text
 
-    @profile
     def _get_line_iterator(self) -> LINE_ITERATOR_TYPE:
         line_number = 0
         with self._log_file.open() as f:
@@ -265,7 +264,6 @@ class LogParsingContext:
                 yield RecordLine(content=line, start=line_number)
 
     @property
-    @profile
     def line_iterator(self) -> LINE_ITERATOR_TYPE:
         if self._line_iterator is None:
             self._line_iterator = self._get_line_iterator()
@@ -278,7 +276,6 @@ class LogParsingContext:
 
         return self._current_line
 
-    @profile
     def advance_line(self) -> None:
         self._current_line = next(self.line_iterator, ...)
 

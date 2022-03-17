@@ -11,10 +11,11 @@ from typing import TYPE_CHECKING
 from pathlib import Path
 
 # * Qt Imports --------------------------------------------------------------------------------------->
-from PySide6.QtGui import QAction
-from PySide6.QtCore import Signal, QMargins, QItemSelection, QStandardPaths, QItemSelectionModel
-from PySide6.QtWidgets import QHeaderView, QToolBar, QFontDialog
+from PySide6.QtGui import QAction, QFont
 
+from PySide6.QtCore import Signal, QMargins, QItemSelection, QStandardPaths, QItemSelectionModel, Qt
+from PySide6.QtWidgets import QHeaderView, QToolBar, QFontDialog, QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QFormLayout, QPushButton
+from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from antistasi_logbook.gui.widgets.tool_bars import LogRecordToolBar
@@ -46,6 +47,24 @@ log = get_logger(__name__)
 # endregion[Constants]
 
 
+class FontSettingsWindow(QFontDialog):
+
+    def __init__(self, default_font: QFont, initial_font: QFont = None, parent=None):
+        super().__init__(parent)
+        self.setOptions(QFontDialog.FontDialogOptions() | QFontDialog.MonospacedFonts)
+        self.default_font = default_font
+        self.initial_font = initial_font
+        if self.initial_font is not None:
+            self.setCurrentFont(self.initial_font)
+        self.reset_button = QPushButton(AllResourceItems.reset_font_image.get_as_icon(), "Reset Font", self)
+        self.reset_button.pressed.connect(self.reset_font)
+        layout: QGridLayout = self.layout()
+        layout.addWidget(self.reset_button, layout.rowCount() - 1, 0, Qt.AlignLeft | Qt.AlignVCenter)
+
+    def reset_font(self):
+        self.setCurrentFont(self.default_font)
+
+
 class LogRecordsQueryView(BaseQueryTreeView):
     initially_hidden_columns: set[str] = {"id", "comments"}
     about_to_screenshot = Signal()
@@ -70,11 +89,14 @@ class LogRecordsQueryView(BaseQueryTreeView):
     def create_tool_bar_item(self) -> QToolBar:
         tool_bar = LogRecordToolBar()
         tool_bar.font_settings_action.triggered.connect(self.show_font_settings_window)
+
         return tool_bar
 
     def show_font_settings_window(self):
-        _ok, font = QFontDialog.getFont(self.original_model.message_font, self, "Log-Record Font Settings", QFontDialog.FontDialogOptions() | QFontDialog.MonospacedFonts)
+        font_dialog = FontSettingsWindow(self.original_model._create_message_font(reset=True), self.original_model.message_font, self)
+        _ok = font_dialog.exec()
         if _ok:
+            font = font_dialog.currentFont()
             self.original_model.set_message_font(font)
             self.repaint()
 

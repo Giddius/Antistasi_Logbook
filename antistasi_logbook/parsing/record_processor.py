@@ -52,8 +52,8 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
-get_dummy_profile_decorator_in_globals()
+
+
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
@@ -136,7 +136,7 @@ class RecordInserter:
         return future
 
     def _execute_update_record_class(self, log_record: LogRecord, record_class: RecordClass) -> None:
-        with self.database.write_lock:
+        with self.write_lock:
             with self.database:
                 LogRecord.update(record_class=record_class).where(LogRecord.id == log_record.id).execute()
 

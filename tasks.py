@@ -36,18 +36,19 @@ import xml.etree.ElementTree as et
 from pathlib import Path
 from pprint import pprint
 # import attr
-# from gid_tasks.project_info.project import Project
+from gid_tasks.project_info.project import Project
 # from gid_tasks.actions import doc_collection, clean_collection, update_collection
 
 # ns = Collection()
 # ns.add_collection(doc_collection)
 # ns.add_collection(clean_collection)
 # ns.add_collection(update_collection)
-# PROJECT = Project()
-# Context.project = PROJECT
+THIS_FILE_DIR = Path(__file__).parent.absolute()
+
+PROJECT = Project(cwd=THIS_FILE_DIR)
+Context.project = PROJECT
 
 loggers = list(logging.Logger.manager.loggerDict)
-
 
 PATH_TYPE = Union[str, os.PathLike, Path]
 CONSOLE = RichConsole(soft_wrap=True)
@@ -680,3 +681,17 @@ def build_onedir(c):
     pyinstaller_script = THIS_FILE_DIR.joinpath("tools", "quick_pyinstaller_noconsole.bat")
     spec_file = THIS_FILE_DIR.joinpath("tools", "Antistasi_Logbook.spec")
     activator_run(c, f"{str(pyinstaller_script)} {str(spec_file)}")
+
+
+from gidapptools.gid_scribe.markdown.document import MarkdownDocument, MarkdownHeadline, MarkdownImage, MarkdownCodeBlock, MarkdownRawText, MarkdownSimpleList
+from gidapptools.general_helper.string_helper import StringCaseConverter, StringCase
+
+
+@task()
+def make_readme(c):
+    project: Project = c.project
+    top_headline = project.general_project_data["name"]
+    top_headline = StringCaseConverter.convert_to(top_headline, StringCase.TITLE)
+    top_image = THIS_FILE_DIR.joinpath("docs", "images", "app_icon.png")
+    readme_document = MarkdownDocument(THIS_FILE_DIR.joinpath("README.md"), top_headline=top_headline, top_image=top_image)
+    readme_document.to_file()

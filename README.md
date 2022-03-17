@@ -1,27 +1,6 @@
-# Antistasi Logbook
-
-## STATUS
-
-**WIP**
-
-## Dependencies
-
-Also [APSW](https://github.com/rogerbinns/apsw)
-
-### Database
-
-#### Type
-
-Antistasi Logbook uses [SQLite](https://www.sqlite.org), actually it uses [APSW](https://github.com/rogerbinns/apsw) wrapper of SQLite.
-
-#### ORM
-
-[peewee](https://github.com/coleifer/peewee) is used as an orm to interact with the [SQLite](https://www.sqlite.org) database.
-
-##### ERD
-
----
-
-![Database ER-Diagram](./docs/images/erd.png)
-
----
+<center>
+    <h1>Antistasi Logbook</h1>
+</center>
+<center>
+    <img src="docs/images/app_icon.png" title="Antistasi Logbook" alt="image">
+</center>

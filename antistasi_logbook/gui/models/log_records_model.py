@@ -15,6 +15,7 @@ from functools import partial
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QFont, QAction, QFontMetrics
 from PySide6.QtCore import Qt, Slot, QSize, Signal, QModelIndex, QSettings
+from PySide6.QtWidgets import QApplication
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
@@ -87,15 +88,18 @@ class LogRecordsModel(BaseQueryDataModel):
         self.proxy_model.setSourceModel(self)
 
     def set_message_font(self, font):
+        self.layoutAboutToBeChanged.emit()
         self.message_font = font
         settings = QSettings()
         settings.setValue(f"{self.name}_message_font", font)
+        self.layoutChanged.emit()
 
-    def _create_message_font(self) -> QFont:
+    @classmethod
+    def _create_message_font(cls, reset: bool = False) -> QFont:
         settings = QSettings()
-        font = settings.value(f"{self.name}_message_font", None)
-        if font is None:
-            font: QFont = self.app.font()
+        font = settings.value(f"{cls.__name__}_message_font", None)
+        if font is None or reset is True:
+            font: QFont = QApplication.instance().font()
             font.setFamily("Lucida Console")
 
             font.setWeight(QFont.Light)
@@ -172,6 +176,9 @@ class LogRecordsModel(BaseQueryDataModel):
         if index.column_item.name in {"message"}:
             return None
         return super()._get_text_alignment_data(index)
+
+    def _get_size_hint_data(self, index: INDEX_TYPE) -> Any:
+        return QSize(0, self.message_font.pointSize() * 2)
 
     def _get_font_data(self, index: "INDEX_TYPE") -> Any:
         if index.column_item.name in {"message"}:

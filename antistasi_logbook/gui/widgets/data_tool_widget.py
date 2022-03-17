@@ -565,7 +565,7 @@ class LogRecordFilterPage(BaseDataToolPage):
         logged_from_model.refresh()
         logged_from_model.add_empty_item()
         self.filter_by_logged_from_combo_box.setModel(logged_from_model)
-        self.filter_by_logged_from_combo_box.setModelColumn(logged_from_model.get_column_index("file_name"))
+        self.filter_by_logged_from_combo_box.setModelColumn(logged_from_model.get_column_index("function_name"))
         self.filter_by_logged_from_combo_box.setCurrentIndex(-1)
 
         self.layout.addRow("Filter by Logged-from", self.filter_by_logged_from_combo_box)

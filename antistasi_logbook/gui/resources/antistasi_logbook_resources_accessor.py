@@ -78,6 +78,8 @@ WARNING_SIGN_ROUND_YELLOW_IMAGE = ressource_item_factory(file_path='warning_sign
 
 UNMARK_IMAGE = ressource_item_factory(file_path='unmark.png', qt_path=':/images/unmark.png')
 
+RESET_FONT_IMAGE = ressource_item_factory(file_path='reset_font.png', qt_path=':/images/reset_font.png')
+
 CLOSED_EYE_IMAGE = ressource_item_factory(file_path='closed_eye.svg', qt_path=':/images/closed_eye.svg')
 
 ANTISTASI_LOGBOOK_SPLASH_SHUTDOWN_BACKEND_IMAGE = ressource_item_factory(file_path='antistasi_logbook_splash_shutdown_backend.png', qt_path=':/images/antistasi_logbook_splash_shutdown_backend.png')
@@ -165,6 +167,7 @@ class AllResourceItems(metaclass=AllResourceItemsMeta):
     antistasi_logbook_splash_starting_backend_image = ANTISTASI_LOGBOOK_SPLASH_STARTING_BACKEND_IMAGE
     warning_sign_round_yellow_image = WARNING_SIGN_ROUND_YELLOW_IMAGE
     unmark_image = UNMARK_IMAGE
+    reset_font_image = RESET_FONT_IMAGE
     closed_eye_image = CLOSED_EYE_IMAGE
     antistasi_logbook_splash_shutdown_backend_image = ANTISTASI_LOGBOOK_SPLASH_SHUTDOWN_BACKEND_IMAGE
     database_settings_image = DATABASE_SETTINGS_IMAGE

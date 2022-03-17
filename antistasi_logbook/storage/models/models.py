@@ -30,7 +30,7 @@ from playhouse.sqlite_ext import JSONField
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
 from gidapptools.general_helper.enums import MiscEnum
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+
 from gidapptools.general_helper.conversion import bytes2human
 
 # * Local Imports --------------------------------------------------------------------------------------->
@@ -74,7 +74,6 @@ database_proxy = DatabaseProxy()
 
 
 LOCAL_TIMEZONE = get_localzone()
-get_dummy_profile_decorator_in_globals()
 
 
 class BaseModel(Model):
@@ -234,7 +233,6 @@ class GameMap(BaseModel):
     class Meta:
         table_name = 'GameMap'
 
-    @profile
     def get_avg_players_per_hour(self) -> dict[str, Union[float, int, datetime]]:
 
         log_files_query = LogFile.select().where(LogFile.game_map == self)

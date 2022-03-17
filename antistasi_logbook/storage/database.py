@@ -31,7 +31,7 @@ from antistasi_logbook.storage.models.models import (Server, GameMap, LogFile, V
                                                      RecordOrigin, RemoteStorage, DatabaseMetaData, ArmaFunctionAuthorPrefix, setup_db)
 from antistasi_logbook.storage.models.migration import run_migration
 import inspect
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+
 setup()
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
@@ -56,7 +56,7 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-get_dummy_profile_decorator_in_globals()
+
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 META_PATHS: MetaPaths = get_meta_paths()
 META_INFO = get_meta_info()
@@ -190,7 +190,6 @@ class GidSqliteApswDatabase(APSWDatabase):
     def base_record_id(self) -> int:
         return RecordClass.select().where(RecordClass.name == "BaseRecord").scalar()
 
-    @profile
     def _add_conn_hooks(self, conn):
         self.conns.add(conn)
 
@@ -208,7 +207,6 @@ class GidSqliteApswDatabase(APSWDatabase):
             conn.setrollbackhook(rollback_hook)
         super()._add_conn_hooks(conn)
 
-    @profile
     def _close(self, conn):
         if self.config.get("database", "log_connection_creation") is True:
             log.debug("closed connection %r of thread %r", conn, current_thread())
@@ -232,7 +230,6 @@ class GidSqliteApswDatabase(APSWDatabase):
             log.info("checkpoint wal with return: %r", result)
             self.close()
 
-    @profile
     def start_up(self,
                  overwrite: bool = False,
                  force: bool = False) -> "GidSqliteApswDatabase":
@@ -260,7 +257,6 @@ class GidSqliteApswDatabase(APSWDatabase):
         self.optimize()
         return self
 
-    @profile
     def optimize(self) -> "GidSqliteApswDatabase":
         log.info("optimizing %r", self)
         # with self.write_lock:
@@ -269,7 +265,6 @@ class GidSqliteApswDatabase(APSWDatabase):
         log.info("finished optimizing %r", self)
         return self
 
-    @profile
     def vacuum(self) -> "GidSqliteApswDatabase":
         log.info("vacuuming %r", self)
         with self.write_lock:
@@ -277,7 +272,6 @@ class GidSqliteApswDatabase(APSWDatabase):
             self.checkpoint()
         return self
 
-    @profile
     def shutdown(self, error: BaseException = None) -> None:
         log.debug("shutting down %r", self)
         with self.write_lock:
@@ -336,9 +330,8 @@ class GidSqliteApswDatabase(APSWDatabase):
         result = tuple(Version.select(Version).order_by(ordered_by).iterator(self))
         return result
 
-    @profile
     def iter_all_records(self, server: Server = None, log_file: LogFile = None, only_missing_record_class: bool = False) -> Generator[LogRecord, None, None]:
-        self.foreign_key_cache.reset_all()
+
         self.foreign_key_cache.preload_all()
         query = LogRecord.select(LogRecord, RecordClass).join(RecordClass, join_type=JOIN.LEFT_OUTER)
         if log_file is not None:

@@ -12,7 +12,7 @@ from pathlib import Path
 
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtWidgets import QToolBar
-
+from PySide6.QtCore import Qt
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 
@@ -71,6 +71,10 @@ class LogFilesQueryTreeView(BaseQueryTreeView):
         tool_bar = LogFileToolBar()
         self.current_items_changed.connect(tool_bar.export_action_widget.set_items)
         return tool_bar
+
+    def post_set_model(self):
+        super().post_set_model()
+        self.sortByColumn(self.model.get_column_index("modified_at"), Qt.DescendingOrder)
         # region[Main_Exec]
 
 

@@ -26,7 +26,7 @@ from webdav4.client import Client as WebdavClient
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger, get_meta_paths, get_meta_config
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook import setup
@@ -58,7 +58,7 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-get_dummy_profile_decorator_in_globals()
+
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 META_PATHS: "MetaPaths" = get_meta_paths()
