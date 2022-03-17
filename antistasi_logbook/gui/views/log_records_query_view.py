@@ -89,7 +89,8 @@ class LogRecordsQueryView(BaseQueryTreeView):
     def create_tool_bar_item(self) -> QToolBar:
         tool_bar = LogRecordToolBar()
         tool_bar.font_settings_action.triggered.connect(self.show_font_settings_window)
-
+        if self.original_model is None:
+            tool_bar.font_settings_action.setEnabled(False)
         return tool_bar
 
     def show_font_settings_window(self):
@@ -167,6 +168,7 @@ class LogRecordsQueryView(BaseQueryTreeView):
 
     def post_set_model(self):
         super().post_set_model()
+        self.tool_bar_item.font_settings_action.setEnabled(True)
 
     def setModel(self, model: "LogRecordsModel") -> None:
         self.original_model = model
