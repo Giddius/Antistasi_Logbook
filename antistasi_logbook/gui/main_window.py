@@ -549,11 +549,11 @@ class AntistasiLogbookMainWindow(QMainWindow):
         def _run_update():
             # TODO: Connect update_action to the Stausbar label and shut it down while updating and start it up afterwards
             self.menubar.single_update_action.setEnabled(False)
-            self.update_started.emit()
+
             try:
                 self.backend.updater()
             finally:
-                self.update_finished.emit()
+
                 self.menubar.single_update_action.setEnabled(True)
                 self.backend.database.close()
 

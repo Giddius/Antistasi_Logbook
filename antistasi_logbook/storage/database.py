@@ -239,8 +239,8 @@ class GidSqliteApswDatabase(APSWDatabase):
         log.info("starting up %r", self)
         self._pre_start_up(overwrite=overwrite)
         self.connect(reuse_if_open=True)
-        for k, v in DEFAULT_PRAGMAS.items():
-            self.pragma(k, v)
+        # for k, v in DEFAULT_PRAGMAS.items():
+        #     self.pragma(k, v)
         with self.write_lock:
             if self.database_existed is True:
                 log.debug("starting migration for %r", self)

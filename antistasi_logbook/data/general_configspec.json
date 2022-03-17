@@ -29,7 +29,10 @@
             "default": "0",
             "implemented": false
         },
-        "log_connection_creation": { "converter": "boolean", "default": "True" }
+        "log_connection_creation": {
+            "converter": "boolean",
+            "default": "False"
+        }
     },
     "updating": {
         "updates_enabled": {

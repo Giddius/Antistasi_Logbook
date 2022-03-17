@@ -276,7 +276,7 @@ class Updater:
             context._dump_rest()
 
     def process(self, server: "Server") -> None:
-
+        log.debug("processing server %r", server)
         tasks = []
         to_update_log_files = self._get_updated_log_files(server=server)
         self.signaler.send_update_info(len(to_update_log_files) * 3, server.name)

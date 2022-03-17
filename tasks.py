@@ -694,4 +694,8 @@ def make_readme(c):
     top_headline = StringCaseConverter.convert_to(top_headline, StringCase.TITLE)
     top_image = THIS_FILE_DIR.joinpath("docs", "images", "app_icon.png")
     readme_document = MarkdownDocument(THIS_FILE_DIR.joinpath("README.md"), top_headline=top_headline, top_image=top_image)
+    fact_list = MarkdownSimpleList(ordered=False)
+    fact_list.add_entry(f"**__Version:__** `{project.version!s}`")
+
+    readme_document.add_part(fact_list)
     readme_document.to_file()

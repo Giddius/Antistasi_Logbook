@@ -360,7 +360,7 @@ class FakeWebdavManager(AbstractRemoteStorageManager):
 
     @property
     def max_connections(self) -> Optional[int]:
-        return self.config.get(self.config_name, "max_concurrent_connections", default=100)
+        return max(1, self.config.get(self.config_name, "max_concurrent_connections", default=100))
 
     def _get_download_semaphore(self) -> MinDurationSemaphore:
         download_semaphore = self.download_semaphores.get(self.full_base_url)
