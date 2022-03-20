@@ -139,6 +139,7 @@ class TimeRemainingAction(QAction):
 
 
 class LogbookMenuBar(BaseMenuBar):
+    general_disabled_action_names = frozenset(["show_app_log", "show_errors"])
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent=parent, auto_connect_standard_actions=True)

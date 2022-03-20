@@ -34,7 +34,7 @@ from gidapptools.gidapptools_qt.widgets.spinner_widget import BusyPushButton
 from gidapptools.gidapptools_qt.widgets.std_stream_widget import StdStreamWidget
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook import stream_capturer
+# from antistasi_logbook import stream_capturer
 from antistasi_logbook.errors import ExceptionHandlerManager, MissingLoginAndPasswordError
 from antistasi_logbook.backend import Backend, GidSqliteApswDatabase
 from antistasi_logbook.gui.misc import UpdaterSignaler
@@ -60,6 +60,7 @@ from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataMode
 from antistasi_logbook.gui.models.remote_storages_model import RemoteStoragesModel
 from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
+
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
@@ -292,8 +293,9 @@ class AntistasiLogbookMainWindow(QMainWindow):
             self.show_credentials_managment_window()
 
     def show_errors_window(self):
-        self.errors_window = StdStreamWidget(stream_capturer=stream_capturer).setup()
-        self.errors_window.show()
+        pass
+        # self.errors_window = StdStreamWidget(stream_capturer=stream_capturer).setup()
+        # self.errors_window.show()
 
     def development_setup(self):
         if self.app.is_dev is False:
@@ -452,6 +454,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.get_average_players_button.start_spinner_while_future(self.backend.thread_pool.submit(_get_all_data))
 
     def show_avg_player_window_helper(self, data: list):
+
         time_frame = DateTimeFrame(start=min(i.get("min_timestamp") for i in data), end=max(i.get("max_timestamp") for i in data))
 
         plot_widget = AvgMapPlayersPlotWidget(data)
@@ -497,7 +500,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
         sub_sub_sub_layout.addWidget(data_widget)
         overall_hours = QLabel("<b>Sum Hours:</b><br><i>" + str(sum(i["sample_size"] for i in data)) + "</i>")
         overall_hours.setAlignment(Qt.AlignCenter)
-        overall_days = QLabel("<b>Amount Days:</b><br><i>" + str(int(time_frame.delta.days)) + "</i>")
+        overall_days = QLabel("<b>Amount Days:</b><br><i>" + str(int(time_frame.days)) + "</i>")
         overall_days.setAlignment(Qt.AlignCenter)
         overall_time_frame = QLabel("<b>Time-Frame:</b><br><i>" + str(time_frame.to_pretty_string()) + "</i>")
         overall_time_frame.setAlignment(Qt.AlignCenter)

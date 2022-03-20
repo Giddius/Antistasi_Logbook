@@ -23,3 +23,5 @@ tabulate
 tomlkit
 pip-tools
 pipreqs
+tinyaes
+code2flow

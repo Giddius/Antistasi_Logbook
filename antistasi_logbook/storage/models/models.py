@@ -465,20 +465,15 @@ class LogFile(BaseModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.is_downloaded: bool = False
-        self._amount_log_records: Union[int, Future] = None
-        self._amount_warnings: Union[int, Future] = None
-        self._amount_errors: Union[int, Future] = None
-
-    def pre_get_properties(self):
-        if self.unparsable is not True:
-            self._amount_log_records = self.database.backend.thread_pool.submit(self.get_amount_log_records)
-            self._amount_warnings = self.database.backend.thread_pool.submit(self.get_amount_warnings)
-            self._amount_errors = self.database.backend.thread_pool.submit(self.get_amount_errors)
 
     @cached_property
     def time_frame(self) -> DateTimeFrame:
-        self.database.connect(True)
-        min_date_time, max_date_time = LogRecord.select(fn.Min(LogRecord.recorded_at), fn.Max(LogRecord.recorded_at)).where(LogRecord.log_file == self).scalar(as_tuple=True)
+        # query = LogRecord.select(fn.Min(LogRecord.recorded_at), fn.Max(LogRecord.recorded_at)).where((LogRecord.log_file_id == self.id))
+        query_string = """SELECT Min("t1"."recorded_at"), Max("t1"."recorded_at") FROM "LogRecord" AS "t1" WHERE ("t1"."log_file" = ?)"""
+        cursor = self.database.execute_sql(query_string, (self.id,))
+        min_date_time, max_date_time = cursor.fetchone()
+        min_date_time = LogRecord.recorded_at.python_value(min_date_time)
+        max_date_time = LogRecord.recorded_at.python_value(max_date_time)
         return DateTimeFrame(min_date_time, max_date_time)
 
     @cached_property
@@ -497,40 +492,30 @@ class LogFile(BaseModel):
 
         return f"UTC{offset_hours:+}"
 
-    def get_amount_log_records(self) -> int:
-        return LogRecord.select(LogRecord.id).where(LogRecord.log_file_id == self.id).count()
-
-    @property
+    @cached_property
     def amount_log_records(self) -> int:
-        if isinstance(self._amount_log_records, Future):
-            self._amount_log_records = self._amount_log_records.result()
-        elif self._amount_log_records is None:
-            self._amount_log_records = self.get_amount_log_records()
-        return self._amount_log_records
+        # query = LogRecord.select(fn.count(LogRecord.id)).where(LogRecord.log_file_id == self.id)
+        query_string = """SELECT count("t1"."id") FROM "LogRecord" AS "t1" WHERE ("t1"."log_file" = ?)"""
 
-    def get_amount_errors(self) -> int:
-        error_log_level = self.database.foreign_key_cache.all_log_levels.get("ERROR")
-        return LogRecord.select(LogRecord.id).where(LogRecord.log_file_id == self.id, LogRecord.log_level_id == error_log_level.id).count()
+        cursor = self.database.execute_sql(query_string, (self.id,))
+        return cursor.fetchone()[0]
 
-    @property
+    @cached_property
     def amount_errors(self) -> int:
-        if isinstance(self._amount_errors, Future):
-            self._amount_errors = self._amount_errors.result()
-        elif self._amount_errors is None:
-            self._amount_errors = self.get_amount_errors()
-        return self._amount_errors
+        error_log_level = self.database.foreign_key_cache.all_log_levels.get("ERROR")
+        # query = LogRecord.select(fn.count(LogRecord.id)).where((LogRecord.log_file_id == self.id) & (LogRecord.log_level_id == error_log_level.id))
+        query_string = """SELECT count("t1"."id") FROM "LogRecord" AS "t1" WHERE (("t1"."log_file" = ?) AND ("t1"."log_level" = ?))"""
+        cursor = self.database.execute_sql(query_string, (self.id, error_log_level.id))
+        return cursor.fetchone()[0]
 
-    def get_amount_warnings(self) -> int:
-        warning_log_level = self.database.foreign_key_cache.all_log_levels.get("WARNING")
-        return LogRecord.select(LogRecord.id).where(LogRecord.log_file_id == self.id, LogRecord.log_level_id == warning_log_level.id).count()
-
-    @property
+    @cached_property
     def amount_warnings(self) -> int:
-        if isinstance(self._amount_warnings, Future):
-            self._amount_warnings = self._amount_warnings.result()
-        elif self._amount_warnings is None:
-            self._amount_warnings = self.get_amount_warnings()
-        return self._amount_warnings
+        warning_log_level = self.database.foreign_key_cache.all_log_levels.get("WARNING")
+        # query = LogRecord.select(fn.count(LogRecord.id)).where((LogRecord.log_file_id == self.id) & (LogRecord.log_level_id == warning_log_level.id))
+        query_string = """SELECT count("t1"."id") FROM "LogRecord" AS "t1" WHERE (("t1"."log_file" = ?) AND ("t1"."log_level" = ?))"""
+
+        cursor = self.database.execute_sql(query_string, (self.id, warning_log_level.id))
+        return cursor.fetchone()[0]
 
     @cached_property
     def pretty_size(self) -> str:
@@ -570,15 +555,46 @@ class LogFile(BaseModel):
         with self.database:
             return [i.to_record_class() for i in LogRecord.select().where((LogRecord.log_file_id == self.id) & (LogRecord.marked == True))]
 
+    def get_campaign_stats(self) -> tuple[list[dict[str, Any]], tuple["LogFile"]]:
+        self.database.connect(True)
+        all_stats: list[dict[str, Any]] = []
+        record_class = RecordClass.get(name="PerformanceRecord")
+        conc_record_class = record_class.record_class
+        log_files_query = LogFile.select().where(LogFile.campaign_id == self.campaign_id)
+        all_log_files = tuple(log_files_query)
+        query = LogRecord.select(LogRecord.message, LogRecord.recorded_at).where(LogRecord.log_file_id << log_files_query).where(LogRecord.record_class_id == record_class.id).order_by(-LogRecord.recorded_at)
+        for (message, recorded_at) in self.database.execute(query):
+            recorded_at = LogRecord.recorded_at.python_value(recorded_at)
+            item_stats = conc_record_class.parse(message) | {"timestamp": recorded_at}
+            all_stats.append(item_stats)
+        self.database.close()
+        return all_stats, all_log_files
+
     def get_stats(self):
         all_stats: list[dict[str, Any]] = []
         self.database.connect(True)
         record_class = RecordClass.get(name="PerformanceRecord")
-        query = LogRecord.select().where(LogRecord.log_file_id == self.id).where(LogRecord.record_class_id == record_class.id).order_by(-LogRecord.recorded_at)
+        query = LogRecord.select(LogRecord.message, LogRecord.recorded_at).where(LogRecord.log_file_id == self.id).where(LogRecord.record_class_id == record_class.id).order_by(-LogRecord.recorded_at)
         conc_record_class = record_class.record_class
-        for item_data in query.dicts().iterator():
-            item_stats = conc_record_class.parse(item_data["message"]) | {"timestamp": item_data["recorded_at"]}
+        for (message, recorded_at) in self.database.execute(query):
+            recorded_at = LogRecord.recorded_at.python_value(recorded_at)
+            item_stats = conc_record_class.parse(message) | {"timestamp": recorded_at}
             all_stats.append(item_stats)
+        self.database.close()
+        return all_stats
+
+    def get_resource_check_stats(self):
+        all_stats: list[dict[str, Any]] = []
+        self.database.connect(True)
+        record_class = RecordClass.get(name="ResourceCheckRecord")
+        query = LogRecord.select(LogRecord.message, LogRecord.recorded_at).where(LogRecord.log_file_id == self.id).where(LogRecord.record_class_id == record_class.id).order_by(-LogRecord.recorded_at)
+        conc_record_class = record_class.record_class
+        for (message, recorded_at) in self.database.execute(query):
+            recorded_at = LogRecord.recorded_at.python_value(recorded_at)
+            item_stats = conc_record_class.parse(message) | {"timestamp": recorded_at}
+
+            if "PARSING ERROR" not in item_stats.keys():
+                all_stats.append(item_stats)
         self.database.close()
         return all_stats
 
@@ -593,7 +609,7 @@ class LogFile(BaseModel):
             return
         log.debug("setting 'last_parsed_line_number' for %s to %r", self, line_number)
         changed = LogFile.update(last_parsed_line_number=line_number).where(LogFile.id == self.id).execute(self.get_meta().database)
-        log.debug(f"{changed=}")
+        log.debug("changed=%r", changed)
         self.last_parsed_line_number = line_number
 
     @ cached_property

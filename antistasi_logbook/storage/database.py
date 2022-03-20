@@ -75,7 +75,7 @@ DEFAULT_PRAGMAS = frozendict({
     "foreign_keys": 1,
     "temp_store": "MEMORY",
     "mmap_size": 268435456 * 8,
-    "journal_size_limit": human2bytes("200mb"),
+    "journal_size_limit": human2bytes("500mb"),
     "wal_autocheckpoint": 1000,
     "page_size": 32768 * 2,
     "analysis_limit": 100000
@@ -333,7 +333,8 @@ class GidSqliteApswDatabase(APSWDatabase):
         return result
 
     def iter_all_records(self, server: Server = None, log_file: LogFile = None, only_missing_record_class: bool = False) -> Generator[LogRecord, None, None]:
-
+        foreign_key_cache = ForeignKeyCache(self)
+        foreign_key_cache.preload_all()
         logged_from_alias = ArmaFunction.alias()
         query = LogRecord.select(LogRecord, RecordClass, logged_from_alias).join(RecordClass, join_type=JOIN.LEFT_OUTER).join_from(LogRecord, logged_from_alias, join_type=JOIN.LEFT_OUTER, on=(LogRecord.logged_from == logged_from_alias.id))
         if log_file is not None:
@@ -346,10 +347,10 @@ class GidSqliteApswDatabase(APSWDatabase):
             query = query.where(LogRecord.record_class >> None)
 
         for record in query.iterator(self):
-            record.origin = self.foreign_key_cache.get_origin_by_id(record.origin_id)
-            record.called_by = self.foreign_key_cache.get_arma_file_by_id(record.called_by_id)
-            record.logged_from = self.foreign_key_cache.get_arma_file_by_id(record.logged_from_id)
-            record.origin = self.foreign_key_cache.get_origin_by_id(record.origin_id)
+            record.origin = foreign_key_cache.get_origin_by_id(record.origin_id)
+            record.called_by = foreign_key_cache.get_arma_file_by_id(record.called_by_id)
+            record.logged_from = foreign_key_cache.get_arma_file_by_id(record.logged_from_id)
+            record.origin = foreign_key_cache.get_origin_by_id(record.origin_id)
             yield record
 
     def get_unique_server_ips(self) -> tuple[str]:

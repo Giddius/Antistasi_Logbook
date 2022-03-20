@@ -165,7 +165,6 @@ class AwareTimeStampField(BigIntegerField):
         return int(raw_value * self.mult_factor)
 
     def python_value(self, value):
-
         if value is None:
             return
 

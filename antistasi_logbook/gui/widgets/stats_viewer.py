@@ -8,24 +8,26 @@ Soon.
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import random
-from math import ceil
+from gidapptools.general_helper.enums import MiscEnum
+from math import ceil, log as math_log, sqrt, exp
 from typing import TYPE_CHECKING, Any, Union, Iterable, Optional
 from pathlib import Path
 from datetime import datetime
+
 from functools import cached_property
 from threading import RLock
-
+from enum import Enum, auto, unique, Flag
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
 import pyqtgraph as pg
 from PySide6 import QtCore
-from PySide6.QtGui import QPen, QFont, QColor
+from PySide6.QtGui import QPen, QFont, QColor, QAction
 from PySide6.QtCore import Qt, Slot, QSize, Signal
-from PySide6.QtWidgets import QLabel, QWidget, QSpinBox, QGroupBox, QStatusBar, QFormLayout, QGridLayout, QHBoxLayout, QMainWindow, QPushButton, QVBoxLayout, QApplication, QDoubleSpinBox
-
+from PySide6.QtWidgets import QLabel, QWidget, QSpinBox, QMenu, QSizePolicy, QGroupBox, QStatusBar, QFormLayout, QScrollArea, QGridLayout, QHBoxLayout, QMainWindow, QPushButton, QVBoxLayout, QApplication, QDoubleSpinBox
+from PySide6.QtSvg import QSvgRenderer
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
-
+from antistasi_logbook.gui.diagram.abstract_stats_model import PerformanceStatsModel
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.records.enums import MessageFormat
 
@@ -51,32 +53,45 @@ if TYPE_CHECKING:
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
+# "white"
 COLORS = ["red", "tan", "blue", "gold", "gray", "lime", "peru", "pink", "plum", "teal", "brown", "coral", "green",
-          "olive", "wheat", "white", "bisque", "indigo", "maroon", "orange", "purple", "sienna", "tomato", "yellow"]
+          "olive", "wheat", "bisque", "indigo", "maroon", "orange", "purple", "sienna", "tomato", "yellow"] * 10
+
+# 'arrow_up', 'arrow_right', 'arrow_down', 'arrow_left','crosshair'
+SYMBOLS = ['s', 't', "o", "t1", 't2', 't3', 'd', '+', "p", 'h', 'star'
+           ]
+random.shuffle(SYMBOLS)
+SYMBOLS = tuple((['x'] + SYMBOLS) * 10)
 
 
 class CustomSampleItem(pg.ItemSample):
     changed_vis = Signal(object)
+
+    def set_visibility(self, value: bool):
+        self.item.setVisible(value)
+
+        self.changed_vis.emit(self.item)
 
     def mouseClickEvent(self, event):
         """Use the mouseClick event to toggle the visibility of the plotItem
         """
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
             visible = self.item.isVisible()
-            self.item.setVisible(not visible)
-            self.changed_vis.emit(self.item)
+            self.set_visibility(not visible)
+
         event.accept()
         self.update()
 
 
 class ColorSelector(QGroupBox):
     color_changed = Signal(str, QColor)
-    color_config_name = "stats"
 
-    def __init__(self, parent=None):
+    def __init__(self, color_config_name: str, parent=None):
         super().__init__(parent=parent)
+        self.color_config_name = color_config_name
         self.setTitle("Colors")
         self.setLayout(QFormLayout())
+        self.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Preferred)
         self.layout.setVerticalSpacing(3)
         self.key_map: dict[pg.ColorButton, str] = {}
 
@@ -94,7 +109,7 @@ class ColorSelector(QGroupBox):
     def color_change_proxy(self, button: pg.ColorButton):
         key = self.key_map[button]
         color = button.color()
-        self.app.color_config.set(self.color_config_name, key.replace(" ", "_"), color)
+        self.app.color_config.set(self.color_config_name, key.replace(" ", "_"), color, create_missing_section=True)
         self.color_changed.emit(key, color)
 
     @property
@@ -147,7 +162,7 @@ class PaddingOptionsBox(QGroupBox):
 class ControlBox(QGroupBox):
     request_change_extra_lines_hidden = Signal(bool)
 
-    def __init__(self, parent=None):
+    def __init__(self, color_config_name: str, parent=None):
         super().__init__(parent=parent)
         self.setLayout(QVBoxLayout())
         self.form_layout = QFormLayout()
@@ -169,19 +184,79 @@ class ControlBox(QGroupBox):
 
         self.hide_extra_lines_toggle.clicked.connect(self.on_hide_extra_lines_pressed)
         self.form_layout.addRow("Hide extra Lines", self.hide_extra_lines_toggle)
+
+        self.hide_symbols_button = QPushButton("Hide")
+        self.hide_symbols_button.active = False
+        self.hide_symbols_button.clicked.connect(self.on_hide_symbols_pressed)
+        self.form_layout.addRow("Hide Symbols", self.hide_symbols_button)
+
+        self.hide_legend_button = QPushButton("Hide")
+        self.hide_legend_button.active = False
+        self.hide_legend_button.clicked.connect(self.on_hide_legend_pressed)
+        self.form_layout.addRow("Hide Legend", self.hide_legend_button)
+
+        self.show_all_button = QPushButton("Show all Items")
+        self.hide_all_button = QPushButton("Hide all Items")
+
+        self.form_layout.addWidget(self.show_all_button)
+        self.form_layout.addWidget(self.hide_all_button)
+
         self.padding_factor_select_box = PaddingOptionsBox(self)
         self.form_layout.addRow("Axis Padding Factors", self.padding_factor_select_box)
-        self.color_box = ColorSelector()
-        self.extra_layout.addWidget(self.color_box)
+        self.color_box = ColorSelector(color_config_name=color_config_name)
+        self.color_box_scroll_area = QScrollArea()
+        self.color_box_scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
-    def sizeHint(self) -> PySide6.QtCore.QSize:
-        return self.layout.sizeHint()
+        self.color_box_scroll_area.setWidget(self.color_box)
+        self.color_box_scroll_area.setWidgetResizable(True)
+        self.color_box_scroll_area.resize(self.color_box.sizeHint())
 
-    @property
+        self.extra_layout.addWidget(self.color_box_scroll_area)
+
+    def sizeHint(self) -> QSize:
+        return self.layout.totalSizeHint()
+
+    @ property
     def layout(self) -> QVBoxLayout:
         return super().layout()
 
-    @Slot(bool)
+    @ Slot(bool)
+    def on_hide_symbols_pressed(self, checked: bool = None):
+        log.debug("%r was clicked", self.hide_symbols_button)
+
+        if self.hide_symbols_button.active is False:
+            log.debug("switching active state from %r to %r", self.hide_symbols_button.active, True)
+            self.hide_symbols_button.active = True
+            self.hide_symbols_button.setStyleSheet("background-color: grey")
+
+            self.hide_symbols_button.setText("Show")
+
+        else:
+            log.debug("switching active state from %r to %r", self.hide_symbols_button.active, False)
+            self.hide_symbols_button.active = False
+            self.hide_symbols_button.setDown(False)
+            self.hide_symbols_button.setText("Hide")
+            self.hide_symbols_button.setStyleSheet("")
+
+    @ Slot(bool)
+    def on_hide_legend_pressed(self, checked: bool = None):
+        log.debug("%r was clicked", self.hide_legend_button)
+
+        if self.hide_legend_button.active is False:
+            log.debug("switching active state from %r to %r", self.hide_legend_button.active, True)
+            self.hide_legend_button.active = True
+            self.hide_legend_button.setStyleSheet("background-color: grey")
+
+            self.hide_legend_button.setText("Show")
+
+        else:
+            log.debug("switching active state from %r to %r", self.hide_legend_button.active, False)
+            self.hide_legend_button.active = False
+            self.hide_legend_button.setDown(False)
+            self.hide_legend_button.setText("Hide")
+            self.hide_legend_button.setStyleSheet("")
+
+    @ Slot(bool)
     def on_hide_extra_lines_pressed(self, checked: bool = None):
         log.debug("%r was clicked", self.hide_extra_lines_toggle)
 
@@ -223,7 +298,7 @@ class CrosshairDisplayBar(QStatusBar):
         self.y_widget.setLayout(QFormLayout())
         self.y_widget.layout().addRow("Value: ", self.y_display)
 
-    @cached_property
+    @ cached_property
     def display_font(self) -> QFont:
         font = QFont()
         font.setFamily("Lucida Console")
@@ -238,11 +313,11 @@ class CrosshairDisplayBar(QStatusBar):
 
         return self
 
-    @property
+    @ property
     def app(self) -> "AntistasiLogbookApplication":
         return QApplication.instance()
 
-    @Slot(float)
+    @ Slot(float)
     def set_x_value(self, value: float):
 
         date_time = datetime.utcfromtimestamp(value)
@@ -252,7 +327,7 @@ class CrosshairDisplayBar(QStatusBar):
         #     text += "0" * (self.x_fixed_num_chars["zero_padding_to"] - len(text))
         self.x_display.setText(text.center(self.x_fixed_num_chars["center_amount"]))
 
-    @Slot(float)
+    @ Slot(float)
     def set_y_value(self, value: float):
         rounded_value = round(value, self.y_value_display_sig_places)
         text = str(rounded_value)
@@ -261,6 +336,42 @@ class CrosshairDisplayBar(QStatusBar):
         # if len(text) < self.y_fixed_num_chars["zero_padding_to"]:
         #     text += "0" * (self.y_fixed_num_chars["zero_padding_to"] - len(text))
         self.y_display.setText(text.center(self.y_fixed_num_chars["center_amount"]))
+
+
+class StatType(Enum):
+    def __new__(cls, color_config_name):
+        obj = object.__new__(cls)
+        obj.color_config_name = color_config_name
+        return obj
+    PERFORMANCE = ("stats",)
+
+
+class StatsLegend(pg.LegendItem):
+    def __init__(self, size=None, offset=None, horSpacing=25, verSpacing=0, pen=None, brush=None, labelTextColor=None, frame=True, labelTextSize='9pt', colCount=1, sampleType=None, **kwargs):
+        super().__init__(size, offset, horSpacing, verSpacing, pen, brush, labelTextColor, frame, labelTextSize, colCount, sampleType, **kwargs)
+        self._visible = True
+
+    def show_all(self):
+        for item, label in self.items:
+            item.set_visibility(True)
+
+    def hide_all(self):
+        for item, label in self.items:
+            item.set_visibility(False)
+
+    def change_visibility(self):
+        if self._visible is True:
+            for item in self.items:
+                item[0].setVisible(False)
+                item[1].setVisible(False)
+
+            self._visible = False
+
+        else:
+            for item in self.items:
+                item[0].setVisible(True)
+                item[1].setVisible(True)
+            self._visible = True
 
 
 class StatsWindow(QMainWindow):
@@ -274,79 +385,91 @@ class StatsWindow(QMainWindow):
 
     vis_items_lock = RLock()
 
-    def __init__(self, stat_data: list[dict[str, Any]], title: str, parent=None):
+    def __init__(self, stat_type: StatType, stat_data: list[dict[str, Any]], title: str, visible_item_names: Iterable[str] = None, parent=None):
         super().__init__(parent=parent)
+        self.stat_type = stat_type
         self.setCentralWidget(QWidget(self))
         self.centralWidget().setLayout(QHBoxLayout())
         self.plot_widget = pg.PlotWidget(axisItems={'bottom': pg.DateAxisItem(utcOffset=0)}, title=title)
         self.plots: dict[str, pg.PlotItem] = {}
-        self.control_box = ControlBox()
+        self.control_box = ControlBox(color_config_name=self.stat_type.color_config_name)
         self.stat_data = sorted(stat_data, key=lambda x: x.get("timestamp"), reverse=False)
         self.available_colors = COLORS.copy()
         random.shuffle(self.available_colors)
-        self.legend = pg.LegendItem((80, 80), 50, colCount=2, sampleType=CustomSampleItem)
-        self.visible_item_names = {"ServerFPS"}
+        self.legend = StatsLegend((80, 80), 50, colCount=ceil(len(self.keys) / 10), sampleType=CustomSampleItem, labelTextSize="8pt")
+
+        self.visible_item_names = set(visible_item_names) if visible_item_names is not None else set()
+
         self.marked_records: dict["BaseRecord", tuple[pg.InfLineLabel, pg.InfiniteLine]] = {}
 
         self.setup()
 
-    @property
+    @ property
     def layout(self) -> QHBoxLayout:
         return self.centralWidget().layout()
 
-    @cached_property
+    @ cached_property
     def keys(self) -> list[str]:
-        return [k for k in self.stat_data[0].keys() if k != "timestamp"]
+        keys = []
+        items = self.stat_data
+        if "side" in items[0]:
+            items = sorted(self.stat_data, key=lambda x: x.get("side"))
+        for item in items:
+            for k in sorted(item.keys(), key=lambda x: (x == "ServerFPS", x.casefold()), reverse=True):
+                if k not in {"timestamp", "side"} and k not in keys:
+                    keys.append(k)
+        return keys
 
-    @cached_property
+    @ cached_property
     def all_timestamps(self) -> list[float]:
         return [i.get("timestamp").timestamp() for i in self.stat_data]
 
-    @cached_property
+    @ cached_property
     def x_padding_seconds(self) -> float:
         seconds_diff = max(self.all_timestamps) - min(self.all_timestamps)
 
         _out = seconds_diff * self.control_box.padding_factor_select_box.x_padding_factor
         return _out
 
-    @cached_property
+    @ cached_property
     def min_timestamp(self) -> int:
         return min(self.all_timestamps) - self.x_padding_seconds
 
-    @cached_property
+    @ cached_property
     def max_timestamp(self) -> int:
         return max(self.all_timestamps) + self.x_padding_seconds
 
-    @property
+    @ property
     def max_value(self) -> float:
         with self.vis_items_lock:
             data = []
             for item in self.stat_data:
                 for k, v in item.items():
-                    if k in self.visible_item_names:
+                    if k in self.visible_item_names and v is not None:
                         data.append(v)
             if not data:
-                return None
-            max_data = max(data)
+                max_data = 10
+            else:
+                max_data = max(data)
             return ceil(max_data + (max_data * self.control_box.padding_factor_select_box.y_padding_factor))
 
-    @property
+    @ property
     def app(self) -> "AntistasiLogbookApplication":
         return QApplication.instance()
 
-    @cached_property
+    @ cached_property
     def view_box(self) -> pg.ViewBox:
         return self.plot_widget.getPlotItem().getViewBox()
 
-    @property
+    @ property
     def x_axis(self) -> pg.AxisItem:
         return self.plot_widget.getPlotItem().getAxis("bottom")
 
-    @property
+    @ property
     def y_axis(self) -> pg.AxisItem:
         return self.plot_widget.getPlotItem().getAxis("left")
 
-    @cached_property
+    @ cached_property
     def plot_item(self) -> pg.PlotItem:
         return self.plot_widget.getPlotItem()
 
@@ -362,7 +485,7 @@ class StatsWindow(QMainWindow):
         self.mouse_x_pos_changed.connect(self.status_bar.set_x_value)
         self.mouse_y_pos_changed.connect(self.status_bar.set_y_value)
         self.setStatusBar(self.status_bar)
-        self.control_box.setFixedWidth(300)
+        self.control_box.setFixedWidth(450)
         self.layout.addWidget(self.control_box, 0)
         self.layout.addWidget(self.plot_widget, 2)
         self.tick_font = self._create_tick_font()
@@ -397,12 +520,20 @@ class StatsWindow(QMainWindow):
         self.view_box.setYRange(min=0, max=self.max_value)
 
         self.legend.setParentItem(self.plot_widget.getPlotItem())
+        self._symbols_visible = True
+        self._symbol_size = 8
 
         for idx, key in enumerate(self.keys):
-            data = (self.all_timestamps, [i.get(key) for i in self.stat_data])
+            indexes_and_values = [(idx, i.get(key)) for idx, i in enumerate(self.stat_data) if i.get(key) is not None]
+            data = ([self.all_timestamps[i[0]] for i in indexes_and_values], [i[1] for i in indexes_and_values])
             color = self.app.color_config.get(self.color_config_name, key.replace(" ", "_"), default=self.available_colors[idx])
+            symbol_brush = pg.mkBrush(color)
+            symbol_brush_color = symbol_brush.color()
+            symbol_brush_color.setAlpha(155)
+            symbol_brush.setColor(symbol_brush_color)
 
-            item = self.plot_widget.plot(*data, pen=pg.mkPen(color, width=1), antialias=False, name=key, autoDownsample=True)
+            item = self.plot_widget.plot(*data, pen=pg.mkPen(color, width=1), antialias=False, name=key, autoDownsample=True, symbol=SYMBOLS[idx], symbolSize=self._symbol_size, symbolBrush=symbol_brush, symbolPen=pg.mkPen((255, 255, 255, 155), width=1))
+            item.idx = idx
             self.legend.addItem(item, key)
             self.plots[key] = item
             if item.name().casefold() != "serverfps":
@@ -416,6 +547,18 @@ class StatsWindow(QMainWindow):
         self.view_box.setAspectLocked(None)
 
         self.view_box.setMouseEnabled(x=True, y=False)
+    #     self.view_box.sigRangeChangedManually.connect(self.on_scroll)
+
+    # def on_scroll(self, *args):
+    #     orig_time = self.max_timestamp - self.min_timestamp
+    #     new_min, new_max = self.view_box.viewRange()[0]
+    #     new_time = new_max - new_min
+
+    #     _factor = math_log(orig_time, new_time)
+    #     log.debug("orig_time: %r, new_time:%r, factor:%r", orig_time, new_time, _factor)
+    #     new_symbol_size = ceil(self._symbol_size * _factor)
+    #     for plot in self.plots.values():
+    #         plot.setSymbolSize(new_symbol_size)
 
     def change_limits(self, item: pg.PlotDataItem = None):
         if item is not None:
@@ -491,6 +634,21 @@ class StatsWindow(QMainWindow):
         self.control_box.request_change_extra_lines_hidden.connect(self.change_hide_extra_lines)
         self.control_box.padding_factor_select_box.y_padding_factor_changed.connect(self.y_factor_changed)
         self.control_box.padding_factor_select_box.x_padding_factor_changed.connect(self.x_factor_changed)
+        self.control_box.hide_legend_button.pressed.connect(self.legend.change_visibility)
+        self.control_box.show_all_button.pressed.connect(self.legend.show_all)
+        self.control_box.hide_all_button.pressed.connect(self.legend.hide_all)
+        self.control_box.hide_symbols_button.pressed.connect(self.change_symbol_vis)
+
+    def change_symbol_vis(self):
+        if self._symbols_visible is True:
+            for plot in self.plots.values():
+                plot.setSymbol(None)
+                self._symbols_visible = False
+
+        else:
+            for plot in self.plots.values():
+                plot.setSymbol(SYMBOLS[plot.idx])
+                self._symbols_visible = True
 
     @ Slot(bool)
     def change_hide_extra_lines(self, hide: bool):
@@ -655,7 +813,7 @@ class AvgMapPlayersPlotWidget(pg.PlotWidget):
 
         return font
 
-    @property
+    @ property
     def app(self) -> "AntistasiLogbookApplication":
         return QApplication.instance()
 

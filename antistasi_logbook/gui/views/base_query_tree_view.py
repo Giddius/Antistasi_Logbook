@@ -256,9 +256,10 @@ class BaseQueryTreeView(QTreeView):
         self.header_view.sectionMoved.disconnect(self.store_new_column_order)
         for idx, column in enumerate(self.model.columns):
             pos = column_order_map.get(column.name, None)
-            if pos is None:
-                continue
+
             orig_vis_index = self.header_view.visualIndex(idx)
+            if pos is None:
+                pos = orig_vis_index
             self.header_view.moveSection(orig_vis_index, pos)
 
         self.header_view.setContextMenuPolicy(Qt.CustomContextMenu)

@@ -75,7 +75,8 @@ class ForeignKeyCache:
                  "_all_origin_objects",
                  "_all_origin_objects_by_id",
                  "_all_version_objects",
-                 "_all_version_objects_by_id",)
+                 "_all_version_objects_by_id",
+                 "_all_game_map_objects_case_insensitive")
 
     def __init__(self, database: "GidSqliteApswDatabase") -> None:
         self.log_levels_blocker = BlockingEvent()
@@ -90,7 +91,8 @@ class ForeignKeyCache:
         self._all_arma_file_objects: dict[tuple[str, str], ArmaFunction] = None
         self._all_arma_file_objects_by_id: dict[str, ArmaFunction] = None
 
-        self._all_game_map_objects: dict[str, GameMap] = None
+        self._all_game_map_objects: frozendict[str, GameMap] = None
+        self._all_game_map_objects_case_insensitive: frozendict[str, GameMap] = None
         self._all_game_map_objects_by_id: dict[str, GameMap] = None
 
         self._all_origin_objects: dict[str, RecordOrigin] = None
@@ -146,6 +148,13 @@ class ForeignKeyCache:
         return self._all_game_map_objects
 
     @property
+    def all_game_map_objects_case_insensitive(self) -> frozendict[str, GameMap]:
+        if self._all_game_map_objects_case_insensitive is None:
+            self.game_map_model_blocker.wait()
+            self._all_game_map_objects_case_insensitive = frozendict({game_map.name.casefold(): game_map for game_map in self.database.get_all_game_maps()})
+        return self._all_game_map_objects_case_insensitive
+
+    @property
     def all_log_levels_by_id(self) -> dict[str, LogLevel]:
 
         if self._all_log_levels_by_id is None:
@@ -161,7 +170,7 @@ class ForeignKeyCache:
             log.debug("all_arma_file_objects_by_id is None")
 
             self.arma_file_model_blocker.wait()
-            self._all_arma_file_objects_by_id = frozendict({str(antistasi_file.id): antistasi_file for antistasi_file in self.database.get_all_arma_functions()})
+            self._all_arma_file_objects_by_id = frozendict({antistasi_file.id: antistasi_file for antistasi_file in self.database.get_all_arma_functions()})
 
         return self._all_arma_file_objects_by_id
 
@@ -170,7 +179,7 @@ class ForeignKeyCache:
 
         if self._all_game_map_objects_by_id is None:
             self.game_map_model_blocker.wait()
-            self._all_game_map_objects_by_id = frozendict({str(game_map.id): game_map for game_map in self.database.get_all_game_maps()})
+            self._all_game_map_objects_by_id = frozendict({game_map.id: game_map for game_map in self.database.get_all_game_maps()})
 
         return self._all_game_map_objects_by_id
 
@@ -187,7 +196,7 @@ class ForeignKeyCache:
     def all_origin_objects_by_id(self) -> dict[str, RecordOrigin]:
         if self._all_origin_objects_by_id is None:
             self.origin_blocker.wait()
-            self._all_origin_objects_by_id = frozendict({str(origin.id): origin for origin in self.database.get_all_origins()})
+            self._all_origin_objects_by_id = frozendict({origin.id: origin for origin in self.database.get_all_origins()})
             for origin in self._all_origin_objects_by_id.values():
                 _ = origin.record_family
         return self._all_origin_objects_by_id
@@ -196,37 +205,60 @@ class ForeignKeyCache:
     def all_version_objects(self) -> dict[str, Version]:
         if self._all_version_objects is None:
             self.version_blocker.wait()
-            self._all_version_objects = frozendict({str(version): version for version in self.database.get_all_versions()})
+            self._all_version_objects = frozendict({version: version for version in self.database.get_all_versions()})
         return self._all_version_objects
 
     @property
     def all_version_objects_by_id(self) -> dict[str, Version]:
         if self._all_version_objects_by_id is None:
             self.version_blocker.wait()
-            self._all_version_objects_by_id = frozendict({str(version.id): Version for version in self.database.get_all_versions()})
+            self._all_version_objects_by_id = frozendict({version.id: Version for version in self.database.get_all_versions()})
         return self._all_version_objects_by_id
 
     def get_log_level_by_id(self, model_id: int) -> Optional[LogLevel]:
-
-        return self.all_log_levels_by_id.get(model_id)
+        if model_id is None:
+            return
+        log_level = self.all_log_levels_by_id.get(model_id)
+        if log_level is None:
+            log_level = LogLevel.select().where(LogLevel.id == model_id).execute(self.database)[0]
+        return log_level
 
     def get_arma_file_by_id(self, model_id: int) -> Optional[ArmaFunction]:
-
-        return self.all_arma_file_objects_by_id.get(str(model_id))
+        if model_id is None:
+            return
+        arma_file = self.all_arma_file_objects_by_id.get(model_id)
+        if arma_file is None:
+            arma_file = ArmaFunction.select().where(ArmaFunction.id == model_id).execute(self.database)[0]
+        return arma_file
 
     def get_game_map_by_id(self, model_id: int) -> Optional[GameMap]:
-
-        return self.all_game_map_objects_by_id.get(str(model_id))
+        if model_id is None:
+            return
+        game_map = self.all_game_map_objects_by_id.get(model_id)
+        if game_map is None:
+            game_map = GameMap.select().where(GameMap.id == model_id).execute(self.database)[0]
+        return game_map
 
     def get_game_map_case_insensitive(self, name: str) -> Optional[GameMap]:
-        insensitive_game_map_data = frozendict({k.casefold(): v for k, v in self.all_game_map_objects.items()})
-        return insensitive_game_map_data.get(name.casefold())
+        if name is None:
+            return
+        return self.all_game_map_objects_case_insensitive.get(name.casefold())
 
     def get_origin_by_id(self, model_id: int) -> Optional[RecordOrigin]:
-        return self.all_origin_objects_by_id.get(str(model_id))
+        if model_id is None:
+            return
+        origin = self.all_origin_objects_by_id.get(model_id)
+        if origin is None:
+            origin = RecordOrigin.select().where(RecordOrigin.id == model_id).execute(self.database)[0]
+        return origin
 
     def get_version_by_id(self, model_id: int) -> Optional[Version]:
-        return self.all_version_objects_by_id.get(str(model_id))
+        if model_id is None:
+            return
+        version = self.all_version_objects_by_id.get(model_id)
+        if version is None:
+            version = Version.select().where(Version.id == model_id).execute(self.database)[0]
+        return version
 
     def reset_all(self) -> None:
         """
@@ -236,6 +268,7 @@ class ForeignKeyCache:
         self._all_log_levels = None
         self._all_arma_file_objects = None
         self._all_game_map_objects = None
+        self._all_game_map_objects_case_insensitive = None
         self._all_log_levels_by_id = None
         self._all_arma_file_objects_by_id = None
         self._all_game_map_objects_by_id = None
@@ -249,6 +282,7 @@ class ForeignKeyCache:
         _ = self.all_log_levels
         _ = self.all_arma_file_objects
         _ = self.all_game_map_objects
+        _ = self.all_game_map_objects_case_insensitive
         _ = self.all_log_levels_by_id
         _ = self.all_arma_file_objects_by_id
         _ = self.all_game_map_objects_by_id

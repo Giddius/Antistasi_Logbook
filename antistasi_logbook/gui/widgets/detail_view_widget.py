@@ -9,16 +9,16 @@ Soon.
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import re
 from abc import ABC
-from typing import TYPE_CHECKING, Any, Union, Optional, Generator
+from typing import TYPE_CHECKING, Any, Union, Optional, Generator, Literal
 from pathlib import Path
-
+from functools import partial
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
 from PySide6.QtGui import QFont, QColor, QAction, QPixmap, QTextFormat, QTextOption, QFontMetrics, QTextDocument, QTextCharFormat, QDesktopServices, QSyntaxHighlighter
 from PySide6.QtCore import Qt, QUrl, QAbstractTableModel
 from PySide6.QtWidgets import (QMenu, QLabel, QWidget, QGroupBox, QLineEdit, QListView, QTextEdit, QLCDNumber, QFormLayout,
                                QHBoxLayout, QPushButton, QVBoxLayout, QApplication, QInputDialog, QTextBrowser)
-
+from gidapptools.general_helper.enums import MiscEnum
 # * Third Party Imports --------------------------------------------------------------------------------->
 from peewee import Field, DoesNotExist, IntegrityError
 
@@ -32,11 +32,12 @@ from gidapptools.general_helper.color.color_item import Color
 from antistasi_logbook.errors import InsufficientDataPointsError
 from antistasi_logbook.data.sqf_syntax_data import SQF_BUILTINS_REGEX
 from antistasi_logbook.storage.models.models import Mod, Server, GameMap, LogFile, ModLink, LogRecord, RecordClass
-from antistasi_logbook.gui.widgets.stats_viewer import StatsWindow
+from antistasi_logbook.gui.widgets.stats_viewer import StatsWindow, StatType
 from antistasi_logbook.gui.widgets.collapsible_widget import CollapsibleGroupBox
 from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-
+from antistasi_logbook.gui.diagram.abstract_stats_model import PerformanceStatsModel, StatScope
+import pp
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
@@ -454,17 +455,44 @@ class LogFileDetailWidget(BaseDetailWidget):
 
         self.get_stats_button = QPushButton(AllResourceItems.stats_icon_2_image.get_as_icon(), "Get Stats")
         self.layout.addWidget(self.get_stats_button)
-        self.get_stats_button.pressed.connect(self.show_stats)
-        self.temp_plot_widget = None
+        self.get_stats_button.pressed.connect(partial(self.show_stats, "log_file"))
 
-    def show_stats(self):
-        all_stats = self.log_file.get_stats()
+        self.get_campaign_stats_button = QPushButton(AllResourceItems.stats_icon_2_image.get_as_icon(), "Get Campaign Stats")
+        self.layout.addWidget(self.get_campaign_stats_button)
+        self.get_campaign_stats_button.pressed.connect(partial(self.show_stats, "campaign"))
+
+        self.get_resource_check_stats_button = QPushButton(AllResourceItems.stats_icon_2_image.get_as_icon(), "Get Resource Check Stats")
+        self.layout.addWidget(self.get_resource_check_stats_button)
+        self.get_resource_check_stats_button.pressed.connect(partial(self.show_stats, "ressource_check"))
+
+    def show_stats(self, scope: Literal["log_file", "campaign", "ressource_check"]):
+
+        if scope == "log_file":
+            all_stats = self.log_file.get_stats()
+            all_log_files = (self.log_file,)
+            name = f"Log File: {self.log_file.name.upper()}"
+            obj_name = f"{self.log_file.name}_stats_window"
+            visible_item_names = {"ServerFPS"}
+        elif scope == "campaign":
+            all_stats, all_log_files = self.log_file.get_campaign_stats()
+            name = f"Campaign {self.log_file.campaign_id}"
+            obj_name = f"{self.log_file.campaign_id}_stats_window"
+            visible_item_names = {"ServerFPS"}
+        elif scope == "ressource_check":
+            all_stats = self.log_file.get_resource_check_stats()
+            all_log_files = (self.log_file,)
+            name = f"Log File: {self.log_file.name.upper()}"
+            obj_name = f"{self.log_file.name}_resource_check_stats_window"
+            visible_item_names = None
         if len(all_stats) < 2:
             raise InsufficientDataPointsError(len(all_stats), 2)
 
-        self.temp_plot_widget = StatsWindow(all_stats, title=self.log_file.name.upper)
-        self.temp_plot_widget.add_marked_records(self.log_file.get_marked_records())
-        self.temp_plot_widget.show()
+        temp_plot_widget = StatsWindow(stat_type=StatType.PERFORMANCE, stat_data=all_stats, title=name, visible_item_names=visible_item_names)
+        for _log_file in all_log_files:
+            temp_plot_widget.add_marked_records(_log_file.get_marked_records())
+        temp_plot_widget.setObjectName(obj_name)
+        self.app.extra_windows.add_window(temp_plot_widget)
+        temp_plot_widget.show()
 
     def open_mod_link(self, index):
 

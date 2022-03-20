@@ -127,7 +127,6 @@ class LogFilesModel(BaseQueryDataModel):
         with self.backend.database.connection_context() as ctx:
             self.content_items = []
             for log_file in self.get_query().execute():
-                log_file.pre_get_properties()
                 self.content_items.append(log_file)
 
         return self

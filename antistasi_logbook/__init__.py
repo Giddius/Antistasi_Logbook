@@ -24,7 +24,7 @@ from pathlib import Path
 from gidapptools import setup_main_logger, setup_main_logger_with_file_logging, get_meta_paths, get_meta_config, get_meta_info, get_handlers, get_logger, get_main_logger
 from gidapptools.meta_data import setup_meta_data
 
-from gidapptools.gidapptools_qt.widgets.std_stream_widget import BaseStdStreamCapturer, LimitedStdStreamCapturer
+
 import sys
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
@@ -103,9 +103,9 @@ _extra_logger = ["py.warnings"]
 
 IS_SETUP: bool = False
 original_stderr = sys.stderr
-stream_capturer = LimitedStdStreamCapturer()
-stream_capturer.original_stream = original_stderr
-sys.stderr = stream_capturer
+# stream_capturer = LimitedStdStreamCapturer()
+# stream_capturer.original_stream = original_stderr
+# sys.stderr = stream_capturer
 
 
 def setup():

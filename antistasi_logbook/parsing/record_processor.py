@@ -307,15 +307,15 @@ class RecordProcessor:
             except KeyError:
 
                 try:
-                    author_prefix = ArmaFunctionAuthorPrefix.get(name=parsed_function_data["author_prefix"])
+                    author_prefix = ArmaFunctionAuthorPrefix.select().where(ArmaFunctionAuthorPrefix.name == parsed_function_data["author_prefix"]).execute(self.database)[0]
                 except DoesNotExist:
                     with self.database.write_lock:
-                        ArmaFunctionAuthorPrefix.insert(name=parsed_function_data["author_prefix"]).on_conflict_ignore().execute()
-                    author_prefix = ArmaFunctionAuthorPrefix.get(name=parsed_function_data["author_prefix"])
+                        ArmaFunctionAuthorPrefix.insert(name=parsed_function_data["author_prefix"]).on_conflict_ignore().execute(self.database)
+                    author_prefix = ArmaFunctionAuthorPrefix.select().where(ArmaFunctionAuthorPrefix.name == parsed_function_data["author_prefix"]).execute(self.database)[0]
                 with self.database.write_lock:
-                    ArmaFunction.insert(name=parsed_function_data["name"], author_prefix=author_prefix.id).on_conflict_ignore().execute()
+                    ArmaFunction.insert(name=parsed_function_data["name"], author_prefix=author_prefix).on_conflict_ignore().execute(self.database)
 
-                return ArmaFunction.get(name=parsed_function_data["name"], author_prefix=author_prefix.id)
+                return ArmaFunction.select().where((ArmaFunction.name == parsed_function_data["name"]) & (ArmaFunction.author_prefix == author_prefix)).execute(self.database)[0]
 
         if parsed_data is None:
             return parsed_data
@@ -356,6 +356,7 @@ class RecordProcessor:
         raw_record.parsed_data = self._convert_raw_record_foreign_keys(parsed_data=raw_record.parsed_data, utc_offset=utc_offset)
 
         return raw_record
+
 
         # region[Main_Exec]
 if __name__ == '__main__':

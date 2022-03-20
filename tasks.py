@@ -518,7 +518,7 @@ import atexit
 import pp
 from pprint import pprint, pformat
 from gidapptools.gidapptools_qt.resources.resources_helper import ressource_item_factory, ResourceItem, AllResourceItemsMeta
-from gidapptools import get_meta_info, get_logger
+from gidapptools import get_logger
 from . import antistasi_logbook_resources
 
 # endregion[Imports]
@@ -546,7 +546,7 @@ RESOURCE_ITEM_COLLECTION_POST_TEXT = r"""
         log.info("Missing Ressource Items:\n%s", pp.fmt(missing_items).replace("'", '"'))
 
 
-if get_meta_info().is_dev is True:
+if __debug__ is True:
     atexit.register(AllResourceItems.dump_missing)
 """
 
