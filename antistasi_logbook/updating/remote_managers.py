@@ -24,6 +24,7 @@ from httpx import Limits
 from dateutil.tz import UTC
 from webdav4.client import Client as WebdavClient
 
+from gidapptools.general_helper.conversion import human2bytes
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger, get_meta_paths, get_meta_config
 
@@ -260,12 +261,13 @@ class WebdavManager(AbstractRemoteStorageManager):
     def download_file(self, log_file: "LogFile") -> "LogFile":
         with self.download_semaphore:
             local_path = log_file.local_path
-            chunk_size = self.config.get("downloading", "chunk_size", default=None)
+            chunk_size = self.config.get("downloading", "chunk_size", default=human2bytes("1 mb"))
 
             log.info("downloading %s", log_file)
             result = self.client.http.get(str(log_file.download_url), auth=(self.login, self.password))
             with local_path.open("wb") as f:
                 for chunk in result.iter_bytes(chunk_size=chunk_size):
+
                     f.write(chunk)
             log_file.is_downloaded = True
             log.info("finished downloading %s", log_file)

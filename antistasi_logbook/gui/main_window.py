@@ -418,7 +418,8 @@ class AntistasiLogbookMainWindow(QMainWindow):
         window.layout().addWidget(icon_label)
         window.layout().addWidget(view)
         if isinstance(model, GameMapModel):
-            self.get_average_players_button = BusyPushButton(text="Get Average Player per Hour", parent=view, spinner_gif="busy_spinner_cat.gif", spinner_size=QSize(100, 100))
+            spinner_gif = "busy_spinner_cat.gif" if self.config.get("gui", "use_cat_busy_spinner", default=True) is True else "busy_spinner_7.gif"
+            self.get_average_players_button = BusyPushButton(text="Get Average Player per Hour", parent=view, spinner_gif=spinner_gif, spinner_size=QSize(100, 100))
             self.get_average_players_button.pressed.connect(self.show_avg_player_window)
             window.layout().addWidget(self.get_average_players_button)
         view.setup()
@@ -508,10 +509,10 @@ class AntistasiLogbookMainWindow(QMainWindow):
         sub_sub_sub_layout.addWidget(overall_days)
         sub_sub_sub_layout.addWidget(overall_time_frame)
         sub_sub_layout.addLayout(sub_sub_sub_layout)
-        screen_center_pos = self.app.screenAt(self.pos()).availableGeometry().center()
-        fg = window.frameGeometry()
-        new_center_pos = QPoint(screen_center_pos.x() - fg.width(), screen_center_pos.y() - fg.height())
-        window.move(new_center_pos)
+        # screen_center_pos = self.app.screenAt(self.pos()).availableGeometry().center()
+        # fg = window.frameGeometry()
+        # new_center_pos = QPoint(screen_center_pos.x() - fg.width(), screen_center_pos.y() - fg.height())
+        # window.move(new_center_pos)
         window.show()
 
     def show_folder_window(self):

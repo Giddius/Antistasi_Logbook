@@ -27,7 +27,7 @@ from gidapptools import get_logger, get_meta_config
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.misc import CustomRole
-from antistasi_logbook.storage.models.models import GameMap, Version, BaseModel
+from antistasi_logbook.storage.models.models import GameMap, Version, BaseModel, ArmaFunctionAuthorPrefix
 from antistasi_logbook.gui.widgets.markdown_editor import MarkdownEditorDialog
 from antistasi_logbook.storage.models.custom_fields import URLField, PathField
 from antistasi_logbook.gui.widgets.better_color_dialog import BetterColorDialog
@@ -535,6 +535,9 @@ class BaseQueryDataModel(QAbstractTableModel):
 
                 if isinstance(in_column, IntegerField) and _out is None:
                     return 9999999
+
+                if isinstance(_out, ArmaFunctionAuthorPrefix):
+                    return str(_out)
 
                 if isinstance(_out, GameMap):
                     return str(_out)

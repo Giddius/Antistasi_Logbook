@@ -235,15 +235,20 @@ class GameMap(BaseModel):
 
     def get_avg_players_per_hour(self) -> dict[str, Union[float, int, datetime]]:
 
-        log_files_query = LogFile.select().where(LogFile.game_map == self)
+        log_files_query = LogFile.select().where((LogFile.game_map_id == self.id))
         record_class = RecordClass.get(name="PerformanceRecord")
-        query = LogRecord.select(LogRecord.message, LogRecord.recorded_at).where((LogRecord.record_class_id == record_class.id) & (LogRecord.log_file << log_files_query))
+        query = LogRecord.select(LogRecord.message, LogRecord.recorded_at).where((LogRecord.log_file << log_files_query)).where((LogRecord.record_class_id == record_class.id))
         player_data = defaultdict(list)
         performance_record_class = record_class.record_class
 
         # log.debug("SQL for 'get_avg_players_per_hour' of %r: %r", self, query.sql())
         _all_timestamps = []
-        for (message, recorded_at) in self.database.execute(query):
+        sql_phrase = """SELECT "t1"."message", "t1"."recorded_at" FROM "LogRecord" AS "t1" WHERE (("t1"."record_class" = ?) AND ("t1"."log_file" IN (SELECT "t2"."id" FROM "LogFile" AS "t2" WHERE (("t2"."unparsable" = ?) AND ("t2"."game_map" = ?)))))"""
+        # cursor = self.database.cursor()
+
+        # for (message, recorded_at) in self.database.execute_sql(sql_phrase, (record_class.id, 0, self.id)):
+        # for message, recorded_at in list(cursor.execute(sql_phrase, (record_class.id, self.id))):
+        for message, recorded_at in list(self.database.execute(query)):
 
             recorded_at = LogRecord.recorded_at.python_value(recorded_at)
             stats = performance_record_class.parse(message)
@@ -255,19 +260,17 @@ class GameMap(BaseModel):
 
             player_data[timestamp].append(players)
 
-        if len(player_data) == 0:
+        if len(player_data) <= 0:
             return {"avg_players": None, "sample_size": None, "min_timestamp": None, "max_timestamp": None}
-        try:
-            avg_player_data = {}
-            for k, v in player_data.items():
-                if len(v) > 1:
-                    avg_player_data[k] = mean(v)
-                else:
-                    avg_player_data[k] = v[0]
 
-            return {"avg_players": round(mean(avg_player_data.values()), 3), "sample_size": len(avg_player_data), "min_timestamp": min(_all_timestamps), "max_timestamp": max(_all_timestamps)}
-        except StatisticsError:
-            return {"avg_players": None, "sample_size": None, "min_timestamp": None, "max_timestamp": None}
+        avg_player_data = {}
+        for k, v in player_data.items():
+            if len(v) > 1:
+                avg_player_data[k] = mean(v)
+            else:
+                avg_player_data[k] = v[0]
+
+        return {"avg_players": round(mean(avg_player_data.values()), 3), "sample_size": len(avg_player_data), "min_timestamp": min(_all_timestamps), "max_timestamp": max(_all_timestamps)}
 
     def __str__(self):
         return self.full_name

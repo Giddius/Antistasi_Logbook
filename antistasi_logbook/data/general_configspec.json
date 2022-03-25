@@ -94,6 +94,12 @@
             "converter": "integer",
             "default": null,
             "implemented": false
+        },
+        "use_cat_busy_spinner": {
+            "converter": "boolean",
+            "default": "True",
+            "implemented": true,
+            "verbose_name": "Use Cat Busy-Spinner"
         }
     },
     "debug": {

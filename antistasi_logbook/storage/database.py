@@ -283,7 +283,8 @@ class GidSqliteApswDatabase(APSWDatabase):
             self.optimize()
             self.checkpoint()
             with self.write_lock:
-                self.conns.clear()
+                for conn in self.conns:
+                    conn.close()
 
         log.debug("finished shutting down %r", self)
         self.started_up = False
