@@ -319,8 +319,9 @@ class Updater:
         to_update = []
         old_idx = 0
         idx = 0
-
-        for record, record_class in (_find_record_class(r) for r in self.database.iter_all_records(server=server, log_file=log_file, only_missing_record_class=not force)):
+        gen = self.database.iter_all_records(server=server, log_file=log_file, only_missing_record_class=not force)
+        for record in gen:
+            record_class = self.backend.record_class_manager.determine_record_class(record)
 
             idx += 1
             if idx % report_size == 0:
@@ -339,7 +340,7 @@ class Updater:
                     tasks.append(task)
 
                     to_update.clear()
-                    sleep(0.01)
+
         self.emit_amount_record_classes_updated(idx - old_idx)
         if len(to_update) > 0:
             log.debug("updating %s records with their record class", number_to_pretty(len(to_update)))

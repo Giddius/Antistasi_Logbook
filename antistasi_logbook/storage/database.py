@@ -334,25 +334,26 @@ class GidSqliteApswDatabase(APSWDatabase):
         return result
 
     def iter_all_records(self, server: Server = None, log_file: LogFile = None, only_missing_record_class: bool = False) -> Generator[LogRecord, None, None]:
-        foreign_key_cache = ForeignKeyCache(self)
-        foreign_key_cache.preload_all()
-        logged_from_alias = ArmaFunction.alias()
-        query = LogRecord.select(LogRecord, RecordClass, logged_from_alias).join(RecordClass, join_type=JOIN.LEFT_OUTER).join_from(LogRecord, logged_from_alias, join_type=JOIN.LEFT_OUTER, on=(LogRecord.logged_from == logged_from_alias.id))
-        if log_file is not None:
-            query = query.switch(LogRecord).join(LogFile).where(LogRecord.log_file_id == log_file.id)
-        elif server is not None:
-            nested = LogFile.select().where(LogFile.server == server)
-            query = query.switch(LogRecord).join(LogFile).where(LogRecord.log_file << nested)
+        with self:
+            foreign_key_cache = ForeignKeyCache(self)
+            foreign_key_cache.preload_all()
+            logged_from_alias = ArmaFunction.alias()
+            query = LogRecord.select(LogRecord, RecordClass, logged_from_alias).join(RecordClass, join_type=JOIN.LEFT_OUTER).join_from(LogRecord, logged_from_alias, join_type=JOIN.LEFT_OUTER, on=(LogRecord.logged_from == logged_from_alias.id))
+            if log_file is not None:
+                query = query.switch(LogRecord).join(LogFile).where(LogRecord.log_file_id == log_file.id)
+            elif server is not None:
+                nested = LogFile.select().where(LogFile.server == server)
+                query = query.switch(LogRecord).join(LogFile).where(LogRecord.log_file << nested)
 
-        if only_missing_record_class is True:
-            query = query.where(LogRecord.record_class >> None)
+            if only_missing_record_class is True:
+                query = query.where(LogRecord.record_class >> None)
 
-        for record in query.iterator(self):
-            record.origin = foreign_key_cache.get_origin_by_id(record.origin_id)
-            record.called_by = foreign_key_cache.get_arma_file_by_id(record.called_by_id)
-            record.logged_from = foreign_key_cache.get_arma_file_by_id(record.logged_from_id)
-            record.origin = foreign_key_cache.get_origin_by_id(record.origin_id)
-            yield record
+            for record in query.iterator():
+                record.origin = foreign_key_cache.get_origin_by_id(record.origin_id)
+                record.called_by = foreign_key_cache.get_arma_file_by_id(record.called_by_id)
+                record.logged_from = foreign_key_cache.get_arma_file_by_id(record.logged_from_id)
+                record.origin = foreign_key_cache.get_origin_by_id(record.origin_id)
+                yield record
 
     def get_unique_server_ips(self) -> tuple[str]:
 

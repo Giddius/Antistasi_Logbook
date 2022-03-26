@@ -200,21 +200,8 @@
                     "showReuseMessage": true,
                     "clear": true
                 }
-            },
-            {
-                "label": "python compile all",
-                "type": "shell",
-                "command": "${config:python.defaultInterpreterPath} -m compileall -f -j 60 -x yaml2 ${workspaceFolder}",
-                "options": { "cwd": "${workspaceFolder}" },
-                "presentation": {
-                    "echo": true,
-                    "reveal": "always",
-                    "focus": false,
-                    "panel": "shared",
-                    "showReuseMessage": true,
-                    "clear": false
-                }
             }
+
         ]
     },
     "settings": {
