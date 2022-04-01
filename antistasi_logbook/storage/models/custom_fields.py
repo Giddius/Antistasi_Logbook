@@ -24,7 +24,7 @@ from playhouse.apsw_ext import Field, BlobField, TextField, BooleanField, BigInt
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 
@@ -45,7 +45,7 @@ from antistasi_logbook.utilities.path_utilities import RemotePath
 # endregion[Logging]
 
 # region [Constants]
-
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
@@ -169,9 +169,10 @@ class AwareTimeStampField(BigIntegerField):
             return
 
         reduced_value = value / self.mult_factor
-        dt = datetime.fromtimestamp(reduced_value)
-        if self.utc and dt.tzinfo is None:
-            dt = dt.astimezone(tz=UTC)
+        tz = UTC if self.utc is True else None
+        dt = datetime.fromtimestamp(reduced_value, tz=tz)
+        # if self.utc and dt.tzinfo is None:
+        #     dt = dt.astimezone(tz=UTC)
 
         return dt
 

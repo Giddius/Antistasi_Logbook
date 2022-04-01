@@ -47,7 +47,7 @@ from antistasi_logbook.gui.main_widget import MainWidget
 from antistasi_logbook.gui.settings_window import SettingsWindow, CredentialsManagmentWindow
 from antistasi_logbook.gui.models.mods_model import ModsModel
 from antistasi_logbook.gui.widgets.tool_bars import BaseToolBar
-from antistasi_logbook.storage.models.models import GameMap, LogRecord
+from antistasi_logbook.storage.models.models import GameMap, LogRecord, DatabaseMetaData
 from antistasi_logbook.gui.models.version_model import VersionModel
 from antistasi_logbook.gui.widgets.stats_viewer import AvgMapPlayersPlotWidget
 from antistasi_logbook.gui.models.game_map_model import GameMapModel
@@ -320,6 +320,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.debug_dock_widget.add_show_attr_button(attr_name="colorNames", obj=QColor)
 
         self.debug_dock_widget.add_show_attr_button(attr_name="amount_log_records", obj=LogRecord)
+        self.debug_dock_widget.add_show_attr_button(attr_name="get_amount_meta_data_items", obj=DatabaseMetaData)
 
     def set_tool_bar(self, tool_bar: QToolBar):
         if self.tool_bar:

@@ -29,6 +29,7 @@ from playhouse.sqlite_ext import JSONField
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 from gidapptools.general_helper.enums import MiscEnum
 
 from gidapptools.general_helper.conversion import bytes2human
@@ -63,7 +64,7 @@ if TYPE_CHECKING:
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
-
+get_dummy_profile_decorator_in_globals()
 META_PATHS = get_meta_paths()
 CONFIG: "GidIniConfig" = get_meta_config().get_config('general')
 META_INFO = get_meta_info()
@@ -849,13 +850,13 @@ class LogRecord(BaseModel):
     start = IntegerField(help_text="Start Line number of the Record", verbose_name="Start")
     end = IntegerField(help_text="End Line number of the Record", verbose_name="End")
     message = TextField(help_text="Message part of the Record", verbose_name="Message")
-    recorded_at = AwareTimeStampField(index=False, utc=True, verbose_name="Recorded at")
-    called_by = ForeignKeyField(column_name='called_by', field='id', model=ArmaFunction, backref="log_records_called_by", lazy_load=True, null=True, verbose_name="Called by")
-    origin = ForeignKeyField(column_name="origin", field="id", model=RecordOrigin, backref="records", lazy_load=True, verbose_name="Origin", default=0)
-    logged_from = ForeignKeyField(column_name='logged_from', field='id', model=ArmaFunction, backref="log_records_logged_from", lazy_load=True, null=True, verbose_name="Logged from")
-    log_file = ForeignKeyField(column_name='log_file', field='id', model=LogFile, lazy_load=True, backref="log_records", null=False, verbose_name="Log-File")
+    recorded_at = AwareTimeStampField(index=True, utc=True, verbose_name="Recorded at")
+    called_by = ForeignKeyField(column_name='called_by', field='id', model=ArmaFunction, backref="log_records_called_by", lazy_load=True, null=True, verbose_name="Called by", index=True)
+    origin = ForeignKeyField(column_name="origin", field="id", model=RecordOrigin, backref="records", lazy_load=True, verbose_name="Origin", default=0, index=True)
+    logged_from = ForeignKeyField(column_name='logged_from', field='id', model=ArmaFunction, backref="log_records_logged_from", lazy_load=True, null=True, verbose_name="Logged from", index=True)
+    log_file = ForeignKeyField(column_name='log_file', field='id', model=LogFile, lazy_load=True, backref="log_records", null=False, verbose_name="Log-File", index=True)
     log_level = ForeignKeyField(column_name='log_level', default=0, field='id', model=LogLevel, null=True, lazy_load=True, verbose_name="Log-Level")
-    record_class = ForeignKeyField(column_name='record_class', field='id', model=RecordClass, lazy_load=True, verbose_name="Record Class", null=True)
+    record_class = ForeignKeyField(column_name='record_class', field='id', model=RecordClass, lazy_load=True, verbose_name="Record Class", null=True, index=True)
     marked = MarkedField(index=False)
 
     message_size_hint = None
@@ -875,7 +876,7 @@ class LogRecord(BaseModel):
 
     @classmethod
     def amount_log_records(cls) -> int:
-        return LogRecord.select(LogRecord.id).count()
+        return LogRecord.select(LogRecord.id).count(cls._meta.database, True)
 
     @cached_property
     def pretty_log_level(self) -> str:
@@ -922,6 +923,10 @@ class DatabaseMetaData(BaseModel):
         table_name = 'DatabaseMetaData'
 
     @classmethod
+    def get_amount_meta_data_items(cls):
+        return DatabaseMetaData.select(DatabaseMetaData.id).count(cls._meta.database, True)
+
+    @classmethod
     def new_session(cls, started_at: datetime = None, app_version: Version = None) -> "DatabaseMetaData":
         started_at = datetime.now(tz=UTC) if started_at is None else started_at
         app_version = META_INFO.version if app_version is None else app_version
@@ -929,8 +934,17 @@ class DatabaseMetaData(BaseModel):
         with cls._meta.database.write_lock:
             with cls._meta.database:
                 item.save()
-
+        cls.limit_stored_instances()
         return item
+
+    @classmethod
+    def limit_stored_instances(cls) -> None:
+        while cls.get_amount_meta_data_items() > 100:
+            oldest = DatabaseMetaData.select().order_by(DatabaseMetaData.started_at)[0]
+            with cls._meta.database.write_lock:
+                with cls._meta.database:
+                    DatabaseMetaData.delete_by_id(oldest.id)
+                    log.debug("removed DatabaseMetaData started at: %r", oldest.started_at)
 
     def get_absolute_last_update_finished_at(self) -> datetime:
         if self.stored_last_update_finished_at is not MiscEnum.NOTHING:

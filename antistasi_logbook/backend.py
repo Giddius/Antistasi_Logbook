@@ -248,10 +248,13 @@ class Backend:
         """
         context = LogParsingContext(log_file=log_file, inserter=self.records_inserter, foreign_key_cache=self.foreign_key_cache, config=self.config)
         self.all_parsing_context.add(context)
+        log.debug("Created Parsing Context %r for log-file %r", context, log_file)
         return context
 
     def get_parser(self) -> Parser:
-        return Parser(self, stop_event=self.events.stop)
+        parser = Parser(self, stop_event=self.events.stop)
+        log.debug("Created Parser %r", parser)
+        return parser
 
     def register_record_classes(self, record_classes: Iterable[RECORD_CLASS_TYPE]) -> "Backend":
         for record_class in record_classes:

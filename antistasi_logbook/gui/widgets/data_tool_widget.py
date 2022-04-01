@@ -367,7 +367,6 @@ class LogFileFilterPage(BaseDataToolPage):
         return None
 
     def on_change(self, *args):
-        log.debug("on_change was triggered with %r", args)
         query_filter = self.collect_query_filters()
         self.query_filter_changed.emit(query_filter)
 
@@ -439,7 +438,6 @@ class ServerFilterPage(BaseDataToolPage):
         return None
 
     def on_change(self, *args):
-        log.debug("on_change was triggered with %r", args)
         query_filter = self.collect_query_filters()
         self.query_filter_changed.emit(query_filter)
 
@@ -646,7 +644,6 @@ class LogRecordFilterPage(BaseDataToolPage):
         return None
 
     def on_change(self, *args):
-        log.debug("on_change was triggered with %r", args)
         query_filter = self.collect_query_filters()
         self.query_filter_changed.emit(query_filter)
 

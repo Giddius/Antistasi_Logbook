@@ -15,6 +15,7 @@ from weakref import WeakSet
 from functools import cached_property
 from threading import Lock, current_thread
 from time import sleep
+from concurrent.futures import Future, ThreadPoolExecutor, wait, FIRST_COMPLETED
 # * Third Party Imports --------------------------------------------------------------------------------->
 from apsw import SQLITE_OK, SQLITE_CHECKPOINT_TRUNCATE, Connection
 from peewee import JOIN, DatabaseProxy, chunked
@@ -56,7 +57,8 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 META_PATHS: MetaPaths = get_meta_paths()
 META_INFO = get_meta_info()
@@ -68,17 +70,17 @@ log = get_logger(__name__)
 DEFAULT_DB_NAME = "storage.db"
 
 DEFAULT_PRAGMAS = frozendict({
-    "cache_size": -1 * 128000,
+    "cache_size": -1 * 32_000,
     "journal_mode": 'wal',
     "synchronous": 0,
     "ignore_check_constraints": 0,
     "foreign_keys": 1,
     "temp_store": "MEMORY",
-    "mmap_size": 268435456 * 8,
+    "mmap_size": 268_435_456 * 2,
     "journal_size_limit": human2bytes("500mb"),
-    "wal_autocheckpoint": 1000,
-    "page_size": 32768 * 2,
-    "analysis_limit": 100000
+    "wal_autocheckpoint": 10_000,
+    "page_size": 32_768 * 2,
+    "analysis_limit": 100_000
 })
 
 
@@ -164,7 +166,7 @@ class GidSqliteApswDatabase(APSWDatabase):
         self.session_meta_data: "DatabaseMetaData" = None
         extensions = self.default_extensions.copy() | (extensions or {})
         pragmas = dict(DEFAULT_PRAGMAS | (pragmas or {}))
-        super().__init__(make_db_path(self.database_path), thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, timeout=30, statementcachesize=100, ** extensions)
+        super().__init__(make_db_path(self.database_path), thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, timeout=1000, statementcachesize=100, ** extensions)
 
         self.foreign_key_cache: "ForeignKeyCache" = ForeignKeyCache(database=self)
         self.write_lock = Lock()
@@ -254,24 +256,25 @@ class GidSqliteApswDatabase(APSWDatabase):
         self.started_up = True
         self.foreign_key_cache.reset_all()
         self.foreign_key_cache.preload_all()
-        log.info("finished starting up %r", self)
         self.checkpoint()
         self.optimize()
+        log.info("finished starting up %r", self)
         return self
 
     def optimize(self) -> "GidSqliteApswDatabase":
         log.info("optimizing %r", self)
         # with self.write_lock:
-        self.pragma("OPTIMIZE")
+        result = self.pragma("OPTIMIZE")
 
-        log.info("finished optimizing %r", self)
+        log.info("finished optimizing %r, result: %r", self, result)
         return self
 
     def vacuum(self) -> "GidSqliteApswDatabase":
         log.info("vacuuming %r", self)
         with self.write_lock:
-            self.execute_sql("VACUUM;")
+            result = self.execute_sql("VACUUM;")
             self.checkpoint()
+        log.info("finished vacuuming %r, result: %r", self, result)
         return self
 
     def shutdown(self, error: BaseException = None) -> None:
@@ -286,8 +289,8 @@ class GidSqliteApswDatabase(APSWDatabase):
                 for conn in self.conns:
                     conn.close()
 
-        log.debug("finished shutting down %r", self)
         self.started_up = False
+        log.debug("finished shutting down %r", self)
 
     def get_all_server(self, ordered_by=Server.id) -> tuple[Server]:
 
@@ -333,27 +336,37 @@ class GidSqliteApswDatabase(APSWDatabase):
         result = tuple(Version.select(Version).order_by(ordered_by).iterator(self))
         return result
 
+    @profile
     def iter_all_records(self, server: Server = None, log_file: LogFile = None, only_missing_record_class: bool = False) -> Generator[LogRecord, None, None]:
-        with self:
-            foreign_key_cache = ForeignKeyCache(self)
-            foreign_key_cache.preload_all()
-            logged_from_alias = ArmaFunction.alias()
-            query = LogRecord.select(LogRecord, RecordClass, logged_from_alias).join(RecordClass, join_type=JOIN.LEFT_OUTER).join_from(LogRecord, logged_from_alias, join_type=JOIN.LEFT_OUTER, on=(LogRecord.logged_from == logged_from_alias.id))
-            if log_file is not None:
-                query = query.switch(LogRecord).join(LogFile).where(LogRecord.log_file_id == log_file.id)
-            elif server is not None:
-                nested = LogFile.select().where(LogFile.server == server)
-                query = query.switch(LogRecord).join(LogFile).where(LogRecord.log_file << nested)
+
+        all_queries = []
+        foreign_key_cache = ForeignKeyCache(self)
+        foreign_key_cache.preload_all()
+
+        if log_file is not None:
+            log_files = [log_file]
+        elif server is not None:
+            log_files = list(LogFile.select().where((LogFile.server_id == server.id) & (LogFile.unparsable == False)))
+        else:
+            log_files = list(LogFile.select().where(LogFile.unparsable == False))
+
+        for _log_file in log_files:
+            query = LogRecord.select().join_from(LogRecord, RecordClass, join_type=JOIN.LEFT_OUTER, on=(LogRecord.record_class_id == RecordClass.id)).where(LogRecord.log_file_id == _log_file.id)
 
             if only_missing_record_class is True:
                 query = query.where(LogRecord.record_class >> None)
+            all_queries.append(query)
 
-            for record in query.iterator():
+        for _query in all_queries:
+
+            for record in _query.iterator():
                 record.origin = foreign_key_cache.get_origin_by_id(record.origin_id)
                 record.called_by = foreign_key_cache.get_arma_file_by_id(record.called_by_id)
                 record.logged_from = foreign_key_cache.get_arma_file_by_id(record.logged_from_id)
                 record.origin = foreign_key_cache.get_origin_by_id(record.origin_id)
+
                 yield record
+            sleep(0.001)
 
     def get_unique_server_ips(self) -> tuple[str]:
 
@@ -368,9 +381,9 @@ class GidSqliteApswDatabase(APSWDatabase):
 
     def __repr__(self) -> str:
         repr_attrs = ("database_name", "config", "auto_backup", "thread_safe", "autoconnect")
-        _repr = f"{self.__class__.__name__}"
-        attr_text = ', '.join(f"{attr_name}={getattr(self, attr_name, None)}" for attr_name in repr_attrs)
-        return f"{_repr}({attr_text})"
+        _repr = self.__class__.__name__
+        attr_text = ', '.join(attr_name + "=" + repr(getattr(self, attr_name, None)) for attr_name in repr_attrs)
+        return _repr + attr_text
 
 
 # region[Main_Exec]

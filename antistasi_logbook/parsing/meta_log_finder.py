@@ -91,9 +91,12 @@ class MetaFinder:
             if version_args:
                 while len(version_args) < 3:
                     version_args.append('MISSING')
-                version = VersionItem(*version_args)
+                try:
+                    version = VersionItem(*version_args)
 
-                self.version = version
+                    self.version = version
+                except ValueError:
+                    pass
 
     def _resolve_game_map(self, text: str) -> None:
         # takes about 0.170319 s

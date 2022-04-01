@@ -26,7 +26,7 @@ from gidapptools.general_helper.conversion import number_to_pretty
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord, RecordClass
 from antistasi_logbook.updating.remote_managers import remote_manager_registry
-
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend
@@ -49,7 +49,7 @@ if TYPE_CHECKING:
 
 # region [Constants]
 
-
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 
@@ -248,6 +248,7 @@ class Updater:
             amount_deleted += 1
         return amount_deleted
 
+    @profile
     def process_log_file(self, log_file: "LogFile", force: bool = False) -> None:
         if force is True:
             log_file.last_parsed_line_number = 0
@@ -275,6 +276,7 @@ class Updater:
                 context.insert_record(processed_record)
             context._dump_rest()
 
+    @profile
     def process(self, server: "Server") -> None:
         log.debug("processing server %r", server)
         tasks = []
@@ -300,6 +302,7 @@ class Updater:
 
         self.thread_pool.submit(_do_it, old_amount, amount)
 
+    @profile
     def _update_record_classes(self, server: Server = None, log_file: LogFile = None, force: bool = False):
         # if force is True:
         #     self.signaler.change_update_text.emit("Updating Record-Classes")
@@ -318,12 +321,10 @@ class Updater:
         tasks = []
         to_update = []
         old_idx = 0
-        idx = 0
-        gen = self.database.iter_all_records(server=server, log_file=log_file, only_missing_record_class=not force)
-        for record in gen:
+
+        for idx, record in enumerate(self.database.iter_all_records(server=server, log_file=log_file, only_missing_record_class=not force)):
             record_class = self.backend.record_class_manager.determine_record_class(record)
 
-            idx += 1
             if idx % report_size == 0:
 
                 if force is True:
@@ -341,7 +342,6 @@ class Updater:
 
                     to_update.clear()
 
-        self.emit_amount_record_classes_updated(idx - old_idx)
         if len(to_update) > 0:
             log.debug("updating %s records with their record class", number_to_pretty(len(to_update)))
             task = self.database.record_inserter.many_update_record_class(list(to_update))
@@ -353,7 +353,7 @@ class Updater:
             if len(running_tasks) < old_len:
                 log.info("waiting for %s tasks to finish", number_to_pretty(len(running_tasks)))
             else:
-                sleep(1)
+                sleep(0.1)
             old_len = len(running_tasks)
             running_tasks = [fu for fu in tasks if fu.done() is False]
 
@@ -371,6 +371,7 @@ class Updater:
         remote_manager_registry.close()
         self.database.close()
 
+    @profile
     def update(self) -> None:
 
         if self.is_updating_event.is_set() is True:
@@ -393,7 +394,7 @@ class Updater:
                     self.process(server=server)
                     tasks.append(self.thread_pool.submit(self._update_record_classes, server=server))
                     log.info("FINISHED updating server %r", server)
-
+                    self.database.checkpoint()
             log.debug("waiting for %r tasks to finish", len(tasks))
             wait(tasks, return_when=ALL_COMPLETED)
 

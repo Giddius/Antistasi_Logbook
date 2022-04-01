@@ -216,6 +216,8 @@ class WebdavManager(AbstractRemoteStorageManager):
     def reset_client(self, config: "GidIniConfig") -> None:
         log.debug("client reset called")
         self._client = None
+        del self.download_semaphores[self.full_base_url]
+        self.download_semaphore = self._get_download_semaphore()
 
     @property
     def max_connections(self) -> Optional[int]:
@@ -270,7 +272,6 @@ class WebdavManager(AbstractRemoteStorageManager):
 
                     f.write(chunk)
             log_file.is_downloaded = True
-            log.info("finished downloading %s", log_file)
             return local_path
 
     def close(self) -> None:

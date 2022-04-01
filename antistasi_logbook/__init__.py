@@ -135,6 +135,3 @@ def setup():
     ERROR_CONSOLE = RichConsole(soft_wrap=True, record=False, width=150)
     # rich.traceback.install(console=ERROR_CONSOLE, width=150)
     IS_SETUP = True
-
-
-setup()

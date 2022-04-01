@@ -256,7 +256,4 @@ def column_sort_default_factory(in_colum: "Field"):
 
 
 if __name__ == '__main__':
-    def get_all_sub_classes(sub_cl):
-        for sub_sub_cl in sub_cl.__subclasses__():
-            yield sub_sub_cl
-            yield from get_all_sub_classes(sub_sub_cl)
+    pass

@@ -160,7 +160,6 @@ class LogParsingContext:
         self.database = self._log_file.get_meta().database
         self.inserter = inserter
         self.log_file_data = model_to_dict(self._log_file, exclude=[LogFile.log_records, LogFile.mods, LogFile.comments, LogFile.marked], extra_attrs=["is_downloaded"])
-        log.debug("logfile %r is_downloaded %r", self.log_file_data["name"], self.log_file_data["is_downloaded"])
         self.data_lock = RLock()
         self.foreign_key_cache = foreign_key_cache
         self.config = config
@@ -285,8 +284,6 @@ class LogParsingContext:
             yield f
 
     def close(self) -> None:
-
-        log.debug("waiting on futures")
         self.wait_on_futures()
         with self.data_lock:
             log.debug("updating log-file %r", self._log_file)
@@ -298,10 +295,9 @@ class LogParsingContext:
                 raise task.exception()
             _ = task.result()
 
-        log.debug("closing line iterator")
         if self._line_iterator is not None:
             self._line_iterator.close()
-        log.debug("cleaning up log-file %r", self._log_file)
+
         # self._log_file._cleanup()
         self.is_open = False
 
@@ -341,7 +337,6 @@ class LogParsingContext:
 
     def _dump_rest(self) -> None:
         if len(self.record_storage) > 0:
-            log.debug("dumping rest for context %r", self)
             self.futures.append(self.inserter(records=tuple(self.record_storage), context=self))
             self.record_storage.clear()
 
@@ -358,7 +353,6 @@ class LogParsingContext:
                 log.critical("error %r encountered with log-file %r", e, self._log_file)
         else:
             with self.data_lock:
-                log.debug("setting log-file-data last_parsed_time to %r for %r", self.log_file_data.get("modified_at"), self._log_file)
                 self.log_file_data["last_parsed_datetime"] = self.log_file_data.get("modified_at")
 
     def __enter__(self) -> "LogParsingContext":

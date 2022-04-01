@@ -412,7 +412,6 @@ class SettingsWindow(QWidget):
             sect_name = page.section_name
             for field in page.fields.values():
                 if field.value_field.value_is_changed():
-                    log.debug("sect_name=%r, field.name=%r, field.value_field.get_value()=%r", sect_name, field.name, field.value_field.get_value())
                     self.general_config.set(sect_name, field.name, field.value_field.get_value())
                     if sect_name == "updating" and field.name == "update_interval":
                         self.main_window.start_update_timer()

@@ -123,19 +123,20 @@ class Parser:
         log.info("Parsing meta-data for %r", context._log_file)
         context.set_found_meta_data(self._get_log_file_meta_data(context=context))
         if context.unparsable is True:
+            log.info("Log file %r is unparseable", context._log_file)
             return
         if self.stop_event.is_set():
             return
         if context._log_file.header_text is None:
-
+            log.info("Parsing header-text for %r", context._log_file)
             context.set_header_text(self._parse_header_text(context))
-            sleep(0)
+
         if self.stop_event.is_set():
             return
         if context._log_file.startup_text is None:
-
+            log.info("Parsing startup-entries for %r", context._log_file)
             context.set_startup_text(self._parse_startup_entries(context))
-            sleep(0)
+
         if self.stop_event.is_set():
             return
         log.info("Parsing entries for %r", context._log_file)
@@ -143,7 +144,6 @@ class Parser:
 
             processed_record = self.record_processor(raw_record=raw_record, utc_offset=context.log_file_data["utc_offset"])
             yield processed_record
-            sleep(0)
 
 
 # region[Main_Exec]

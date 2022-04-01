@@ -20,7 +20,7 @@ import attr
 from peewee import DoesNotExist
 from dateutil.tz import UTC, tzoffset
 from playhouse.shortcuts import update_model_from_dict
-
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.conversion import number_to_pretty
@@ -53,7 +53,7 @@ if TYPE_CHECKING:
 
 # region [Constants]
 
-
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
@@ -104,20 +104,21 @@ class RecordInserter:
     def write_lock(self) -> Lock:
         return self.database.write_lock
 
+    @profile
     def _insert_func(self, records: Iterable["RawRecord"], context: "LogParsingContext") -> ManyRecordsInsertResult:
 
         # LogRecord.insert_many(i.to_log_record_dict(log_file=context._log_file) for i in records).execute()
-
         records = [r for r in records if r]
-        params = (i.to_sql_params(log_file=context._log_file) for i in records)
-        sleep(0.005)
+
+        params = (r.to_sql_params(log_file=context._log_file) for r in records)
+        amount_records = len(records)
         with self.write_lock:
             with self.database.atomic() as txn:
                 cur = self.database.cursor(True)
 
                 cur.executemany(RawRecord.insert_sql_phrase.phrase, params)
                 txn.commit()
-                log.info("inserted %s", number_to_pretty(len(records)))
+        log.info("inserted %s records", number_to_pretty(amount_records))
         # for record in records:
         #     params = record.to_sql_params(log_file=context._log_file)
         #     self.database.execute_sql(self.insert_phrase, params=params)
@@ -135,11 +136,14 @@ class RecordInserter:
         future.add_done_callback(_callback(_context=context))
         return future
 
+    @profile
     def _execute_update_record_class(self, log_record: LogRecord, record_class: RecordClass) -> None:
         with self.write_lock:
-            with self.database:
+            with self.database.atomic() as txn:
                 LogRecord.update(record_class=record_class).where(LogRecord.id == log_record.id).execute()
+                txn.commit()
 
+    @profile
     def _execute_many_update_record_class(self, pairs: list[tuple[int, int]]) -> int:
 
         with self.write_lock:
@@ -147,7 +151,7 @@ class RecordInserter:
                 cur = self.database.cursor(True)
                 cur.executemany(self.update_record_record_class_phrase, pairs)
                 txn.commit()
-                log.info("inserted new record class for %r records", len(pairs))
+        log.info("inserted new record class for %s records", number_to_pretty(len(pairs)))
         return len(pairs)
 
     def update_record_class(self, log_record: LogRecord, record_class: RecordClass) -> Future:
@@ -156,40 +160,50 @@ class RecordInserter:
     def many_update_record_class(self, pairs: list[tuple[int, int]]) -> Future:
         return self.thread_pool.submit(self._execute_many_update_record_class, pairs=pairs)
 
+    @profile
     def _execute_insert_mods(self, mod_items: Iterable[Mod], log_file: LogFile) -> None:
         mod_data = [mod_item.as_dict() for mod_item in mod_items]
         q_1 = Mod.insert_many(mod_data).on_conflict_ignore()
         with self.write_lock:
             with self.database.atomic() as txn:
 
-                q_1.execute()
-
+                amount_inserted = q_1.execute()
+                txn.commit()
+        if amount_inserted > 0:
+            log.info("inserted %r new mods", amount_inserted)
         refreshed_mods_ids = (Mod.get(**mod_item.as_dict()) for mod_item in mod_items)
         q_2 = LogFileAndModJoin.insert_many({"log_file": log_file.id, "mod": refreshed_mod_id} for refreshed_mod_id in refreshed_mods_ids).on_conflict_ignore()
 
         with self.write_lock:
             with self.database.atomic() as txn:
 
-                q_2.execute()
+                amount_assigned = q_2.execute()
+                txn.commit()
+        if amount_assigned > 0:
+            log.info("Assigned %r mods to log file %r", amount_assigned, log_file)
 
     def insert_mods(self, mod_items: Iterable[Mod], log_file: LogFile) -> Future:
         return self.thread_pool.submit(self._execute_insert_mods, mod_items=mod_items, log_file=log_file)
 
+    @profile
     def _execute_update_log_file_from_dict(self, log_file: LogFile, in_dict: dict):
 
         with self.write_lock:
-            with self.database.atomic() as txn:
+            with self.database.connection_context() as ctx:
                 item = update_model_from_dict(LogFile.get_by_id(log_file.id), in_dict)
                 item.save()
-                log.debug("logfile %r modified_at: %r, game_map: %r, version: %r, campaign_id: %r", item, item.modified_at, item.game_map, item.version, item.campaign_id)
+        log.debug("logfile %r modified_at: %r, game_map: %r, version: %r, campaign_id: %r", item, item.modified_at, item.game_map, item.version, item.campaign_id)
 
     def update_log_file_from_dict(self, log_file: LogFile, in_dict: dict) -> Future:
         return self.thread_pool.submit(self._execute_update_log_file_from_dict, log_file=log_file, in_dict=in_dict)
 
+    @profile
     def _execute_insert_game_map(self, game_map: "GameMap"):
         with self.write_lock:
             with self.database.atomic() as txn:
                 game_map.save()
+                txn.commit()
+        log.info("inserted game map %r", game_map)
 
     def insert_game_map(self, game_map: "GameMap") -> Future:
         return self.thread_pool.submit(self._execute_insert_game_map, game_map=game_map)
@@ -289,8 +303,7 @@ class RecordProcessor:
         if _out["message"].startswith('"') and _out["message"].endswith('"'):
             _out["message"] = _out["message"].strip('"').strip()
         raw_record.parsed_data = _out
-        if raw_record.parsed_data.get('logged_from') is None:
-            log.info(_out)
+
         return raw_record
 
     def determine_record_class(self, raw_record: "RawRecord") -> "RecordClass":

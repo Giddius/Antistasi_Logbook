@@ -22,7 +22,7 @@ from PySide6.QtWidgets import QMenu, QFrame, QLabel, QLayout, QWidget, QGroupBox
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
-
+from gidapptools.general_helper.conversion import number_to_pretty
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.widgets.dock_widget import BaseDockWidget
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
@@ -246,8 +246,16 @@ class DebugDialog(QWidget):
                 widget.layout().addRow(key, self.make_value_widget(value))
             return widget
 
+        elif isinstance(data, int):
+            widget = QTextEdit(self)
+            widget.setText(number_to_pretty(data))
+            widget.setReadOnly(True)
+            widget.setFrameStyle(QFrame.NoFrame)
+            return widget
+
         else:
-            log.debug("value_data has an unset type. (type: %r)", type(data))
+            if not isinstance(data, (str, int)):
+                log.debug("value_data has an unset type. (type: %r)", type(data))
             widget = QTextEdit(self)
             widget.setText(str(data))
             widget.setReadOnly(True)

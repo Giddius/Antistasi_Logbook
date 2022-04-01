@@ -196,7 +196,6 @@ class MainWidget(QWidget):
         # TODO change it so, that the view has all the widgets and provides it
 
         if index == self.main_tabs_widget.indexOf(self.log_files_tab):
-            log.debug("setting tool_bar %r", self.log_files_tab.tool_bar_item)
             self.main_window.set_tool_bar(self.log_files_tab.tool_bar_item)
             self.main_window.tool_bar.show_records_action.triggered.connect(self.query_log_file)
             if self.log_files_tab.model is None:

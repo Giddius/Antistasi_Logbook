@@ -215,7 +215,6 @@ class BaseQueryDataModel(QAbstractTableModel):
 
     def add_context_menu_actions(self, menu: "CustomContextMenu", index: QModelIndex):
         if self.app.is_dev is True:
-            log.debug("%r has attribute %r: %r", self.db_model, "background_color", hasattr(self.db_model, "background_color"))
             force_refresh_model_action = QAction(f"Force Refresh Model {self.name!r}")
             force_refresh_model_action.triggered.connect(self.force_refresh)
             menu.add_action(force_refresh_model_action, "debug")
@@ -252,7 +251,7 @@ class BaseQueryDataModel(QAbstractTableModel):
     def edit_comments(self, item: BaseModel, column: Field, index: QModelIndex):
         log.debug("starting comments editor for %r", item)
         accepted, text = MarkdownEditorDialog.show_dialog(text=item.comments)
-        log.debug("result of comments editor: (%r, %r)", accepted, text)
+
         if accepted:
             comments_index = self.index(index.row(), self.get_column_index("comments"), index.parent())
             self.setData(index=comments_index, value=text, role=Qt.DisplayRole)

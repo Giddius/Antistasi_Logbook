@@ -93,9 +93,8 @@ class MinDurationSemaphore(Semaphore):
         duration = process_time() - start_time
         to_sleep = self.minimum_duration_seconds - duration
         if to_sleep <= 0:
-            log.debug(f"took longer than minimum, it took {duration!r}")
             return
-        log.debug(f"sleeping in {self.__class__.__name__!r} for {to_sleep!r} before releasing")
+
         sleep(to_sleep)
 
     def __exit__(self, t, v, tb):
