@@ -60,7 +60,7 @@ from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataMode
 from antistasi_logbook.gui.models.remote_storages_model import RemoteStoragesModel
 from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-
+from antistasi_logbook.gui.debug import setup_debug_widget
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
@@ -303,24 +303,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
         self.debug_dock_widget = DebugDockWidget(parent=self, add_to_menu=self.menubar.windows_menu)
         self.addDockWidget(Qt.TopDockWidgetArea, self.debug_dock_widget)
-
-        for attr_name in ["applicationVersion",
-                          "organizationName",
-                          "applicationDisplayName",
-                          "desktopFileName",
-                          "desktopSettingsAware",
-                          "font",
-                          "applicationDirPath",
-                          "applicationFilePath",
-                          "applicationPid",
-                          "arguments",
-                          "libraryPaths"]:
-            self.debug_dock_widget.add_show_attr_button(attr_name=attr_name, obj=self.app)
-
-        self.debug_dock_widget.add_show_attr_button(attr_name="colorNames", obj=QColor)
-
-        self.debug_dock_widget.add_show_attr_button(attr_name="amount_log_records", obj=LogRecord)
-        self.debug_dock_widget.add_show_attr_button(attr_name="get_amount_meta_data_items", obj=DatabaseMetaData)
+        setup_debug_widget(self.debug_dock_widget)
 
     def set_tool_bar(self, tool_bar: QToolBar):
         if self.tool_bar:

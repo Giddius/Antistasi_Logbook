@@ -8,7 +8,7 @@ Soon.
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import re
-from typing import TYPE_CHECKING, Union, Iterable
+from typing import TYPE_CHECKING, Union, Iterable, Any
 from pathlib import Path
 
 # * Third Party Imports --------------------------------------------------------------------------------->
@@ -245,6 +245,67 @@ class PlayerConnected(BaseRecord):
 
 ALL_GENERIC_RECORD_CLASSES.add(PlayerConnected)
 
+
+class SendTfarRadioRequestResponseEvent(BaseRecord):
+    ___record_family___ = RecordFamily.GENERIC
+    ___specificity___ = 10
+    parse_regex = re.compile(r"\[(?P<number_1>\d+)\]\s*(?P<number_2>[\d\.]+)")
+    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
+    __slots__ = ("record_id",
+                 "log_file",
+                 "origin",
+                 "start",
+                 "end",
+                 "message",
+                 "recorded_at",
+                 "log_level",
+                 "marked",
+                 "called_by",
+                 "logged_from",
+                 "qt_attributes",
+                 "pretty_attribute_cache",
+                 "_number_1",
+                 "_number_2")
+    extra_detail_views: Iterable[str] = ("number_1", "number_2")
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._number_1: int = None
+        self._number_2: float = None
+
+    @property
+    def number_1(self) -> int:
+        if self._number_1 is None:
+            data = self.parse(self.message)
+            self._number_1 = data.get("number_1")
+            self._number_2 = data.get("number_2")
+        return self._number_1
+
+    @property
+    def number_2(self) -> float:
+        if self._number_2 is None:
+            data = self.parse(self.message)
+            self._number_1 = data["number_1"]
+            self._number_2 = data["number_2"]
+        return self._number_2
+
+    @classmethod
+    def parse(cls, message: str) -> dict[str, Any]:
+        if match := cls.parse_regex.search(message):
+            number_1 = int(match.group("number_1"))
+            number_2 = float(match.group("number_2"))
+            return {"number_1": number_1, "number_2": number_2}
+        return super().parse(message)
+
+    @classmethod
+    def check(cls, log_record: "LogRecord") -> bool:
+        if log_record.message.strip().startswith("Send TFAR_RadioRequestResponseEvent"):
+            return True
+
+        return False
+
+
+ALL_GENERIC_RECORD_CLASSES.add(SendTfarRadioRequestResponseEvent)
 # region[Main_Exec]
 
 

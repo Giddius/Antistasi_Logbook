@@ -201,6 +201,7 @@ class Updater:
         self.updated_log_file_signal.emit(log_file=log_file)
         return log_file
 
+    @profile
     def _get_updated_log_files(self, server: "Server"):
         """
         [summary]
@@ -226,6 +227,7 @@ class Updater:
                 to_update_files.append(self._create_new_log_file(server=server, remote_info=remote_info))
 
             elif stored_file.modified_at < remote_info.modified_at or stored_file.size < remote_info.size:
+
                 to_update_files.append(self._update_log_file(log_file=stored_file, remote_info=remote_info))
 
             elif stored_file.last_parsed_datetime != stored_file.modified_at and stored_file.unparsable is False:
@@ -321,8 +323,9 @@ class Updater:
         tasks = []
         to_update = []
         old_idx = 0
-
-        for idx, record in enumerate(self.database.iter_all_records(server=server, log_file=log_file, only_missing_record_class=not force)):
+        idx = 0
+        for record in self.database.iter_all_records(server=server, log_file=log_file, only_missing_record_class=not force):
+            idx += 1
             record_class = self.backend.record_class_manager.determine_record_class(record)
 
             if idx % report_size == 0:
@@ -331,7 +334,7 @@ class Updater:
                     self.emit_amount_record_classes_updated(old_idx, idx)
                     old_idx = idx
 
-            if record.record_class != record_class:
+            if record.record_class_id is None or record.record_class_id != record_class.id:
 
                 to_update.append((int(record_class.id), int(record.id)))
                 if len(to_update) >= batch_size:
@@ -371,7 +374,6 @@ class Updater:
         remote_manager_registry.close()
         self.database.close()
 
-    @profile
     def update(self) -> None:
 
         if self.is_updating_event.is_set() is True:

@@ -315,10 +315,13 @@ class GidSqliteApswDatabase(APSWDatabase):
         return result
 
     def get_all_arma_functions(self, ordered_by=ArmaFunction.id) -> tuple[ArmaFunction]:
+        result = []
+        for item in ArmaFunction.select(ArmaFunction, ArmaFunctionAuthorPrefix).join(ArmaFunctionAuthorPrefix).order_by(ordered_by).iterator(self):
+            _ = item.function_name
+            _ = item.file_name
+            result.append(item)
 
-        result = tuple(ArmaFunction.select(ArmaFunction, ArmaFunctionAuthorPrefix).join(ArmaFunctionAuthorPrefix).order_by(ordered_by).iterator(self))
-
-        return result
+        return tuple(result)
 
     def get_all_game_maps(self, ordered_by=GameMap.id) -> tuple[GameMap]:
 
@@ -339,34 +342,29 @@ class GidSqliteApswDatabase(APSWDatabase):
     @profile
     def iter_all_records(self, server: Server = None, log_file: LogFile = None, only_missing_record_class: bool = False) -> Generator[LogRecord, None, None]:
 
-        all_queries = []
         foreign_key_cache = ForeignKeyCache(self)
         foreign_key_cache.preload_all()
 
         if log_file is not None:
             log_files = [log_file]
         elif server is not None:
-            log_files = list(LogFile.select().where((LogFile.server_id == server.id) & (LogFile.unparsable == False)))
+            log_files = LogFile.select().where((LogFile.server_id == server.id) & (LogFile.unparsable == False))
         else:
-            log_files = list(LogFile.select().where(LogFile.unparsable == False))
+            log_files = LogFile.select().where(LogFile.unparsable == False)
 
-        for _log_file in log_files:
-            query = LogRecord.select().join_from(LogRecord, RecordClass, join_type=JOIN.LEFT_OUTER, on=(LogRecord.record_class_id == RecordClass.id)).where(LogRecord.log_file_id == _log_file.id)
+        query = LogRecord.select(LogRecord, RecordClass).join_from(LogRecord, RecordClass, join_type=JOIN.LEFT_OUTER, on=(LogRecord.record_class_id == RecordClass.id)).where(LogRecord.log_file_id << log_files)
 
-            if only_missing_record_class is True:
-                query = query.where(LogRecord.record_class >> None)
-            all_queries.append(query)
+        if only_missing_record_class is True:
+            query = query.where(LogRecord.record_class >> None)
+        query = query.order_by(LogRecord.recorded_at)
 
-        for _query in all_queries:
+        for record in query.iterator():
+            record.origin = foreign_key_cache.get_origin_by_id(record.origin_id)
+            record.called_by = foreign_key_cache.get_arma_file_by_id(record.called_by_id)
+            record.logged_from = foreign_key_cache.get_arma_file_by_id(record.logged_from_id)
+            record.origin = foreign_key_cache.get_origin_by_id(record.origin_id)
 
-            for record in _query.iterator():
-                record.origin = foreign_key_cache.get_origin_by_id(record.origin_id)
-                record.called_by = foreign_key_cache.get_arma_file_by_id(record.called_by_id)
-                record.logged_from = foreign_key_cache.get_arma_file_by_id(record.logged_from_id)
-                record.origin = foreign_key_cache.get_origin_by_id(record.origin_id)
-
-                yield record
-            sleep(0.001)
+            yield record
 
     def get_unique_server_ips(self) -> tuple[str]:
 

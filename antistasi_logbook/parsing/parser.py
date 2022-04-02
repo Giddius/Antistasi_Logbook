@@ -70,16 +70,20 @@ class Parser:
 
             text = file.read(self.log_file_data_scan_chunk_initial)
             finder = MetaFinder(context=context, regex_keeper=self.regex_keeper, force=context.force)
-
+            idx = 0
             while True:
                 finder.search(text)
                 if finder.all_found() is True:
                     break
-
+                idx += 1
                 new_text = file.read(self.log_file_data_scan_chunk_increase)
-                if not new_text:
+                log.debug("reading chunk idx")
+
+                if new_text == '':
                     break
                 text += new_text
+
+        log.debug("full_datetime: %r, version: %r, is_new_campaign: %r, campaign_id: %r", finder.full_datetime, finder.version, finder.is_new_campaign, finder.campaign_id)
         finder.change_missing_to_none()
 
         return finder

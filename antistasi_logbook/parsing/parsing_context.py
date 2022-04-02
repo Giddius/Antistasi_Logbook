@@ -160,6 +160,7 @@ class LogParsingContext:
         self.database = self._log_file.get_meta().database
         self.inserter = inserter
         self.log_file_data = model_to_dict(self._log_file, exclude=[LogFile.log_records, LogFile.mods, LogFile.comments, LogFile.marked], extra_attrs=["is_downloaded"])
+        self.log_file_data["unparsable"] = False
         self.data_lock = RLock()
         self.foreign_key_cache = foreign_key_cache
         self.config = config
@@ -195,6 +196,7 @@ class LogParsingContext:
         # TODO: Refractor this Monster!
         LogFile.get_meta().database.connect(True)
         if finder is None or finder.full_datetime is None or finder.campaign_id is None:
+            log.debug("setting to unparsable, because either finder(%r) is None or finder.full_datetime(%r) is None or finder.campaign_id(%r) is None", finder, finder.full_datetime, finder.campaign_id)
             self.set_unparsable()
             if self.done_signal:
                 self.done_signal()

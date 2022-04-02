@@ -147,7 +147,7 @@ class ArmaFunctionAuthorPrefix(BaseModel):
     full_name = TextField(unique=True, null=True)
     local_folder_path = PathField(null=True)
     github_link = URLField(null=True)
-    comments = CommentsField()
+    comments = CommentsField(null=True)
     marked = MarkedField()
 
     class Meta:
@@ -165,7 +165,7 @@ class ArmaFunction(BaseModel):
     author_prefix = ForeignKeyField(column_name='author_prefix', field='id', model=ArmaFunctionAuthorPrefix, lazy_load=True, index=True, verbose_name="Author Prefix")
     link = URLField(null=True)
     local_path = PathField(null=True)
-    comments = CommentsField()
+    comments = CommentsField(null=True)
     marked = MarkedField()
     show_as: Literal["file_name", "function_name"] = "function_name"
     parsing_regex: re.Pattern = re.compile(r"(?P<author_prefix>[\w_]+)_fnc_(?P<name>.*)")
@@ -228,7 +228,7 @@ class GameMap(BaseModel):
     map_image_low_resolution = CompressedImageField(null=True, verbose_name="Low Resolution Image")
     coordinates = JSONField(null=True, verbose_name="Coordinates-JSON")
     workshop_link = URLField(null=True, verbose_name="Workshop Link")
-    comments = CommentsField()
+    comments = CommentsField(null=True)
     marked = MarkedField()
 
     class Meta:
@@ -317,7 +317,7 @@ class Server(BaseModel):
     update_enabled = BooleanField(default=False, verbose_name="Update", help_text="If this Server should update")
     ip = TextField(null=True, verbose_name="IP Address", help_text="IP Adress of the Server")
     port = IntegerField(null=True, verbose_name="Port", help_text="Port the Server uses")
-    comments = CommentsField()
+    comments = CommentsField(null=True)
     marked = MarkedField()
     archive_lock = RLock()
 
@@ -394,7 +394,7 @@ class Version(BaseModel):
     minor = IntegerField(verbose_name="Minor")
     patch = IntegerField(verbose_name="Patch", null=True)
     extra = TextField(null=True, verbose_name="Extra")
-    comments = CommentsField()
+    comments = CommentsField(null=True)
     marked = MarkedField()
 
     class Meta:
@@ -456,7 +456,7 @@ class LogFile(BaseModel):
     last_parsed_datetime = AwareTimeStampField(null=True, utc=True, verbose_name="Last Parsed Datetime")
     max_mem = IntegerField(verbose_name="Max Memory", null=True)
     original_file = ForeignKeyField(model=OriginalLogFile, field="id", column_name="original_file", lazy_load=True, backref="log_file", null=True, on_delete="SET NULL")
-    comments = CommentsField()
+    comments = CommentsField(null=True)
     marked = MarkedField()
 
     class Meta:
@@ -715,7 +715,7 @@ class Mod(BaseModel):
     name = TextField(index=True)
     default = BooleanField(default=False, index=True)
     official = BooleanField(default=False, index=True)
-    comments = CommentsField()
+    comments = CommentsField(null=True)
     marked = MarkedField()
     version_regex = re.compile(r"(\s*\-\s*)?v?\s*[\d\.]*$")
 
@@ -775,7 +775,7 @@ class LogFileAndModJoin(BaseModel):
 
 class LogLevel(BaseModel):
     name = TextField(unique=True)
-    comments = CommentsField()
+    comments = CommentsField(null=True)
 
     @cached_property
     def background_color(self) -> QColor:
@@ -791,7 +791,7 @@ class LogLevel(BaseModel):
 class RecordClass(BaseModel):
     record_class_manager: "RecordClassManager" = None
     name = TextField(unique=True, index=True)
-    comments = CommentsField()
+    comments = CommentsField(null=True)
     marked = MarkedField()
     _record_class: "RECORD_CLASS_TYPE" = None
 
@@ -832,7 +832,7 @@ class RecordOrigin(BaseModel):
     name = TextField(unique=True, verbose_name="Name", index=True)
     identifier = CaselessTextField(unique=True, verbose_name="Identifier", index=True)
     is_default = BooleanField(default=False, verbose_name="Is Default Origin")
-    comments = CommentsField()
+    comments = CommentsField(null=True)
     marked = MarkedField()
 
     class Meta:
@@ -873,6 +873,10 @@ class LogRecord(BaseModel):
             (("log_file", "called_by"), False),
             (("log_file", "origin"), False)
         )
+
+    @profile
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     @classmethod
     def amount_log_records(cls) -> int:

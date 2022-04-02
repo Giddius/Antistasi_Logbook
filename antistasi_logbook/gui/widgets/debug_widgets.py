@@ -10,7 +10,7 @@ Soon.
 import os
 import sys
 import subprocess
-from typing import Any, Union, Iterable, Optional
+from typing import Any, Union, Iterable, Optional, Callable
 from pathlib import Path
 from collections import defaultdict
 
@@ -19,7 +19,7 @@ import PySide6
 from PySide6.QtGui import QFont, QPixmap, QPalette, QFontInfo
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QMenu, QFrame, QLabel, QLayout, QWidget, QGroupBox, QTextEdit, QFormLayout, QHBoxLayout, QListWidget, QMainWindow, QPushButton, QSizePolicy, QVBoxLayout, QApplication
-
+from gidapptools.general_helper.string_helper import shorten_string
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.conversion import number_to_pretty
@@ -199,10 +199,6 @@ class DebugDialog(QWidget):
         self.layout.addStretch()
         self.resize(1000, 400)
 
-    def closeEvent(self, event: PySide6.QtGui.QCloseEvent) -> None:
-        self.category.current_display_dialog = None
-        super().closeEvent(event)
-
     def make_line(self):
         self.line = QFrame(self)
         self.line.setFrameShape(QFrame.HLine)
@@ -262,14 +258,14 @@ class DebugDialog(QWidget):
             widget.setFrameStyle(QFrame.NoFrame)
             return widget
 
-    @property
-    def layout(self) -> QVBoxLayout:
-        return super().layout()
-
     def close(self) -> bool:
         log.debug("closing %r", self)
         self.category.current_display_dialog = None
         return super().close()
+
+    @property
+    def layout(self) -> QVBoxLayout:
+        return super().layout()
 
     def show(self) -> None:
         if self.category.current_display_dialog is not None:
@@ -299,6 +295,27 @@ class ShowAttrButton(QPushButton):
         key_text = f"Attribute <i><b>{self.attr_name!r}</b></i> of object <i><b>{self.obj!r}</b></i> is:"
 
         dialog = DebugDialog(title=title, key_text=key_text, value_data=attr_value, category=self.parent())
+        dialog.show()
+
+
+class ShowFunctionResultButton(QPushButton):
+    def __init__(self, category_name: str, function: Callable, parent=None, **kwargs):
+        super().__init__(parent=parent)
+        self.category_name = category_name
+        self.function = function
+        self.kwargs = kwargs
+        self._text = self.function.__name__
+        if kwargs:
+            self._text += " with " + ', '.join(f"{k}=>{shorten_string(repr(v),50,split_on=r'any')}" for k, v in self.kwargs.items())
+
+        self.setText(f"show result for {self._text}")
+        self.pressed.connect(self.show_info_box)
+
+    def show_info_box(self):
+        title = f"Result for {self.function.__name__}"
+        value = self.function(**self.kwargs)
+        key_text = f"Result for <i><b>{self._text}</b></i> is:"
+        dialog = DebugDialog(title=title, key_text=key_text, value_data=value, category=self.parent())
         dialog.show()
 
 
@@ -366,6 +383,10 @@ class DebugDockWidget(BaseDockWidget):
     def add_show_attr_button(self, attr_name: str, obj: object):
 
         button = ShowAttrButton(attr_name=attr_name, obj=obj, parent=self)
+        self.add_widget(button.text(), button.category_name, button)
+
+    def add_show_func_result_button(self, function: Callable, category_name: str, **kwargs):
+        button = ShowFunctionResultButton(category_name=category_name, function=function, **kwargs)
         self.add_widget(button.text(), button.category_name, button)
 # region[Main_Exec]
 

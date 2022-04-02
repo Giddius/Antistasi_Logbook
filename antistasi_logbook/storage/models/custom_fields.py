@@ -140,6 +140,7 @@ class AwareTimeStampField(BigIntegerField):
     field_type = 'TIMESTAMP'
     mult_factor = 1000000
 
+    @profile
     def __init__(self, *args, **kwargs):
 
         self.utc = kwargs.pop('utc', False) or False
@@ -153,6 +154,7 @@ class AwareTimeStampField(BigIntegerField):
             return datetime.now(tz=UTC)
         return datetime.now()
 
+    @profile
     def db_value(self, value: datetime):
         if value is None:
             return
@@ -164,26 +166,25 @@ class AwareTimeStampField(BigIntegerField):
         raw_value = value.timestamp()
         return int(raw_value * self.mult_factor)
 
+    @profile
     def python_value(self, value):
         if value is None:
             return
 
         reduced_value = value / self.mult_factor
         tz = UTC if self.utc is True else None
-        dt = datetime.fromtimestamp(reduced_value, tz=tz)
-        # if self.utc and dt.tzinfo is None:
-        #     dt = dt.astimezone(tz=UTC)
-
-        return dt
+        return datetime.fromtimestamp(reduced_value, tz=tz)
 
 
 class TzOffsetField(Field):
     field_type = "TZOFFSET"
 
+    @profile
     def db_value(self, value: Optional[tzoffset]) -> Optional[str]:
         if value is not None:
             return value.utcoffset(None).total_seconds()
 
+    @profile
     def python_value(self, value: Optional[str]):
         if value is not None:
             seconds = value
@@ -215,13 +216,8 @@ class MarkedField(BooleanField):
         super().__init__(**actual_kwargs)
 
 
-class CommentsField(CompressedTextField):
-
-    def __init__(self, compression_level=6, algorithm=CompressedField.ZLIB, **kwargs):
-        kwargs.pop("verbose_name", None)
-        kwargs.pop("help_text", None)
-        kwargs.pop("null", None)
-        super().__init__(compression_level=compression_level, algorithm=algorithm, verbose_name="Comments", help_text="Stored Comments", null=True, **kwargs)
+class CommentsField(TextField):
+    ...
 
 
 class CompressedImageField(CompressedField):

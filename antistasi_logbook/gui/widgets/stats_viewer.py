@@ -387,7 +387,7 @@ class StatsWindow(QMainWindow):
 
     def __init__(self, stat_type: StatType, stat_data: list[dict[str, Any]], title: str, visible_item_names: Iterable[str] = None, parent=None):
         super().__init__(parent=parent)
-        self.stat_type = stat_type
+        self.stat_type = StatType(stat_type)
         self.setCentralWidget(QWidget(self))
         self.centralWidget().setLayout(QHBoxLayout())
         self.plot_widget = pg.PlotWidget(axisItems={'bottom': pg.DateAxisItem(utcOffset=0)}, title=title)

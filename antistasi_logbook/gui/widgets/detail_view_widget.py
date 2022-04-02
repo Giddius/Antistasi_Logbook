@@ -851,7 +851,7 @@ class LogRecordDetailView(BaseDetailWidget):
         if len(all_stats) < 2:
             raise InsufficientDataPointsError(len(all_stats), 2)
 
-        self.temp_plot_widget = StatsWindow(all_stats, title=self.record.log_file.name.upper)
+        self.temp_plot_widget = StatsWindow(stat_type=StatType.PERFORMANCE, stat_data=all_stats, title=self.record.log_file.name.upper, visible_item_names={"ServerFPS"})
         self.temp_plot_widget.add_current_record(self.record)
 
         self.temp_plot_widget.add_marked_records(self.record.log_file.get_marked_records())
