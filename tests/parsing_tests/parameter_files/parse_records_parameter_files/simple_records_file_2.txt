@@ -1,8 +1,0 @@
-2021/10/05, 08:40:59 [CBA] (xeh) INFO: [12189,153.042,0] PreInit finished.
-2021/10/05, 08:40:59 "armahosts/BIS_fnc_log: [preInit] CBA_fnc_preInit (707.001 ms)"
-2021/10/05, 08:40:59 "armahosts/BIS_fnc_log: [preInit] HR_GRG_fnc_initServer (1.00708 ms)"
-2021/10/05, 08:40:59 PortableHelipadLight_01_white_F: light_1_blinking - unknown animation source MarkerLight (defined in AnimationSources::Light_1_source)
-2021/11/06, 02:42:58 2021-11-06 09:42:58:958 | Antistasi | Debug | File: fn_initServer.sqf | Land_New_WiredFence_10m_F killed by UNKNOWN
-2021/11/06, 02:43:03 Can't change owner from 0 to 2
-2021/11/06, 02:42:58 2021-11-06 09:42:58:997 | Antistasi | Debug | File: fn_initServer.sqf |  killed by UNKNOWN
-2021/11/08, 10:26:07 2021-11-08 18:26:07:393 | Antistasi | Debug | File: A3A_fnc_createAttackVehicle | Spawn Performed: Created vehicle UK3CB_BAF_Merlin_HC3_18_GPMG_DPMT_RM with 12 soldiers | Called By: A3A_fnc_SUP_QRF
