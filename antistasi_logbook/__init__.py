@@ -113,9 +113,10 @@ def setup():
     if IS_SETUP is True:
         return
     os.environ["_MAIN_DIR"] = str(Path(__file__).resolve().parent)
+    from antistasi_logbook.data import DATA_DIR
     setup_meta_data(__file__,
-                    configs_to_create=[THIS_FILE_DIR.joinpath("data", "general_config.ini"), THIS_FILE_DIR.joinpath("data", "color_config.ini")],
-                    spec_to_create=[THIS_FILE_DIR.joinpath("data", "general_configspec.json"), THIS_FILE_DIR.joinpath("data", "color_configspec.json")],
+                    configs_to_create=[DATA_DIR.joinpath("general_config.ini"), DATA_DIR.joinpath("color_config.ini")],
+                    spec_files=[DATA_DIR.joinpath("general_configspec.json"), DATA_DIR.joinpath("color_configspec.json")],
                     file_changed_parameter="changed_time")
     META_PATHS = get_meta_paths()
     # log = get_main_logger("__main__", Path(__file__).resolve(), extra_logger=_extra_logger)

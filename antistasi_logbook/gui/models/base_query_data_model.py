@@ -15,7 +15,7 @@ import PySide6
 from PySide6 import QtCore
 from PySide6.QtGui import QIcon, QColor, QAction
 from PySide6.QtCore import Qt, Slot, QSize, Signal, QModelIndex, QAbstractTableModel, QPersistentModelIndex
-from PySide6.QtWidgets import QApplication, QColorDialog
+from PySide6.QtWidgets import QApplication, QColorDialog, QInputDialog
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 from apsw import SQLError
@@ -250,7 +250,7 @@ class BaseQueryDataModel(QAbstractTableModel):
     @Slot(object, object, QModelIndex)
     def edit_comments(self, item: BaseModel, column: Field, index: QModelIndex):
         log.debug("starting comments editor for %r", item)
-        accepted, text = MarkdownEditorDialog.show_dialog(text=item.comments)
+        text, accepted = QInputDialog.getMultiLineText(None, "Comment", f"Comment for {item}", item.comments or "")
 
         if accepted:
             comments_index = self.index(index.row(), self.get_column_index("comments"), index.parent())

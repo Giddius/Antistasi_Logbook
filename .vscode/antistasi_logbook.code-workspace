@@ -201,11 +201,10 @@
                     "clear": true
                 }
             }
-
         ]
     },
     "settings": {
-        "python.defaultInterpreterPath": "${workspaceFolder}/.venv/scripts/python",
+        "python.defaultInterpreterPath": "${workspaceFolder}\\.venv\\scripts\\python.exe",
         "qtForPython.designer.path": "${workspaceFolder}\\.venv\\Scripts\\pyside6-designer.exe"
     }
 }

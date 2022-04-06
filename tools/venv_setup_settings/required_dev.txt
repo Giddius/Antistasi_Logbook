@@ -26,3 +26,4 @@ pipreqs
 tinyaes
 code2flow
 sphinx
+py-spy~=0.3.11
