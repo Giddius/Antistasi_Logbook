@@ -135,6 +135,17 @@ class BaseModel(Model):
     def pretty_name(self) -> str:
         return str(self)
 
+    def __getattr__(self, attr_name: str):
+        if attr_name.startswith("pretty_"):
+            return getattr(self, attr_name.removeprefix("pretty_"))
+
+        try:
+            return super().__getattr__(attr_name)
+        except AttributeError:
+            pass
+
+        raise AttributeError(f"{self.__class__!r} object has no attribute {attr_name!r}", name=attr_name, obj=self)
+
     def __str__(self) -> str:
         if hasattr(self, "name"):
             return str(self.name)
@@ -435,6 +446,25 @@ class OriginalLogFile(BaseModel):
         path = self.temp_path
         path.write_text(self.text, encoding='utf-8', errors='ignore')
         return path
+
+    def __iter__(self):
+        for line in self.text.splitlines():
+            yield line
+
+    def get_lines(self, start: int, end: int) -> tuple[str]:
+        if end == start:
+            return tuple([self.text.splitlines()[end - 1]])
+        corrected_start = start - 1
+        corrected_end = end
+        return tuple(self.text.splitlines()[corrected_start:corrected_end])
+
+    def get_lines_with_line_numbers(self, start: int, end: int) -> tuple[tuple[int, str]]:
+        if end == start:
+            return ((end, self.text.splitlines()[end - 1]),)
+        corrected_start = start - 1
+        corrected_end = end
+        lines = list(enumerate(self.text.splitlines()))
+        return tuple(lines[corrected_start:corrected_end])
 
 
 class LogFile(BaseModel):
@@ -873,10 +903,6 @@ class LogRecord(BaseModel):
             (("log_file", "called_by"), False),
             (("log_file", "origin"), False)
         )
-
-    @profile
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
 
     @classmethod
     def amount_log_records(cls) -> int:

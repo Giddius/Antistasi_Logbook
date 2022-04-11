@@ -339,7 +339,6 @@ class GidSqliteApswDatabase(APSWDatabase):
         result = tuple(Version.select(Version).order_by(ordered_by).iterator(self))
         return result
 
-    @profile
     def iter_all_records(self, server: Server = None, log_file: LogFile = None, only_missing_record_class: bool = False) -> Generator[LogRecord, None, None]:
 
         foreign_key_cache = ForeignKeyCache(self)
@@ -356,7 +355,6 @@ class GidSqliteApswDatabase(APSWDatabase):
 
         if only_missing_record_class is True:
             query = query.where(LogRecord.record_class >> None)
-        query = query.order_by(LogRecord.recorded_at)
 
         for record in query.iterator():
             record.origin = foreign_key_cache.get_origin_by_id(record.origin_id)

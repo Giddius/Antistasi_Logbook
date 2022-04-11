@@ -30,11 +30,11 @@ except ImportError:
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools.general_helper.enums import MiscEnum
 from gidapptools.general_helper.string_helper import shorten_string
-
+from antistasi_logbook.records.special_message_formats import discord_format
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
-    from antistasi_logbook.storage.models.models import LogFile, LogLevel, LogRecord, ArmaFunction, RecordOrigin
+    from antistasi_logbook.storage.models.models import LogFile, LogLevel, LogRecord, ArmaFunction, RecordOrigin, Server
     from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 
 # endregion[Imports]
@@ -139,6 +139,14 @@ class BaseRecord(AbstractRecord):
             return getattr(self, name)
 
     @property
+    def server(self) -> "Server":
+        return self.log_file.server
+
+    @property
+    def has_multiline_message(self) -> bool:
+        return (self.end - self.start) > 0
+
+    @property
     def pretty_log_file(self) -> str:
         if self.pretty_attribute_cache.pretty_log_file is MiscEnum.NOTHING:
             self.pretty_attribute_cache.pretty_log_file = str(self.log_file.name)
@@ -179,12 +187,20 @@ class BaseRecord(AbstractRecord):
         cls.reset_colors()
 
     def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
-        if msg_format is MessageFormat.SHORT:
-            return shorten_string(self.message, max_length=30)
+        msg_format = MessageFormat(msg_format)
+        match msg_format:
 
-        if msg_format is MessageFormat.ORIGINAL:
-            return f"{self.pretty_recorded_at} {self.message}"
-        return self.message
+            case MessageFormat.SHORT:
+                return shorten_string(self.message, max_length=30)
+
+            case MessageFormat.ORIGINAL:
+                return self.log_file.original_file.get_lines(start=self.start, end=self.end)
+
+            case MessageFormat.DISCORD:
+                return discord_format(in_record=self)
+
+            case _:
+                return self.message
 
     def get_db_item(self, database: "GidSqliteApswDatabase") -> "LogRecord":
         from antistasi_logbook.storage.models.models import LogRecord
@@ -236,6 +252,11 @@ class BaseRecord(AbstractRecord):
             return self.record_id
         if name == "record_class":
             return self.__class__
+
+        try:
+            return super().__getattr__(name)
+        except AttributeError:
+            pass
         raise AttributeError(f"{self.__class__.__name__!r} does not have an attribute {name!r}")
 
     @property

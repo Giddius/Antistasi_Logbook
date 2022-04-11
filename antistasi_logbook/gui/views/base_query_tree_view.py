@@ -81,11 +81,12 @@ class CustomContextMenu(QMenu):
         default = default or self
         return self.sub_menus.get(name.casefold(), default)
 
-    def add_menu(self, name: str, add_to: "CustomContextMenu" = None):
+    def add_menu(self, name: str, add_to: "CustomContextMenu" = None) -> "CustomContextMenu":
         add_to = add_to or self
         sub_menu = self.__class__(name, add_to)
         self.sub_menus[name.casefold()] = sub_menu
         self.addMenu(sub_menu)
+        return sub_menu
 
     def add_action(self, action: QAction, sub_menu: Union[str, "CustomContextMenu", QMenu] = None):
         if sub_menu is None:
@@ -388,14 +389,21 @@ class BaseQueryTreeView(QTreeView):
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(name={self.name!r})"
 
+    @property
+    def current_selection(self) -> tuple[QModelIndex]:
+        raw_current_selection = self.selectionModel().selectedRows()
+        try:
+            return tuple(self.model.mapToSource(idx) for idx in raw_current_selection)
+        except AttributeError:
+            return tuple(raw_current_selection)
+
     def selectionChanged(self, selected: QItemSelection, deselected: QItemSelection) -> None:
 
-        current_selection = self.selectionModel().selectedRows()
+        current_selection = self.current_selection
         amount_selection = len(current_selection)
 
         if amount_selection == 0:
-
-            return
+            return super().selectionChanged(selected, deselected)
 
         if amount_selection == 1:
 
@@ -411,7 +419,7 @@ class BaseQueryTreeView(QTreeView):
         items = [self.model.get(i.row()) for i in current_selection]
 
         self.current_items_changed.emit(items)
-        super().selectionChanged(selected, deselected)
+        return super().selectionChanged(selected, deselected)
 
 
 # region[Main_Exec]

@@ -13,7 +13,7 @@ from pathlib import Path
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QAction, QFont
 
-from PySide6.QtCore import Signal, QMargins, QItemSelection, QStandardPaths, QItemSelectionModel, Qt
+from PySide6.QtCore import Signal, QMargins, QItemSelection, QStandardPaths, QItemSelectionModel, Qt, QModelIndex
 from PySide6.QtWidgets import QHeaderView, QToolBar, QFontDialog, QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QFormLayout, QPushButton
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 # * Gid Imports ----------------------------------------------------------------------------------------->
@@ -22,12 +22,12 @@ from antistasi_logbook.gui.widgets.tool_bars import LogRecordToolBar
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.misc import CustomRole
 from antistasi_logbook.gui.views.base_query_tree_view import BaseQueryTreeView, CustomContextMenu
-
+from antistasi_logbook.records.special_message_formats import DiscordText
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.gui.models.log_records_model import LogRecordsModel
     from antistasi_logbook.gui.models.proxy_models.base_proxy_model import BaseProxyModel
-
+    from antistasi_logbook.records.base_record import BaseRecord
 # endregion[Imports]
 
 # region [TODO]
@@ -104,6 +104,10 @@ class LogRecordsQueryView(BaseQueryTreeView):
     def add_free_context_menu_options(self, menu: "CustomContextMenu"):
         super().add_free_context_menu_options(menu)
         copy_as_menu = menu.add_menu("Copy as", menu)
+        discord_copy_action = QAction("Discord")
+        discord_copy_action.triggered.connect(self.on_discord_copy)
+        copy_as_menu.add_action(discord_copy_action)
+
         std_copy_action = QAction("Copy")
         std_copy_action.triggered.connect(self.on_std_copy)
         menu.add_action(std_copy_action)
@@ -112,11 +116,24 @@ class LogRecordsQueryView(BaseQueryTreeView):
         screenshot_action.triggered.connect(self.on_screenshot_selection)
         menu.add_action(screenshot_action)
 
-    def on_std_copy(self):
-        rows = self.selectionModel().selectedRows()
-        text = '\n'.join([t for t in (self.model.data(i, CustomRole.STD_COPY_DATA) for i in rows) if t is not None])
+    def on_discord_copy(self):
+        items: list["BaseRecord"] = [self.model.content_items[idx.row()] for idx in self.current_selection]
+        if len(items) <= 0:
+            return
+
+        text = DiscordText(items).make_text()
         clipboard = self.app.clipboard()
-        clipboard.setText(text)
+        clipboard.setText(text.strip())
+
+    def on_std_copy(self):
+        items = [self.model.content_items[idx.row()] for idx in self.current_selection]
+        text = ""
+
+        for item in items:
+            text += '\n'.join(item.get_formated_message(msg_format="ORIGINAL")) + '\n'
+
+        clipboard = self.app.clipboard()
+        clipboard.setText(text.strip())
 
     def on_screenshot_selection(self):
         self.about_to_screenshot.emit()
@@ -174,33 +191,6 @@ class LogRecordsQueryView(BaseQueryTreeView):
         self.original_model = model
         model = model.proxy_model
         return super().setModel(model)
-
-    def selectionChanged(self, selected: QItemSelection, deselected: QItemSelection) -> None:
-
-        current_selection = self.selectionModel().selectedRows()
-
-        current_selection = [self.model.mapToSource(idx) for idx in current_selection]
-
-        amount_selection = len(current_selection)
-
-        if amount_selection == 0:
-
-            return
-
-        if amount_selection == 1:
-
-            self.single_item_selected.emit(current_selection[-1])
-
-        else:
-
-            indexes = current_selection
-
-            self.single_item_selected.emit(current_selection[-1])
-            self.multiple_items_selected.emit(list(indexes))
-
-        items = [self.model.get(i.row()) for i in current_selection]
-
-        self.current_items_changed.emit(items)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}"

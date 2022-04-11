@@ -88,6 +88,16 @@ class MessageFormat(Enum):
     PRETTY = auto()
     SHORT = auto()
     ORIGINAL = auto()
+    DISCORD = auto()
+
+    @ classmethod
+    def _missing_(cls, value: str):
+        mod_value = value.casefold()
+        for member in cls.__members__.values():
+            if member.name.casefold() == mod_value:
+                return member
+
+        raise ValueError("%r is not a valid %s" % (value, cls.__name__))
 
 
 class RecordFamily(Flag):

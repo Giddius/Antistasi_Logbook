@@ -75,13 +75,11 @@ class RecordClassChecker:
         self.family_handler_table = frozendict({RecordFamily.GENERIC: self._determine_generic_record_class,
                                                 RecordFamily.ANTISTASI: self._determine_antistasi_record_class})
 
-    @profile
     def _determine_generic_record_class(self, log_record: LogRecord) -> "RecordClass":
         for stored_class in self.generic_record_classes:
             if stored_class.check(log_record) is True:
                 return stored_class.model
 
-    @profile
     def _determine_antistasi_record_class(self, log_record: LogRecord) -> "RecordClass":
         try:
             function_name = log_record.logged_from.function_name
@@ -99,7 +97,6 @@ class RecordClassChecker:
 
         return self.antistasi_record_classes["DEFAULT"].model
 
-    @profile
     def _determine_record_class(self, log_record: LogRecord) -> "RecordClass":
 
         handler = self.family_handler_table.get(log_record.origin.record_family, self._determine_generic_record_class)
@@ -163,21 +160,17 @@ class RecordClassManager:
             else:
                 cls.antistasi_record_classes[record_class.___function___].add(stored_item)
 
-    @profile
     def get_by_name(self, name: str) -> RECORD_CLASS_TYPE:
         return self.record_class_registry.get(name, self.default_record_class).concrete_class
 
-    @profile
     def get_by_id(self, model_id: int) -> RECORD_CLASS_TYPE:
         return self.record_class_registry_by_id.get(str(model_id), self.default_record_class).concrete_class
 
-    @profile
     def determine_record_class(self, log_record: LogRecord) -> "RecordClass":
         if self.record_class_checker is None:
             self._create_record_checker()
         return self.record_class_checker._determine_record_class(log_record)
 
-    @profile
     def reset(self) -> None:
         all_registered_classes = list(self.record_class_registry.values())
         self.record_class_registry.clear()

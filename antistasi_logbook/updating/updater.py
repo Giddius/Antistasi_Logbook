@@ -201,7 +201,6 @@ class Updater:
         self.updated_log_file_signal.emit(log_file=log_file)
         return log_file
 
-    @profile
     def _get_updated_log_files(self, server: "Server"):
         """
         [summary]
@@ -250,7 +249,6 @@ class Updater:
             amount_deleted += 1
         return amount_deleted
 
-    @profile
     def process_log_file(self, log_file: "LogFile", force: bool = False) -> None:
         if force is True:
             log_file.last_parsed_line_number = 0
@@ -278,7 +276,6 @@ class Updater:
                 context.insert_record(processed_record)
             context._dump_rest()
 
-    @profile
     def process(self, server: "Server") -> None:
         log.debug("processing server %r", server)
         tasks = []
@@ -304,7 +301,6 @@ class Updater:
 
         self.thread_pool.submit(_do_it, old_amount, amount)
 
-    @profile
     def _update_record_classes(self, server: Server = None, log_file: LogFile = None, force: bool = False):
         # if force is True:
         #     self.signaler.change_update_text.emit("Updating Record-Classes")
