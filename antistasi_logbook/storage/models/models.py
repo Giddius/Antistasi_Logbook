@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Union, Literal, Optional, Generator
 from pathlib import Path
 from zipfile import ZIP_LZMA, ZipFile
 from datetime import datetime, timezone
-from functools import cached_property
+from functools import cached_property, cache
 from threading import Lock, RLock
 from contextlib import contextmanager
 from statistics import StatisticsError, mean
@@ -24,7 +24,7 @@ from peewee import DatabaseProxy, IntegrityError, fn
 from tzlocal import get_localzone
 from dateutil.tz import UTC
 from playhouse.signals import Model
-from playhouse.apsw_ext import TextField, BooleanField, IntegerField, ForeignKeyField
+from playhouse.apsw_ext import TextField, BooleanField, IntegerField, ForeignKeyField, ManyToManyField
 from playhouse.sqlite_ext import JSONField
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
@@ -39,12 +39,13 @@ from antistasi_logbook import setup
 from antistasi_logbook.data.misc import LOG_FILE_DATE_REGEX
 from antistasi_logbook.records.enums import RecordFamily
 from antistasi_logbook.utilities.misc import VersionItem
+from antistasi_logbook.utilities.date_time_utilities import DateTimeFrame
 from antistasi_logbook.utilities.locks import FILE_LOCKS
-from antistasi_logbook.records.abstract_record import MessageFormat
+from antistasi_logbook.records.base_record import MessageFormat
 from antistasi_logbook.updating.remote_managers import remote_manager_registry
 from antistasi_logbook.storage.models.custom_fields import (URLField, PathField, LoginField, MarkedField, VersionField, CommentsField, TzOffsetField,
                                                             RemotePathField, CaselessTextField, AwareTimeStampField, CompressedTextField, CompressedImageField)
-from antistasi_logbook.utilities.date_time_utilities import DateTimeFrame
+
 
 setup()
 # * Standard Library Imports ---------------------------------------------------------------------------->
@@ -260,8 +261,9 @@ class GameMap(BaseModel):
 
         # for (message, recorded_at) in self.database.execute_sql(sql_phrase, (record_class.id, 0, self.id)):
         # for message, recorded_at in list(cursor.execute(sql_phrase, (record_class.id, self.id))):
+        sample_size = 0
         for message, recorded_at in list(self.database.execute(query)):
-
+            sample_size += 1
             recorded_at = LogRecord.recorded_at.python_value(recorded_at)
             stats = performance_record_class.parse(message)
 
@@ -272,9 +274,9 @@ class GameMap(BaseModel):
 
             player_data[timestamp].append(players)
 
-        if len(player_data) <= 0:
-            return {"avg_players": None, "sample_size": None, "min_timestamp": None, "max_timestamp": None}
-
+        if len(player_data) <= 0 or len(_all_timestamps) <= 1:
+            return {"avg_players": None, "sample_size_hours": None, "sample_size_data_points": None, "date_time_frame": None}
+        date_time_frame = DateTimeFrame(start=min(_all_timestamps), end=max(_all_timestamps))
         avg_player_data = {}
         for k, v in player_data.items():
             if len(v) > 1:
@@ -282,10 +284,10 @@ class GameMap(BaseModel):
             else:
                 avg_player_data[k] = v[0]
 
-        return {"avg_players": round(mean(avg_player_data.values()), 3), "sample_size": len(avg_player_data), "min_timestamp": min(_all_timestamps), "max_timestamp": max(_all_timestamps)}
+        return {"avg_players": round(sum(avg_player_data.values()) / date_time_frame.hours, 3), "sample_size_hours": date_time_frame.hours, "sample_size_data_points": sample_size, "date_time_frame": date_time_frame}
 
     def __str__(self):
-        return self.full_name
+        return str(self.full_name)
 
 
 class RemoteStorage(BaseModel):
@@ -415,15 +417,15 @@ class Version(BaseModel):
     def add_or_get_version(cls, version: "VersionItem"):
         if version is None:
             return
-        with cls.get_meta().database.write_lock:
-            with cls.get_meta().database:
-                extra = version.extra
-                if isinstance(extra, int):
-                    extra = str(extra)
-                try:
-                    return Version.create(full=version, major=version.major, minor=version.minor, patch=version.patch, extra=version.extra)
-                except IntegrityError:
-                    return Version.get(full=version)
+
+        extra = version.extra
+        if isinstance(extra, int):
+            extra = str(extra)
+        try:
+            with cls.get_meta().database.write_lock:
+                return Version.create(full=version, major=version.major, minor=version.minor, patch=version.patch, extra=version.extra)
+        except IntegrityError:
+            return Version.get(full=version)
 
     def __str__(self) -> str:
         return str(self.full)
@@ -583,7 +585,8 @@ class LogFile(BaseModel):
 
     def has_mods(self) -> bool:
         with self.database.connection_context() as ctx:
-            return LogFileAndModJoin.select(LogFileAndModJoin.mod_id).where(LogFileAndModJoin.log_file == self).count() > 0
+
+            return Mod.select().join(LogFileAndModJoin).join(LogFile).where(LogFile.id == self.id).count() > 0
 
     def get_marked_records(self) -> list["LogRecord"]:
         with self.database:
@@ -711,7 +714,8 @@ class LogFile(BaseModel):
 
     def get_mods(self) -> Optional[list["Mod"]]:
         with self.database.connection_context() as ctx:
-            _out = [mod.mod for mod in self.mods]
+            query = Mod.select().join(LogFileAndModJoin).join(LogFile).where(LogFile.id == self.id)
+            _out = list(query)
             if not _out:
                 return None
             return _out
@@ -747,6 +751,7 @@ class Mod(BaseModel):
     official = BooleanField(default=False, index=True)
     comments = CommentsField(null=True)
     marked = MarkedField()
+
     version_regex = re.compile(r"(\s*\-\s*)?v?\s*[\d\.]*$")
 
     class Meta:
@@ -774,10 +779,16 @@ class Mod(BaseModel):
 
         return cleaned_name
 
+    def get_all_variants(self) -> tuple["Mod"]:
+        all_mods = Mod.select()
+        return tuple(mod for mod in all_mods if mod.cleaned_name == self.cleaned_name)
+
+    @profile
     def get_log_files(self) -> tuple[LogFile]:
-        joiners = LogFileAndModJoin.select().where(LogFileAndModJoin.mod_id == self.id)
-        log_files = [LogFile.get_by_id(i.log_file_id) for i in joiners]
-        return tuple(log_files)
+        query = LogFile.select().join(LogFileAndModJoin).join(Mod).where(Mod.id == self.id)
+        log_files = tuple(query)
+
+        return log_files
 
     def __str__(self):
         return self.name
@@ -788,8 +799,8 @@ class Mod(BaseModel):
 
 
 class LogFileAndModJoin(BaseModel):
-    log_file = ForeignKeyField(column_name='log_file_id', field='id', model=LogFile, lazy_load=True, backref="mods")
-    mod = ForeignKeyField(column_name='mod_id', field='id', model=Mod, lazy_load=True, backref="log_files")
+    log_file = ForeignKeyField(model=LogFile, lazy_load=True, backref="mods")
+    mod = ForeignKeyField(model=Mod, lazy_load=True, backref="log_files")
 
     class Meta:
         table_name = 'LogFile_and_Mod_join'
@@ -1179,11 +1190,13 @@ def setup_db(database: "GidSqliteApswDatabase"):
                   {"cleaned_mod_name": "acecompatrhsunitedstatesarmedforces", "link": "https://steamcommunity.com/sharedfiles/filedetails/?id=773125288"},
                   {"cleaned_mod_name": "taskforceenforcer", "link": "https://github.com/Sparker95/TaskForceEnforcer"},
                   {"cleaned_mod_name": "rksl attachments pack", "link": "https://steamcommunity.com/workshop/filedetails/?id=1661066023"}],
+
                   ArmaFunctionAuthorPrefix: [{"id": 1, "name": "UNKNOWN", "full_name": "Unknown", "github_link": None},
                   {"id": 2, "name": "FSM", "full_name": "Finite State Machine", "github_link": None},
         {"id": 3, "name": "A3A", "full_name": "Antistasi", "github_link": "https://github.com/official-antistasi-community/A3-Antistasi/tree/unstable"},
         {"id": 4, "name": "JN", "full_name": "Jeroen Arsenal", "github_link": "https://github.com/official-antistasi-community/A3-Antistasi/tree/unstable"},
         {"id": 5, "name": "HR_GRG", "full_name": "Hakon Garage", "github_link": "https://github.com/official-antistasi-community/A3-Antistasi/tree/unstable"}],
+
         ArmaFunction: [
         {'author_prefix': 1, 'id': 1, 'link': None, 'name': 'init'},
         {'author_prefix': 3, 'id': 2, 'link': None, 'name': 'initServer'},

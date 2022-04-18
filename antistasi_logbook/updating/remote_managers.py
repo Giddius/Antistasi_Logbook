@@ -167,7 +167,9 @@ class LocalManager(AbstractRemoteStorageManager):
             self.path = Path.cwd()
 
     def get_files(self, folder_path: Path) -> Generator:
-        return (self.get_info(file) for file in folder_path.iterdir() if file.is_file())
+        _out = (self.get_info(file) for file in folder_path.iterdir() if file.is_file())
+        log.debug("get_files for folder_path %r result: %r", folder_path, _out)
+        return _out
 
     def get_info(self, file_path: Path) -> InfoItem:
         stat = file_path.stat()
@@ -252,6 +254,7 @@ class WebdavManager(AbstractRemoteStorageManager):
             if info.type is RemoteItemType.DIRECTORY:
                 continue
             # dump_to_info_dump(info)
+
             yield info
 
     def get_info(self, file_path: RemotePath) -> InfoItem:

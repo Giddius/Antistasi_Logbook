@@ -14,7 +14,7 @@ from concurrent.futures import Future
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
 from PySide6.QtGui import QIcon, QAction
-from PySide6.QtCore import Qt, Slot, QPoint, Signal, QSettings, QModelIndex, QItemSelection, QAbstractTableModel
+from PySide6.QtCore import Qt, Slot, QPoint, Signal, QSettings, QModelIndex, QItemSelection, QAbstractTableModel, QItemSelectionModel, QItemSelectionRange
 from PySide6.QtWidgets import QMenu, QToolBar, QTreeView, QScrollBar, QHeaderView, QApplication, QAbstractItemView
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
+    from antistasi_logbook.storage.models.models import BaseModel
     from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel
 
 # endregion[Imports]
@@ -126,6 +127,7 @@ class BaseQueryTreeView(QTreeView):
         self.item_size_by_column_name = self._item_size_by_column_name.copy()
         self.original_model: BaseQueryDataModel = None
         self._tool_bar_item: QToolBar = None
+        self._last_selection_ids: list[int] = None
 
     @property
     def app(self) -> "AntistasiLogbookApplication":
@@ -208,7 +210,7 @@ class BaseQueryTreeView(QTreeView):
             else:
                 self.model.setFilterFixedString(text)
 
-    def add_free_context_menu_options(self, menu: QMenu):
+    def add_free_context_menu_options(self, menu: CustomContextMenu):
 
         return menu
 
@@ -340,9 +342,51 @@ class BaseQueryTreeView(QTreeView):
             self.setSortingEnabled(False)
 
     def post_set_model(self):
+        self.model._last_selection_ids = None
         self.setEnabled(True)
         self.setSortingEnabled(self._temp_original_sorting_enabled)
         self.model_was_set.emit(self.model)
+        self.model.modelReset.connect(self.on_model_reset)
+
+    def on_model_reset(self):
+        log.debug("on_model_reset was triggered for %r", self)
+
+        if self.model.last_selection_ids is None or len(self.model.last_selection_ids) <= 0:
+            return
+
+        all_indexes = []
+        for item_id in self.model.last_selection_ids:
+            try:
+                row_num = [(idx, item) for idx, item in enumerate(self.model.content_items) if item.id == item_id][0][0]
+                log.debug("adding row_num %r", row_num)
+                index_first = self.model.index(row_num, 0, QModelIndex())
+                # index_last = self.model.index(row_num, self.model.columnCount())
+                all_indexes.append(index_first)
+            except IndexError:
+                log.debug("indexerror for item_id %r", item_id)
+                continue
+        selection = QItemSelection()
+        selection.append([QItemSelectionRange(i) for i in all_indexes])
+        flags = QItemSelectionModel.SelectionFlags() | QItemSelectionModel.Rows | QItemSelectionModel.Select
+
+        self.selectionModel().clear()
+        self.selectionModel().select(selection, flags)
+        self.selectionModel().setCurrentIndex(all_indexes[0], QItemSelectionModel.SelectionFlags() | QItemSelectionModel.Rows | QItemSelectionModel.NoUpdate)
+        log.debug("current_selected_indexes %r", self.selectionModel().selectedIndexes())
+        hidden_header_names = self.get_hidden_header_names()
+        for idx, column in enumerate(self.model.columns):
+            if idx == 0:
+                continue
+            if column.name not in hidden_header_names:
+                column_idx = idx
+                break
+        scroll_to_index = self.original_model.index(all_indexes[0].row(), column_idx, QModelIndex())
+        try:
+            scroll_to_index = self.model.mapFromSource(scroll_to_index)
+        except AttributeError:
+            pass
+        log.debug("scrolling to %r", scroll_to_index)
+        self.scrollTo(scroll_to_index, self.PositionAtCenter)
 
     def set_delegates(self):
         marked_col_index = self.model.get_column_index("marked")
@@ -396,6 +440,15 @@ class BaseQueryTreeView(QTreeView):
             return tuple(self.model.mapToSource(idx) for idx in raw_current_selection)
         except AttributeError:
             return tuple(raw_current_selection)
+
+    @property
+    def current_selected_items(self) -> tuple["BaseModel"]:
+        current_selection = self.current_selection
+        if len(current_selection) <= 0:
+            return tuple()
+        if self.model is None:
+            return tuple()
+        return tuple(self.model.get(i.row()) for i in current_selection)
 
     def selectionChanged(self, selected: QItemSelection, deselected: QItemSelection) -> None:
 

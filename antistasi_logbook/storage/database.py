@@ -24,7 +24,7 @@ from playhouse.apsw_ext import APSWDatabase
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.meta_data.interface import MetaPaths, get_meta_info, get_meta_paths, get_meta_config
-from gidapptools.general_helper.conversion import ns_to_s, human2bytes
+from gidapptools.general_helper.conversion import ns_to_s, human2bytes, number_to_pretty
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook import setup
@@ -78,7 +78,7 @@ DEFAULT_PRAGMAS = frozendict({
     "temp_store": "MEMORY",
     "mmap_size": 268_435_456 * 2,
     "journal_size_limit": human2bytes("500mb"),
-    "wal_autocheckpoint": 10_000,
+    "wal_autocheckpoint": 100_000,
     "page_size": 32_768 * 2,
     "analysis_limit": 100_000
 })
@@ -166,7 +166,7 @@ class GidSqliteApswDatabase(APSWDatabase):
         self.session_meta_data: "DatabaseMetaData" = None
         extensions = self.default_extensions.copy() | (extensions or {})
         pragmas = dict(DEFAULT_PRAGMAS | (pragmas or {}))
-        super().__init__(make_db_path(self.database_path), thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, timeout=1000, statementcachesize=100, ** extensions)
+        super().__init__(make_db_path(self.database_path), thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, timeout=100_000, statementcachesize=100, ** extensions)
 
         self.foreign_key_cache: "ForeignKeyCache" = ForeignKeyCache(database=self)
         self.write_lock = Lock()
@@ -339,6 +339,7 @@ class GidSqliteApswDatabase(APSWDatabase):
         result = tuple(Version.select(Version).order_by(ordered_by).iterator(self))
         return result
 
+    @profile
     def iter_all_records(self, server: Server = None, log_file: LogFile = None, only_missing_record_class: bool = False) -> Generator[LogRecord, None, None]:
 
         foreign_key_cache = ForeignKeyCache(self)
@@ -351,10 +352,10 @@ class GidSqliteApswDatabase(APSWDatabase):
         else:
             log_files = LogFile.select().where(LogFile.unparsable == False)
 
-        query = LogRecord.select(LogRecord, RecordClass).join_from(LogRecord, RecordClass, join_type=JOIN.LEFT_OUTER, on=(LogRecord.record_class_id == RecordClass.id)).where(LogRecord.log_file_id << log_files)
+        query = LogRecord.select(LogRecord).where(LogRecord.log_file << log_files)
 
         if only_missing_record_class is True:
-            query = query.where(LogRecord.record_class >> None)
+            query = query.where(LogRecord.record_class_id >> None)
 
         for record in query.iterator():
             record.origin = foreign_key_cache.get_origin_by_id(record.origin_id)

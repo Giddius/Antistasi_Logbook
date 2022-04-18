@@ -103,48 +103,13 @@ log = get_logger(__name__)
 
 
 def show_parser_argument_full_text_data(argument_index: int):
-    parser_argument = QApplication.instance().get_argument_parser()._actions[argument_index]
-    dest = parser_argument.metavar or parser_argument.dest
+    parser_argument = QApplication.instance().argument_doc_items[argument_index]
 
-    arguments = ' <-> '.join(parser_argument.option_strings)
+    return parser_argument.get_html()
 
-    help_text = parser_argument.help
 
-    default = parser_argument.default
-    log.debug("default type: %r", type(default))
-    if str(default) in {"==SUPPRESS=="}:
-        default = None
-    typus = parser_argument.__class__.__name__
-
-    const = parser_argument.const
-
-    required = parser_argument.required
-
-    text = f"""
-    <dl>
-    <dt><b><u>Name:</u></b></dt>
-    <dd>{dest}</dd>
-
-    <dt><b><u>help_text:</u></b></dt>
-    <dd>{help_text}</dd>
-
-    <dt><b><u>typus:</u></b></dt>
-    <dd>{typus}</dd>
-
-    <dt><b><u>arguments:</u></b></dt>
-    <dd>{arguments}</dd>
-
-    <dt><b><u>default:</u></b></dt>
-    <dd>{default}</dd>
-
-    <dt><b><u>const:</u></b></dt>
-    <dd>{const}</dd>
-
-    <dt><b><u>required:</u></b></dt>
-    <dd>{required}</dd>
-    </dl>
-    """.strip()
-    return text
+def show_parser_usage():
+    return QApplication.instance().get_argument_parser().format_usage()
 
 
 def setup_debug_widget(debug_dock_widget: "DebugDockWidget") -> None:
@@ -164,6 +129,7 @@ def setup_debug_widget(debug_dock_widget: "DebugDockWidget") -> None:
         debug_dock_widget.add_show_attr_button(attr_name=attr_name, obj=app)
     for i in range(len(app.get_argument_parser()._actions)):
         debug_dock_widget.add_show_func_result_button(show_parser_argument_full_text_data, "app_argument", argument_index=i)
+    debug_dock_widget.add_show_func_result_button(show_parser_usage, "app_cli_parser_usage")
 
 # region[Main_Exec]
 

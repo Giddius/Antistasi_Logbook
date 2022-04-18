@@ -59,6 +59,24 @@ class BaseProxyModel(QSortFilterProxyModel):
     def source(self) -> "BaseQueryDataModel":
         return super().sourceModel()
 
+    def setFilterRegularExpression(self, pattern: str):
+        super().setFilterRegularExpression(pattern)
+        try:
+            current_index = self.parent().currentIndex()
+            if current_index and current_index.isValid():
+                self.parent().scrollTo(current_index, self.parent().PositionAtCenter)
+        except Exception as e:
+            log.error(e, exc_info=True)
+
+    def setFilterFixedString(self, pattern: str) -> None:
+        super().setFilterFixedString(pattern)
+        try:
+            current_index = self.parent().currentIndex()
+            if current_index and current_index.isValid():
+                self.parent().scrollTo(current_index, self.parent().PositionAtCenter)
+        except Exception as e:
+            log.error(e, exc_info=True)
+
     def add_context_menu_actions(self, menu: "CustomContextMenu", index: QModelIndex):
         self.source.add_context_menu_actions(menu=menu, index=self.mapToSource(index))
 

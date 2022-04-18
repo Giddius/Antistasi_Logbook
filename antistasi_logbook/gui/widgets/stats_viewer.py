@@ -13,7 +13,7 @@ from math import ceil, log as math_log, sqrt, exp
 from typing import TYPE_CHECKING, Any, Union, Iterable, Optional
 from pathlib import Path
 from datetime import datetime
-
+from statistics import mean, median
 from functools import cached_property
 from threading import RLock
 from enum import Enum, auto, unique, Flag
@@ -191,9 +191,10 @@ class ControlBox(QGroupBox):
         self.form_layout.addRow("Hide Symbols", self.hide_symbols_button)
 
         self.hide_legend_button = QPushButton("Hide")
-        self.hide_legend_button.active = False
+        self.hide_legend_button.active = True
         self.hide_legend_button.clicked.connect(self.on_hide_legend_pressed)
         self.form_layout.addRow("Hide Legend", self.hide_legend_button)
+        self.on_hide_symbols_pressed()
 
         self.show_all_button = QPushButton("Show all Items")
         self.hide_all_button = QPushButton("Hide all Items")
@@ -220,7 +221,6 @@ class ControlBox(QGroupBox):
     def layout(self) -> QVBoxLayout:
         return super().layout()
 
-    @ Slot(bool)
     def on_hide_symbols_pressed(self, checked: bool = None):
         log.debug("%r was clicked", self.hide_symbols_button)
 
@@ -547,6 +547,7 @@ class StatsWindow(QMainWindow):
         self.view_box.setAspectLocked(None)
 
         self.view_box.setMouseEnabled(x=True, y=False)
+        self.change_symbol_vis()
     #     self.view_box.sigRangeChangedManually.connect(self.on_scroll)
 
     # def on_scroll(self, *args):
@@ -802,6 +803,13 @@ class AvgMapPlayersPlotWidget(pg.PlotWidget):
         x_max = max(tick_dict.keys()) * 1.1
         y_max = max([i["avg_players"] for i in self.data]) * 1.1
         view_box.setLimits(xMin=-10, xMax=x_max, yMin=0, yMax=y_max)
+
+        # mean_y = mean(i["avg_players"] for i in self.data)
+        # self.mean_line = pg.InfiniteLine(mean_y, angle=0, movable=False, pen=pg.mkPen({"style": Qt.DashDotDotLine, "cosmetic": True, "color": (255, 255, 255)}),label="mean")
+        # self.addItem(self.mean_line)
+        # median_y = median(i["avg_players"] for i in self.data)
+        # self.median_line = pg.InfiniteLine(median_y, angle=0, movable=False, pen=pg.mkPen({"style": Qt.DashLine, "cosmetic": True, "color": (100, 255, 100)}), label="median")
+        # self.addItem(self.median_line)
 
     def _create_tick_font(self) -> QFont:
         font: QFont = self.app.font()

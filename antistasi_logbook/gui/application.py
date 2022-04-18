@@ -9,25 +9,25 @@ Soon.
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import shutil
 import argparse
-from typing import TYPE_CHECKING, Any, Iterable
+from typing import TYPE_CHECKING, Any, Optional, TypedDict
 from pathlib import Path
 from datetime import datetime
 from functools import cached_property
 from concurrent.futures import ThreadPoolExecutor
-
+from collections.abc import Iterable, Mapping
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QFont, QIcon, QColor, QScreen, QGuiApplication
 from PySide6.QtCore import Qt, QRect, QSettings
 from PySide6.QtWidgets import QMainWindow, QMessageBox, QApplication, QSplashScreen
 
 # * Third Party Imports --------------------------------------------------------------------------------->
-from jinja2 import BaseLoader, Environment
+from jinja2 import BaseLoader, Environment, Template
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
 from gidapptools.gid_config.interface import EntryTypus
 from gidapptools.gidapptools_qt.basics.application import WindowHolder
-
+from gidapptools.general_helper.string_helper import StringCase, StringCaseConverter
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 
@@ -37,7 +37,7 @@ if TYPE_CHECKING:
     from gidapptools.gidapptools_qt.resources.resources_helper import PixmapResourceItem
     from antistasi_logbook.backend import Backend
     from antistasi_logbook.gui.main_window import LogbookSystemTray, AntistasiLogbookMainWindow
-
+    from gidapptools.meta_data.meta_info import MetaInfo
 # * Third Party Imports --------------------------------------------------------------------------------->
 import pp
 
@@ -96,6 +96,188 @@ COLOR_CONFIG = META_CONFIG.get_config("color")
 
 COLOR_CONFIG.reload()
 
+ARG_DOC_MARKDOWN_TEMPLATE = """
+
+# {name}
+
+---
+
+## Description
+
+
+> {help_text}
+
+---
+
+## Arguments
+
+{argument_strings}
+
+---
+
+## Default
+
+{default_value}
+
+---
+
+## Required
+
+{is_required}
+
+---
+
+## Flag
+
+{is_flag}
+
+
+""".strip()
+
+
+_ARG_DOC_HTML_TEMPLATE: str = """
+
+
+
+<a id="{{name}}"><b><u>{{name}}</b></u></a>
+
+<dl>
+<dt>Description</dt>
+<dd>
+<blockquote>
+<div class="description">
+{{help_text}}
+</div>
+</blockquote>
+
+</dd>
+
+<dt>Arguments</dt>
+<dd>
+<ul>
+{%for arg in argument_strings%}
+<li> <pre><code>{{arg}}</code></pre>
+{% endfor %}
+</ul>
+</dd>
+{% if default_value is not none %}
+<dt>Default</dt>
+<dd>{{default_value}}</dd>
+{% endif %}
+<dt>Required</dt>
+<dd>{{is_required}}</dd>
+
+<dt>Flag</dt>
+<dd>{{is_flag}}</dd>
+</dl>
+
+"""
+
+
+class CommandLineArgDoc:
+
+    suppress_indicators: set[str] = {"==SUPPRESS=="}
+    single_line_text_template: str = "{name} - {help_text} - {argument_strings} - default: {default_value} - required: {is_required} - is flag:{is_flag}"
+    text_template: str = "{name}\n{help_text}\n{argument_strings}\ndefault: {default_value}\nrequired: {is_required}\nis flag:{is_flag}"
+    markdown_template: str = ARG_DOC_MARKDOWN_TEMPLATE
+    html_template: Template = Environment(loader=BaseLoader).from_string(_ARG_DOC_HTML_TEMPLATE)
+
+    def __init__(self, argument: argparse.Action, app_meta_info: "MetaInfo" = None) -> None:
+        self.argument = argument
+        self.app_meta_info = app_meta_info or META_INFO
+
+    @property
+    def name(self) -> str:
+        name = self.argument.metavar or self.argument.dest
+        return StringCaseConverter.convert_to(name, StringCase.TITLE)
+
+    @property
+    def help_text(self) -> str:
+        help_text = self.argument.help.replace("%(prog)r", "{prog}").replace("%(prog)s", "{prog}")
+        return help_text
+
+    @property
+    def default_value(self) -> Optional[Any]:
+        default_value = self.argument.default
+        if str(default_value) in self.suppress_indicators:
+            return None
+
+        return default_value
+
+    @property
+    def is_required(self) -> bool:
+        return self.argument.required
+
+    @property
+    def is_flag(self) -> bool:
+        if isinstance(self.argument, argparse._StoreConstAction):
+            return True
+
+        return False
+
+    @property
+    def choices(self) -> Optional[Iterable]:
+        return self.argument.choices
+
+    @property
+    def argument_strings(self) -> tuple[str]:
+        return tuple(self.argument.option_strings)
+
+    def get_text(self, single_line: bool = False) -> str:
+        bool_values = {True: "Yes", False: "No"}
+        help_text = self.help_text.format(prog=self.app_meta_info.pretty_app_name)
+        is_required = bool_values[self.is_required]
+        is_flag = bool_values[self.is_flag]
+        default_value = bool_values.get(self.default_value, self.default_value)
+
+        argument_strings = self.argument_strings
+        template = self.single_line_text_template if single_line is True else self.text_template
+        return template.format(name=self.name,
+                               help_text=help_text,
+                               is_required=is_required,
+                               is_flag=is_flag,
+                               default_value=default_value,
+                               argument_strings=argument_strings,
+                               prog=self.app_meta_info.pretty_app_name)
+
+    def get_markdown(self) -> str:
+        bool_values = {True: "✅", False: "❎"}
+        help_text = self.help_text.format(prog="`" + self.app_meta_info.pretty_app_name + "`")
+        is_required = bool_values[self.is_required]
+        is_flag = bool_values[self.is_flag]
+        default_value = bool_values.get(self.default_value, self.default_value)
+
+        argument_strings = '\n'.join(f"- {arg}" for arg in self.argument_strings)
+
+        return self.markdown_template.format(name=self.name,
+                                             help_text=help_text,
+                                             is_required=is_required,
+                                             is_flag=is_flag,
+                                             default_value=default_value,
+                                             argument_strings=argument_strings,
+                                             prog=self.app_meta_info.pretty_app_name)
+
+    def get_html(self) -> str:
+        bool_values = {True: '✔️', False: '❌'}
+        help_text = self.help_text.format(prog=f'<div class="app_name">{self.app_meta_info.pretty_app_name}</div>')
+        is_required = bool_values[self.is_required]
+        is_flag = bool_values[self.is_flag]
+        default_value = bool_values.get(self.default_value, self.default_value)
+
+        return self.html_template.render(name=self.name,
+                                         help_text=help_text,
+                                         is_required=is_required,
+                                         is_flag=is_flag,
+                                         default_value=default_value,
+                                         argument_strings=self.argument_strings,
+                                         prog=self.app_meta_info.pretty_app_name)
+
+    def __str__(self) -> str:
+        return self.get_text(single_line=True)
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(action={self.action!r})"
+
 
 class AntistasiLogbookApplication(QApplication):
 
@@ -116,6 +298,7 @@ class AntistasiLogbookApplication(QApplication):
         self.jinja_environment = None
         self.init_app_meta_data()
         self.cli_arguments = self.parse_cli_arguments()
+        self.argument_doc_items: list[CommandLineArgDoc] = None
 
     @cached_property
     def screen_points(self) -> dict[str, int]:
@@ -224,11 +407,20 @@ class AntistasiLogbookApplication(QApplication):
         self.aboutQt()
 
     def get_argument_parser(self) -> argparse.ArgumentParser:
-        parser = argparse.ArgumentParser(prog=self.applicationDisplayName(), add_help=True)
-        parser.add_argument("-max", '--maximized', action='store_true')
-        parser.add_argument("-min", '--minimized', action='store_true')
-        parser.add_argument('-t', '--always-on-top', action='store_true')
-        parser.add_argument("-c", "--clear-settings", action="store_true")
+        self.argument_doc_items = []
+        parser = argparse.ArgumentParser(prog=self.meta_info.app_name, add_help=True)
+        self.argument_doc_items.append(CommandLineArgDoc(parser._actions[0]))
+        max_action = parser.add_argument("-max", '--maximized', action='store_true', help="Start %(prog)r maximized")
+        self.argument_doc_items.append(CommandLineArgDoc(max_action))
+
+        min_action = parser.add_argument("-min", '--minimized', action='store_true', help="Start the %(prog)r minimized")
+        self.argument_doc_items.append(CommandLineArgDoc(min_action))
+
+        top_action = parser.add_argument('-t', '--always-on-top', action='store_true', help="Make the main window of the %(prog)r always stay on top")
+        self.argument_doc_items.append(CommandLineArgDoc(top_action))
+
+        clear_action = parser.add_argument("-c", "--clear-settings", action="store_true", help="Clear most stored settings (resets the settings). Does not start the %(prog)r")
+        self.argument_doc_items.append(CommandLineArgDoc(clear_action))
         return parser
 
     def parse_arguments(self):
@@ -246,6 +438,7 @@ class AntistasiLogbookApplication(QApplication):
             _out["main_window_flags"] |= Qt.WindowStaysOnTopHint
         if result.clear_settings:
             QSettings().clear()
+            self.quit()
 
         return _out
 

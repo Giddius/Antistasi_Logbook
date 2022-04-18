@@ -25,8 +25,6 @@ from antistasi_logbook.storage.models.models import LogRecord, RecordClass
 from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 from frozendict import frozendict
 # * Type-Checking Imports --------------------------------------------------------------------------------->
-if TYPE_CHECKING:
-    from antistasi_logbook.records.abstract_record import AbstractRecord
 
 
 # endregion[Imports]
@@ -48,7 +46,7 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
 
-RECORD_CLASS_TYPE = Union[type["AbstractRecord"], type["BaseRecord"]]
+RECORD_CLASS_TYPE = Union[type[BaseRecord], type["BaseRecord"]]
 
 
 @attr.s(auto_attribs=True, auto_detect=True, frozen=True, slots=True, weakref_slot=True)

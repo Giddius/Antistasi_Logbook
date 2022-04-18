@@ -323,7 +323,7 @@ class ContentStackedwidget(QStackedWidget):
 
 class SettingsWindow(QWidget):
     window_title: str = "Settings"
-    exclude_categories: set[str] = {"logging"}
+    exclude_categories: set[str] = {"logging", "mod_handling"}
 
     def __init__(self, general_config: "GidIniConfig", main_window: "AntistasiLogbookMainWindow", parent=None) -> None:
         super().__init__(parent=parent, f=Qt.Dialog)

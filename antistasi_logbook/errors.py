@@ -192,9 +192,12 @@ class _ExceptionHandlerManager:
         handler.handle_exception(exception)
 
     def thread_except_hook(self, args):
-        handler = self.exception_handler_registry.get(args.exc_type, self.default_exception_handler)
+        try:
+            handler = self.exception_handler_registry.get(args.exc_type, self.default_exception_handler)
 
-        handler.handle_thread_except_hook(args=args)
+            handler.handle_thread_except_hook(args=args)
+        except Exception:
+            self.default_exception_handler.handle_thread_except_hook(args)
 
     def except_hook(self, type_, value, traceback):
         handler = self.exception_handler_registry.get(type_, self.default_exception_handler)

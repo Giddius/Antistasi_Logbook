@@ -15,12 +15,14 @@ from pathlib import Path
 from datetime import timedelta, datetime
 from threading import Thread
 from antistasi_logbook.utilities.date_time_utilities import DateTimeFrame
+from antistasi_logbook.data import DATA_DIR
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QColor, QCloseEvent
 from PySide6.QtCore import Qt, Slot, QSize, QPoint, QTimer, Signal, QObject, QSysInfo, QSettings, QByteArray, QTimerEvent
 from PySide6.QtWidgets import (QLabel, QWidget, QPushButton, QMenuBar, QToolBar, QDockWidget, QGridLayout, QHBoxLayout, QMainWindow,
                                QMessageBox, QSizePolicy, QVBoxLayout, QTableWidget, QSplashScreen, QTableWidgetItem)
 
+from PySide6.QtWebEngineWidgets import QWebEngineView
 # * Third Party Imports --------------------------------------------------------------------------------->
 import qt_material
 
@@ -134,6 +136,14 @@ class SecondaryWindow(QWidget):
         return f'{self.__class__.__name__}'
 
 
+class CLIHelpWindow(QWebEngineView):
+
+    def __init__(self, html: str, parent: Optional[QWidget] = None) -> None:
+        super().__init__(parent)
+        self.html = html
+        self.setHtml(self.html)
+
+
 class AntistasiLogbookMainWindow(QMainWindow):
     update_started = Signal()
     update_finished = Signal()
@@ -244,7 +254,41 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.menubar.show_app_log_action.triggered.connect(self.show_app_log_window)
         self.menubar.show_errors_action.triggered.connect(self.show_errors_window)
         self.menubar.cyclic_update_action.triggered.connect(self.start_update_timer)
+        self.menubar.show_cli_arguments.triggered.connect(self.show_cli_arguments_page)
         self.development_setup()
+
+    def show_cli_arguments_page(self):
+        css_file = DATA_DIR.joinpath("cli_help_view.css")
+        all_ids_text = '<a href="#usage">♦️ Usage</a>'
+        for item in self.app.argument_doc_items:
+            _id = item.name
+            all_ids_text += f'<a href="#{_id}">♦️ {_id}</a>'
+
+        all_ids_text = f"""<div class="toc">{all_ids_text}</div>"""
+        usage_text = self.app.get_argument_parser().format_usage().removeprefix("usage:").strip()
+        usage_text = f"""<div class="usage"><h1><a id="usage">Usage</a></h1><pre><code>{usage_text}</code></pre></div><br><hr><hr><br>"""
+        html = f"""<!DOCTYPE html>
+<html>
+<head>
+<title>Command Line Arguments</title>
+
+    <style>
+    {css_file.read_text(encoding='utf-8', errors='ignore')}
+    </style>
+</head>
+<body>
+{usage_text}
+{all_ids_text}"""
+
+        for doc_item in self.app.argument_doc_items:
+            html += doc_item.get_html() + "<br><hr><br>"
+
+        html += """</body>
+</html>"""
+
+        self.viewer = CLIHelpWindow(html=html)
+        self.viewer.setMinimumSize(QSize(750, 500))
+        self.viewer.show()
 
     def start_update_timer(self):
         interval: timedelta = self.config.get("updating", "update_interval")
@@ -427,10 +471,10 @@ class AntistasiLogbookMainWindow(QMainWindow):
         def _get_all_data():
             data = []
             for item_data in self.backend.thread_pool.map(_get_item_data, self.backend.database.foreign_key_cache.all_game_map_objects.values()):
-                if any(i is None for i in [item_data.get("avg_players"), item_data.get("sample_size")]):
+                if any(i is None for i in [item_data.get("avg_players"), item_data.get("sample_size_hours"), item_data.get("sample_size_data_points")]):
                     continue
                 data.append(item_data)
-            data = sorted(data, key=lambda x: (x.get("avg_players"), x.get("sample_size")), reverse=True)
+            data = sorted(data, key=lambda x: (x.get("avg_players"), x.get("sample_size_data_points"), x.get("sample_size_hours")), reverse=True)
             self.calculated_average_players.emit(data)
             self.backend.database.close()
 
@@ -440,7 +484,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
     def show_avg_player_window_helper(self, data: list):
 
-        time_frame = DateTimeFrame(start=min(i.get("min_timestamp") for i in data), end=max(i.get("max_timestamp") for i in data))
+        time_frame = DateTimeFrame(start=min(i.get("date_time_frame").start for i in data), end=max(i.get("date_time_frame").end for i in data))
 
         plot_widget = AvgMapPlayersPlotWidget(data)
         icon = AllResourceItems.average_players_icon_image.get_as_pixmap(75, 75)
@@ -462,34 +506,70 @@ class AntistasiLogbookMainWindow(QMainWindow):
         plot_widget.setMinimumSize(QSize(1250, 600))
         sub_sub_layout.addWidget(plot_widget)
         data_widget = QTableWidget(window)
+        data_widget.setSortingEnabled(True)
+        data_widget.verticalHeader().setVisible(False)
         row_count = (len(data))
-        columns = ["game_map", "avg_players", "sample_size"]
+        columns = ["#", "game_map", "avg_players", "sample_size_hours", "sample_size_data_points"]
         column_count = (len(columns))
         data_widget.setColumnCount(column_count)
         data_widget.setRowCount(row_count)
         data_widget.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
 
-        data_widget.setHorizontalHeaderLabels(["Map", "Average Players per Hour", "Sample Size (Hours)"])
+        data_widget.setHorizontalHeaderLabels(["#", "Map", "Average Players per Hour", "Sample Size (Hours)", "Sample Size (Data-Points)"])
+
+        red_background = QColor(255, 0, 0, 50)
+        yellow_background = QColor(255, 255, 0, 50)
+        green_background = QColor(0, 255, 0, 50)
 
         for row in range(row_count):  # add items from array to QTableWidget
             for col_idx, column in enumerate(columns):
-                item = str(data[row][column])
-                table_item = QTableWidgetItem(item)
-                table_item.setData(Qt.InitialSortOrderRole, data[row][column])
+                if column == "#":
+                    table_item = QTableWidgetItem()
+                    table_item.setData(Qt.DisplayRole, row + 1)
+                    table_item.setData(Qt.InitialSortOrderRole, row + 1)
+                else:
+                    item = data[row][column]
+                    table_item = QTableWidgetItem()
+                    table_item.setData(Qt.DisplayRole, item)
+                    table_item.setData(Qt.InitialSortOrderRole, item)
+                avg_player_value = data[row]["avg_players"]
+                color = None
+                if avg_player_value < 1:
+                    color = red_background
+                elif avg_player_value < 10:
+                    color = yellow_background
+                elif avg_player_value >= 10:
+                    color = green_background
+
+                if color:
+                    table_item.setData(Qt.BackgroundRole, color)
                 data_widget.setItem(row, col_idx, table_item)
-        data_widget.horizontalHeader().setMinimumSectionSize(175)
+
+        data_widget.horizontalHeader().setDefaultAlignment(Qt.AlignCenter)
+        data_widget.horizontalHeader().setStretchLastSection(True)
+
+        data_widget.horizontalHeader().setSectionResizeMode(data_widget.horizontalHeader().Interactive)
+        data_widget.horizontalHeader().setSectionResizeMode(0, data_widget.horizontalHeader().Fixed)
+        # data_widget.horizontalHeader().resizeSections(data_widget.horizontalHeader().Stretch)
+        data_widget.horizontalHeader().resizeSections(data_widget.horizontalHeader().ResizeToContents)
+        data_widget.horizontalHeader().setStretchLastSection(True)
+        data_widget.setAlternatingRowColors(True)
         data_widget.setEditTriggers(QTableWidget.NoEditTriggers)
-        data_widget.setMinimumSize(QSize(600, 600))
+        data_widget.setMinimumSize(QSize(800, 600))
         sub_sub_sub_layout = QVBoxLayout()
 
         sub_sub_sub_layout.addWidget(data_widget)
-        overall_hours = QLabel("<b>Sum Hours:</b><br><i>" + str(sum(i["sample_size"] for i in data)) + "</i>")
+        overall_hours = QLabel("<b>Sum Hours:</b><br><i>" + str(sum(i["sample_size_hours"] for i in data)) + "</i>")
         overall_hours.setAlignment(Qt.AlignCenter)
+        overall_data_points = QLabel("<b>Sum Data-Points:</b><br><i>" + str(sum(i["sample_size_data_points"] for i in data)) + "</i>")
+        overall_data_points.setAlignment(Qt.AlignCenter)
         overall_days = QLabel("<b>Amount Days:</b><br><i>" + str(int(time_frame.days)) + "</i>")
         overall_days.setAlignment(Qt.AlignCenter)
         overall_time_frame = QLabel("<b>Time-Frame:</b><br><i>" + str(time_frame.to_pretty_string()) + "</i>")
         overall_time_frame.setAlignment(Qt.AlignCenter)
         sub_sub_sub_layout.addWidget(overall_hours)
+        sub_sub_sub_layout.addWidget(overall_data_points)
+
         sub_sub_sub_layout.addWidget(overall_days)
         sub_sub_sub_layout.addWidget(overall_time_frame)
         sub_sub_layout.addLayout(sub_sub_sub_layout)

@@ -45,7 +45,7 @@ if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
     from antistasi_logbook.records.base_record import BaseRecord
-    from antistasi_logbook.records.abstract_record import AbstractRecord
+
 
 # endregion[Imports]
 

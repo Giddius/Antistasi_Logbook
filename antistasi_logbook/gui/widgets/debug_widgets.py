@@ -253,7 +253,9 @@ class DebugDialog(QWidget):
             if not isinstance(data, (str, int)):
                 log.debug("value_data has an unset type. (type: %r)", type(data))
             widget = QTextEdit(self)
+            widget.setAcceptRichText(True)
             widget.setText(str(data))
+
             widget.setReadOnly(True)
             widget.setFrameStyle(QFrame.NoFrame)
             return widget

@@ -21,6 +21,10 @@ from gidapptools.general_helper.conversion import str_to_bool
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.utilities.path_utilities import RemotePath
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+
+
+get_dummy_profile_decorator_in_globals()
 
 log = get_logger(__name__)
 
@@ -177,6 +181,17 @@ def strip_to_path(data):
     return Path(data)
 
 
+_STANDARD_MOD_NAMES = {"utility",
+                       "members",
+                       "taskforceenforcer",
+                       "antistasidevbuild",
+                       "enhancedmovement",
+                       "tfar",
+                       "cbaa3",
+                       "ace",
+                       "zeusenhanced"}
+
+
 @ attr.s(slots=True, auto_attribs=True, auto_detect=True, frozen=True)
 class ModItem:
     name: str = attr.ib(converter=strip_converter)
@@ -196,9 +211,12 @@ class ModItem:
             optional_kwargs['mod_hash'] = parts[5]
             optional_kwargs["mod_hash_short"] = parts[6]
             optional_kwargs["full_path"] = parts[7]
+
         return cls(name=name, mod_dir=mod_dir, default=default, official=official, **optional_kwargs)
 
+    @profile
     def as_dict(self) -> dict[str, Any]:
+
         _out = attr.asdict(self)
         return _out
 

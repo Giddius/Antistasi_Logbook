@@ -122,7 +122,7 @@ def setup():
     # log = get_main_logger("__main__", Path(__file__).resolve(), extra_logger=_extra_logger)
 
     general_config = get_meta_config().get_config("general")
-    stream = sys.stdout if os.getenv('IS_DEV', "false") != "false" else None
+    log_to_stdout = os.getenv('IS_DEV', "false") != "false"
     log = setup_main_logger_with_file_logging("__main__",
                                               log_level=general_config.get("logging", "level", default="DEBUG"),
                                               log_file_base_name=Path(__file__).resolve().parent.stem,
@@ -131,7 +131,7 @@ def setup():
                                               log_folder=META_PATHS.log_dir,
                                               max_func_name_length=general_config.get("logging", "max_function_name_length", default=None),
                                               max_module_name_length=general_config.get("logging", "max_module_name_length", default=None),
-                                              stream=stream)
+                                              log_to_stdout=log_to_stdout)
 
     ERROR_CONSOLE = RichConsole(soft_wrap=True, record=False, width=150)
     # rich.traceback.install(console=ERROR_CONSOLE, width=150)

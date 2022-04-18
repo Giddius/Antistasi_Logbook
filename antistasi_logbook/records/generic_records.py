@@ -20,9 +20,9 @@ from gidapptools.general_helper.enums import MiscEnum
 from gidapptools.general_helper.string_helper import fix_multiple_quotes
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.records.base_record import BaseRecord, RecordFamily
+from antistasi_logbook.records.base_record import BaseRecord, RecordFamily, MessageFormat
 from antistasi_logbook.utilities.parsing_misc import parse_text_array
-from antistasi_logbook.records.abstract_record import RecordFamily, MessageFormat
+
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:

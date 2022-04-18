@@ -7,7 +7,7 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from typing import TYPE_CHECKING, Any, Union, Optional, Generator
+from typing import TYPE_CHECKING, Any, Union, Optional, Generator, Iterable
 from pathlib import Path
 from datetime import datetime
 
@@ -19,7 +19,7 @@ from gidapptools import get_logger, get_meta_config
 from gidapptools.general_helper.color.color_item import Color
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.records.abstract_record import RecordFamily, MessageFormat, AbstractRecord
+from antistasi_logbook.records.enums import RecordFamily, MessageFormat
 
 try:
     from PySide6.QtGui import QColor
@@ -85,12 +85,13 @@ BASE_SLOTS: list[str] = ("record_id",
                          "pretty_attribute_cache")
 
 
-class BaseRecord(AbstractRecord):
+class BaseRecord:
     ___record_family___ = RecordFamily.GENERIC | RecordFamily.ANTISTASI
     ___specificity___ = 0
     foreign_key_cache: "ForeignKeyCache" = None
     color_config = get_meta_config().get_config("color")
     _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
+    extra_detail_views: Iterable[str] = []
     __slots__ = ["record_id",
                  "log_file",
                  "origin",
@@ -199,13 +200,12 @@ class BaseRecord(AbstractRecord):
             case MessageFormat.DISCORD:
                 return discord_format(in_record=self)
 
-            case _:
-                return self.message
+        return self.message
 
     def get_db_item(self, database: "GidSqliteApswDatabase") -> "LogRecord":
         from antistasi_logbook.storage.models.models import LogRecord
-
-        return LogRecord.get_by_id(self.record_id)
+        with database.connection_context() as ctx:
+            return LogRecord.get_by_id(self.record_id)
 
     @classmethod
     def parse(cls, message: str) -> dict[str, Any]:
@@ -278,6 +278,21 @@ class BaseRecord(AbstractRecord):
         for sub_class in _get_recursive_sub_classe(BaseRecord):
             log.debug("reseting color for record-class %r", sub_class)
             sub_class._background_qcolor = MiscEnum.NOTHING
+
+    @property
+    def single_line_message(self) -> str:
+        pretty_message_lines = self.get_formated_message(MessageFormat.PRETTY).splitlines()
+        if len(pretty_message_lines) > 1:
+            return pretty_message_lines[0] + '...'
+        else:
+            return pretty_message_lines[0]
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 
 # region[Main_Exec]

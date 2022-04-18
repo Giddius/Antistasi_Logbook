@@ -14,7 +14,7 @@ from pathlib import Path
 import PySide6
 from PySide6 import QtCore
 from PySide6.QtGui import QIcon, QColor, QAction
-from PySide6.QtCore import Qt, Slot, QSize, Signal, QModelIndex, QAbstractTableModel, QPersistentModelIndex
+from PySide6.QtCore import Qt, Slot, QSize, Signal, QModelIndex, QAbstractTableModel, QPersistentModelIndex, QItemSelection
 from PySide6.QtWidgets import QApplication, QColorDialog, QInputDialog
 
 # * Third Party Imports --------------------------------------------------------------------------------->
@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
-    from antistasi_logbook.records.abstract_record import AbstractRecord
+    from antistasi_logbook.records.base_record import BaseRecord
     from antistasi_logbook.gui.widgets.data_tool_widget import BaseDataToolWidget
     from antistasi_logbook.gui.views.base_query_tree_view import CustomContextMenu
 
@@ -170,7 +170,7 @@ class BaseQueryDataModel(QAbstractTableModel):
         self.db_model = db_model
         self.name = name or self.__class__.__name__
         self.ordered_by = (self.db_model.id,)
-        self.content_items: list[Union["BaseModel", "AbstractRecord"]] = None
+        self.content_items: list[Union["BaseModel", "BaseRecord"]] = None
         self.columns: tuple[Field] = tuple(c for c in list(self.db_model.get_meta().sorted_fields) + list(self.extra_columns) if c.name not in self.strict_exclude_columns)
         self.data_tool: "BaseDataToolWidget" = None
         self.original_sort_order: tuple[int] = tuple()
@@ -178,11 +178,27 @@ class BaseQueryDataModel(QAbstractTableModel):
         self.filter_item = None
         self._median_width: int = None
         self._size_hints: dict[tuple[int, int], QSize] = {}
+        self._last_selection_ids: list[int] = None
 
         super().__init__(parent=parent)
 
+    @property
+    def last_selection_ids(self) -> Optional[list[int]]:
+        log.debug("_last_selection_ids is %r for %r", self._last_selection_ids, self)
+        return self._last_selection_ids
+
+    @last_selection_ids.setter
+    def last_selection_ids(self, value):
+        log.debug("_last_selection_ids was set to %r for %r", value, self)
+        self._last_selection_ids = value
+
     def on_query_filter_changed(self, query_filter):
         self.filter_item = query_filter
+        try:
+            self.last_selection_ids = [i.id for i in self.parent().current_selected_items]
+            log.debug("set _last_selection_ids to %r", self._last_selection_ids)
+        except AttributeError:
+            self.last_selection_ids = None
         self.refresh()
 
     @property
@@ -282,8 +298,8 @@ class BaseQueryDataModel(QAbstractTableModel):
 
                 self.content_items = list(self.get_query().execute())
         except SQLError as e:
-            log.error(e, True)
-            log.debug(f"{self.get_query()=}")
+            log.error(e, exc_info=True)
+            log.debug("query was %r", str(self.get_query()))
         return self
 
     def get_columns(self) -> "BaseQueryDataModel":

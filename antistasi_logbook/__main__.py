@@ -21,7 +21,7 @@ from gidapptools.meta_data.interface import get_meta_config
 
 from antistasi_logbook.gui.main_window import start_gui
 import click
-
+from collections import namedtuple
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig

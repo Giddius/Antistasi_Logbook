@@ -12,7 +12,7 @@ from pathlib import Path
 
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6 import QtCore
-from PySide6.QtCore import Qt, Slot, QModelIndex
+from PySide6.QtCore import Qt, Slot, QModelIndex, QUrl, QMimeData
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 from peewee import JOIN, Field, Query
@@ -69,11 +69,23 @@ class LogFilesModel(BaseQueryDataModel):
 
         if item is None or column is None:
             return
-        force_reparse_action = ModelContextMenuAction(item, column, index, text=f"Force Reparse {item.name}", parent=menu)
+        force_reparse_action = ModelContextMenuAction(item, column, index, text=f"Force Reparse {item.pretty_name}", parent=menu)
         force_reparse_action.clicked.connect(self.reparse_log_file)
         if self.currently_reparsing is True:
             force_reparse_action.setEnabled(False)
         menu.add_action(force_reparse_action)
+
+        copy_action = ModelContextMenuAction(item, column, index, text=f"Copy {item.pretty_name} to Clipboard", parent=menu)
+        copy_action.clicked.connect(self.copy_file_to_clipboard)
+        menu.add_action(copy_action)
+
+    @Slot(object, object, QModelIndex)
+    def copy_file_to_clipboard(self, item: LogFile, column: Field, index: QModelIndex):
+        clipboard = self.app.clipboard()
+        data = QMimeData()
+        original_file: Path = item.original_file.to_file()
+        data.setUrls([QUrl.fromLocalFile(original_file)])
+        clipboard.setMimeData(data)
 
     @Slot(object, object, QModelIndex)
     def reparse_log_file(self, item: LogFile, column: Field, index: QModelIndex):

@@ -124,5 +124,12 @@
             "default": "25",
             "gui_visible": false
         }
+    },
+    "mod_handling": {
+        "mod_set_exluded_mod_names": {
+            "converter": "list",
+            "default": "",
+            "gui_visible": false
+        }
     }
 }

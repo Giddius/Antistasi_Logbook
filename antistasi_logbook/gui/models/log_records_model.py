@@ -8,7 +8,7 @@ Soon.
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 from time import sleep
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 from pathlib import Path
 from functools import partial
 
@@ -20,7 +20,7 @@ from PySide6.QtWidgets import QApplication
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
 from peewee import Field, Query
-
+from concurrent.futures import Future
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.color.color_item import Color
@@ -86,6 +86,7 @@ class LogRecordsModel(BaseQueryDataModel):
         self.message_font = self._create_message_font()
         self.proxy_model = BaseProxyModel()
         self.proxy_model.setSourceModel(self)
+        self._refresh_task: Future = None
 
     def set_message_font(self, font):
         self.layoutAboutToBeChanged.emit()
@@ -110,7 +111,13 @@ class LogRecordsModel(BaseQueryDataModel):
 
     def on_query_filter_changed(self, query_filter):
         self.filter_item = query_filter
-        self.app.backend.thread_pool.submit(self.refresh)
+        try:
+            self.last_selection_ids = [i.id for i in self.parent().current_selected_items]
+
+        except AttributeError:
+            log.warning("AttributeError in on_query_filter_changed for %r", self)
+            self.last_selection_ids = None
+        self.refresh()
 
     def get_query(self) -> "Query":
 

@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, Optional
 from pathlib import Path
 from datetime import datetime
 from threading import Event, Lock, RLock
-from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor, wait, Future
+from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor, wait, Future, FIRST_EXCEPTION
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 from dateutil.tz import UTC
@@ -216,17 +216,18 @@ class Updater:
         to_update_files = []
         current_log_files = {log_file.name: log_file for log_file in self.database.get_log_files(server=server)}
         cutoff_datetime = self.get_cutoff_datetime()
+        log.debug("cutoff_datetime: %r", cutoff_datetime)
 
         for remote_info in server.get_remote_files():
             if cutoff_datetime is not None and remote_info.modified_at < cutoff_datetime:
                 continue
+
             stored_file: LogFile = current_log_files.get(remote_info.name, None)
 
             if stored_file is None:
                 to_update_files.append(self._create_new_log_file(server=server, remote_info=remote_info))
 
             elif stored_file.modified_at < remote_info.modified_at or stored_file.size < remote_info.size:
-
                 to_update_files.append(self._update_log_file(log_file=stored_file, remote_info=remote_info))
 
             elif stored_file.last_parsed_datetime != stored_file.modified_at and stored_file.unparsable is False:
@@ -346,15 +347,21 @@ class Updater:
             task = self.database.record_inserter.many_update_record_class(list(to_update))
             tasks.append(task)
             to_update.clear()
-        running_tasks = [fu for fu in tasks if fu.done() is False]
-        old_len = len(running_tasks)
-        while running_tasks:
-            if len(running_tasks) < old_len:
-                log.info("waiting for %s tasks to finish", number_to_pretty(len(running_tasks)))
-            else:
-                sleep(0.1)
-            old_len = len(running_tasks)
-            running_tasks = [fu for fu in tasks if fu.done() is False]
+        done, not_done = wait(tasks, return_when=FIRST_EXCEPTION)
+        if not_done:
+            for f in done:
+                if f.exception():
+                    log.error(f.exception(), exc_info=True)
+        # running_tasks = [fu for fu in tasks if fu.done() is False]
+        # old_len = len(running_tasks)
+        # while running_tasks:
+        #     if len(running_tasks) < old_len:
+        #         log.info("waiting for %s tasks to finish", number_to_pretty(len(running_tasks)))
+
+        #     else:
+        #         sleep(0.1)
+        #     old_len = len(running_tasks)
+        #     running_tasks = [fu for fu in tasks if fu.done() is False]
 
         log.info("finished updating record classes server: %r, log_file: %r, force: %r", server, log_file, force)
         if force is True:
@@ -377,7 +384,7 @@ class Updater:
             return
         self.is_updating_event.set()
         self.before_updates()
-        tasks = []
+
         try:
 
             self.database.session_meta_data.update_started()
@@ -390,11 +397,9 @@ class Updater:
                         sleep(0.25)
                     log.info("STARTED updating %r", server)
                     self.process(server=server)
-                    tasks.append(self.thread_pool.submit(self._update_record_classes, server=server))
+                    self._update_record_classes(server=server)
                     log.info("FINISHED updating server %r", server)
                     self.database.checkpoint()
-            log.debug("waiting for %r tasks to finish", len(tasks))
-            wait(tasks, return_when=ALL_COMPLETED)
 
             log.debug("All record class update tasks have finished")
             amount_deleted = 0
@@ -413,6 +418,7 @@ class Updater:
                     self.database.vacuum()
                     self.database.checkpoint()
             self.database.session_meta_data.update_finished()
+
         finally:
             self.is_updating_event.clear()
             self.after_updates()
