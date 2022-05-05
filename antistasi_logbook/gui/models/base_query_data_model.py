@@ -251,11 +251,14 @@ class BaseQueryDataModel(QAbstractTableModel):
             edit_comments_action.clicked.connect(self.edit_comments)
 
             menu.add_action(edit_comments_action, "edit")
-
-        if hasattr(self.db_model, "background_color"):
+        try:
+            background_color = self.db_model.background_color
             change_color_action = ModelContextMenuAction(item, column, index, text=f"Change Color of {item.pretty_name}", icon=AllResourceItems.coloring_icon_1_image.get_as_icon(), parent=menu)
             change_color_action.clicked.connect(self.change_color)
             menu.add_action(change_color_action, "Edit")
+        except AttributeError:
+
+            pass
 
     @Slot()
     def force_refresh(self):
@@ -383,11 +386,15 @@ class BaseQueryDataModel(QAbstractTableModel):
     def _get_background_data(self, index: INDEX_TYPE) -> Any:
         item, column = self.get(index)
         value = getattr(item, column.name)
-        if hasattr(value, "background_color"):
+        try:
             return value.background_color
+        except AttributeError:
+            pass
 
-        if hasattr(item, "background_color"):
+        try:
             return item.background_color
+        except AttributeError:
+            pass
 
     def _get_font_data(self, index: INDEX_TYPE) -> Any:
         pass

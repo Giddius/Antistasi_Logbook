@@ -70,7 +70,7 @@ log = get_logger(__name__)
 DEFAULT_DB_NAME = "storage.db"
 
 DEFAULT_PRAGMAS = frozendict({
-    "cache_size": -1 * 32_000,
+    "cache_size": -1 * 64_000,
     "journal_mode": 'wal',
     "synchronous": 0,
     "ignore_check_constraints": 0,
@@ -78,7 +78,7 @@ DEFAULT_PRAGMAS = frozendict({
     "temp_store": "MEMORY",
     "mmap_size": 268_435_456 * 2,
     "journal_size_limit": human2bytes("500mb"),
-    "wal_autocheckpoint": 100_000,
+    "wal_autocheckpoint": 1_000_000,
     "page_size": 32_768 * 2,
     "analysis_limit": 100_000
 })
@@ -166,7 +166,7 @@ class GidSqliteApswDatabase(APSWDatabase):
         self.session_meta_data: "DatabaseMetaData" = None
         extensions = self.default_extensions.copy() | (extensions or {})
         pragmas = dict(DEFAULT_PRAGMAS | (pragmas or {}))
-        super().__init__(make_db_path(self.database_path), thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, timeout=100_000, statementcachesize=100, ** extensions)
+        super().__init__(make_db_path(self.database_path), thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, timeout=100, statementcachesize=100, ** extensions)
 
         self.foreign_key_cache: "ForeignKeyCache" = ForeignKeyCache(database=self)
         self.write_lock = Lock()
@@ -339,7 +339,6 @@ class GidSqliteApswDatabase(APSWDatabase):
         result = tuple(Version.select(Version).order_by(ordered_by).iterator(self))
         return result
 
-    @profile
     def iter_all_records(self, server: Server = None, log_file: LogFile = None, only_missing_record_class: bool = False) -> Generator[LogRecord, None, None]:
 
         foreign_key_cache = ForeignKeyCache(self)

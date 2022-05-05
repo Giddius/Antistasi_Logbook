@@ -7,12 +7,12 @@ name = "antistasi_logbook"
 authors = [{ name = "antistasi_tools" }]
 classifiers = ["License :: OSI Approved :: MIT License"]
 license = { file = "LICENSE" }
-readme = { file = "README.md", content-type = "text/markdown" }
+readme = { file = "README.rst", content-type = "text/x-rst" }
 dynamic = ['version', 'description']
 requires-python = ">=3.9"
 dependencies = [
     "Cython>=0.29.28",
-    "PySide6>=6.2.3",
+    "PySide6>=6.3.0",
     "anyio>=3.5.0",
     "appdirs>=1.4.4",
     "attrs>=21.4.0",
@@ -22,7 +22,7 @@ dependencies = [
     "charset-normalizer>=2.0.10",
     "colorhash>=1.0.4",
     "cryptography>=36.0.1",
-    "gidapptools[all]>=0.2.4",
+    "gidapptools[all]>=0.3.0",
     "httpcore==0.13.7",
     "httpx>=0.20.0",
     "inflect>=5.3.0",
@@ -59,7 +59,7 @@ dependencies = [
     "yarl>=1.7.2",
     "keyring>=23.5.0",
     "frozendict==2.3.0",
-    "click>=8.0.4"
+    "click>=8.0.4",
 ]
 
 [project.urls]
@@ -88,7 +88,7 @@ exclude = [
     ".favorites.json",
     ".venv",
     ".pytest_cache",
-    "__pycache__"
+    "__pycache__",
 ]
 
 [tool.autopep8]
@@ -135,7 +135,7 @@ ignore_init_module_imports = false
 exclude_globs = [
     "**/sqf_syntax_data.py",
     "**/antistasi_logbook_resources.py",
-    "**/antistasi_logbook_resources_accessor.py"
+    "**/antistasi_logbook_resources_accessor.py",
 ]
 exclude_init_files = true
 ignore_missing_import_section = true

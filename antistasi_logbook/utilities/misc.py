@@ -214,7 +214,6 @@ class ModItem:
 
         return cls(name=name, mod_dir=mod_dir, default=default, official=official, **optional_kwargs)
 
-    @profile
     def as_dict(self) -> dict[str, Any]:
 
         _out = attr.asdict(self)

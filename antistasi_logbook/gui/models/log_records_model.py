@@ -175,8 +175,10 @@ class LogRecordsModel(BaseQueryDataModel):
         if column.name == "log_level":
             return getattr(item, column.name).background_color
 
-        if hasattr(item, "background_color"):
+        try:
             return item.background_color
+        except AttributeError:
+            pass
         return super()._get_background_data(index)
 
     def _get_text_alignment_data(self, index: INDEX_TYPE) -> Any:

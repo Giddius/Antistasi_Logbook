@@ -56,20 +56,7 @@ class BaseAntistasiRecord(BaseRecord):
     ___specificity___ = 1
     ___function___: str = None
 
-    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
-    __slots__ = ("record_id",
-                 "log_file",
-                 "origin",
-                 "start",
-                 "end",
-                 "message",
-                 "recorded_at",
-                 "log_level",
-                 "marked",
-                 "called_by",
-                 "logged_from",
-                 "qt_attributes",
-                 "pretty_attribute_cache")
+    __slots__ = tuple()
 
     @classmethod
     def check(cls, log_record: "LogRecord") -> bool:
@@ -93,21 +80,8 @@ class PerformanceRecord(BaseAntistasiRecord):
     ___specificity___ = 10
     ___function___ = "A3A_fnc_logPerformance"
     performance_regex = re.compile(r"(?P<name>\w+\s?\w*)(?:\:\s?)(?P<value>\d[\d\.]*)")
-    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
-    __slots__ = ("record_id",
-                 "log_file",
-                 "origin",
-                 "start",
-                 "end",
-                 "message",
-                 "recorded_at",
-                 "log_level",
-                 "marked",
-                 "called_by",
-                 "logged_from",
-                 "qt_attributes",
-                 "pretty_attribute_cache",
-                 "_stats")
+
+    __slots__ = ("_stats",)
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -152,20 +126,8 @@ class IsNewCampaignRecord(BaseAntistasiRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 20
     ___function___ = "A3A_fnc_initServer"
-    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
-    __slots__ = ("record_id",
-                 "log_file",
-                 "origin",
-                 "start",
-                 "end",
-                 "message",
-                 "recorded_at",
-                 "log_level",
-                 "marked",
-                 "called_by",
-                 "logged_from",
-                 "qt_attributes",
-                 "pretty_attribute_cache")
+
+    __slots__ = tuple()
 
     @classmethod
     def check(cls, log_record: "LogRecord") -> bool:
@@ -183,22 +145,9 @@ class FFPunishmentRecord(BaseAntistasiRecord):
     ___specificity___ = 10
     ___function___ = ("A3A_fnc_punishment_FF", "A3A_fnc_punishment")
     punishment_type_regex = re.compile(r"(?P<punishment_type>[A-Z]+)")
-    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
+
     extra_detail_views = ("punishment_type",)
-    __slots__ = ("record_id",
-                 "log_file",
-                 "origin",
-                 "start",
-                 "end",
-                 "message",
-                 "recorded_at",
-                 "log_level",
-                 "marked",
-                 "called_by",
-                 "logged_from",
-                 "qt_attributes",
-                 "pretty_attribute_cache",
-                 "_punishment_type")
+    __slots__ = ("_punishment_type",)
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -226,30 +175,23 @@ class UpdatePreferenceRecord(BaseAntistasiRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 20
     ___function___ = "A3A_fnc_updatePreference"
-    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
+
     msg_start_regex = re.compile(r"(?P<category>[a-zA-Z]+)\_preference")
     extra_detail_views = ("category", "array_data")
 
-    __slots__ = ("record_id",
-                 "log_file",
-                 "origin",
-                 "start",
-                 "end",
-                 "message",
-                 "recorded_at",
-                 "log_level",
-                 "marked",
-                 "called_by",
-                 "logged_from",
-                 "qt_attributes",
-                 "pretty_attribute_cache",
-                 "category",
+    __slots__ = ("_category",
                  "_array_data")
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.category = self.msg_start_regex.match(self.message.lstrip()).group("category")
+        self._category = self.msg_start_regex.match(self.message.lstrip()).group("category")
         self._array_data: list[list[Any]] = None
+
+    @property
+    def category(self) -> str:
+        if self._category is None:
+            self._category = self.msg_start_regex.match(self.message.lstrip()).group("category")
+        return self._category
 
     @property
     def array_data(self) -> list[list[Any]]:
@@ -280,22 +222,9 @@ class CreateConvoyInputRecord(BaseAntistasiRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 20
     ___function___ = "A3A_fnc_createConvoy"
-    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
+
     extra_detail_views = ("array_data",)
-    __slots__ = ("record_id",
-                 "log_file",
-                 "origin",
-                 "start",
-                 "end",
-                 "message",
-                 "recorded_at",
-                 "log_level",
-                 "marked",
-                 "called_by",
-                 "logged_from",
-                 "qt_attributes",
-                 "pretty_attribute_cache",
-                 "_array_data")
+    __slots__ = ("_array_data",)
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -337,22 +266,9 @@ ALL_ANTISTASI_RECORD_CLASSES.add(CreateConvoyInputRecord)
 class SaveParametersRecord(BaseAntistasiRecord):
     ___specificity___ = 20
     ___function___ = "A3A_fnc_saveLoop"
-    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
+
     extra_detail_views = ("kv_data",)
-    __slots__ = ("record_id",
-                 "log_file",
-                 "origin",
-                 "start",
-                 "end",
-                 "message",
-                 "recorded_at",
-                 "log_level",
-                 "marked",
-                 "called_by",
-                 "logged_from",
-                 "qt_attributes",
-                 "pretty_attribute_cache",
-                 "_kv_data")
+    __slots__ = ("_kv_data",)
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -403,22 +319,9 @@ class ResourceCheckRecord(BaseAntistasiRecord):
     ___specificity___ = 20
     ___function___ = "A3A_fnc_economicsAI"
     side_regex = re.compile(r"(?P<side>\w+)\sarsenal")
-    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
+
     extra_detail_views = ("side", "stats")
-    __slots__ = ("record_id",
-                 "log_file",
-                 "origin",
-                 "start",
-                 "end",
-                 "message",
-                 "recorded_at",
-                 "log_level",
-                 "marked",
-                 "called_by",
-                 "logged_from",
-                 "qt_attributes",
-                 "pretty_attribute_cache",
-                 "_stats",
+    __slots__ = ("_stats",
                  "_side")
 
     def __init__(self, *args, **kwargs) -> None:
@@ -481,22 +384,9 @@ class FreeSpawnPositionsRecord(BaseAntistasiRecord):
     ___specificity___ = 20
     ___function___ = "A3A_fnc_freeSpawnPositions"
     place_regex = re.compile(r"Spawn places for (?P<place>\w+)", re.IGNORECASE)
-    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
+
     extra_detail_views = ("place", "array_data")
-    __slots__ = ("record_id",
-                 "log_file",
-                 "origin",
-                 "start",
-                 "end",
-                 "message",
-                 "recorded_at",
-                 "log_level",
-                 "marked",
-                 "called_by",
-                 "logged_from",
-                 "qt_attributes",
-                 "pretty_attribute_cache",
-                 "_array_data",
+    __slots__ = ("_array_data",
                  "_stats",
                  "_place")
 
@@ -556,22 +446,9 @@ class SelectReinfUnitsRecord(BaseAntistasiRecord):
     ___specificity___ = 20
     ___function___ = "A3A_fnc_selectReinfUnits"
     parse_regex = re.compile(r"units selected vehicle is (?P<unit>\w+) crew is (?P<crew>.*(?= cargo is)) cargo is (?P<cargo>.*)", re.IGNORECASE)
-    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
+
     extra_detail_views = ("crew_array_data", "cargo_array_data", "unit")
-    __slots__ = ("record_id",
-                 "log_file",
-                 "origin",
-                 "start",
-                 "end",
-                 "message",
-                 "recorded_at",
-                 "log_level",
-                 "marked",
-                 "called_by",
-                 "logged_from",
-                 "qt_attributes",
-                 "pretty_attribute_cache",
-                 "_crew_array_data",
+    __slots__ = ("_crew_array_data",
                  "_cargo_array_data",
                  "_unit")
 
@@ -641,23 +518,10 @@ ALL_ANTISTASI_RECORD_CLASSES.add(SelectReinfUnitsRecord)
 class ChangingSidesRecord(BaseAntistasiRecord):
     ___specificity___ = 30
     ___function___ = "A3A_fnc_markerChange"
-    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
+
     parse_regex = re.compile(r"Changing side of (?P<location>[\w\d]+) to (?P<side>\w+)")
     extra_detail_views = ("location_name", "side")
-    __slots__ = ("record_id",
-                 "log_file",
-                 "origin",
-                 "start",
-                 "end",
-                 "message",
-                 "recorded_at",
-                 "log_level",
-                 "marked",
-                 "called_by",
-                 "logged_from",
-                 "qt_attributes",
-                 "pretty_attribute_cache",
-                 "_location_name",
+    __slots__ = ("_location_name",
                  "_side")
 
     def __init__(self, *args, **kwargs) -> None:
@@ -707,22 +571,9 @@ ALL_ANTISTASI_RECORD_CLASSES.add(ChangingSidesRecord)
 class ToggleLockRecord(BaseAntistasiRecord):
     ___specificity___ = 20
     ___function___ = "HR_GRG_fnc_toggleLock"
-    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
+
     extra_detail_views = ("vehicle_id", "player_name", "lock_status")
-    __slots__ = ("record_id",
-                 "log_file",
-                 "origin",
-                 "start",
-                 "end",
-                 "message",
-                 "recorded_at",
-                 "log_level",
-                 "marked",
-                 "called_by",
-                 "logged_from",
-                 "qt_attributes",
-                 "pretty_attribute_cache",
-                 "_vehicle_id",
+    __slots__ = ("_vehicle_id",
                  "_player_name",
                  "_lock_status")
 
@@ -793,21 +644,8 @@ ALL_ANTISTASI_RECORD_CLASSES.add(ToggleLockRecord)
 class QRFAvailableRecord(BaseAntistasiRecord):
     ___specificity___ = 20
     ___function___ = "A3A_fnc_SUP_QRFAvailable"
-    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
 
-    __slots__ = ("record_id",
-                 "log_file",
-                 "origin",
-                 "start",
-                 "end",
-                 "message",
-                 "recorded_at",
-                 "log_level",
-                 "marked",
-                 "called_by",
-                 "logged_from",
-                 "qt_attributes",
-                 "pretty_attribute_cache")
+    __slots__ = tuple()
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -820,6 +658,81 @@ class QRFAvailableRecord(BaseAntistasiRecord):
 ALL_ANTISTASI_RECORD_CLASSES.add(QRFAvailableRecord)
 
 
+# PATCOM | Group: B Alpha 1-3 | Current Orders: Patrol_Area | Group State: CALM | Client: hc_1 [5]
+
+class PatrolCommanderRecord(BaseAntistasiRecord):
+    ___specificity___ = 20
+    ___function___ = "A3A_fnc_patrolCommander"
+
+    parse_regex = re.compile(r"(\||^)(?P<key>.*?)\:\s*(?P<value>.*?)(?=\||$)")
+    extra_detail_views = ("group", "current_orders", "group_state", "client")
+    __slots__ = ("_group",
+                 "_current_orders",
+                 "_group_state",
+                 "_client")
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._group = None
+        self._current_orders = None
+        self._group_state = None
+        self._client = None
+
+    @property
+    def group(self) -> str:
+        if self._group is None:
+            self.collect_data()
+        return self._group
+
+    @property
+    def current_orders(self):
+        if self._current_orders is None:
+            self.collect_data()
+        return self._current_orders
+
+    @property
+    def group_state(self):
+        if self._group_state is None:
+            self.collect_data()
+        return self._group_state
+
+    @property
+    def client(self):
+        if self._client is None:
+            self.collect_data()
+        return self._client
+
+    @classmethod
+    def parse(cls, message: str) -> dict[str, Any]:
+        _out = {}
+        for match in cls.parse_regex.finditer(message.removeprefix("PATCOM |")):
+            _out[match.group("key").strip()] = match.group("value").strip()
+            log.debug(match.groupdict())
+        if len(_out) <= 0:
+            return None
+        return _out
+
+    def collect_data(self):
+        data = self.parse(self.message)
+        if data is None:
+            self._group = MiscEnum.ERROR
+            self._current_orders = MiscEnum.ERROR
+            self._group_state = MiscEnum.ERROR
+            self._client = MiscEnum.ERROR
+        else:
+            self._group = data.get("Group", MiscEnum.NOT_FOUND)
+            self._current_orders = data.get("Current Orders", MiscEnum.NOT_FOUND)
+            self._group_state = data.get("Group State", MiscEnum.NOT_FOUND)
+            self._client = data.get("Client", MiscEnum.NOT_FOUND)
+
+    @classmethod
+    def check(cls, log_record: "LogRecord") -> bool:
+        if log_record.message.strip().startswith("PATCOM"):
+            return True
+        return False
+
+
+ALL_ANTISTASI_RECORD_CLASSES.add(PatrolCommanderRecord)
 # region[Main_Exec]
 
 

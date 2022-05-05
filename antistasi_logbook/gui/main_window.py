@@ -18,6 +18,7 @@ from antistasi_logbook.utilities.date_time_utilities import DateTimeFrame
 from antistasi_logbook.data import DATA_DIR
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QColor, QCloseEvent
+from PySide6.QtHelp import QHelpEngineCore, QHelpContentWidget, QHelpEngine
 from PySide6.QtCore import Qt, Slot, QSize, QPoint, QTimer, Signal, QObject, QSysInfo, QSettings, QByteArray, QTimerEvent
 from PySide6.QtWidgets import (QLabel, QWidget, QPushButton, QMenuBar, QToolBar, QDockWidget, QGridLayout, QHBoxLayout, QMainWindow,
                                QMessageBox, QSizePolicy, QVBoxLayout, QTableWidget, QSplashScreen, QTableWidgetItem)
@@ -63,7 +64,7 @@ from antistasi_logbook.gui.models.remote_storages_model import RemoteStoragesMod
 from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 from antistasi_logbook.gui.debug import setup_debug_widget
-
+import pp
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
@@ -255,6 +256,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.menubar.show_errors_action.triggered.connect(self.show_errors_window)
         self.menubar.cyclic_update_action.triggered.connect(self.start_update_timer)
         self.menubar.show_cli_arguments.triggered.connect(self.show_cli_arguments_page)
+        self.menubar.show_help.setEnabled(False)
         self.development_setup()
 
     def show_cli_arguments_page(self):
@@ -657,6 +659,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
                 if widget is not splash:
                     widget.hide()
             if self.update_thread is not None:
+                self.backend.events.stop.set()
                 self.update_thread.join(5)
             log.info("shutting down %r", self.statusbar)
             self.statusbar.shutdown()

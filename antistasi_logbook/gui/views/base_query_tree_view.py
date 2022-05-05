@@ -410,8 +410,10 @@ class BaseQueryTreeView(QTreeView):
         try:
             self.pre_set_model()
             super().setModel(model)
-            if hasattr(model, "_item_size_by_column_names"):
+            try:
                 self.item_size_by_column_name |= model._item_size_by_column_names.copy()
+            except AttributeError:
+                pass
             self.model.setParent(self)
             self.model.get_columns()
             self.set_delegates()

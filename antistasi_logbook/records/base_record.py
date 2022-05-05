@@ -10,12 +10,12 @@ Soon.
 from typing import TYPE_CHECKING, Any, Union, Optional, Generator, Iterable
 from pathlib import Path
 from datetime import datetime
-
+from threading import Lock, RLock, Condition, Event, Semaphore, Thread
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
-from gidapptools import get_logger, get_meta_config
+from gidapptools import get_logger, get_meta_config, GidIniConfig
 from gidapptools.general_helper.color.color_item import Color
 
 # * Local Imports --------------------------------------------------------------------------------------->
@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
     from antistasi_logbook.storage.models.models import LogFile, LogLevel, LogRecord, ArmaFunction, RecordOrigin, Server
     from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
+    from PySide6.QtGui import QColor
 
 # endregion[Imports]
 
@@ -70,6 +71,39 @@ class PrettyAttributeCache:
     pretty_log_file: str = attr.ib(default=MiscEnum.NOTHING)
 
 
+class RecordColorCache:
+    __slots__ = ("_config", "_cache", "_access_lock")
+    default_color_values: dict[str, int] = {"r": 255, "g": 255, "b": 255, "a": 150}
+
+    def __init__(self, config: GidIniConfig) -> None:
+        self._config = config
+        self._cache: dict[str, "QColor"] = {}
+        self._access_lock = RLock()
+
+    @property
+    def default_color(self) -> QColor:
+        return QColor(*[self.default_color_values[k] for k in "rgba"])
+
+    def _retrieve_color_from_config(self, name: str) -> "QColor":
+        color = self._config.get("record", name, default=self.default_color)
+        self._cache[name] = color
+        return color
+
+    def get(self, record_class: type["BaseRecord"]) -> Optional["QColor"]:
+        name = record_class.__name__
+        with self._access_lock:
+            try:
+                return self._cache[name]
+            except KeyError:
+                return self._retrieve_color_from_config(name)
+
+    def set(self, record_class: type["BaseRecord"], color: QColor) -> None:
+        name = record_class.__name__
+        with self._access_lock:
+            self._config.set("record", name, color, create_missing_section=True)
+            self._cache[name] = color
+
+
 BASE_SLOTS: list[str] = ("record_id",
                          "log_file",
                          "origin",
@@ -90,9 +124,9 @@ class BaseRecord:
     ___specificity___ = 0
     foreign_key_cache: "ForeignKeyCache" = None
     color_config = get_meta_config().get_config("color")
-    _background_qcolor: Union["QColor", MiscEnum] = MiscEnum.NOTHING
+    _color_cache = RecordColorCache(config=color_config)
     extra_detail_views: Iterable[str] = []
-    __slots__ = ["record_id",
+    __slots__ = ("record_id",
                  "log_file",
                  "origin",
                  "start",
@@ -104,7 +138,7 @@ class BaseRecord:
                  "called_by",
                  "logged_from",
                  "qt_attributes",
-                 "pretty_attribute_cache"]
+                 "pretty_attribute_cache")
 
     def __init__(self,
                  record_id: int,
@@ -174,18 +208,15 @@ class BaseRecord:
     @classmethod
     @property
     def background_color(cls) -> Optional["QColor"]:
-        if cls._background_qcolor is MiscEnum.NOTHING:
-            cls._background_qcolor = cls.get_background_color()
-        return cls._background_qcolor
+        return cls.get_background_color()
 
     @classmethod
     def get_background_color(cls) -> "QColor":
-        return cls.color_config.get("record", cls.__name__, default=Color.get_color_by_name("white").with_alpha(0.75).qcolor)
+        return cls._color_cache.get(cls)
 
     @classmethod
     def set_background_color(cls, color: QColor):
-        cls.color_config.set("record", cls.__name__, color, create_missing_section=True)
-        cls.reset_colors()
+        cls._color_cache.set(cls, color=color)
 
     def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
         msg_format = MessageFormat(msg_format)
@@ -268,16 +299,17 @@ class BaseRecord:
 
     @classmethod
     def reset_colors(cls) -> None:
-        def _get_recursive_sub_classe(in_class: type[BaseRecord]) -> Generator[type[BaseRecord], None, None]:
-            for sub_class in in_class.__subclasses__():
-                yield sub_class
-                yield from _get_recursive_sub_classe(sub_class)
+        log.warning("The method 'reset_colors' of the class %r is deprecated and does nothing.", cls)
+        # def _get_recursive_sub_classe(in_class: type[BaseRecord]) -> Generator[type[BaseRecord], None, None]:
+        #     for sub_class in in_class.__subclasses__():
+        #         yield sub_class
+        #         yield from _get_recursive_sub_classe(sub_class)
 
-        log.debug("reseting colors for record-class %r", BaseRecord)
-        BaseRecord._background_qcolor = MiscEnum.NOTHING
-        for sub_class in _get_recursive_sub_classe(BaseRecord):
-            log.debug("reseting color for record-class %r", sub_class)
-            sub_class._background_qcolor = MiscEnum.NOTHING
+        # log.debug("reseting colors for record-class %r", BaseRecord)
+        # BaseRecord._background_qcolor = MiscEnum.NOTHING
+        # for sub_class in _get_recursive_sub_classe(BaseRecord):
+        #     log.debug("reseting color for record-class %r", sub_class)
+        #     sub_class._background_qcolor = MiscEnum.NOTHING
 
     @property
     def single_line_message(self) -> str:

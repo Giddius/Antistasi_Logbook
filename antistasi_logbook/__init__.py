@@ -23,7 +23,7 @@ import rich.traceback
 from pathlib import Path
 from gidapptools import setup_main_logger, setup_main_logger_with_file_logging, get_meta_paths, get_meta_config, get_meta_info, get_handlers, get_logger, get_main_logger
 from gidapptools.meta_data import setup_meta_data
-
+import antistasi_logbook.errors
 
 import sys
 

@@ -168,6 +168,8 @@ class LogbookMenuBar(BaseMenuBar):
 
         self.show_cli_arguments = self.add_new_action(self.help_menu, "Show Command Line Arguments")
 
+        self.show_help = self.add_new_action(self.help_menu, "Help")
+
         self.show_app_log_action = self.add_new_action(self.help_menu, "Show App Log", add_before=self.help_separator)
         self.show_errors_action = self.add_new_action(self.help_menu, "Show Errors", add_before=self.help_separator, icon=AllResourceItems.error_symbol_image.get_as_icon())
         self.open_credentials_managment_action = self.add_new_action(self.settings_menu, "Credentials Managment")

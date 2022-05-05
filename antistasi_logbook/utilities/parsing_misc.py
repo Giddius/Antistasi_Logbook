@@ -50,16 +50,22 @@ def _maybe_join(parts):
 # Array parsing Grammar
 
 
+def _strip_quotes(in_token: pp.ParseResults) -> str:
+
+    return in_token[0].strip('"' + "'").replace(r"\ ".strip() + '"', '"').replace(r"\ ".strip() + "'", "'")
+
+
 def get_array_grammar():
     colon = pp.Suppress(',')
     sqb_open = pp.Suppress('[')
     sqb_close = pp.Suppress(']')
-    quote = pp.Suppress('"')
+    quote = pp.Suppress('"') | pp.Suppress("'")
     keywords = pp.Keyword("EAST") | pp.Keyword("WEST") | pp.Keyword("true", caseless=True).set_parse_action(lambda x: True) | pp.Keyword("false", caseless=True).set_parse_action(lambda x: False)
     items = pp.Forward()
     content = pp.Group(pp.ZeroOrMore(items + pp.Optional(colon)))
     array = sqb_open + content + sqb_close
-    string = quote + pp.OneOrMore(pp.Regex(r'[^\"\s]+')).set_parse_action(' '.join) + quote
+    # string = quote + pp.OneOrMore(pp.Regex(r'[^\"\s]+')).set_parse_action(' '.join) + quote
+    string = pp.quoted_string.set_parse_action(_strip_quotes)
     empty_string = quote + quote
     number = ppc.number
     items <<= string | empty_string | keywords | array | number

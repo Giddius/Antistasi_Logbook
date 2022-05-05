@@ -74,7 +74,7 @@ from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog
 
 from argparse import Action
 from gidapptools import get_logger
-from antistasi_logbook.storage.models.models import DatabaseMetaData, LogRecord
+from antistasi_logbook.storage.models.models import DatabaseMetaData, LogRecord, GameMap
 if TYPE_CHECKING:
     from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow
     from antistasi_logbook.gui.application import AntistasiLogbookApplication

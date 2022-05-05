@@ -437,6 +437,9 @@ class LogFileDetailWidget(BaseDetailWidget):
         self.amount_log_records_value = ValueLineEdit(text=str(self.log_file.amount_log_records), parent=self)
         self.layout.addRow("Amount Log-Records", self.amount_log_records_value)
 
+        self.amount_average_players_value = ValueLineEdit(text=str(self.log_file.average_players_per_hour), parent=self)
+        self.layout.addRow("Amount average Players per Hour", self.amount_average_players_value)
+
         self.mods_label = QLabel("Mods", parent=self)
         self.mods_value = ModView(self)
         model = ModModel(self.log_file.get_mods())

@@ -6,14 +6,14 @@ from time import sleep
 from typing import TYPE_CHECKING, Any, Union, Literal, Optional, Generator
 from pathlib import Path
 from zipfile import ZIP_LZMA, ZipFile
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from functools import cached_property, cache
 from threading import Lock, RLock
 from contextlib import contextmanager
 from statistics import StatisticsError, mean
 from collections import defaultdict
 from concurrent.futures import Future
-
+import numpy
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QColor
 
@@ -247,6 +247,28 @@ class GameMap(BaseModel):
         table_name = 'GameMap'
 
     def get_avg_players_per_hour(self) -> dict[str, Union[float, int, datetime]]:
+        log_files_query = LogFile.select().where((LogFile.game_map_id == self.id) & (LogFile.unparsable == False))
+        record_class = RecordClass.get(name="PerformanceRecord")
+        data = []
+        all_time_frames = []
+        for log_file in log_files_query.iterator():
+            data.append((log_file.average_players_per_hour, log_file.time_frame.hours))
+            all_time_frames.append(log_file.time_frame)
+        if len(data) <= 0:
+            return {"avg_players": None, "sample_size_hours": None, "sample_size_data_points": None, "date_time_frame": None}
+
+        if len(data) == 1:
+            overall_avg = data[0][0]
+
+        else:
+            overall_avg = float(round(numpy.average([i[0] for i in data], weights=[i[1] for i in data]), 3))
+
+        date_time_frame = DateTimeFrame(start=min([fr.start for fr in all_time_frames]), end=max([fr.end for fr in all_time_frames]))
+        sample_size_hours = sum(i[1] for i in data)
+        sample_size_data_points = sum(tf.seconds // 10 for tf in all_time_frames)
+        return {"avg_players": overall_avg, "sample_size_hours": sample_size_hours, "sample_size_data_points": sample_size_data_points, "date_time_frame": date_time_frame}
+
+    def _get_avg_players_per_hour(self) -> dict[str, Union[float, int, datetime]]:
 
         log_files_query = LogFile.select().where((LogFile.game_map_id == self.id))
         record_class = RecordClass.get(name="PerformanceRecord")
@@ -284,7 +306,7 @@ class GameMap(BaseModel):
             else:
                 avg_player_data[k] = v[0]
 
-        return {"avg_players": round(sum(avg_player_data.values()) / date_time_frame.hours, 3), "sample_size_hours": date_time_frame.hours, "sample_size_data_points": sample_size, "date_time_frame": date_time_frame}
+        return {"avg_players": round(mean(avg_player_data.values()), 3), "sample_size_hours": sample_size, "sample_size_data_points": sample_size, "date_time_frame": date_time_frame}
 
     def __str__(self):
         return str(self.full_name)
@@ -572,6 +594,52 @@ class LogFile(BaseModel):
     def file_lock(self) -> Lock:
         return FILE_LOCKS.get_file_lock(self)
 
+    @cached_property
+    def average_players_per_hour(self) -> int:
+        performance_record_class = RecordClass.get(name="PerformanceRecord")
+        ideal_entries_per_hour = (60 * 60) // 10
+
+        def _handle_record(in_message, in_recorded_at) -> tuple[datetime, int]:
+            _timestamp: datetime = LogRecord.recorded_at.python_value(in_recorded_at).replace(microsecond=0, second=0, minute=0)
+            stats = performance_record_class.record_class.parse(in_message)
+            try:
+                _players: int = stats["Players"]
+
+                return _timestamp, _players
+            except KeyError as e:
+                log.critical("Error %r when trying to get players of performance message %r", e, message)
+                return _timestamp, 0
+
+        def _insert_zero_player_values(in_raw_data: dict[datetime, list[int]]) -> dict[datetime, list[int]]:
+            _raw_data = dict(in_raw_data)
+            for _timestamp, player_data in in_raw_data.items():
+                if len(player_data) < ideal_entries_per_hour:
+                    difference = ideal_entries_per_hour - len(player_data)
+                    _raw_data[_timestamp].extend(0 for _ in range(difference))
+            return _raw_data
+
+        def _average_hours(in_raw_data: dict[datetime, list[int]]) -> dict[datetime, int]:
+            averaged_data = {}
+            for k, v in in_raw_data.items():
+                if len(v) > 1:
+                    averaged_data[k] = mean(v)
+                else:
+                    averaged_data[k] = v[0]
+            return averaged_data
+
+        query = LogRecord.select(LogRecord.message, LogRecord.recorded_at).where((LogRecord.log_file_id == self.id) & (LogRecord.record_class_id == performance_record_class.id)).order_by(-LogRecord.recorded_at)
+        hour_data = defaultdict(list)
+        for message, raw_recorded_at in list(self.database.execute(query)):
+            timestamp, players = _handle_record(message, raw_recorded_at)
+            hour_data[timestamp].append(players)
+        if len(hour_data) <= 0:
+            return 0
+        hour_data = _insert_zero_player_values(hour_data)
+
+        average_hour_data = _average_hours(hour_data)
+        hours = max(self.time_frame.hours, 1)
+        return round(sum(average_hour_data.values()) / hours, 3)
+
     def is_fully_parsed(self) -> bool:
         if self.last_parsed_datetime is None:
             return False
@@ -783,7 +851,6 @@ class Mod(BaseModel):
         all_mods = Mod.select()
         return tuple(mod for mod in all_mods if mod.cleaned_name == self.cleaned_name)
 
-    @profile
     def get_log_files(self) -> tuple[LogFile]:
         query = LogFile.select().join(LogFileAndModJoin).join(Mod).where(Mod.id == self.id)
         log_files = tuple(query)

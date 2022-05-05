@@ -37,6 +37,7 @@ from pathlib import Path
 from pprint import pprint
 # import attr
 from gid_tasks.project_info.project import Project
+from send2trash import send2trash
 # from gid_tasks.actions import doc_collection, clean_collection, update_collection
 
 # ns = Collection()
@@ -699,3 +700,13 @@ def make_readme(c):
 
     readme_document.add_part(fact_list)
     readme_document.to_file()
+
+
+@task()
+def std_clean(c):
+    project: Project = c.project
+
+    to_remove_folder = [project.base_folder.joinpath("tools", "reports").resolve()]
+
+    for folder in to_remove_folder:
+        send2trash(folder)

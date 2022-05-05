@@ -104,7 +104,6 @@ class RecordInserter:
     def write_lock(self) -> Lock:
         return self.database.write_lock
 
-    @profile
     def _insert_func(self, records: Iterable["RawRecord"], context: "LogParsingContext") -> ManyRecordsInsertResult:
 
         # LogRecord.insert_many(i.to_log_record_dict(log_file=context._log_file) for i in records).execute()
@@ -136,14 +135,12 @@ class RecordInserter:
         future.add_done_callback(_callback(_context=context))
         return future
 
-    @profile
     def _execute_update_record_class(self, log_record: LogRecord, record_class: RecordClass) -> None:
         with self.write_lock:
             with self.database.atomic() as txn:
                 LogRecord.update(record_class=record_class).where(LogRecord.id == log_record.id).execute()
                 txn.commit()
 
-    @profile
     def _execute_many_update_record_class(self, pairs: list[tuple[int, int]]) -> int:
 
         with self.write_lock:
@@ -160,7 +157,6 @@ class RecordInserter:
     def many_update_record_class(self, pairs: list[tuple[int, int]]) -> Future:
         return self.thread_pool.submit(self._execute_many_update_record_class, pairs=pairs)
 
-    @profile
     def _execute_insert_mods(self, mod_items: Iterable[Mod], log_file: LogFile) -> None:
         mod_data = [mod_item.as_dict() for mod_item in mod_items]
         q_1 = Mod.insert_many(mod_data).on_conflict_ignore()
@@ -186,7 +182,6 @@ class RecordInserter:
     def insert_mods(self, mod_items: Iterable[Mod], log_file: LogFile) -> Future:
         return self.thread_pool.submit(self._execute_insert_mods, mod_items=mod_items, log_file=log_file)
 
-    @profile
     def _execute_update_log_file_from_dict(self, log_file: LogFile, in_dict: dict):
 
         with self.write_lock:
@@ -198,7 +193,6 @@ class RecordInserter:
     def update_log_file_from_dict(self, log_file: LogFile, in_dict: dict) -> Future:
         return self.thread_pool.submit(self._execute_update_log_file_from_dict, log_file=log_file, in_dict=in_dict)
 
-    @profile
     def _execute_insert_game_map(self, game_map: "GameMap"):
         with self.write_lock:
             with self.database.atomic() as txn:
@@ -250,7 +244,6 @@ class RecordProcessor:
             self.__class__._antistasi_origin = [origin for origin in self.foreign_key_cache.all_origin_objects.values() if origin.name.casefold() == "antistasi"][0]
         return self.__class__._antistasi_origin
 
-    @profile
     def _process_generic_record(self, raw_record: "RawRecord") -> "RawRecord":
         match = self.regex_keeper.generic_record.match(raw_record.content.strip())
         if not match:
@@ -277,7 +270,6 @@ class RecordProcessor:
 
         return raw_record
 
-    @profile
     def _process_antistasi_record(self, raw_record: "RawRecord") -> "RawRecord":
         datetime_part, antistasi_indicator_part, log_level_part, file_part, rest = raw_record.content.split('|', maxsplit=4)
 
@@ -372,7 +364,6 @@ class RecordProcessor:
         raw_record.parsed_data = self._convert_raw_record_foreign_keys(parsed_data=raw_record.parsed_data, utc_offset=utc_offset)
 
         return raw_record
-
 
         # region[Main_Exec]
 if __name__ == '__main__':
