@@ -135,11 +135,6 @@ class LastUpdatedLabel(QLabel):
     def refresh_text(self) -> None:
         self._refresh_text_helper()
         self._thread_finished()
-        # if self.running_thread is not None:
-        #     return
-        # self.running_thread = FuncRunner(self)
-        # self.running_thread.signaler.finished.connect(self._thread_finished)
-        # self.running_thread.start()
 
     def start_timer(self) -> None:
         log.debug("Starting timer for %r", self)

@@ -1,5 +1,4 @@
 
-
 cdef class RecordLine:
     cdef readonly str content
     cdef readonly unsigned long start

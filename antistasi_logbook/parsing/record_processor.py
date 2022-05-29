@@ -353,6 +353,14 @@ class RecordProcessor:
         return self.default_origin
 
     def __call__(self, raw_record: "RawRecord", utc_offset: timezone) -> "RawRecord":
+        if self.regex_keeper.fault_error_start.search(raw_record.content):
+            log.warning("found fault-error in record %r", raw_record)
+            line_split_1 = [idx for idx, l in enumerate(raw_record.lines) if l.content == "======================================================="][0]
+            line_split_2 = [idx for idx, l in enumerate(raw_record.lines) if l.content == "-------------------------------------------------------"][0]
+            if line_split_2 == line_split_1 + 1:
+                new_lines = list(raw_record.lines)[:line_split_1]
+                raw_record = raw_record.__class__(lines=new_lines)
+
         raw_record.record_origin = self.determine_origin(raw_record)
         if raw_record.record_origin == self.antistasi_origin:
             raw_record = self._process_antistasi_record(raw_record)
@@ -364,6 +372,7 @@ class RecordProcessor:
         raw_record.parsed_data = self._convert_raw_record_foreign_keys(parsed_data=raw_record.parsed_data, utc_offset=utc_offset)
 
         return raw_record
+
 
         # region[Main_Exec]
 if __name__ == '__main__':

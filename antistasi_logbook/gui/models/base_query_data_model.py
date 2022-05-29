@@ -32,7 +32,7 @@ from antistasi_logbook.gui.widgets.markdown_editor import MarkdownEditorDialog
 from antistasi_logbook.storage.models.custom_fields import URLField, PathField
 from antistasi_logbook.gui.widgets.better_color_dialog import BetterColorDialog
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend
@@ -55,7 +55,7 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
@@ -287,6 +287,10 @@ class BaseQueryDataModel(QAbstractTableModel):
             query = query.where(self.filter_item)
         return query.order_by(*self.ordered_by)
 
+    def amount_items_to_query(self) -> int:
+        with self.backend.database:
+            return self.get_query().count()
+
     def get_content(self) -> "BaseQueryDataModel":
         """
         [summary]
@@ -297,9 +301,9 @@ class BaseQueryDataModel(QAbstractTableModel):
             [type]: [description]
         """
         try:
-            with self.app.backend.database:
+            self.app.backend.database.connect(True)
 
-                self.content_items = list(self.get_query().execute())
+            self.content_items = list(self.get_query().execute())
         except SQLError as e:
             log.error(e, exc_info=True)
             log.debug("query was %r", str(self.get_query()))
@@ -342,10 +346,10 @@ class BaseQueryDataModel(QAbstractTableModel):
             return '-'
 
     def _modify_display_data(self, data: Any, item: "BaseModel", column: "Field") -> str:
-        if isinstance(data, bool):
-            return self.on_display_data_bool(Qt.DisplayRole, item, column, data)
         if data is None:
             return self.on_display_data_none(Qt.DisplayRole, item, column)
+        if isinstance(data, bool):
+            return self.on_display_data_bool(Qt.DisplayRole, item, column, data)
         return str(data)
 
     def columnCount(self, parent: Union[PySide6.QtCore.QModelIndex, PySide6.QtCore.QPersistentModelIndex] = None) -> int:

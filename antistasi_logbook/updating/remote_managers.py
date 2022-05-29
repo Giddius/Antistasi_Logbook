@@ -161,10 +161,8 @@ class LocalManager(AbstractRemoteStorageManager):
 
     def __init__(self, base_url: yarl.URL, login: str, password: str) -> None:
         super().__init__(base_url=base_url, login=login, password=password)
-        try:
-            self.path = url_to_path(self.base_url)
-        except AssertionError:
-            self.path = Path.cwd()
+
+        self.path = None
 
     def get_files(self, folder_path: Path) -> Generator:
         _out = (self.get_info(file) for file in folder_path.iterdir() if file.is_file())

@@ -53,10 +53,30 @@ ALL_GENERIC_RECORD_CLASSES: set[type[BaseRecord]] = set()
 
 
 class PerfProfilingRecord(BaseRecord):
+
     ___record_family___ = RecordFamily.GENERIC
     ___specificity___ = 10
+    performance_regex = re.compile(r"(?P<name>(FPS)|(nbPlayers)|(nbAIs))\=(?P<value>[\d\.]+)")
 
-    __slots__ = tuple()
+    __slots__ = ("_stats",)
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._stats: dict[str, Union[float, int]] = None
+
+    @property
+    def stats(self) -> dict[str, Union[int, float]]:
+        if self._stats is None:
+            self._stats = self.parse(self.message)
+        return self._stats
+
+    @classmethod
+    def parse(cls, message: str) -> dict[str, Union[int, float]]:
+        data = {item.group('name'): item.group('value') for item in cls.performance_regex.finditer(message)}
+        data = {k: float(v) if '.' in v else int(v) for k, v in data.items()}
+        cleaned_data = {"ServerFPS": data["FPS"], "Players": data["nbPlayers"]}
+
+        return cleaned_data
 
     @classmethod
     def check(cls, log_record: "LogRecord") -> bool:
@@ -304,6 +324,8 @@ class SendTfarRadioRequestResponseEvent(BaseRecord):
 
 
 ALL_GENERIC_RECORD_CLASSES.add(SendTfarRadioRequestResponseEvent)
+
+
 # region[Main_Exec]
 
 

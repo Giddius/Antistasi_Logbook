@@ -47,28 +47,6 @@ def version_migration(func: Callable):
     return func
 
 
-@version_migration
-def migrate_0_5_0(migrator: SqliteMigrator):
-
-    try:
-        migrate(migrator.add_index("LogRecord", ("log_file", "log_level"), False))
-    except apsw.SQLError:
-        pass
-
-    try:
-        migrate(migrator.add_index("LogRecord", ("log_file", "record_class"), False))
-    except apsw.SQLError:
-        pass
-    try:
-        migrate(migrator.add_index("LogRecord", ("log_file", "record_class", "logged_from"), False))
-    except apsw.SQLError:
-        pass
-    try:
-        migrate(migrator.add_index("LogRecord", ("record_class", "logged_from"), False))
-    except apsw.SQLError:
-        pass
-
-
 def run_migration(database: "GidSqliteApswDatabase"):
     migrator = SqliteMigrator(database)
     for version, func in migrations.items():

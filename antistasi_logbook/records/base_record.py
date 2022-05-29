@@ -31,6 +31,8 @@ except ImportError:
 from gidapptools.general_helper.enums import MiscEnum
 from gidapptools.general_helper.string_helper import shorten_string
 from antistasi_logbook.records.special_message_formats import discord_format
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+from frozendict import frozendict
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
@@ -51,19 +53,19 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
 
 
-@attr.s(slots=True, auto_attribs=True, auto_detect=True, weakref_slot=True)
+@attr.s(slots=True, auto_attribs=True, auto_detect=True)
 class QtAttributes:
     # background_color: "QColor" = attr.ib(default=MiscEnum.NOTHING)
     message_size_hint: "QSize" = attr.ib(default=None)
 
 
-@attr.s(slots=True, auto_attribs=True, auto_detect=True, weakref_slot=True)
+@attr.s(slots=True, auto_attribs=True, auto_detect=True)
 class PrettyAttributeCache:
     pretty_recorded_at: str = attr.ib(default=MiscEnum.NOTHING)
     pretty_log_level: str = attr.ib(default=MiscEnum.NOTHING)
@@ -73,12 +75,12 @@ class PrettyAttributeCache:
 
 class RecordColorCache:
     __slots__ = ("_config", "_cache", "_access_lock")
-    default_color_values: dict[str, int] = {"r": 255, "g": 255, "b": 255, "a": 150}
+    default_color_values = frozendict(**{"r": 255, "g": 255, "b": 255, "a": 150})
 
     def __init__(self, config: GidIniConfig) -> None:
         self._config = config
         self._cache: dict[str, "QColor"] = {}
-        self._access_lock = RLock()
+        self._access_lock = Lock()
 
     @property
     def default_color(self) -> QColor:
@@ -138,7 +140,8 @@ class BaseRecord:
                  "called_by",
                  "logged_from",
                  "qt_attributes",
-                 "pretty_attribute_cache")
+                 "pretty_attribute_cache",
+                 "_formated_message_cache")
 
     def __init__(self,
                  record_id: int,
@@ -165,6 +168,7 @@ class BaseRecord:
         self.logged_from = logged_from
         self.qt_attributes: QtAttributes = QtAttributes()
         self.pretty_attribute_cache: PrettyAttributeCache = PrettyAttributeCache()
+        self._formated_message_cache: dict[MessageFormat:str] = {}
 
     def get_data(self, name: str):
         try:
@@ -220,18 +224,23 @@ class BaseRecord:
 
     def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
         msg_format = MessageFormat(msg_format)
+        if msg_format in self._formated_message_cache:
+            return self._formated_message_cache[msg_format]
         match msg_format:
 
             case MessageFormat.SHORT:
-                return shorten_string(self.message, max_length=30)
+                text = shorten_string(self.message, max_length=30)
 
             case MessageFormat.ORIGINAL:
-                return self.log_file.original_file.get_lines(start=self.start, end=self.end)
+                text = self.log_file.original_file.get_lines(start=self.start, end=self.end)
 
             case MessageFormat.DISCORD:
-                return discord_format(in_record=self)
+                text = discord_format(in_record=self)
 
-        return self.message
+            case _:
+                text = self.message
+        self._formated_message_cache[msg_format] = text
+        return text
 
     def get_db_item(self, database: "GidSqliteApswDatabase") -> "LogRecord":
         from antistasi_logbook.storage.models.models import LogRecord
@@ -300,16 +309,6 @@ class BaseRecord:
     @classmethod
     def reset_colors(cls) -> None:
         log.warning("The method 'reset_colors' of the class %r is deprecated and does nothing.", cls)
-        # def _get_recursive_sub_classe(in_class: type[BaseRecord]) -> Generator[type[BaseRecord], None, None]:
-        #     for sub_class in in_class.__subclasses__():
-        #         yield sub_class
-        #         yield from _get_recursive_sub_classe(sub_class)
-
-        # log.debug("reseting colors for record-class %r", BaseRecord)
-        # BaseRecord._background_qcolor = MiscEnum.NOTHING
-        # for sub_class in _get_recursive_sub_classe(BaseRecord):
-        #     log.debug("reseting color for record-class %r", sub_class)
-        #     sub_class._background_qcolor = MiscEnum.NOTHING
 
     @property
     def single_line_message(self) -> str:

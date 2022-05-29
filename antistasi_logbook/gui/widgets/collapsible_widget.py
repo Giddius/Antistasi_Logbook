@@ -82,14 +82,14 @@ class CollapsibleGroupBox(QGroupBox):
         return super().layout()
 
     def mousePressEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
-        if not self.contentsRect().contains(event.pos()):
+        if not self.contentsRect().contains(event.position().toPoint()):
             self.on_title_clicked()
 
     def event(self, event: PySide6.QtCore.QEvent) -> bool:
         if event.type() == QEvent.HoverMove:
-            if not self.contentsRect().contains(event.pos()) and self.current_cursor is not Qt.PointingHandCursor:
+            if not self.contentsRect().contains(event.position().toPoint()) and self.current_cursor is not Qt.PointingHandCursor:
                 self.setCursor(Qt.PointingHandCursor)
-            elif self.contentsRect().contains(event.pos()) and self.current_cursor is not self.original_cursor:
+            elif self.contentsRect().contains(event.position().toPoint()) and self.current_cursor is not self.original_cursor:
                 self.setCursor(self.original_cursor)
 
         return super().event(event)

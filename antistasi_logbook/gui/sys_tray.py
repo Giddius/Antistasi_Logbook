@@ -23,7 +23,7 @@ from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-    pass
+    from antistasi_logbook.gui.application import AntistasiLogbookApplication
 
 # endregion[Imports]
 
@@ -55,7 +55,7 @@ class LogbookSystemTray(QSystemTrayIcon):
         self.setup()
 
     @property
-    def app(self):
+    def app(self) -> "AntistasiLogbookApplication":
         return QApplication.instance()
 
     @property
@@ -67,8 +67,6 @@ class LogbookSystemTray(QSystemTrayIcon):
 
     def setup_menu(self) -> None:
         self.menu = QMenu(self.main_window)
-        self.menu.setStyleSheet("border: 1px solid black;background-color: white;margin: 4px")
-
         self.add_menu_title()
         self.hide_show_action = self.add_action("Minimize to Tray", connect_to=self.switch_main_window_visible, icon=AllResourceItems.hidden_image.get_as_icon())
 
@@ -110,9 +108,11 @@ class LogbookSystemTray(QSystemTrayIcon):
         self.hide_show_action.setText(text)
         self.hide_show_action.setIcon(icon)
 
-    def send_update_finished_message(self):
-
-        self.showMessage("Update finished!", "The Database is now up to date!", QSystemTrayIcon.MessageIcon.Information, 15 * 1000)
+    def send_update_finished_message(self, msg: str = None):
+        if msg is None:
+            self.showMessage("Update finished!", "The Database is now up to date!", self.app.icon, 15 * 1000)
+        else:
+            self.showMessage("Update finished!", msg, self.app.icon, 15 * 1000)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(app={self.app!r})"

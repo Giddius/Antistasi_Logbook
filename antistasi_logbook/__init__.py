@@ -5,25 +5,18 @@ __version__ = '0.4.5'
 import os
 
 
-def set_env():
-    os.environ["PYQTGRAPH_QT_LIB"] = "PySide6"
-
-
-set_env()
-
-import atexit
 from rich.console import Console as RichConsole
 from rich.table import Table
 from rich.panel import Panel
 from rich.containers import Renderables
 from rich.align import Align
 from rich.box import DOUBLE_EDGE
-from rich.text import Text
-import rich.traceback
+from rich.traceback import install as rich_traceback_install
+
 from pathlib import Path
-from gidapptools import setup_main_logger, setup_main_logger_with_file_logging, get_meta_paths, get_meta_config, get_meta_info, get_handlers, get_logger, get_main_logger
+from gidapptools import setup_main_logger_with_file_logging, get_meta_paths, get_meta_config
 from gidapptools.meta_data import setup_meta_data
-import antistasi_logbook.errors
+
 
 import sys
 
@@ -87,31 +80,40 @@ Especially if you have access to a [b]Platform (Operating System)[/b] that is [b
     info_console.print("\n" * 3)
 
 
-if "apsw" not in sys.modules:
+def check_apsw():
     try:
-        from . import apsw
-
-        sys.modules["apsw"] = apsw
+        import apsw
     except ImportError:
-        on_init_error()
-        print_apsw_import_error_msg()
-        sys.exit(1)
+        pass
+    if "apsw" not in sys.modules:
+        try:
+            from .storage.apsw_extension import apsw
+
+            sys.modules["apsw"] = apsw
+        except ImportError:
+            on_init_error()
+            print_apsw_import_error_msg()
+            sys.exit(1)
 
 
-# _extra_logger = ["peewee", "py.warnings"]
+def set_env():
+    os.environ["PYQTGRAPH_QT_LIB"] = "PySide6"
+
+
 _extra_logger = ["py.warnings"]
 
 IS_SETUP: bool = False
 original_stderr = sys.stderr
-# stream_capturer = LimitedStdStreamCapturer()
-# stream_capturer.original_stream = original_stderr
-# sys.stderr = stream_capturer
 
 
 def setup():
     global IS_SETUP
     if IS_SETUP is True:
         return
+
+    set_env()
+    check_apsw()
+
     os.environ["_MAIN_DIR"] = str(Path(__file__).resolve().parent)
     from antistasi_logbook.data import DATA_DIR
     setup_meta_data(__file__,
@@ -134,5 +136,5 @@ def setup():
                                               log_to_stdout=log_to_stdout)
 
     ERROR_CONSOLE = RichConsole(soft_wrap=True, record=False, width=150)
-    # rich.traceback.install(console=ERROR_CONSOLE, width=150)
+    rich_traceback_install(console=ERROR_CONSOLE, width=150)
     IS_SETUP = True

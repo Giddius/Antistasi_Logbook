@@ -17,7 +17,7 @@ from threading import Thread
 from antistasi_logbook.utilities.date_time_utilities import DateTimeFrame
 from antistasi_logbook.data import DATA_DIR
 # * Qt Imports --------------------------------------------------------------------------------------->
-from PySide6.QtGui import QColor, QCloseEvent
+from PySide6.QtGui import QColor, QCloseEvent, QScreen
 from PySide6.QtHelp import QHelpEngineCore, QHelpContentWidget, QHelpEngine
 from PySide6.QtCore import Qt, Slot, QSize, QPoint, QTimer, Signal, QObject, QSysInfo, QSettings, QByteArray, QTimerEvent
 from PySide6.QtWidgets import (QLabel, QWidget, QPushButton, QMenuBar, QToolBar, QDockWidget, QGridLayout, QHBoxLayout, QMainWindow,
@@ -64,6 +64,7 @@ from antistasi_logbook.gui.models.remote_storages_model import RemoteStoragesMod
 from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 from antistasi_logbook.gui.debug import setup_debug_widget
+from gidapptools.gidapptools_qt.helper.misc import center_window
 import pp
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
@@ -95,17 +96,6 @@ META_INFO = get_meta_info()
 
 
 # endregion[Constants]
-
-
-class ErrorSignaler(QObject):
-    show_error_signal = Signal(str, BaseException)
-
-    def __repr__(self) -> str:
-        """
-        Basic Repr
-        !REPLACE!
-        """
-        return f'{self.__class__.__name__}'
 
 
 class SecondaryWindow(QWidget):
@@ -151,7 +141,6 @@ class AntistasiLogbookMainWindow(QMainWindow):
     calculated_average_players = Signal(list)
 
     def __init__(self, app: "AntistasiLogbookApplication", flags=None) -> None:
-        ExceptionHandlerManager.signaler = ErrorSignaler()
 
         self.app = app
         self.main_widget: MainWidget = None
@@ -292,6 +281,13 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.viewer.setMinimumSize(QSize(750, 500))
         self.viewer.show()
 
+    @property
+    def cyclic_update_running(self) -> bool:
+        if self.update_timer is None:
+            return False
+
+        return self.update_timer.isActive()
+
     def start_update_timer(self):
         interval: timedelta = self.config.get("updating", "update_interval")
         interval_msec = int(interval.total_seconds() * 1000)
@@ -397,17 +393,6 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.statusbar.shutdown()
         self.backend.shutdown()
 
-    def delete_db(self):
-        path = self.backend.database.database_path
-
-        log.debug("deleting DB at %r", path.as_posix())
-
-        try:
-            path.unlink(missing_ok=True)
-        except Exception as e:
-            log.error(e, True)
-            log.critical("Unable to delete DB at %r", path.as_posix())
-
     def start_backend(self):
 
         log.debug("starting backend")
@@ -420,6 +405,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.app.backend = backend
 
     def show_secondary_model_data(self, db_model: "BaseModel"):
+        log.debug("show requested for %r", db_model)
         models = {"ArmaFunction": ArmaFunctionModel,
                   "GameMap": GameMapModel,
                   "Version": VersionModel,
@@ -434,6 +420,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
         view = BaseQueryTreeView(db_model.get_meta().table_name)
 
         model_class = models.get(db_model.get_meta().table_name, None)
+
         if model_class is None:
             model = BaseQueryDataModel(db_model=db_model).refresh()
         else:
@@ -461,19 +448,31 @@ class AntistasiLogbookMainWindow(QMainWindow):
         window.resize(width, height)
         window.setWindowIcon(view.icon)
 
+        window = center_window(window, False)
+
         window.show()
 
     def show_avg_player_window(self):
 
         def _get_item_data(in_game_map: "GameMap") -> Optional[dict[str, Union[float, int, datetime]]]:
-            data = in_game_map.get_avg_players_per_hour()
+            try:
+                try:
+                    import pp
 
-            return data | {"game_map": in_game_map.full_name}
+                    pp({in_game_map.name: in_game_map.get_avg_players_per_hour_per_mod_set()})
+                except Exception as e:
+                    log.error(e, exc_info=True)
+                data = in_game_map.get_avg_players_per_hour()
+
+                return data | {"game_map": in_game_map.full_name}
+            except Exception as e:
+                log.error(e, exc_info=True)
+                return None
 
         def _get_all_data():
             data = []
             for item_data in self.backend.thread_pool.map(_get_item_data, self.backend.database.foreign_key_cache.all_game_map_objects.values()):
-                if any(i is None for i in [item_data.get("avg_players"), item_data.get("sample_size_hours"), item_data.get("sample_size_data_points")]):
+                if item_data is None or any(i is None for i in [item_data.get("avg_players"), item_data.get("sample_size_hours"), item_data.get("sample_size_data_points")]):
                     continue
                 data.append(item_data)
             data = sorted(data, key=lambda x: (x.get("avg_players"), x.get("sample_size_data_points"), x.get("sample_size_hours")), reverse=True)
@@ -529,18 +528,19 @@ class AntistasiLogbookMainWindow(QMainWindow):
                     table_item = QTableWidgetItem()
                     table_item.setData(Qt.DisplayRole, row + 1)
                     table_item.setData(Qt.InitialSortOrderRole, row + 1)
+
                 else:
                     item = data[row][column]
                     table_item = QTableWidgetItem()
                     table_item.setData(Qt.DisplayRole, item)
                     table_item.setData(Qt.InitialSortOrderRole, item)
-                avg_player_value = data[row]["avg_players"]
+                avg_players = data[row]["avg_players"]
                 color = None
-                if avg_player_value < 1:
+                if avg_players < 5:
                     color = red_background
-                elif avg_player_value < 10:
+                elif avg_players < 10:
                     color = yellow_background
-                elif avg_player_value >= 10:
+                elif avg_players >= 10:
                     color = green_background
 
                 if color:
@@ -552,7 +552,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
         data_widget.horizontalHeader().setSectionResizeMode(data_widget.horizontalHeader().Interactive)
         data_widget.horizontalHeader().setSectionResizeMode(0, data_widget.horizontalHeader().Fixed)
-        # data_widget.horizontalHeader().resizeSections(data_widget.horizontalHeader().Stretch)
+
         data_widget.horizontalHeader().resizeSections(data_widget.horizontalHeader().ResizeToContents)
         data_widget.horizontalHeader().setStretchLastSection(True)
         data_widget.setAlternatingRowColors(True)
@@ -575,10 +575,8 @@ class AntistasiLogbookMainWindow(QMainWindow):
         sub_sub_sub_layout.addWidget(overall_days)
         sub_sub_sub_layout.addWidget(overall_time_frame)
         sub_sub_layout.addLayout(sub_sub_sub_layout)
-        # screen_center_pos = self.app.screenAt(self.pos()).availableGeometry().center()
-        # fg = window.frameGeometry()
-        # new_center_pos = QPoint(screen_center_pos.x() - fg.width(), screen_center_pos.y() - fg.height())
-        # window.move(new_center_pos)
+        window = center_window(window)
+
         window.show()
 
     def show_folder_window(self):
@@ -621,11 +619,13 @@ class AntistasiLogbookMainWindow(QMainWindow):
             self.menubar.single_update_action.setEnabled(False)
 
             try:
-                self.backend.updater()
+                amount_update, amount_deleted = self.backend.updater()
             finally:
 
                 self.menubar.single_update_action.setEnabled(True)
                 self.backend.database.close()
+                if self.config.get("gui", "notify_on_update_finished") is True and any(i > 0 for i in [amount_update, amount_deleted]):
+                    self.sys_tray.send_update_finished_message(msg=f"Updated {amount_update!r} Log-files\nDeleted {amount_deleted!r} old Log-Files.")
 
         self.update_thread = Thread(target=_run_update, name="run_update_Thread")
 
@@ -697,7 +697,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
         return f'{self.__class__.__name__}'
 
 
-def start_gui():
+def start_gui() -> int:
 
     # TODO: Rewrite so everything starts through the app
 
@@ -724,7 +724,7 @@ def start_gui():
 
     _main_window.show()
 
-    sys.exit(app.exec())
+    return app.exec()
 
 
 # region[Main_Exec]

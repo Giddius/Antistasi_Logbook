@@ -122,7 +122,7 @@ indented_import_headings = false
 
 [tool.pytest.ini_options]
 addopts = "-rA -vv --durations=0 --capture=tee-sys --show-capture=all --color=auto --code-highlight=yes"
-
+testpaths = ["tests"]
 [tool.autoflake]
 # additional_imports=None
 expand_star_imports = true

@@ -38,6 +38,7 @@ from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 from antistasi_logbook.gui.diagram.abstract_stats_model import PerformanceStatsModel, StatScope
 import pp
+from antistasi_logbook.utilities.gui_utilities import make_line
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
@@ -229,7 +230,7 @@ class ModView(QListView):
         self.mod_data_view.show()
 
     def contextMenuEvent(self, event: PySide6.QtGui.QContextMenuEvent) -> None:
-        index = self.indexAt(event.pos())
+        index = self.indexAt(event.position().toPoint())
         self.setCurrentIndex(index)
         item = self.model().mods[index.row()]
         if index.isValid():
@@ -260,6 +261,10 @@ class ValueLineEdit(QLineEdit):
         self.setAlignment(Qt.AlignCenter)
         self.setProperty("display_only", True)
         self.setStyleSheet(self.style_sheet_data)
+
+    def sizeHint(self) -> PySide6.QtCore.QSize:
+        font_metrics = self.fontMetrics()
+        return font_metrics.size(Qt.TextSingleLine, self.text())
 
     def __repr__(self) -> str:
         """
@@ -305,15 +310,77 @@ class GameMapValue(QWidget):
         return f'{self.__class__.__name__}'
 
 
+class ListFormLabel(QLabel):
+
+    def __init__(self, text: str):
+        super().__init__(text)
+        font = self.font()
+        font.setBold(True)
+
+        self._original_font_size: int = int(font.pointSize())
+        self._font_size_factor: float = 1.0
+        self.setFont(font)
+
+    def set_font_size_factor(self, factor: float) -> None:
+        font = self.font()
+        font.setPointSize(int(self._original_font_size * factor))
+        self.setFont(font)
+        self.repaint()
+
+    def sizeHint(self) -> PySide6.QtCore.QSize:
+        font_metrics = self.fontMetrics()
+        return font_metrics.size(Qt.TextSingleLine, self.text())
+
+
+class ListFormLayout(QVBoxLayout):
+
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+        self._font_size_factor: float = 0.9
+
+    def set_font_size_factor(self, factor: float):
+        self._font_size_factor = factor
+        for i in range(self.count()):
+            item = self.itemAt(i).widget()
+            log.info("type: %r, name: %r, %r", type(item), item.objectName(), item)
+            if isinstance(item, ListFormLabel):
+                item.set_font_size_factor(self.font_size_factor)
+
+    @property
+    def font_size_factor(self) -> float:
+        return self._font_size_factor
+
+    def addRow(self, label: Union[str, QLabel], value: QWidget):
+        _label = self.make_label(label)
+
+        self.addWidget(_label)
+        self.addWidget(value)
+
+    def make_label(self, label: Union[str, QLabel]) -> QLabel:
+        if isinstance(label, str):
+            label = ListFormLabel(label)
+        elif not isinstance(label, ListFormLabel):
+            log.debug(type(label))
+            log.debug(label.text())
+            label = ListFormLabel(text=label.text())
+
+        label.setAlignment(Qt.AlignCenter)
+
+        label.set_font_size_factor(self.font_size_factor)
+        return label
+
+    def add_line(self):
+        self.addWidget(make_line("horizontal"))
+
+
 class BaseDetailWidget(QWidget):
 
     def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
         super().__init__(parent=parent)
-        self.setLayout(QFormLayout(self))
-        self.layout.setLabelAlignment(Qt.AlignCenter)
+        self.setLayout(ListFormLayout(self))
 
     @ property
-    def layout(self) -> QFormLayout:
+    def layout(self) -> ListFormLayout:
         return super().layout()
 
     @property
@@ -342,21 +409,18 @@ class ServerDetailWidget(BaseDetailWidget):
         super().__init__(parent=parent)
         self.server = server
 
-        self.name_label = QLabel(text="Name")
         self.name_value = ValueLineEdit(self.server.name, parent=self)
 
-        self.layout.addRow(self.name_label, self.name_value)
+        self.layout.addRow("Name", self.name_value)
 
-        self.amount_log_files_label = QLabel(text="Amount Log-Files")
         self.amount_log_files_value = QLCDNumber(3, self)
         self.amount_log_files_value.setSegmentStyle(QLCDNumber.Flat)
         self.amount_log_files_value.display(self.server.get_amount_log_files())
-        self.layout.addRow(self.amount_log_files_label, self.amount_log_files_value)
+        self.layout.addRow("Amount Log-Files", self.amount_log_files_value)
 
-        self.remote_path_label = QLabel(text="Remote Path")
         self.remote_path_value = ValueLineEdit(self.server.remote_path.as_posix(), parent=self)
 
-        self.layout.addRow(self.remote_path_label, self.remote_path_value)
+        self.layout.addRow("Remote Path", self.remote_path_value)
 
         self.comments_value = QTextBrowser(self)
         self.comments_value.setOpenExternalLinks(True)
@@ -399,13 +463,12 @@ class LogFileDetailWidget(BaseDetailWidget):
         super().__init__(parent=parent)
         self.log_file = log_file
 
-        self.name_label = QLabel(text="Name")
         self.name_value = ValueLineEdit(self.log_file.name, parent=self)
 
-        self.layout.addRow(self.name_label, self.name_value)
+        self.layout.addRow("Name", self.name_value)
 
-        self.modified_at_label = QLabel(text="Modified at")
         self.modified_at_value = ValueLineEdit(text=self.app.format_datetime(self.log_file.modified_at))
+        self.layout.addRow("Modified at", self.modified_at_value)
 
         time_frame_string = f"{self.app.format_datetime(self.log_file.time_frame.start)} until {self.app.format_datetime(self.log_file.time_frame.end)}"
 
@@ -417,35 +480,42 @@ class LogFileDetailWidget(BaseDetailWidget):
         self.duration_value = ValueLineEdit(text=time_frame_duration_string)
         self.layout.addRow("Duration", self.duration_value)
 
-        self.server_label = QLabel(text="Server")
         self.server_value = ValueLineEdit(text=self.log_file.server.name, parent=self)
-        self.layout.addRow(self.server_label, self.server_value)
+        self.layout.addRow("Server", self.server_value)
 
-        self.game_map_label = QLabel("Game Map", parent=self)
         self.game_map_value = GameMapValue(self.log_file.game_map, self)
-        self.layout.addRow(self.game_map_label, self.game_map_value)
+        self.layout.addRow("Game Map", self.game_map_value)
 
-        self.version_label = QLabel("Version", parent=self)
         self.version_value = ValueLineEdit(text=str(self.log_file.version), parent=self)
-        self.layout.addRow(self.version_label, self.version_value)
+        self.layout.addRow("Version", self.version_value)
 
-        self.campaign_id_label = QLabel("Campaign ID", parent=self)
         self.campaign_id_value = ValueLineEdit(text=str(self.log_file.campaign_id), parent=self)
-        self.layout.addRow(self.campaign_id_label, self.campaign_id_value)
+        self.layout.addRow("Campaign ID", self.campaign_id_value)
 
-        # self.amount_log_records_label = QLabel("Amount Log-Records", parent=self)
         self.amount_log_records_value = ValueLineEdit(text=str(self.log_file.amount_log_records), parent=self)
         self.layout.addRow("Amount Log-Records", self.amount_log_records_value)
 
-        self.amount_average_players_value = ValueLineEdit(text=str(self.log_file.average_players_per_hour), parent=self)
+        amount_average_players = self.log_file.average_players_per_hour[0]
+        self.amount_average_players_value = ValueLineEdit(text=str(amount_average_players), parent=self)
+        if amount_average_players < 10:
+            self.amount_average_players_value.setStyleSheet("background-color: rgba(255, 0, 0, 100)")
+        elif amount_average_players < 15:
+            self.amount_average_players_value.setStyleSheet("background-color: rgba(242, 169, 0 ,100)")
+        elif amount_average_players >= 15:
+            self.amount_average_players_value.setStyleSheet("background-color: rgba(0, 255, 0, 100)")
         self.layout.addRow("Amount average Players per Hour", self.amount_average_players_value)
 
-        self.mods_label = QLabel("Mods", parent=self)
+        self.amount_headless_clients_value = ValueLineEdit(text=str(self.log_file.amount_headless_clients), parent=self)
+        self.layout.addRow("Amount Headless Clients", self.amount_headless_clients_value)
+
+        self.mod_set_value = ValueLineEdit(text=str(log_file.mod_set), parent=self)
+        self.layout.addRow("Mod-Set", self.mod_set_value)
+
         self.mods_value = ModView(self)
         model = ModModel(self.log_file.get_mods())
         self.mods_value.setModel(model)
 
-        self.layout.addRow(self.mods_label, self.mods_value)
+        self.layout.addRow("Mods", self.mods_value)
 
         self.mods_value.doubleClicked.connect(self.open_mod_link)
         self.header_text_value = QTextEdit()

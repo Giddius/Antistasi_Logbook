@@ -733,6 +733,42 @@ class PatrolCommanderRecord(BaseAntistasiRecord):
 
 
 ALL_ANTISTASI_RECORD_CLASSES.add(PatrolCommanderRecord)
+
+
+class HeadlessClientConnected(BaseAntistasiRecord):
+
+    ___specificity___ = 20
+    ___function___ = "A3A_fnc_addHC"
+    __slots__ = ("_number",)
+    extra_detail_views: tuple[str] = ("number",)
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._number: int = None
+
+    @property
+    def number(self) -> int:
+        if self._number is None:
+            self._number = self.parse(self.message)
+        return self._number
+
+    @classmethod
+    def parse(cls, message: str) -> dict[str, Any]:
+        cleaned_message = message.casefold().removeprefix("headless client connected:").strip().removesuffix(".").strip()
+        cleaned_message = cleaned_message.strip("[]")
+        if "," in cleaned_message:
+            return int(cleaned_message.split(",")[-1])
+        return int(cleaned_message)
+
+    @classmethod
+    def check(cls, log_record: "LogRecord") -> bool:
+        if log_record.message.strip().startswith("Headless Client Connected"):
+            return True
+
+        return False
+
+
+ALL_ANTISTASI_RECORD_CLASSES.add(HeadlessClientConnected)
 # region[Main_Exec]
 
 

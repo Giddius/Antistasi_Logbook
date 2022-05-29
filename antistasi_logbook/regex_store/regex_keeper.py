@@ -40,7 +40,20 @@ class SimpleRegexKeeper:
 
     """
 
-    __slots__ = ("only_time", "version", "local_datetime", "continued_record", "generic_record", "full_datetime", "called_by", "game_map", "game_file", "mods", "mod_time_strip", "campaign_id", "first_full_datetime")
+    __slots__ = ("only_time",
+                 "version",
+                 "local_datetime",
+                 "continued_record",
+                 "generic_record",
+                 "full_datetime",
+                 "called_by",
+                 "game_map",
+                 "game_file",
+                 "mods",
+                 "mod_time_strip",
+                 "campaign_id",
+                 "first_full_datetime",
+                 "fault_error_start")
 
     def __init__(self) -> None:
 
@@ -114,6 +127,8 @@ class SimpleRegexKeeper:
                                          \:
                                          (?P<microsecond>\d{3})
                                          (?=\s)""", re.VERBOSE | re.MULTILINE)
+
+        self.fault_error_start = re.compile(r"\s*\=*\s*\-*\s*Exception code\:.*", re.DOTALL)
 
 
 # region[Main_Exec]

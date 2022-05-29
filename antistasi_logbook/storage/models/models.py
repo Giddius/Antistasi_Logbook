@@ -9,9 +9,12 @@ from zipfile import ZIP_LZMA, ZipFile
 from datetime import datetime, timezone, timedelta
 from functools import cached_property, cache
 from threading import Lock, RLock
+from operator import add
 from contextlib import contextmanager
 from statistics import StatisticsError, mean
+from functools import reduce
 from collections import defaultdict
+from statistics import stdev, variance, quantiles, correlation, covariance, pstdev
 from concurrent.futures import Future
 import numpy
 # * Qt Imports --------------------------------------------------------------------------------------->
@@ -188,6 +191,9 @@ class ArmaFunction(BaseModel):
             (('name', 'author_prefix'), True),
         )
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
     @cached_property
     def file_name(self) -> str:
         if self.author_prefix.name == "FSM":
@@ -252,21 +258,51 @@ class GameMap(BaseModel):
         data = []
         all_time_frames = []
         for log_file in log_files_query.iterator():
-            data.append((log_file.average_players_per_hour, log_file.time_frame.hours))
+            data.append((log_file.average_players_per_hour[0], log_file.time_frame.hours, log_file.average_players_per_hour[1]))
             all_time_frames.append(log_file.time_frame)
         if len(data) <= 0:
-            return {"avg_players": None, "sample_size_hours": None, "sample_size_data_points": None, "date_time_frame": None}
+            return {"avg_players": None, "sample_size_hours": None, "sample_size_data_points": None, "date_time_frame": None, "std_dev": None}
 
         if len(data) == 1:
             overall_avg = data[0][0]
+            std_dev = 0.0
 
         else:
             overall_avg = float(round(numpy.average([i[0] for i in data], weights=[i[1] for i in data]), 3))
-
+            all_values = []
+            for i in data:
+                if i[2]:
+                    all_values += i[2]
+            # std_dev = stdev(all_values)
+            std_dev = correlation([i[0] for i in data], [len(i[2]) for i in data])
         date_time_frame = DateTimeFrame(start=min([fr.start for fr in all_time_frames]), end=max([fr.end for fr in all_time_frames]))
-        sample_size_hours = sum(i[1] for i in data)
+        sample_size_hours = sum([i[1] for i in data])
         sample_size_data_points = sum(tf.seconds // 10 for tf in all_time_frames)
-        return {"avg_players": overall_avg, "sample_size_hours": sample_size_hours, "sample_size_data_points": sample_size_data_points, "date_time_frame": date_time_frame}
+        return {"avg_players": overall_avg, "sample_size_hours": sample_size_hours, "sample_size_data_points": sample_size_data_points, "date_time_frame": date_time_frame, "std_dev": std_dev}
+
+    def get_avg_players_per_hour_per_mod_set(self) -> dict[str, Union[float, int, datetime]]:
+        log_files_query = LogFile.select().where((LogFile.game_map_id == self.id) & (LogFile.unparsable == False))
+        record_class = RecordClass.get(name="PerformanceRecord")
+        data = {m.name: [] for m in ModSet.select()}
+        all_time_frames = []
+        for log_file in log_files_query.iterator():
+            if log_file.mod_set is None:
+                continue
+            data[str(log_file.mod_set)].append((log_file.average_players_per_hour[0], log_file.time_frame.hours, log_file.average_players_per_hour[1]))
+            all_time_frames.append(log_file.time_frame)
+        data = dict(data)
+        for mod_set_name in data:
+            _sub_data = data[mod_set_name]
+            if len(_sub_data) < 1:
+                data[mod_set_name] = 0.0
+
+            elif len(_sub_data) == 1:
+                data[mod_set_name] = _sub_data[0][0]
+
+            else:
+                data[mod_set_name] = float(round(numpy.average([i[0] for i in _sub_data], weights=[i[1] for i in _sub_data]), 3))
+
+        return data
 
     def _get_avg_players_per_hour(self) -> dict[str, Union[float, int, datetime]]:
 
@@ -466,29 +502,34 @@ class OriginalLogFile(BaseModel):
         temp_path.parent.mkdir(parents=True, exist_ok=True)
         return temp_path
 
+    @cached_property
+    def lines(self) -> tuple[int, str]:
+        return tuple(enumerate(self.text.splitlines()))
+
     def to_file(self) -> Path:
         path = self.temp_path
         path.write_text(self.text, encoding='utf-8', errors='ignore')
         return path
 
     def __iter__(self):
-        for line in self.text.splitlines():
+        for line_number, line in self.lines:
             yield line
 
     def get_lines(self, start: int, end: int) -> tuple[str]:
+        only_lines = [i[1] for i in self.lines]
         if end == start:
-            return tuple([self.text.splitlines()[end - 1]])
+            return tuple([only_lines[end - 1]])
         corrected_start = start - 1
         corrected_end = end
-        return tuple(self.text.splitlines()[corrected_start:corrected_end])
+        return tuple(only_lines[corrected_start:corrected_end])
 
     def get_lines_with_line_numbers(self, start: int, end: int) -> tuple[tuple[int, str]]:
         if end == start:
-            return ((end, self.text.splitlines()[end - 1]),)
+            return ((end, [i[1] for i in self.lines][end - 1]),)
         corrected_start = start - 1
         corrected_end = end
-        lines = list(enumerate(self.text.splitlines()))
-        return tuple(lines[corrected_start:corrected_end])
+
+        return tuple(self.lines[corrected_start:corrected_end])
 
 
 class LogFile(BaseModel):
@@ -510,6 +551,7 @@ class LogFile(BaseModel):
     last_parsed_datetime = AwareTimeStampField(null=True, utc=True, verbose_name="Last Parsed Datetime")
     max_mem = IntegerField(verbose_name="Max Memory", null=True)
     original_file = ForeignKeyField(model=OriginalLogFile, field="id", column_name="original_file", lazy_load=True, backref="log_file", null=True, on_delete="SET NULL")
+    manually_added = BooleanField(null=False, default=False, verbose_name="Manually added", index=True)
     comments = CommentsField(null=True)
     marked = MarkedField()
 
@@ -523,6 +565,22 @@ class LogFile(BaseModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.is_downloaded: bool = False
+
+    def determine_mod_set(self) -> Optional["ModSet"]:
+        own_mod_names = frozenset([m.cleaned_name for m in Mod.select().join(LogFileAndModJoin).join(LogFile).where(LogFile.id == self.id)])
+
+        for mod_set in sorted(ModSet.select(), key=lambda x: len(x.mod_names), reverse=True):
+            if all(mod_name in own_mod_names for mod_name in mod_set.mod_names):
+                return mod_set
+
+    @cached_property
+    def mod_set(self) -> Optional["ModSet"]:
+        return self.determine_mod_set()
+
+    @cached_property
+    def amount_headless_clients(self) -> int:
+        record_class = RecordClass.get(name="HeadlessClientConnected")
+        return LogRecord.select().where(LogRecord.log_file_id == self.id).where(LogRecord.record_class_id == record_class.id).count()
 
     @cached_property
     def time_frame(self) -> DateTimeFrame:
@@ -597,18 +655,20 @@ class LogFile(BaseModel):
     @cached_property
     def average_players_per_hour(self) -> int:
         performance_record_class = RecordClass.get(name="PerformanceRecord")
+        generic_performance_record_class = RecordClass.get(name="PerfProfilingRecord")
         ideal_entries_per_hour = (60 * 60) // 10
 
-        def _handle_record(in_message, in_recorded_at) -> tuple[datetime, int]:
+        def _handle_record(in_message, in_recorded_at, in_record_class_id) -> tuple[datetime, int]:
             _timestamp: datetime = LogRecord.recorded_at.python_value(in_recorded_at).replace(microsecond=0, second=0, minute=0)
-            stats = performance_record_class.record_class.parse(in_message)
-            try:
-                _players: int = stats["Players"]
+            if in_record_class_id == performance_record_class.id:
+                stats = performance_record_class.record_class.parse(in_message)
+                _players: int = stats["Players"] - self.amount_headless_clients
 
-                return _timestamp, _players
-            except KeyError as e:
-                log.critical("Error %r when trying to get players of performance message %r", e, message)
-                return _timestamp, 0
+            elif in_record_class_id == generic_performance_record_class.id:
+                stats = generic_performance_record_class.record_class.parse(in_message)
+                _players = stats["Players"]
+
+            return _timestamp, _players
 
         def _insert_zero_player_values(in_raw_data: dict[datetime, list[int]]) -> dict[datetime, list[int]]:
             _raw_data = dict(in_raw_data)
@@ -627,18 +687,24 @@ class LogFile(BaseModel):
                     averaged_data[k] = v[0]
             return averaged_data
 
-        query = LogRecord.select(LogRecord.message, LogRecord.recorded_at).where((LogRecord.log_file_id == self.id) & (LogRecord.record_class_id == performance_record_class.id)).order_by(-LogRecord.recorded_at)
+        def _all_values(in_raw_data: dict[datetime, list[int]]) -> list[int]:
+            all_values = []
+            for k, v in in_raw_data.items():
+                all_values += v
+            return all_values
+
+        query = LogRecord.select(LogRecord.message, LogRecord.recorded_at, LogRecord.record_class_id).where((LogRecord.log_file_id == self.id)).where((LogRecord.record_class_id == performance_record_class.id) | (LogRecord.record_class_id == generic_performance_record_class.id)).order_by(-LogRecord.recorded_at)
         hour_data = defaultdict(list)
-        for message, raw_recorded_at in list(self.database.execute(query)):
-            timestamp, players = _handle_record(message, raw_recorded_at)
+        for message, raw_recorded_at, record_class_id in list(self.database.execute(query)):
+            timestamp, players = _handle_record(message, raw_recorded_at, record_class_id)
             hour_data[timestamp].append(players)
         if len(hour_data) <= 0:
-            return 0
+            return 0, []
         hour_data = _insert_zero_player_values(hour_data)
 
         average_hour_data = _average_hours(hour_data)
-        hours = max(self.time_frame.hours, 1)
-        return round(sum(average_hour_data.values()) / hours, 3)
+
+        return round(sum(average_hour_data.values()) / len(hour_data), 3), _all_values(hour_data)
 
     def is_fully_parsed(self) -> bool:
         if self.last_parsed_datetime is None:
@@ -663,15 +729,10 @@ class LogFile(BaseModel):
     def get_campaign_stats(self) -> tuple[list[dict[str, Any]], tuple["LogFile"]]:
         self.database.connect(True)
         all_stats: list[dict[str, Any]] = []
-        record_class = RecordClass.get(name="PerformanceRecord")
-        conc_record_class = record_class.record_class
         log_files_query = LogFile.select().where(LogFile.campaign_id == self.campaign_id)
         all_log_files = tuple(log_files_query)
-        query = LogRecord.select(LogRecord.message, LogRecord.recorded_at).where(LogRecord.log_file_id << log_files_query).where(LogRecord.record_class_id == record_class.id).order_by(-LogRecord.recorded_at)
-        for (message, recorded_at) in self.database.execute(query):
-            recorded_at = LogRecord.recorded_at.python_value(recorded_at)
-            item_stats = conc_record_class.parse(message) | {"timestamp": recorded_at}
-            all_stats.append(item_stats)
+        for log_file in all_log_files:
+            all_stats += log_file.get_stats()
         self.database.close()
         return all_stats, all_log_files
 
@@ -679,11 +740,19 @@ class LogFile(BaseModel):
         all_stats: list[dict[str, Any]] = []
         self.database.connect(True)
         record_class = RecordClass.get(name="PerformanceRecord")
-        query = LogRecord.select(LogRecord.message, LogRecord.recorded_at).where(LogRecord.log_file_id == self.id).where(LogRecord.record_class_id == record_class.id).order_by(-LogRecord.recorded_at)
-        conc_record_class = record_class.record_class
-        for (message, recorded_at) in self.database.execute(query):
+        record_class_2 = RecordClass.get(name="PerfProfilingRecord")
+        query = LogRecord.select(LogRecord.message, LogRecord.recorded_at, LogRecord.record_class_id).where(LogRecord.log_file_id == self.id).where((LogRecord.record_class_id == record_class.id) | (LogRecord.record_class_id == record_class_2.id)).order_by(-LogRecord.recorded_at)
+
+        for (message, recorded_at, _record_class_id) in self.database.execute(query):
             recorded_at = LogRecord.recorded_at.python_value(recorded_at)
-            item_stats = conc_record_class.parse(message) | {"timestamp": recorded_at}
+            if _record_class_id == record_class.id:
+                conc_record_class = record_class.record_class
+                item_stats = conc_record_class.parse(message) | {"timestamp": recorded_at}
+                item_stats["Players"] = item_stats["Players"] - self.amount_headless_clients
+            elif _record_class_id == record_class_2.id:
+                conc_record_class = record_class_2.record_class
+                item_stats = conc_record_class.parse(message) | {"timestamp": recorded_at}
+
             all_stats.append(item_stats)
         self.database.close()
         return all_stats
@@ -881,6 +950,14 @@ class LogFileAndModJoin(BaseModel):
         return self.mod.name
 
 
+class ModSet(BaseModel):
+    name = TextField(index=True, unique=True, verbose_name="Mod-Set Name")
+    mod_names = JSONField(unique=True, verbose_name="Mod names")
+
+    class Meta:
+        table_name = 'ModSet'
+
+
 class LogLevel(BaseModel):
     name = TextField(unique=True)
     comments = CommentsField(null=True)
@@ -945,6 +1022,10 @@ class RecordOrigin(BaseModel):
 
     class Meta:
         table_name = 'RecordOrigin'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        _ = self.record_family
 
     def check(self, raw_record: "RawRecord") -> bool:
         return self.identifier in raw_record.content.casefold()
@@ -1587,3 +1668,386 @@ def setup_db(database: "GidSqliteApswDatabase"):
         with database:
             x.execute()
     sleep(0.5)
+    mod_set_data = [
+        {
+            'mod_names': [
+                'advanced combat environment',
+                'community base addons',
+                'enhanced movement',
+                'gruppe adler trenches',
+                'rhs: armed forces of the russian federation',
+                'rhs: gref',
+                'rhs: serbian armed forces',
+                'rhs: united states forces',
+                'tfar',
+                'vet_unflipping',
+                'zeus enhanced',
+            ],
+            'name': 'RHS',
+        },
+        {
+            'mod_names': [
+                '3cb: baf equipment',
+                '3cb: baf units',
+                '3cb: baf vehicles',
+                '3cb: baf weapons',
+                'advanced combat environment',
+                'community base addons',
+                'enhanced movement',
+                'gruppe adler trenches',
+                'rhs: armed forces of the russian federation',
+                'rhs: gref',
+                'rhs: serbian armed forces',
+                'rhs: united states forces',
+                'rksl attachments pack',
+                'tfar',
+                'vet_unflipping',
+                'zeus enhanced',
+            ],
+            'name': '3CB BAF',
+        },
+        {
+            'mod_names': [
+                'advanced combat environment',
+                'community base addons',
+                'cup terrains - core',
+                'cup terrains - maps',
+                'enhanced movement',
+                'gruppe adler trenches',
+                'rhs: armed forces of the russian federation',
+                'rhs: gref',
+                'rhs: serbian armed forces',
+                'rhs: united states forces',
+                'tfar',
+                'vet_unflipping',
+                'zeus enhanced',
+            ],
+            'name': 'RHS CUP',
+        },
+        {
+            'mod_names': [
+                'advanced combat environment',
+                'community base addons',
+                'enhanced movement',
+                'gruppe adler trenches',
+                'tfar',
+                'vet_unflipping',
+                'zeus enhanced',
+            ],
+            'name': 'Vanilla',
+        },
+        {
+            'mod_names': [
+                '3cb factions',
+                '3cb: baf equipment',
+                '3cb: baf units',
+                '3cb: baf vehicles',
+                '3cb: baf weapons',
+                'advanced combat environment',
+                'community base addons',
+                'enhanced movement',
+                'gruppe adler trenches',
+                'rhs: armed forces of the russian federation',
+                'rhs: gref',
+                'rhs: serbian armed forces',
+                'rhs: united states forces',
+                'rksl attachments pack',
+                'tfar',
+                'vet_unflipping',
+                'zeus enhanced',
+            ],
+            'name': '3CB Combo',
+        },
+        {
+            'mod_names': [
+                'advanced combat environment',
+                'community base addons',
+                'cup terrains - core',
+                'enhanced movement',
+                'gruppe adler trenches',
+                'rhs: armed forces of the russian federation',
+                'rhs: gref',
+                'rhs: serbian armed forces',
+                'rhs: united states forces',
+                'tfar',
+                'vet_unflipping',
+                'zeus enhanced',
+            ],
+            'name': 'RHS Anizay',
+        },
+        {
+            'mod_names': [
+                '3cb: baf equipment',
+                '3cb: baf units',
+                '3cb: baf vehicles',
+                '3cb: baf weapons',
+                'advanced combat environment',
+                'community base addons',
+                'cup terrains - core',
+                'cup terrains - maps',
+                'enhanced movement',
+                'gruppe adler trenches',
+                'rhs: armed forces of the russian federation',
+                'rhs: gref',
+                'rhs: serbian armed forces',
+                'rhs: united states forces',
+                'rksl attachments pack',
+                'tfar',
+                'vet_unflipping',
+                'zeus enhanced',
+            ],
+            'name': '3CB BAF CUP',
+        },
+        {
+            'mod_names': [
+                'advanced combat environment',
+                'community base addons',
+                'cup terrains - core',
+                'cup terrains - maps',
+                'enhanced movement',
+                'gruppe adler trenches',
+                'tfar',
+                'vet_unflipping',
+                'zeus enhanced',
+            ],
+            'name': 'Vanilla CUP',
+        },
+        {
+            'mod_names': [
+                '3cb factions',
+                'advanced combat environment',
+                'community base addons',
+                'enhanced movement',
+                'gruppe adler trenches',
+                'rhs: armed forces of the russian federation',
+                'rhs: gref',
+                'rhs: serbian armed forces',
+                'rhs: united states forces',
+                'tfar',
+                'vet_unflipping',
+                'zeus enhanced',
+            ],
+            'name': '3CB Factions',
+        },
+        {
+            'mod_names': [
+                '3cb factions',
+                '3cb: baf equipment',
+                '3cb: baf units',
+                '3cb: baf vehicles',
+                '3cb: baf weapons',
+                'advanced combat environment',
+                'community base addons',
+                'cup terrains - core',
+                'cup terrains - maps',
+                'enhanced movement',
+                'gruppe adler trenches',
+                'rhs: armed forces of the russian federation',
+                'rhs: gref',
+                'rhs: serbian armed forces',
+                'rhs: united states forces',
+                'rksl attachments pack',
+                'tfar',
+                'vet_unflipping',
+                'zeus enhanced',
+            ],
+            'name': '3CB Combo CUP',
+        },
+        {
+            'mod_names': [
+                'advanced combat environment',
+                'community base addons',
+                'cup terrains - core',
+                'enhanced movement',
+                'gruppe adler trenches',
+                'rhs: armed forces of the russian federation',
+                'rhs: gref',
+                'rhs: serbian armed forces',
+                'rhs: united states forces',
+                'tfar',
+                'vet_unflipping',
+                'virolahti',
+                'zeus enhanced',
+            ],
+            'name': 'RHS Virolahti',
+        },
+        {
+            'mod_names': [
+                '3cb: baf equipment',
+                '3cb: baf units',
+                '3cb: baf vehicles',
+                '3cb: baf weapons',
+                'advanced combat environment',
+                'community base addons',
+                'cup terrains - core',
+                'enhanced movement',
+                'gruppe adler trenches',
+                'rhs: armed forces of the russian federation',
+                'rhs: gref',
+                'rhs: serbian armed forces',
+                'rhs: united states forces',
+                'rksl attachments pack',
+                'tfar',
+                'vet_unflipping',
+                'zeus enhanced',
+            ],
+            'name': '3CB BAF Anizay',
+        },
+        {
+            'mod_names': [
+                'advanced combat environment',
+                'community base addons',
+                'cup terrains - core',
+                'enhanced movement',
+                'gruppe adler trenches',
+                'tfar',
+                'vet_unflipping',
+                'zeus enhanced',
+            ],
+            'name': 'Vanilla Anizay',
+        },
+        {
+            'mod_names': [
+                '3cb factions',
+                '3cb: baf equipment',
+                '3cb: baf units',
+                '3cb: baf vehicles',
+                '3cb: baf weapons',
+                'advanced combat environment',
+                'community base addons',
+                'cup terrains - core',
+                'enhanced movement',
+                'gruppe adler trenches',
+                'rhs: armed forces of the russian federation',
+                'rhs: gref',
+                'rhs: serbian armed forces',
+                'rhs: united states forces',
+                'rksl attachments pack',
+                'tfar',
+                'vet_unflipping',
+                'zeus enhanced',
+            ],
+            'name': '3CB Combo Anizay',
+        },
+        {
+            'mod_names': [
+                '3cb: baf equipment',
+                '3cb: baf units',
+                '3cb: baf vehicles',
+                '3cb: baf weapons',
+                'advanced combat environment',
+                'community base addons',
+                'cup terrains - core',
+                'enhanced movement',
+                'gruppe adler trenches',
+                'rhs: armed forces of the russian federation',
+                'rhs: gref',
+                'rhs: serbian armed forces',
+                'rhs: united states forces',
+                'rksl attachments pack',
+                'tfar',
+                'vet_unflipping',
+                'virolahti',
+                'zeus enhanced',
+            ],
+            'name': '3CB BAF Virolahti',
+        },
+        {
+            'mod_names': [
+                'advanced combat environment',
+                'community base addons',
+                'cup terrains - core',
+                'enhanced movement',
+                'gruppe adler trenches',
+                'tfar',
+                'vet_unflipping',
+                'virolahti',
+                'zeus enhanced',
+            ],
+            'name': 'Vanilla Virolahti',
+        },
+        {
+            'mod_names': [
+                '3cb factions',
+                'advanced combat environment',
+                'community base addons',
+                'cup terrains - core',
+                'cup terrains - maps',
+                'enhanced movement',
+                'gruppe adler trenches',
+                'rhs: armed forces of the russian federation',
+                'rhs: gref',
+                'rhs: serbian armed forces',
+                'rhs: united states forces',
+                'tfar',
+                'vet_unflipping',
+                'zeus enhanced',
+            ],
+            'name': '3CB Factions + CUP',
+        },
+        {
+            'mod_names': [
+                '3cb factions',
+                '3cb: baf equipment',
+                '3cb: baf units',
+                '3cb: baf vehicles',
+                '3cb: baf weapons',
+                'advanced combat environment',
+                'community base addons',
+                'cup terrains - core',
+                'enhanced movement',
+                'gruppe adler trenches',
+                'rhs: armed forces of the russian federation',
+                'rhs: gref',
+                'rhs: serbian armed forces',
+                'rhs: united states forces',
+                'rksl attachments pack',
+                'tfar',
+                'vet_unflipping',
+                'virolahti',
+                'zeus enhanced',
+            ],
+            'name': '3CB Combo Virolahti',
+        },
+        {
+            'mod_names': [
+                '3cb factions',
+                'advanced combat environment',
+                'community base addons',
+                'cup terrains - core',
+                'cup terrains - maps',
+                'enhanced movement',
+                'gruppe adler trenches',
+                'rhs: armed forces of the russian federation',
+                'rhs: gref',
+                'rhs: serbian armed forces',
+                'rhs: united states forces',
+                'tfar',
+                'vet_unflipping',
+                'zeus enhanced',
+            ],
+            'name': '3CB Factions + Anizay',
+        },
+        {
+            'mod_names': [
+                '3cb factions',
+                'advanced combat environment',
+                'community base addons',
+                'cup terrains - core',
+                'enhanced movement',
+                'gruppe adler trenches',
+                'rhs: armed forces of the russian federation',
+                'rhs: gref',
+                'rhs: serbian armed forces',
+                'rhs: united states forces',
+                'tfar',
+                'vet_unflipping',
+                'virolahti',
+                'zeus enhanced',
+            ],
+            'name': '3CB Factions + Virolahti',
+        },
+    ]
+
+    with database:
+        ModSet.insert_many(mod_set_data).on_conflict_ignore().execute()

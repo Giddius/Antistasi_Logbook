@@ -23,7 +23,7 @@ from gidapptools.general_helper.string_helper import StringCase, StringCaseConve
 from gidapptools.gidapptools_qt.basics.menu_bar import BaseMenuBar
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.storage.models.models import Mod, GameMap, Version, LogLevel, BaseModel, RecordClass, ArmaFunction, RecordOrigin, RemoteStorage, ArmaFunctionAuthorPrefix
+from antistasi_logbook.storage.models.models import Mod, GameMap, Version, LogLevel, BaseModel, RecordClass, ArmaFunction, RecordOrigin, RemoteStorage, ArmaFunctionAuthorPrefix, ModSet
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
@@ -184,6 +184,7 @@ class LogbookMenuBar(BaseMenuBar):
         self.show_log_level_action = self.add_action(self.data_menu, DataMenuAction(LogLevel, self.data_menu))
         self.show_remote_storage_action = self.add_action(self.data_menu, DataMenuAction(RemoteStorage, self.data_menu))
         self.show_record_classes_action = self.add_action(self.data_menu, DataMenuAction(RecordClass, self.data_menu))
+        self.show_mod_sets_action = self.add_action(self.data_menu, DataMenuAction(ModSet, self.data_menu))
 
         self.data_menu_actions_group = DataMenuActionGroup(self.data_menu)
         self.data_menu_actions_group.add_action(self.show_game_maps_action)
@@ -195,6 +196,7 @@ class LogbookMenuBar(BaseMenuBar):
         self.data_menu_actions_group.add_action(self.show_log_level_action)
         self.data_menu_actions_group.add_action(self.show_remote_storage_action)
         self.data_menu_actions_group.add_action(self.show_record_classes_action)
+        self.data_menu_actions_group.add_action(self.show_mod_sets_action)
 # region[Main_Exec]
 
 

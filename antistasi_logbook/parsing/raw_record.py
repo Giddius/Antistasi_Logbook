@@ -18,6 +18,7 @@ from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_glo
 from antistasi_logbook.storage.models.models import LogFile, LogRecord, RecordOrigin, BaseModel
 import attr
 from gidapptools.general_helper.string_helper import string_strip
+
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.parsing.parser import RecordLine, RecordClass
@@ -82,6 +83,11 @@ class RawRecord:
     @property
     def recorded_at(self) -> Optional[datetime]:
         return self.parsed_data.get("recorded_at")
+
+    def remove_content(self, content_to_remove: str) -> "RawRecord":
+        remove_lines = content_to_remove.splitlines()
+        new_lines = [l for l in self.lines if l.content not in remove_lines]
+        return self.__class__(lines=new_lines)
 
     @property
     def unformatted_content(self) -> str:

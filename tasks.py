@@ -684,22 +684,22 @@ def build_onedir(c):
     activator_run(c, f"{str(pyinstaller_script)} {str(spec_file)}")
 
 
-from gidapptools.gid_scribe.markdown.document import MarkdownDocument, MarkdownHeadline, MarkdownImage, MarkdownCodeBlock, MarkdownRawText, MarkdownSimpleList
+# from gidapptools.gid_scribe.markdown.document import MarkdownDocument, MarkdownHeadline, MarkdownImage, MarkdownCodeBlock, MarkdownRawText, MarkdownSimpleList
 from gidapptools.general_helper.string_helper import StringCaseConverter, StringCase
 
 
-@task()
-def make_readme(c):
-    project: Project = c.project
-    top_headline = project.general_project_data["name"]
-    top_headline = StringCaseConverter.convert_to(top_headline, StringCase.TITLE)
-    top_image = THIS_FILE_DIR.joinpath("docs", "images", "app_icon.png")
-    readme_document = MarkdownDocument(THIS_FILE_DIR.joinpath("README.md"), top_headline=top_headline, top_image=top_image)
-    fact_list = MarkdownSimpleList(ordered=False)
-    fact_list.add_entry(f"**__Version:__** `{project.version!s}`")
+# @task()
+# def make_readme(c):
+#     project: Project = c.project
+#     top_headline = project.general_project_data["name"]
+#     top_headline = StringCaseConverter.convert_to(top_headline, StringCase.TITLE)
+#     top_image = THIS_FILE_DIR.joinpath("docs", "images", "app_icon.png")
+#     readme_document = MarkdownDocument(THIS_FILE_DIR.joinpath("README.md"), top_headline=top_headline, top_image=top_image)
+#     fact_list = MarkdownSimpleList(ordered=False)
+#     fact_list.add_entry(f"**__Version:__** `{project.version!s}`")
 
-    readme_document.add_part(fact_list)
-    readme_document.to_file()
+#     readme_document.add_part(fact_list)
+#     readme_document.to_file()
 
 
 @task()

@@ -459,7 +459,7 @@ class PathValueField(QWidget):
         self.base_dir = base_dir
         self.for_file = for_file
         self.default_file_name = default_file_name
-        self.file_extension = file_extension
+        self.file_extension = file_extension or ".*"
         self.path_part: QLineEdit = None
         self.button: QPushButton = None
         self.setup_parts()

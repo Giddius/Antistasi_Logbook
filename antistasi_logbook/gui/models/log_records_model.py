@@ -28,11 +28,11 @@ from gidapptools.general_helper.color.color_item import Color
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.misc import CustomRole
 from antistasi_logbook.records.enums import MessageFormat
-from antistasi_logbook.storage.models.models import LogRecord, RecordClass
+from antistasi_logbook.storage.models.models import LogRecord, RecordClass, LogFile
 from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE, BaseQueryDataModel
 from antistasi_logbook.gui.models.proxy_models.base_proxy_model import BaseProxyModel
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.records.base_record import BaseRecord
@@ -53,7 +53,7 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
@@ -121,7 +121,7 @@ class LogRecordsModel(BaseQueryDataModel):
 
     def get_query(self) -> "Query":
 
-        query = LogRecord.select()
+        query = LogRecord.select().join_from(LogRecord, LogFile)
         if self._base_filter_item is not None:
             query = query.where(self._base_filter_item)
         if self.filter_item is not None:
@@ -213,8 +213,8 @@ class LogRecordsModel(BaseQueryDataModel):
 
             self.content_items.append(record_item)
             num_collected += 1
-            if num_collected % 10_000 == 0:
-                sleep(0.0)
+            if num_collected % 1_000 == 0:
+                sleep(0.0001)
         log.debug("finished getting content for %r", self)
 
         return self
@@ -223,7 +223,7 @@ class LogRecordsModel(BaseQueryDataModel):
         self.request_view_change_visibility.emit(False)
 
         self.beginResetModel()
-        with self.database:
+        with self.database.connection_context() as ctx:
             self.get_columns().get_content()
         self.endResetModel()
         self.request_view_change_visibility.emit(True)

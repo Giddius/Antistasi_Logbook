@@ -16,12 +16,13 @@ import sys
 from gidapptools import get_logger
 from gidapptools.meta_data import get_meta_info, get_meta_paths
 from gidapptools.meta_data.interface import get_meta_config
+from gidapptools.general_helper.meta_helper.single_running_instance import SingleRunningInstanceRestrictor
 
 # * Local Imports --------------------------------------------------------------------------------------->
 
 from antistasi_logbook.gui.main_window import start_gui
-import click
-from collections import namedtuple
+
+
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
@@ -53,7 +54,9 @@ log = get_logger(__name__)
 
 
 def main():
-    start_gui()
+    with SingleRunningInstanceRestrictor(storage_folder=META_PATHS.data_dir, app_name=META_INFO.app_name):
+        exit_code = start_gui()
+    sys.exit(exit_code)
 
 
 # region[Main_Exec]

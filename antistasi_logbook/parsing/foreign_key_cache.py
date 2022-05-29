@@ -133,7 +133,9 @@ class ForeignKeyCache:
 
         if self._all_arma_file_objects is None:
             self.arma_file_model_blocker.wait()
-            self._all_arma_file_objects = frozendict({(antistasi_file.name, antistasi_file.author_prefix.name): antistasi_file for antistasi_file in self.database.get_all_arma_functions()})
+            log.info("refreshing 'all_arma_file_objects'.")
+            with self.database.connection_context() as ctx:
+                self._all_arma_file_objects = frozendict({(antistasi_file.name, antistasi_file.author_prefix.name): antistasi_file for antistasi_file in self.database.get_all_arma_functions()})
 
         return self._all_arma_file_objects
 
@@ -168,7 +170,10 @@ class ForeignKeyCache:
         if self._all_arma_file_objects_by_id is None:
 
             self.arma_file_model_blocker.wait()
-            self._all_arma_file_objects_by_id = frozendict({antistasi_file.id: antistasi_file for antistasi_file in self.database.get_all_arma_functions()})
+            log.info("refreshing '_all_arma_file_objects_by_id'.")
+            with self.database.connection_context() as ctx:
+
+                self._all_arma_file_objects_by_id = frozendict({antistasi_file.id: antistasi_file for antistasi_file in self.database.get_all_arma_functions()})
 
         return self._all_arma_file_objects_by_id
 
@@ -216,26 +221,26 @@ class ForeignKeyCache:
     def get_log_level_by_id(self, model_id: int) -> Optional[LogLevel]:
         if model_id is None:
             return
-        log_level = self.all_log_levels_by_id.get(model_id)
-        if log_level is None:
-            log_level = LogLevel.select().where(LogLevel.id == model_id).execute(self.database)[0]
-        return log_level
+        try:
+            return self.all_log_levels_by_id[model_id]
+        except KeyError:
+            return LogLevel.select().where(LogLevel.id == model_id).execute(self.database)[0]
 
     def get_arma_file_by_id(self, model_id: int) -> Optional[ArmaFunction]:
         if model_id is None:
             return
-        arma_file = self.all_arma_file_objects_by_id.get(model_id)
-        if arma_file is None:
-            arma_file = ArmaFunction.select().where(ArmaFunction.id == model_id).execute(self.database)[0]
-        return arma_file
+        try:
+            return self.all_arma_file_objects_by_id[model_id]
+        except KeyError:
+            return ArmaFunction.select().where(ArmaFunction.id == model_id).execute(self.database)[0]
 
     def get_game_map_by_id(self, model_id: int) -> Optional[GameMap]:
         if model_id is None:
             return
-        game_map = self.all_game_map_objects_by_id.get(model_id)
-        if game_map is None:
-            game_map = GameMap.select().where(GameMap.id == model_id).execute(self.database)[0]
-        return game_map
+        try:
+            return self.all_game_map_objects_by_id[model_id]
+        except KeyError:
+            return GameMap.select().where(GameMap.id == model_id).execute(self.database)[0]
 
     def get_game_map_case_insensitive(self, name: str) -> Optional[GameMap]:
         if name is None:
@@ -245,18 +250,18 @@ class ForeignKeyCache:
     def get_origin_by_id(self, model_id: int) -> Optional[RecordOrigin]:
         if model_id is None:
             return
-        origin = self.all_origin_objects_by_id.get(model_id)
-        if origin is None:
-            origin = RecordOrigin.select().where(RecordOrigin.id == model_id).execute(self.database)[0]
-        return origin
+        try:
+            return self.all_origin_objects_by_id[model_id]
+        except KeyError:
+            return RecordOrigin.select().where(RecordOrigin.id == model_id).execute(self.database)[0]
 
     def get_version_by_id(self, model_id: int) -> Optional[Version]:
         if model_id is None:
             return
-        version = self.all_version_objects_by_id.get(model_id)
-        if version is None:
-            version = Version.select().where(Version.id == model_id).execute(self.database)[0]
-        return version
+        try:
+            return self.all_version_objects_by_id[model_id]
+        except KeyError:
+            return Version.select().where(Version.id == model_id).execute(self.database)[0]
 
     def reset_all(self) -> None:
         """

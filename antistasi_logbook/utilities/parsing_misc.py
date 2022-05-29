@@ -10,13 +10,14 @@ Soon.
 from pprint import pprint
 from typing import Any
 from pathlib import Path
-
+from functools import cache
 # * Third Party Imports --------------------------------------------------------------------------------->
 import pyparsing as pp
 from pyparsing import pyparsing_common as ppc
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 from gidapptools.general_helper.enums import MiscEnum
 
 # endregion[Imports]
@@ -32,7 +33,7 @@ from gidapptools.general_helper.enums import MiscEnum
 # endregion[Logging]
 
 # region [Constants]
-
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
@@ -72,16 +73,19 @@ def get_array_grammar():
     return array
 
 
+ARRAY_GRAMMAR = get_array_grammar()
+
+
 def parse_text_array(in_text: str) -> list[list[Any]]:
     try:
-        return get_array_grammar().parse_string(in_text, parse_all=True).as_list()[0]
+        return ARRAY_GRAMMAR.parse_string(in_text, parse_all=True).as_list()[0]
     except pp.ParseException as e:
         log.error(e, exc_info=1, extra={"in_text": in_text}, stacklevel=3)
         log.critical("%r was caused by %r", e, in_text)
         return MiscEnum.ERROR
+
+
 # region[Main_Exec]
-
-
 if __name__ == '__main__':
     x = '''[["CUP_arifle_ACRC_EGLM_blk_556","CUP_muzzle_snds_M16","CUP_acc_ANPEQ_15_Black","CUP_optic_1P87_RIS",["CUP_30Rnd_556x45_PMAG_QP",30],["CUP_1Rnd_HE_M203",1],""],[],[],[],[],[],"","",[],["","","","","",""]]'''
     pprint(parse_text_array(x))

@@ -414,7 +414,8 @@ class SettingsWindow(QWidget):
                 if field.value_field.value_is_changed():
                     self.general_config.set(sect_name, field.name, field.value_field.get_value())
                     if sect_name == "updating" and field.name == "update_interval":
-                        self.main_window.start_update_timer()
+                        if self.main_window.cyclic_update_running is True:
+                            self.main_window.start_update_timer()
         # self.general_config.config.save()
         self.general_config.config.auto_write = old_auto_write
 

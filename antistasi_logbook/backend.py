@@ -146,7 +146,7 @@ class Backend:
         self.database.backend = self
         self.update_signaler = update_signaler
 
-        self.record_class_manager = RecordClassManager(foreign_key_cache=self.foreign_key_cache)
+        self.record_class_manager = RecordClassManager(backend=self, foreign_key_cache=self.foreign_key_cache)
 
         self.time_clock = TimeClock(config=self.config, stop_event=self.events.stop)
         self.remote_manager_registry = remote_manager_registry
@@ -198,7 +198,7 @@ class Backend:
             ThreadPoolExecutor: [description]
         """
         if self._thread_pool is None:
-            self._thread_pool = ThreadPoolExecutor(max_workers=max(1, int(self.max_threads * 0.34)), thread_name_prefix="backend")
+            self._thread_pool = ThreadPoolExecutor(max_workers=max(1, int(self.max_threads * 0.34)), thread_name_prefix="backend", initializer=self.database.connect, initargs=(True,))
         return self._thread_pool
 
     @property
@@ -216,7 +216,7 @@ class Backend:
             ThreadPoolExecutor: [description]
         """
         if self._inserting_thread_pool is None:
-            self._inserting_thread_pool = ThreadPoolExecutor(max_workers=max(1, int(self.max_threads * 0.67)), thread_name_prefix="backend_inserting")
+            self._inserting_thread_pool = ThreadPoolExecutor(max_workers=max(1, int(self.max_threads * 0.67)), thread_name_prefix="backend_inserting", initializer=self.database.connect, initargs=(True,))
         return self._inserting_thread_pool
 
     @property

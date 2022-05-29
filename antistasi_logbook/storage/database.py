@@ -13,14 +13,18 @@ from typing import TYPE_CHECKING, Union, Protocol, Generator
 from pathlib import Path
 from weakref import WeakSet
 from functools import cached_property
-from threading import Lock, current_thread
+from time import perf_counter
+from threading import Lock, current_thread, RLock
 from time import sleep
 from concurrent.futures import Future, ThreadPoolExecutor, wait, FIRST_COMPLETED
+# from more_itertools import chunked
 # * Third Party Imports --------------------------------------------------------------------------------->
+
 from apsw import SQLITE_OK, SQLITE_CHECKPOINT_TRUNCATE, Connection
 from peewee import JOIN, DatabaseProxy, chunked
 from playhouse.apsw_ext import APSWDatabase
-
+from apsw import ThreadingViolationError
+import apsw
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.meta_data.interface import MetaPaths, get_meta_info, get_meta_paths, get_meta_config
@@ -70,7 +74,7 @@ log = get_logger(__name__)
 DEFAULT_DB_NAME = "storage.db"
 
 DEFAULT_PRAGMAS = frozendict({
-    "cache_size": -1 * 64_000,
+    "cache_size": -1 * 128_000,
     "journal_mode": 'wal',
     "synchronous": 0,
     "ignore_check_constraints": 0,
@@ -78,9 +82,10 @@ DEFAULT_PRAGMAS = frozendict({
     "temp_store": "MEMORY",
     "mmap_size": 268_435_456 * 2,
     "journal_size_limit": human2bytes("500mb"),
-    "wal_autocheckpoint": 1_000_000,
+    "wal_autocheckpoint": 1_000_000 // 2,
     "page_size": 32_768 * 2,
-    "analysis_limit": 100_000
+    "analysis_limit": 100_000_000,
+    "case_sensitive_like": False
 })
 
 
@@ -127,16 +132,21 @@ class GidSqliteDatabase(Protocol):
 
 
 def wal_hook(conn, db_name, pages):
-    log.debug('<<SQL-WAL>> {"db_name": "%s", "pages": %r, "conn": "%s"}', db_name, pages, conn)
+    log.info('<<SQL-WAL>> {"db_name": "%s", "pages": %r, "conn": "%s"}', db_name, pages, conn)
     return SQLITE_OK
 
 
 def rollback_hook():
-    log.debug("<<SQL-ROLLBACK>> Rollback-Hook was called")
+    log.critical("<<SQL-ROLLBACK>> Rollback-Hook was called")
 
 
 def profile_hook(stmt, time_taken):
     log.debug('<<SQL-PROFILING>> {"statement":"%s", "time":%r}', stmt, ns_to_s(time_taken, 6))
+
+
+def update_hook(typus: int, database_name: str, table_name: str, row_id: int):
+    typus = apsw.mapping_authorizer_function[typus]
+    log.debug('<<SQL-UPDATE>> {"typus": %r, "database_name": %r, "table_name": %r, "row_id": %r', typus, database_name, table_name, row_id)
 
 
 class GidSqliteApswDatabase(APSWDatabase):
@@ -169,7 +179,7 @@ class GidSqliteApswDatabase(APSWDatabase):
         super().__init__(make_db_path(self.database_path), thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, timeout=100, statementcachesize=100, ** extensions)
 
         self.foreign_key_cache: "ForeignKeyCache" = ForeignKeyCache(database=self)
-        self.write_lock = Lock()
+        self.write_lock = RLock()
         self.record_processor: "RecordProcessor" = None
         self.record_inserter: "RecordInserter" = None
         self.backend: "Backend" = None
@@ -192,7 +202,7 @@ class GidSqliteApswDatabase(APSWDatabase):
     def base_record_id(self) -> int:
         return RecordClass.select().where(RecordClass.name == "BaseRecord").scalar()
 
-    def _add_conn_hooks(self, conn):
+    def _add_conn_hooks(self, conn: apsw.Connection):
         self.conns.add(conn)
 
         if self.config.get("database", "log_connection_creation") is True:
@@ -207,6 +217,7 @@ class GidSqliteApswDatabase(APSWDatabase):
             conn.setprofile(profile_hook)
             conn.setwalhook(wal_hook)
             conn.setrollbackhook(rollback_hook)
+            conn.setupdatehook(update_hook)
         super()._add_conn_hooks(conn)
 
     def _close(self, conn):
@@ -226,11 +237,12 @@ class GidSqliteApswDatabase(APSWDatabase):
 
     def checkpoint(self, mode=SQLITE_CHECKPOINT_TRUNCATE):
         with self.write_lock:
+            time_start = perf_counter()
             self.connect(True)
             conn = self.connection()
             result = conn.wal_checkpoint(mode=mode)
-            log.info("checkpoint wal with return: %r", result)
-            self.close()
+            time_taken = perf_counter() - time_start
+            log.info("checkpoint wal with return: %r, time taken: %rs", result, round(time_taken, 3))
 
     def start_up(self,
                  overwrite: bool = False,
@@ -263,18 +275,21 @@ class GidSqliteApswDatabase(APSWDatabase):
 
     def optimize(self) -> "GidSqliteApswDatabase":
         log.info("optimizing %r", self)
-        # with self.write_lock:
-        result = self.pragma("OPTIMIZE")
-
-        log.info("finished optimizing %r, result: %r", self, result)
+        with self.write_lock:
+            time_start = perf_counter()
+            result = self.pragma("OPTIMIZE")
+            time_taken = perf_counter() - time_start
+        log.info("finished optimizing %r, result: %r, time taken: %rs", self, result, round(time_taken, 3))
         return self
 
     def vacuum(self) -> "GidSqliteApswDatabase":
-        log.info("vacuuming %r", self)
         with self.write_lock:
-            result = self.execute_sql("VACUUM;")
-            self.checkpoint()
-        log.info("finished vacuuming %r, result: %r", self, result)
+            log.info("vacuuming %r", self)
+            time_start = perf_counter()
+            result: apsw.Cursor = self.execute_sql("VACUUM;")
+            time_taken = perf_counter() - time_start
+
+        log.info("finished vacuuming %r, result: %r, time taken: %rs", self, result.getconnection().totalchanges(), round(time_taken, 3))
         return self
 
     def shutdown(self, error: BaseException = None) -> None:
@@ -287,8 +302,12 @@ class GidSqliteApswDatabase(APSWDatabase):
             self.checkpoint()
             with self.write_lock:
                 for conn in self.conns:
-                    conn.close()
-
+                    try:
+                        log.debug("Trying to close connection %r", conn)
+                        conn.close()
+                        del conn
+                    except ThreadingViolationError as e:
+                        log.critical("encountered error %e  while closing connection %r", e, conn)
         self.started_up = False
         log.debug("finished shutting down %r", self)
 
@@ -340,29 +359,53 @@ class GidSqliteApswDatabase(APSWDatabase):
         return result
 
     def iter_all_records(self, server: Server = None, log_file: LogFile = None, only_missing_record_class: bool = False) -> Generator[LogRecord, None, None]:
+        with self.connection_context() as ctx:
 
-        foreign_key_cache = ForeignKeyCache(self)
-        foreign_key_cache.preload_all()
+            foreign_key_cache = ForeignKeyCache(self)
+            foreign_key_cache.preload_all()
 
-        if log_file is not None:
-            log_files = [log_file]
-        elif server is not None:
-            log_files = LogFile.select().where((LogFile.server_id == server.id) & (LogFile.unparsable == False))
-        else:
-            log_files = LogFile.select().where(LogFile.unparsable == False)
+            if log_file is not None:
+                log_files = LogFile.select(LogFile.id).where(LogFile.id == log_file.id)
+            elif server is not None:
+                log_files = LogFile.select(LogFile.id).where((LogFile.server_id == server.id) & (LogFile.unparsable == False))
+            else:
+                log_files = LogFile.select(LogFile.id).where(LogFile.unparsable == False)
 
-        query = LogRecord.select(LogRecord).where(LogRecord.log_file << log_files)
+            query = LogRecord.select(LogRecord)
 
-        if only_missing_record_class is True:
-            query = query.where(LogRecord.record_class_id >> None)
+            if only_missing_record_class is True:
+                query = query.where(LogRecord.record_class_id >> None)
 
-        for record in query.iterator():
-            record.origin = foreign_key_cache.get_origin_by_id(record.origin_id)
-            record.called_by = foreign_key_cache.get_arma_file_by_id(record.called_by_id)
-            record.logged_from = foreign_key_cache.get_arma_file_by_id(record.logged_from_id)
-            record.origin = foreign_key_cache.get_origin_by_id(record.origin_id)
+            def _get_records(in_log_file_id: int):
+                sub_query = query.where(LogRecord.log_file_id == in_log_file_id)
+                for _record in sub_query.iterator():
+                    yield _record
 
-            yield record
+            for log_file_id in log_files.iterator():
+                sub_query = query.where(LogRecord.log_file_id == log_file_id)
+                for record in sub_query.iterator():
+                    record.origin = foreign_key_cache.get_origin_by_id(record.origin_id)
+                    record.called_by = foreign_key_cache.get_arma_file_by_id(record.called_by_id)
+                    record.logged_from = foreign_key_cache.get_arma_file_by_id(record.logged_from_id)
+                    record.origin = foreign_key_cache.get_origin_by_id(record.origin_id)
+
+                    yield record
+
+    def get_amount_iter_all_records(self, server: Server = None, log_file: LogFile = None, only_missing_record_class: bool = False) -> int:
+        with self.connection_context() as ctx:
+            if log_file is not None:
+                log_files = [log_file]
+            elif server is not None:
+                log_files = LogFile.select(LogFile.id).where((LogFile.server_id == server.id) & (LogFile.unparsable == False))
+            else:
+                log_files = LogFile.select(LogFile.id).where(LogFile.unparsable == False)
+
+            query = LogRecord.select(LogRecord).where(LogRecord.log_file << log_files)
+
+            if only_missing_record_class is True:
+                query = query.where(LogRecord.record_class_id >> None)
+
+            return query.count()
 
     def get_unique_server_ips(self) -> tuple[str]:
 

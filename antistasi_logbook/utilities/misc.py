@@ -1,13 +1,14 @@
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import re
 from json import JSONEncoder
-from typing import Any, Union, Literal, Callable, ClassVar, Optional, Generator
+from typing import Any, Union, Literal, Callable, ClassVar, Optional, Generator, TypeVar
 from pathlib import Path
 from datetime import datetime, timedelta
 from functools import total_ordering
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
+from collections.abc import Iterator
 from rich import inspect as rinspect
 from yarl import URL
 from peewee import Field
@@ -273,4 +274,4 @@ def column_sort_default_factory(in_colum: "Field"):
 
 
 if __name__ == '__main__':
-    pass
+    pas

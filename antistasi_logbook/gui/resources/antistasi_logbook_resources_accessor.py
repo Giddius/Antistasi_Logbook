@@ -65,7 +65,7 @@ ERROR_SYMBOL_IMAGE = ressource_item_factory(file_path='error_symbol.svg', qt_pat
 
 CLOSE_BLACK_IMAGE = ressource_item_factory(file_path='close_black.svg', qt_path=':/images/close_black.svg')
 
-PLACEHOLDER_IMAGE = ressource_item_factory(file_path='placeholder.png', qt_path=':/images/placeholder.png')
+VIEW_IMAGE = ressource_item_factory(file_path='view.svg', qt_path=':/images/view.svg')
 
 ANTISTASI_LOGBOOK_SPLASH_BACKUP_IMAGE = ressource_item_factory(file_path='antistasi_logbook_splash_backup.png', qt_path=':/images/antistasi_logbook_splash_backup.png')
 
@@ -74,6 +74,8 @@ ANTISTASI_LOGBOOK_SPLASH_STARTING_BACKEND_IMAGE = ressource_item_factory(file_pa
 WARNING_SIGN_ROUND_YELLOW_IMAGE = ressource_item_factory(file_path='warning_sign_round_yellow.svg', qt_path=':/images/warning_sign_round_yellow.svg')
 
 UNMARK_IMAGE = ressource_item_factory(file_path='unmark.png', qt_path=':/images/unmark.png')
+
+PLACEHOLDER_IMAGE = ressource_item_factory(file_path='placeholder.png', qt_path=':/images/placeholder.png')
 
 CLOSED_EYE_IMAGE = ressource_item_factory(file_path='closed_eye.svg', qt_path=':/images/closed_eye.svg')
 
@@ -157,11 +159,12 @@ class AllResourceItems(metaclass=AllResourceItemsMeta):
     settings_window_symbol_image = SETTINGS_WINDOW_SYMBOL_IMAGE
     error_symbol_image = ERROR_SYMBOL_IMAGE
     close_black_image = CLOSE_BLACK_IMAGE
-    placeholder_image = PLACEHOLDER_IMAGE
+    view_image = VIEW_IMAGE
     antistasi_logbook_splash_backup_image = ANTISTASI_LOGBOOK_SPLASH_BACKUP_IMAGE
     antistasi_logbook_splash_starting_backend_image = ANTISTASI_LOGBOOK_SPLASH_STARTING_BACKEND_IMAGE
     warning_sign_round_yellow_image = WARNING_SIGN_ROUND_YELLOW_IMAGE
     unmark_image = UNMARK_IMAGE
+    placeholder_image = PLACEHOLDER_IMAGE
     closed_eye_image = CLOSED_EYE_IMAGE
     antistasi_logbook_splash_shutdown_backend_image = ANTISTASI_LOGBOOK_SPLASH_SHUTDOWN_BACKEND_IMAGE
     database_settings_image = DATABASE_SETTINGS_IMAGE
@@ -193,9 +196,10 @@ class AllResourceItems(metaclass=AllResourceItemsMeta):
 
     @classmethod
     def dump_missing(cls):
-        missing_items = {k: [i.rsplit('_', 1)[0] for i in v] for k, v in cls.missing_items.items()}
+        if os.getenv("FATAL_ERROR_RAISED", "0") == "0":
+            missing_items = {k: [i.rsplit('_', 1)[0] for i in v] for k, v in cls.missing_items.items()}
 
-        log.info("Missing Ressource Items:\n%s", pp.fmt(missing_items).replace("'", '"'))
+            log.info("Missing Ressource Items:\n%s", pp.fmt(missing_items).replace("'", '"'))
 
 
 if __debug__ is True:

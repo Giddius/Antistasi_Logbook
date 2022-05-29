@@ -18,7 +18,7 @@ from PySide6.QtWidgets import QHeaderView, QToolBar, QFontDialog, QWidget, QHBox
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
-from antistasi_logbook.gui.widgets.tool_bars import LogRecordToolBar
+from antistasi_logbook.gui.widgets.log_records_tool_bar import LogRecordToolBar
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.misc import CustomRole
 from antistasi_logbook.gui.views.base_query_tree_view import BaseQueryTreeView, CustomContextMenu

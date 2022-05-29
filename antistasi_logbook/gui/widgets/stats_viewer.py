@@ -20,6 +20,7 @@ from enum import Enum, auto, unique, Flag
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
 import pyqtgraph as pg
+from types import MethodType
 from PySide6 import QtCore
 from PySide6.QtGui import QPen, QFont, QColor, QAction
 from PySide6.QtCore import Qt, Slot, QSize, Signal
@@ -28,6 +29,7 @@ from PySide6.QtSvg import QSvgRenderer
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from antistasi_logbook.gui.diagram.abstract_stats_model import PerformanceStatsModel
+from gidapptools.gidapptools_qt.helper.misc import center_window
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.records.enums import MessageFormat
 
@@ -548,6 +550,7 @@ class StatsWindow(QMainWindow):
 
         self.view_box.setMouseEnabled(x=True, y=False)
         self.change_symbol_vis()
+
     #     self.view_box.sigRangeChangedManually.connect(self.on_scroll)
 
     # def on_scroll(self, *args):
@@ -740,6 +743,7 @@ class StatsWindow(QMainWindow):
 
     def show(self) -> None:
         self.app.extra_windows.add_window(self)
+        center_window(self, allow_window_resize=False)
         return super().show()
 
     def closeEvent(self, event: PySide6.QtGui.QCloseEvent) -> None:

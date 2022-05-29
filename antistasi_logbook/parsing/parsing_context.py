@@ -29,7 +29,7 @@ from collections import namedtuple
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.storage.models.models import GameMap, LogFile, Version, LogRecord
 from antistasi_logbook.parsing.raw_record import RawRecord
-
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
@@ -52,7 +52,7 @@ if TYPE_CHECKING:
 
 # region [Constants]
 
-
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]

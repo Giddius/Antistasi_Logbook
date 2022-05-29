@@ -125,11 +125,10 @@ def setup_debug_widget(debug_dock_widget: "DebugDockWidget") -> None:
                       "applicationFilePath",
                       "applicationPid",
                       "arguments",
-                      "libraryPaths"]:
+                      "libraryPaths",
+                      "isQuitLockEnabled"]:
         debug_dock_widget.add_show_attr_button(attr_name=attr_name, obj=app)
-    for i in range(len(app.get_argument_parser()._actions)):
-        debug_dock_widget.add_show_func_result_button(show_parser_argument_full_text_data, "app_argument", argument_index=i)
-    debug_dock_widget.add_show_func_result_button(show_parser_usage, "app_cli_parser_usage")
+
 
 # region[Main_Exec]
 

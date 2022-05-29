@@ -14,16 +14,17 @@ from concurrent.futures import Future
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
 from PySide6.QtGui import QIcon, QAction
-from PySide6.QtCore import Qt, Slot, QPoint, Signal, QSettings, QModelIndex, QItemSelection, QAbstractTableModel, QItemSelectionModel, QItemSelectionRange
+from PySide6.QtCore import Qt, Slot, QPoint, Signal, QSettings, QModelIndex, QItemSelection, QAbstractTableModel, QAbstractItemModel, QItemSelectionModel, QItemSelectionRange
 from PySide6.QtWidgets import QMenu, QToolBar, QTreeView, QScrollBar, QHeaderView, QApplication, QAbstractItemView
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.gui.widgets.tool_bars import BaseToolBar
+
 from antistasi_logbook.gui.views.delegates.universal_delegates import BoolImageDelegate, MarkedImageDelegate
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
@@ -46,7 +47,7 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
@@ -171,7 +172,7 @@ class BaseQueryTreeView(QTreeView):
         return self._tool_bar_item
 
     def create_tool_bar_item(self) -> QToolBar:
-        return BaseToolBar(title=self.name)
+        return QToolBar()
 
     def store_new_column_order(self, logical_index: int, old_visual_index: int, new_visual_index: int):
         column_order = self.column_order
@@ -400,13 +401,7 @@ class BaseQueryTreeView(QTreeView):
                 idx = self.model.get_column_index(column.name)
                 self.setItemDelegateForColumn(idx, BoolImageDelegate(self))
 
-    def setModel(self, model: PySide6.QtCore.QAbstractItemModel) -> None:
-        def _callback(future: Future):
-            if future.exception():
-                raise future.exception()
-            else:
-                self.reset()
-
+    def setModel(self, model: QAbstractItemModel) -> None:
         try:
             self.pre_set_model()
             super().setModel(model)

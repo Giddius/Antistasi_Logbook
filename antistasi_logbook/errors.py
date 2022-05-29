@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Callable, Optional
 from pathlib import Path
 from datetime import timezone
 from traceback import format_tb
-
+import os
 # * Third Party Imports --------------------------------------------------------------------------------->
 from webdav4.client import HTTPError, ResourceNotFound
 
@@ -101,10 +101,9 @@ class InsufficientDataPointsError(StatsError):
 EXCEPTION_HANDLER_TYPE = Callable[[BaseException], None]
 
 
-original_threading_except_hook = threading.excepthook
-
-
 class DefaultExceptionHandler:
+    original_threading_except_hook = threading.excepthook
+    original_sys_except_hook = sys.__excepthook__
 
     def __init__(self, manager: "_ExceptionHandlerManager"):
         self.manager = manager
@@ -115,11 +114,11 @@ class DefaultExceptionHandler:
 
     def handle_thread_except_hook(self, args: threading.ExceptHookArgs):
         log.error(args.exc_value, exc_info=True, stacklevel=3)
-        original_threading_except_hook(args)
+        self.original_threading_except_hook(args)
 
     def handle_except_hook(self, type_, value, traceback):
         log.error(value, exc_info=True, stacklevel=3)
-        sys.__excepthook__(type_, value, traceback)
+        self.original_sys_except_hook(type_, value, traceback)
 
 
 class MissingLoginAndPasswordHandler(DefaultExceptionHandler):
@@ -188,6 +187,7 @@ class _ExceptionHandlerManager:
         self.exception_handler_registry[exception_class] = handler
 
     def handle_exception(self, exception: BaseException) -> None:
+
         handler = self.exception_handler_registry.get(type(exception), self.default_exception_handler)
         handler.handle_exception(exception)
 
@@ -196,15 +196,20 @@ class _ExceptionHandlerManager:
             handler = self.exception_handler_registry.get(args.exc_type, self.default_exception_handler)
 
             handler.handle_thread_except_hook(args=args)
-        except Exception:
+        except Exception as e:
+            log.critical("encountered exception %r while handling thread exception(%r).", e, args)
             self.default_exception_handler.handle_thread_except_hook(args)
 
     def except_hook(self, type_, value, traceback):
-        handler = self.exception_handler_registry.get(type_, self.default_exception_handler)
-        handler.handle_except_hook(type_=type_, value=value, traceback=traceback)
+        if issubclass(type_, RuntimeError):
+            self.default_exception_handler.original_sys_except_hook(type_, value, traceback)
+        else:
+            handler = self.exception_handler_registry.get(type_, self.default_exception_handler)
+            handler.handle_except_hook(type_=type_, value=value, traceback=traceback)
 
 
 ExceptionHandlerManager = _ExceptionHandlerManager()
+
 
 threading.excepthook = ExceptionHandlerManager.thread_except_hook
 sys.excepthook = ExceptionHandlerManager.except_hook

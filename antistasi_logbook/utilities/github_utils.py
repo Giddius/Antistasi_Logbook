@@ -41,7 +41,7 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 
 # endregion[Constants]
-GITHUB_CLIENT = Github()
+GITHUB_CLIENT = Github("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")
 
 
 def url_to_identifier(in_url: str) -> str:
@@ -67,13 +67,9 @@ def get_repo_file_list(url: str, branch_name: str = None):
     file_items = {}
     for item in tree.tree:
         path = str(item.path)
-        content_item = repo.get_contents(path, ref=branch.name)
+        name = path.rsplit("/", maxsplit=1)[-1]
 
-        name = os.path.basename(path)
-        try:
-            file_items[name] = str(content_item.html_url)
-        except AttributeError:
-            continue
+        file_items[path] = name
     return file_items
 
 
@@ -81,7 +77,9 @@ print(GITHUB_CLIENT.rate_limiting_resettime)
 fi = get_repo_file_list("https://github.com/official-antistasi-community/A3-Antistasi")
 
 
-pp(fi)
+for k, v in fi.items():
+    if "CfgFunctions" in k:
+        print(f"{k!r} :{v!r}")
 # region[Main_Exec]
 
 if __name__ == '__main__':

@@ -100,6 +100,12 @@
             "default": "True",
             "implemented": true,
             "verbose_name": "Use Cat Busy-Spinner"
+        },
+        "notify_on_update_finished": {
+            "converter": "boolean",
+            "default": "False",
+            "implemented": true,
+            "verbose_name": "Send Windows Notification when update finishes"
         }
     },
     "debug": {

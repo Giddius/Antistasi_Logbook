@@ -17,7 +17,7 @@ from concurrent.futures import ThreadPoolExecutor
 from collections.abc import Iterable, Mapping
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QFont, QIcon, QColor, QScreen, QGuiApplication
-from PySide6.QtCore import Qt, QRect, QSettings
+from PySide6.QtCore import Qt, QRect, QSettings, QObject, Signal
 from PySide6.QtWidgets import QMainWindow, QMessageBox, QApplication, QSplashScreen
 
 # * Third Party Imports --------------------------------------------------------------------------------->
@@ -30,7 +30,8 @@ from gidapptools.gidapptools_qt.basics.application import WindowHolder
 from gidapptools.general_helper.string_helper import StringCase, StringCaseConverter
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-
+from antistasi_logbook.errors import ExceptionHandlerManager, MissingLoginAndPasswordError
+import psutil
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
@@ -40,6 +41,7 @@ if TYPE_CHECKING:
     from gidapptools.meta_data.meta_info import MetaInfo
 # * Third Party Imports --------------------------------------------------------------------------------->
 import pp
+
 
 # endregion[Imports]
 
@@ -279,10 +281,27 @@ class CommandLineArgDoc:
         return f"{self.__class__.__name__}(action={self.action!r})"
 
 
+class ErrorSignaler(QObject):
+    show_error_signal = Signal(str, BaseException)
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
+
 class AntistasiLogbookApplication(QApplication):
 
     def __init__(self, argvs: Iterable[str] = None):
+        self.meta_info = get_meta_info()
+        self.meta_paths = get_meta_paths()
+
         super().__init__(argvs)
+
+        self.error_signaler = ErrorSignaler()
+        ExceptionHandlerManager.signaler = self.error_signaler
         self.is_setup: bool = False
         self.is_full_gui = True
         self.icon: QIcon = None
@@ -291,8 +310,6 @@ class AntistasiLogbookApplication(QApplication):
         self.extra_windows = WindowHolder()
         self.current_splash_screen: QSplashScreen = None
         self._gui_thread_pool: ThreadPoolExecutor = None
-        self.meta_info = get_meta_info()
-        self.meta_paths = get_meta_paths()
 
         self.backend: "Backend" = None
         self.jinja_environment = None
@@ -463,8 +480,11 @@ class AntistasiLogbookApplication(QApplication):
         return self.current_splash_screen
 
     def quit(self):
-        self.on_quit()
-        super().quit()
+        try:
+            self.on_quit()
+            super().quit()
+        finally:
+            pass
 
     def on_quit(self):
         if self._gui_thread_pool:
