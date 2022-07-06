@@ -21,7 +21,7 @@ from antistasi_logbook.parsing.meta_log_finder import MetaFinder
 from antistasi_logbook.parsing.parsing_context import RecordLine, LogParsingContext
 from antistasi_logbook.parsing.record_processor import RecordProcessor
 from antistasi_logbook.regex_store.regex_keeper import SimpleRegexKeeper
-
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend
@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 
 # region [Constants]
 
-
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
@@ -69,7 +69,7 @@ class Parser:
         with context.open(cleanup=False) as file:
 
             text = file.read(self.log_file_data_scan_chunk_initial)
-            finder = MetaFinder(context=context, regex_keeper=self.regex_keeper, force=context.force)
+            finder = MetaFinder(context=context, regex_keeper=self.regex_keeper.__class__(), force=context.force)
             idx = 0
             while True:
                 finder.search(text)

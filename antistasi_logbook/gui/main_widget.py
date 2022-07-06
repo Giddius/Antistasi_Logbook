@@ -237,6 +237,7 @@ class MainWidget(QWidget):
                 widget = LogRecordDataToolWidget()
                 self.query_widget.add_page(widget, name="log_record")
                 self.query_result_tab.model.data_tool = widget
+
                 for page in widget.pages.values():
 
                     self.query_result_tab.model.request_view_change_visibility.connect(page.setEnabled)
@@ -316,6 +317,7 @@ class MainWidget(QWidget):
         self.query_result_tab.tool_bar_item.set_title_from_log_file(log_file)
         self.query_result_tab.setModel(log_record_model)
         self.on_tab_changed(self.main_tabs_widget.currentIndex())
+        self.query_result_tab.model.data_tool.set_log_file(log_file)
 
         self.query_result_tab.single_item_selected.connect(self.show_log_record_detail)
 

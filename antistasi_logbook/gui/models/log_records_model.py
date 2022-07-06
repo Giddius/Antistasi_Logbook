@@ -168,9 +168,9 @@ class LogRecordsModel(BaseQueryDataModel):
         column = self.columns[index.column()]
 
         if item.log_level.name == "ERROR":
-            return Color(225, 25, 23, 0.5, "error_red").qcolor
+            return Color(value=(225, 25, 23, 0.5), typus=Color.color_typus.RGB, name="error_red").qcolor
         elif item.log_level.name == "WARNING":
-            return Color(255, 103, 0, 0.5, "warning_orange").qcolor
+            return Color(value=(255, 103, 0, 0.5), typus=Color.color_typus.RGB, name="warning_orange").qcolor
 
         if column.name == "log_level":
             return getattr(item, column.name).background_color

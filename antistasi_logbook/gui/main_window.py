@@ -17,13 +17,14 @@ from threading import Thread
 from antistasi_logbook.utilities.date_time_utilities import DateTimeFrame
 from antistasi_logbook.data import DATA_DIR
 # * Qt Imports --------------------------------------------------------------------------------------->
-from PySide6.QtGui import QColor, QCloseEvent, QScreen
+from PySide6.QtGui import QColor, QCloseEvent, QScreen, QDesktopServices
 from PySide6.QtHelp import QHelpEngineCore, QHelpContentWidget, QHelpEngine
 from PySide6.QtCore import Qt, Slot, QSize, QPoint, QTimer, Signal, QObject, QSysInfo, QSettings, QByteArray, QTimerEvent
 from PySide6.QtWidgets import (QLabel, QWidget, QPushButton, QMenuBar, QToolBar, QDockWidget, QGridLayout, QHBoxLayout, QMainWindow,
                                QMessageBox, QSizePolicy, QVBoxLayout, QTableWidget, QSplashScreen, QTableWidgetItem)
 
 from PySide6.QtWebEngineWidgets import QWebEngineView
+from tempfile import TemporaryDirectory
 # * Third Party Imports --------------------------------------------------------------------------------->
 import qt_material
 
@@ -157,6 +158,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.update_thread: Thread = None
         self.dock_widgets: list[QDockWidget] = []
         self.update_timer: QTimer = None
+        self.temp_help_dir = None
         flags = flags or Qt.WindowFlags()
         super().__init__(None, flags)
 
@@ -228,7 +230,9 @@ class AntistasiLogbookMainWindow(QMainWindow):
         ExceptionHandlerManager.signaler.show_error_signal.connect(self.statusbar.show_error)
         ExceptionHandlerManager.signaler.show_error_signal.connect(self.show_error_dialog)
         self.backend.updater.signaler.update_started.connect(self.statusbar.switch_labels)
+        self.backend.updater.signaler.update_record_classes_started.connect(self.statusbar.switch_labels)
         self.backend.updater.signaler.update_finished.connect(self.statusbar.switch_labels)
+        self.backend.updater.signaler.update_record_classes_finished.connect(self.statusbar.switch_labels)
         self.backend.update_signaler.change_update_text.connect(self.statusbar.set_update_text)
 
         self.backend.updater.signaler.update_info.connect(self.statusbar.start_progress_bar)
@@ -276,10 +280,13 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
         html += """</body>
 </html>"""
-
-        self.viewer = CLIHelpWindow(html=html)
-        self.viewer.setMinimumSize(QSize(750, 500))
-        self.viewer.show()
+        self.temp_help_dir = TemporaryDirectory()
+        help_file = Path(self.temp_help_dir.name).joinpath("help.html")
+        help_file.write_text(html, encoding='utf-8', errors='ignore')
+        QDesktopServices.openUrl(help_file.as_uri())
+        # self.viewer = CLIHelpWindow(html=html)
+        # self.viewer.setMinimumSize(QSize(750, 500))
+        # self.viewer.show()
 
     @property
     def cyclic_update_running(self) -> bool:
@@ -620,12 +627,14 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
             try:
                 amount_update, amount_deleted = self.backend.updater()
+                if amount_update is not None and amount_deleted is not None:
+                    if self.config.get("gui", "notify_on_update_finished") is True and any(i > 0 for i in [amount_update, amount_deleted]):
+                        self.sys_tray.send_update_finished_message(msg=f"Updated {amount_update!r} Log-files\nDeleted {amount_deleted!r} old Log-Files.")
+
             finally:
 
                 self.menubar.single_update_action.setEnabled(True)
                 self.backend.database.close()
-                if self.config.get("gui", "notify_on_update_finished") is True and any(i > 0 for i in [amount_update, amount_deleted]):
-                    self.sys_tray.send_update_finished_message(msg=f"Updated {amount_update!r} Log-files\nDeleted {amount_deleted!r} old Log-Files.")
 
         self.update_thread = Thread(target=_run_update, name="run_update_Thread")
 
@@ -674,6 +683,8 @@ class AntistasiLogbookMainWindow(QMainWindow):
             log.info("Quiting %r", self.app)
 
             self.app.quit()
+            if self.temp_help_dir is not None:
+                self.temp_help_dir.cleanup()
             log.info('%r accepting event %r', self, event.type().name)
             event.accept()
 

@@ -18,7 +18,7 @@ import PySide6
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import Qt, QSize, QTimer, Signal, QLocale, QDateTime, QRegularExpression, QSortFilterProxyModel
 from PySide6.QtWidgets import QWidget, QToolBox, QCheckBox, QComboBox, QGroupBox, QLineEdit, QCompleter, QFormLayout, QGridLayout, QHBoxLayout, QApplication, QRadioButton, QDateTimeEdit
-
+from peewee import JOIN
 # * Third Party Imports --------------------------------------------------------------------------------->
 from tzlocal import get_localzone
 from dateutil.tz import UTC
@@ -28,7 +28,7 @@ from gidapptools import get_logger
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.models import LogLevelsModel, ArmaFunctionModel, RecordClassesModel, RecordOriginsModel
-from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord, ArmaFunction
+from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord, ArmaFunction, LogLevel, RecordClass
 from antistasi_logbook.gui.models.server_model import ServerModel
 from antistasi_logbook.gui.models.version_model import VersionModel
 from antistasi_logbook.gui.models.game_map_model import GameMapModel
@@ -548,6 +548,7 @@ class LogRecordFilterPage(BaseDataToolPage):
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
+        self.log_file = None
         self.filter_by_log_level_combo_box = QComboBox()
         log_level_model = LogLevelsModel().refresh()
         log_level_model.add_empty_item()
@@ -604,6 +605,32 @@ class LogRecordFilterPage(BaseDataToolPage):
 
         return self
 
+    def set_log_file(self, log_file: LogFile):
+        self.log_file = log_file
+        level_ids = [i.log_level.id for i in LogRecord.select(LogRecord.log_level).where(LogRecord.log_file_id == self.log_file.id).left_outer_join(LogLevel).distinct()]
+        self.filter_by_log_level_combo_box.model().filter_item = (LogLevel.id << level_ids)
+        self.filter_by_log_level_combo_box.model().refresh()
+        self.filter_by_log_level_combo_box.model().add_empty_item()
+        self.filter_by_log_level_combo_box.setCurrentIndex(-1)
+
+        logged_from_ids = []
+        for item in LogRecord.select(LogRecord.logged_from).where(LogRecord.log_file_id == self.log_file.id).left_outer_join(ArmaFunction, on=LogRecord.logged_from).distinct():
+            try:
+                logged_from_ids.append(item.logged_from.id)
+            except AttributeError:
+                continue
+
+        self.filter_by_logged_from_combo_box.model().filter_item = (ArmaFunction.id << logged_from_ids)
+        self.filter_by_logged_from_combo_box.model().refresh()
+        self.filter_by_logged_from_combo_box.model().add_empty_item()
+        self.filter_by_logged_from_combo_box.setCurrentIndex(-1)
+
+        record_class_ids = [i.record_class.id for i in LogRecord.select(LogRecord.record_class).where(LogRecord.log_file_id == self.log_file.id).left_outer_join(RecordClass, on=LogRecord.record_class).distinct()]
+        self.filter_by_record_class_combo_box.model().filter_item = (RecordClass.id << record_class_ids)
+        self.filter_by_record_class_combo_box.model().refresh()
+        self.filter_by_record_class_combo_box.model().add_empty_item()
+        self.filter_by_record_class_combo_box.setCurrentIndex(-1)
+
     def setup_signals(self):
         self.filter_by_log_level_combo_box.currentIndexChanged.connect(self.on_change)
         self.filter_by_logged_from_combo_box.currentIndexChanged.connect(self.on_change)
@@ -655,6 +682,15 @@ class LogRecordDataToolWidget(BaseDataToolWidget):
 
         self.add_page(LogRecordFilterPage(self).setup())
         self.add_page(LogRecordSearchPage(self).setup())
+
+    def set_log_file(self, log_file: LogFile):
+        log.debug("setting log_file %r", log_file)
+        for page in self.pages.values():
+            try:
+                page.set_log_file(log_file)
+            except AttributeError:
+                continue
+        self.repaint()
 # region[Main_Exec]
 
 

@@ -71,10 +71,13 @@ from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog
                                QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
                                QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
                                QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
-
+from peewee import JOIN, fn
+import pandas as pd
+import apsw
 from argparse import Action
 from gidapptools import get_logger
-from antistasi_logbook.storage.models.models import DatabaseMetaData, LogRecord, GameMap
+from gidapptools.general_helper.conversion import number_to_pretty
+from antistasi_logbook.storage.models.models import DatabaseMetaData, LogRecord, GameMap, RecordClass, LogFile
 if TYPE_CHECKING:
     from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
@@ -102,6 +105,11 @@ log = get_logger(__name__)
 # endregion[Constants]
 
 
+def disable(in_func):
+    in_func.is_disabled = True
+    return in_func
+
+
 def show_parser_argument_full_text_data(argument_index: int):
     parser_argument = QApplication.instance().argument_doc_items[argument_index]
 
@@ -110,6 +118,70 @@ def show_parser_argument_full_text_data(argument_index: int):
 
 def show_parser_usage():
     return QApplication.instance().get_argument_parser().format_usage()
+
+
+@disable
+def count_unique_messages():
+    app: AntistasiLogbookApplication = QApplication.instance()
+    db = app.backend.database
+    with db.connection_context() as ctx:
+        counter = Counter()
+        query = LogRecord.select(LogRecord.message)
+        for record in query.iterator():
+            counter.update([record.message])
+
+    log.debug("finished collecting")
+
+    _out = {k: a for k, a in counter.most_common(n=5)}
+    log.debug("finished converting to dict")
+    return _out
+
+
+@disable
+def get_all_killed_by():
+    app: AntistasiLogbookApplication = QApplication.instance()
+    db = app.backend.database
+    _out = defaultdict(dict)
+    idx = 0
+    with db.connection_context() as ctx:
+
+        killed_by_record_class: RecordClass = RecordClass.get(name="KilledBy")
+        _actual_record_class = killed_by_record_class.record_class
+
+        for record in LogRecord.select(LogRecord.recorded_at, LogRecord.message, LogRecord.log_file, LogFile.name).join_from(LogRecord, LogFile).switch(LogRecord).where(LogRecord.record_class_id == killed_by_record_class.id).order_by(LogRecord.recorded_at).iterator():
+            idx += 1
+            if idx % 100_000 == 0:
+                log.debug("handled %s", number_to_pretty(idx))
+            parsed_data = _actual_record_class.parse(record.message)
+            victim = parsed_data["victim"]
+            killer = parsed_data["killer"]
+            log_file_name = record.log_file.name
+            if victim is not None and victim.strip().startswith("C_man") is False and victim.strip() not in {"Goat_random_F", } and victim.strip().casefold().startswith("land_") is False and killer is not None:
+                _out[log_file_name][record.recorded_at.isoformat()] = (victim, killer)
+
+    with open("blah.json", "w", encoding='utf-8', errors='ignore') as f:
+        json.dump(_out, f, default=str, sort_keys=False, indent=4)
+    with open("blah.csv", "w", encoding='utf-8', errors='ignore') as f:
+        for log_file, values in _out.items():
+            for datum, message in values.items():
+                f.write(f"{log_file},{datum},{message[0]},{message[1]}\n")
+    return Path("blah.csv").read_text(encoding='utf-8', errors='ignore')
+
+
+def all_log_record_message_size():
+    app: AntistasiLogbookApplication = QApplication.instance()
+    db = app.backend.database
+
+    with db:
+        # b_size = LogRecord.select(fn.SUM(fn.LENGHT(LogRecord.message))).scalar()
+        query_string = """SELECT SUM(LENGTH(message)) FROM LogRecord;"""
+        cur: apsw.Cursor = db.cursor()
+        cur.execute(query_string)
+        b_size = cur.fetchone()[0]
+
+    mb_size = b_size / 1048576
+    gb_size = mb_size / 1024
+    return {"bytes": b_size, "mega-bytes": round(mb_size, 3), "giga-bytes": round(gb_size, 3)}
 
 
 def setup_debug_widget(debug_dock_widget: "DebugDockWidget") -> None:
@@ -128,8 +200,9 @@ def setup_debug_widget(debug_dock_widget: "DebugDockWidget") -> None:
                       "libraryPaths",
                       "isQuitLockEnabled"]:
         debug_dock_widget.add_show_attr_button(attr_name=attr_name, obj=app)
-
-
+    debug_dock_widget.add_show_func_result_button(count_unique_messages, "record_message")
+    debug_dock_widget.add_show_func_result_button(get_all_killed_by, "killed_by_all")
+    debug_dock_widget.add_show_func_result_button(all_log_record_message_size, "column_sizes")
 # region[Main_Exec]
 
 

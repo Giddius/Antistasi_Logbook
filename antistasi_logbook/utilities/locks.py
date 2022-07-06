@@ -101,3 +101,18 @@ class MinDurationSemaphore(Semaphore):
         self._sleep_to_minimum()
         sleep(random.uniform(0.0, float(self.delay_seconds)))
         self.release()
+
+
+class FakeLock:
+
+    def acquire(self, blocking: bool = True, timeout: float = None) -> bool:
+        return True
+
+    def release(self):
+        return
+
+    def __enter__(self, blocking: bool = True, timeout: float = None) -> bool:
+        return True
+
+    def __exit__(self, t, v, tb):
+        return

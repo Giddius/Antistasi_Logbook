@@ -53,7 +53,9 @@ class SimpleRegexKeeper:
                  "mod_time_strip",
                  "campaign_id",
                  "first_full_datetime",
-                 "fault_error_start")
+                 "fault_error_start",
+                 "mod_start_indicator",
+                 "mod_end_indicator")
 
     def __init__(self) -> None:
 
@@ -73,12 +75,14 @@ class SimpleRegexKeeper:
         self.game_file = re.compile(r"\s+Mission file\:\s*(?P<game_file>.*)")
         self.version = re.compile(r"\s*MP server version:\s*(?P<version>.*)")
         self.campaign_id = re.compile(r"((?P<text_loading>Loading last campaign ID)|(?P<text_creating>Creating new campaign with ID))\s*(?P<campaign_id>\d+)")
+        self.mod_start_indicator = re.compile(r"\=+\sList\sof\smods\s\=+")
+        self.mod_end_indicator = re.compile(r"\={25,}")
         self.mods = re.compile(r"""^([0-2\s]?\d)
                                           [^\d]
                                           ([0-6]\d)
                                           [^\d]
                                           ([0-6]\d)
-                                          \s?\=+\sList\sof\smods\s\=*
+                                          \s?\={25,}\sList\sof\smods\s\={25,}
                                           \n
                                           (?P<mod_lines>(^([0-2\s]?\d)
                                                           [^\d]
@@ -93,7 +97,7 @@ class SimpleRegexKeeper:
                                           ([0-6]\d)
                                           [^\d]
                                           ([0-6]\d)
-                                          \s?\=+""", re.VERBOSE | re.MULTILINE)
+                                          \s?\={25,}""", re.VERBOSE | re.MULTILINE)
 
         self.mod_time_strip = re.compile(r"""^([0-2\s]?\d)
                                                     [^\d]

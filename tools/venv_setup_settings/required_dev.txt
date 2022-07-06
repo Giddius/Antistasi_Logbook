@@ -5,7 +5,7 @@ dateparser
 https://github.com/pyinstaller/pyinstaller/tarball/develop
 invoke
 isort
-line_profiler
+line_profiler[all]
 lxml
 matplotlib
 memory-profiler

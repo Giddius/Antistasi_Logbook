@@ -8,13 +8,15 @@ Soon.
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import queue
+import random
 from time import sleep
 from typing import TYPE_CHECKING, Any, Optional, Generator, Iterator, Iterable
 from pathlib import Path
 from datetime import datetime
 from threading import Event, Lock, RLock
 from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor, wait, Future, FIRST_EXCEPTION
-
+import math
+import gc
 # * Third Party Imports --------------------------------------------------------------------------------->
 from dateutil.tz import UTC
 
@@ -180,8 +182,14 @@ class Updater:
             LogFile: a new instance of the `LogFile`-model
         """
         info_dict = remote_info.as_dict()
-        log.debug("info dict: %r", info_dict)
-        new_log_file = LogFile(server=server, **remote_info.as_dict())
+        del info_dict["raw_info"]
+        del info_dict["content_language"]
+        del info_dict["content_type"]
+        del info_dict["display_name"]
+        del info_dict["type"]
+        del info_dict["etag"]
+
+        new_log_file = LogFile(server=server, **info_dict)
         new_log_file.save()
         self.new_log_file_signal.emit(log_file=new_log_file)
         return new_log_file
@@ -287,41 +295,57 @@ class Updater:
         log.debug("processing server %r", server)
         tasks = []
         to_update_log_files = self._get_updated_log_files(server=server)
-        self.signaler.send_update_info(len(to_update_log_files) * 3, server.name)
+        self.signaler.send_update_info(len(to_update_log_files) * 2, server.name)
         for log_file in to_update_log_files:
             if self.stop_event.is_set() is False:
+
                 sub_task = self.thread_pool.submit(self.process_log_file, log_file=log_file)
+
                 tasks.append(sub_task)
+                sleep(random.random())
 
         wait(tasks, return_when=ALL_COMPLETED, timeout=None)
+
         return len(to_update_log_files)
 
     def emit_change_update_text(self, text):
         self.signaler.change_update_text.emit(text)
 
     def emit_amount_record_classes_updated(self, old_amount: int, amount: int, full_amount: int):
-        _amount = amount - old_amount
-        _amount = int(_amount / 10) * 10
-        self.record_class_updated_counter.increment(_amount)
-        self.signaler.change_update_text.emit(f"Updating Record-Classes --- Checked {self.record_class_updated_counter.value:,} of {full_amount:,} Records")
+
+        def _do_emit(in_old_amount, in_amount, in_full_amount):
+            _amount = in_amount - in_old_amount
+            _amount = int(_amount / 10) * 10
+            if self.record_class_updated_counter is not None:
+                self.record_class_updated_counter.increment(_amount)
+                self.signaler.change_update_text.emit(f"Updating Record-Classes --- Checked {self.record_class_updated_counter.value:,} of {in_full_amount:,} Records")
+                # self.signaler.send_update_increment(in_amount - in_old_amount)
+        self.backend.thread_pool.submit(_do_emit, old_amount, amount, full_amount)
 
     def _update_record_classes(self, server: Server = None, log_file: LogFile = None, force: bool = False):
 
         log.info("updating record classes, Server: %r, LogFile: %r, force: %r", server, log_file, force)
         # batch_size = (32767 // 2) - 1
-        batch_size = 100_000
+        batch_size = 5_000
         if log_file is not None:
-            batch_size = batch_size // 10
+            batch_size = batch_size
 
-        report_size = batch_size // 10
+        # report_size = max(round(report_size / 1_000) * 1_000, 1_000)
+        report_size = 5_000
 
         tasks = []
         to_update = []
         old_idx = 0
         idx = 0
+        amount_updated_record_classes = 0
         self.backend.record_class_manager._create_record_checker()
         full_amount = self.database.get_amount_iter_all_records(server=server, log_file=log_file, only_missing_record_class=not force)
         log.debug("amount of log-records to update: %r", full_amount)
+        if full_amount <= 0:
+            return
+        # if force is True:
+        #     self.signaler.send_update_record_classes_started()
+        #     self.signaler.send_update_info(full_amount, f"Updating Record-Classes, to update: {full_amount!r}")
         records_gen = self.database.iter_all_records(server=server, log_file=log_file, only_missing_record_class=not force)
 
         record_class_determiner = self.backend.record_class_manager.record_class_checker._determine_record_class
@@ -337,40 +361,48 @@ class Updater:
                     old_idx = idx
 
             if record.record_class_id is None or record.record_class_id != record_class.id:
+                # TODO: make both take the argument in the same order
+                task = self.database.record_inserter.update_record_class(log_record_id=int(record.id), record_class_id=int(record_class.id))
+                tasks.append(task)
+                amount_updated_record_classes += 1
+                if amount_updated_record_classes % 1000 == 0:
+                    log.info("already updated %r record classes", amount_updated_record_classes)
+                # to_update.append((int(record_class.id), int(record.id)))
+                # if len(to_update) >= batch_size:
+                #     log.debug("updating %s records with their record class", number_to_pretty(len(to_update)))
 
-                to_update.append((int(record_class.id), int(record.id)))
-                if len(to_update) >= batch_size:
-                    log.debug("updating %s records with their record class", number_to_pretty(len(to_update)))
-
-                    task = self.database.record_inserter.many_update_record_class(list(to_update))
-                    tasks.append(task)
-
-                    to_update.clear()
+                #     task = self.database.record_inserter.many_update_record_class(tuple(to_update))
+                #     to_update.clear()
+                #     tasks.append(task)
+                #     sleep(0.01)
 
         if len(to_update) > 0:
             log.debug("updating %s records with their record class", number_to_pretty(len(to_update)))
             task = self.database.record_inserter.many_update_record_class(list(to_update))
             tasks.append(task)
             to_update.clear()
+            sleep(0.01)
         done, not_done = wait(tasks, return_when=FIRST_EXCEPTION)
         if not_done:
             for f in done:
                 if f.exception():
                     log.error(f.exception(), exc_info=True)
-        # running_tasks = [fu for fu in tasks if fu.done() is False]
-        # old_len = len(running_tasks)
-        # while running_tasks:
-        #     if len(running_tasks) < old_len:
-        #         log.info("waiting for %s tasks to finish", number_to_pretty(len(running_tasks)))
+        running_tasks = [fu for fu in tasks if fu.done() is False]
+        old_len = len(running_tasks)
+        while running_tasks:
+            if len(running_tasks) < old_len:
+                log.info("waiting for %s tasks to finish", number_to_pretty(len(running_tasks)))
 
-        #     else:
-        #         sleep(0.1)
-        #     old_len = len(running_tasks)
-        #     running_tasks = [fu for fu in tasks if fu.done() is False]
+            else:
+                sleep(0.1)
+            old_len = len(running_tasks)
+            running_tasks = [fu for fu in tasks if fu.done() is False]
 
         log.info("finished updating record classes server: %r, log_file: %r, force: %r", server, log_file, force)
+        log.info("updated %r record classes", amount_updated_record_classes)
         if force is True:
             self.emit_change_update_text("")
+            # self.signaler.send_update_record_classes_finished()
 
     def before_updates(self):
         log.debug("emiting before_updates_signal")
@@ -378,6 +410,7 @@ class Updater:
 
     def after_updates(self):
         log.debug("emiting after_updates_signal")
+        self.database.resolve_all_armafunction_extras()
         self.signaler.send_update_finished()
         remote_manager_registry.close()
         self.database.close()
@@ -386,10 +419,11 @@ class Updater:
 
         if self.is_updating_event.is_set() is True:
             log.info("update already running, returning!")
-            return
+            return None, None
         self.is_updating_event.set()
         self.before_updates()
         amount_log_files_updated = 0
+        update_tasks = []
         try:
 
             self.database.session_meta_data.update_started()
@@ -402,10 +436,10 @@ class Updater:
                         sleep(0.25)
                     log.info("STARTED updating %r", server)
                     amount_log_files_updated += self.process(server=server)
-                    self._update_record_classes(server=server)
+                    update_tasks.append(self.backend.thread_pool.submit(self._update_record_classes, server=server))
                     log.info("FINISHED updating server %r", server)
                     self.database.checkpoint()
-
+            wait(update_tasks, return_when=ALL_COMPLETED)
             log.debug("All record class update tasks have finished")
             amount_deleted = 0
             for server in self.database.get_all_server():
@@ -417,10 +451,8 @@ class Updater:
 
             if amount_deleted > 0:
                 if self.stop_event.is_set() is False:
-                    self.database.checkpoint()
-                    self.database.vacuum()
+
                     self.database.optimize()
-                    self.database.vacuum()
                     self.database.checkpoint()
             self.database.session_meta_data.update_finished()
 

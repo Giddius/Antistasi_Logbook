@@ -8,7 +8,7 @@ Soon.
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import re
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any, Union, Optional
 from pathlib import Path
 
 # * Third Party Imports --------------------------------------------------------------------------------->
@@ -51,6 +51,12 @@ log = get_logger(__name__)
 ALL_ANTISTASI_RECORD_CLASSES: set[type[BaseRecord]] = set()
 
 
+def add_to_all_antistasi_record_classes_decorator(in_klass):
+    ALL_ANTISTASI_RECORD_CLASSES.add(in_klass)
+    return in_klass
+
+
+@add_to_all_antistasi_record_classes_decorator
 class BaseAntistasiRecord(BaseRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 1
@@ -72,9 +78,7 @@ class BaseAntistasiRecord(BaseRecord):
         return super().get_formated_message(msg_format=msg_format)
 
 
-ALL_ANTISTASI_RECORD_CLASSES.add(BaseAntistasiRecord)
-
-
+@add_to_all_antistasi_record_classes_decorator
 class PerformanceRecord(BaseAntistasiRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 10
@@ -119,9 +123,7 @@ class PerformanceRecord(BaseAntistasiRecord):
         return True
 
 
-ALL_ANTISTASI_RECORD_CLASSES.add(PerformanceRecord)
-
-
+@add_to_all_antistasi_record_classes_decorator
 class IsNewCampaignRecord(BaseAntistasiRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 20
@@ -137,9 +139,7 @@ class IsNewCampaignRecord(BaseAntistasiRecord):
         return False
 
 
-ALL_ANTISTASI_RECORD_CLASSES.add(IsNewCampaignRecord)
-
-
+@add_to_all_antistasi_record_classes_decorator
 class FFPunishmentRecord(BaseAntistasiRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 10
@@ -168,9 +168,7 @@ class FFPunishmentRecord(BaseAntistasiRecord):
         return True
 
 
-ALL_ANTISTASI_RECORD_CLASSES.add(FFPunishmentRecord)
-
-
+@add_to_all_antistasi_record_classes_decorator
 class UpdatePreferenceRecord(BaseAntistasiRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 20
@@ -215,9 +213,7 @@ class UpdatePreferenceRecord(BaseAntistasiRecord):
         return super().get_formated_message(msg_format=msg_format)
 
 
-ALL_ANTISTASI_RECORD_CLASSES.add(UpdatePreferenceRecord)
-
-
+@add_to_all_antistasi_record_classes_decorator
 class CreateConvoyInputRecord(BaseAntistasiRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 20
@@ -260,9 +256,7 @@ class CreateConvoyInputRecord(BaseAntistasiRecord):
         return super().get_formated_message(msg_format=msg_format)
 
 
-ALL_ANTISTASI_RECORD_CLASSES.add(CreateConvoyInputRecord)
-
-
+@add_to_all_antistasi_record_classes_decorator
 class SaveParametersRecord(BaseAntistasiRecord):
     ___specificity___ = 20
     ___function___ = "A3A_fnc_saveLoop"
@@ -312,9 +306,7 @@ class SaveParametersRecord(BaseAntistasiRecord):
         return super().get_formated_message(msg_format=msg_format)
 
 
-ALL_ANTISTASI_RECORD_CLASSES.add(SaveParametersRecord)
-
-
+@add_to_all_antistasi_record_classes_decorator
 class ResourceCheckRecord(BaseAntistasiRecord):
     ___specificity___ = 20
     ___function___ = "A3A_fnc_economicsAI"
@@ -377,9 +369,7 @@ class ResourceCheckRecord(BaseAntistasiRecord):
         return super().get_formated_message(msg_format=msg_format)
 
 
-ALL_ANTISTASI_RECORD_CLASSES.add(ResourceCheckRecord)
-
-
+@add_to_all_antistasi_record_classes_decorator
 class FreeSpawnPositionsRecord(BaseAntistasiRecord):
     ___specificity___ = 20
     ___function___ = "A3A_fnc_freeSpawnPositions"
@@ -439,9 +429,7 @@ class FreeSpawnPositionsRecord(BaseAntistasiRecord):
         return False
 
 
-ALL_ANTISTASI_RECORD_CLASSES.add(FreeSpawnPositionsRecord)
-
-
+@add_to_all_antistasi_record_classes_decorator
 class SelectReinfUnitsRecord(BaseAntistasiRecord):
     ___specificity___ = 20
     ___function___ = "A3A_fnc_selectReinfUnits"
@@ -512,9 +500,7 @@ class SelectReinfUnitsRecord(BaseAntistasiRecord):
         return False
 
 
-ALL_ANTISTASI_RECORD_CLASSES.add(SelectReinfUnitsRecord)
-
-
+@add_to_all_antistasi_record_classes_decorator
 class ChangingSidesRecord(BaseAntistasiRecord):
     ___specificity___ = 30
     ___function___ = "A3A_fnc_markerChange"
@@ -565,9 +551,7 @@ class ChangingSidesRecord(BaseAntistasiRecord):
         return False
 
 
-ALL_ANTISTASI_RECORD_CLASSES.add(ChangingSidesRecord)
-
-
+@add_to_all_antistasi_record_classes_decorator
 class ToggleLockRecord(BaseAntistasiRecord):
     ___specificity___ = 20
     ___function___ = "HR_GRG_fnc_toggleLock"
@@ -638,9 +622,7 @@ class ToggleLockRecord(BaseAntistasiRecord):
         return False
 
 
-ALL_ANTISTASI_RECORD_CLASSES.add(ToggleLockRecord)
-
-
+@add_to_all_antistasi_record_classes_decorator
 class QRFAvailableRecord(BaseAntistasiRecord):
     ___specificity___ = 20
     ___function___ = "A3A_fnc_SUP_QRFAvailable"
@@ -655,11 +637,7 @@ class QRFAvailableRecord(BaseAntistasiRecord):
         return True
 
 
-ALL_ANTISTASI_RECORD_CLASSES.add(QRFAvailableRecord)
-
-
-# PATCOM | Group: B Alpha 1-3 | Current Orders: Patrol_Area | Group State: CALM | Client: hc_1 [5]
-
+@add_to_all_antistasi_record_classes_decorator
 class PatrolCommanderRecord(BaseAntistasiRecord):
     ___specificity___ = 20
     ___function___ = "A3A_fnc_patrolCommander"
@@ -732,9 +710,7 @@ class PatrolCommanderRecord(BaseAntistasiRecord):
         return False
 
 
-ALL_ANTISTASI_RECORD_CLASSES.add(PatrolCommanderRecord)
-
-
+@add_to_all_antistasi_record_classes_decorator
 class HeadlessClientConnected(BaseAntistasiRecord):
 
     ___specificity___ = 20
@@ -768,7 +744,45 @@ class HeadlessClientConnected(BaseAntistasiRecord):
         return False
 
 
-ALL_ANTISTASI_RECORD_CLASSES.add(HeadlessClientConnected)
+# B_G_Soldier_F killed by GUER
+@add_to_all_antistasi_record_classes_decorator
+class KilledBy(BaseAntistasiRecord):
+    ___specificity___ = 10
+    ___function___ = ("A3A_fnc_initServer", "fn_initServer.sqf")
+    __slots__ = ("_victim", "_killer")
+    parse_regex = re.compile(r"(?P<victim>\w+)? ?killed by (?P<killer>.*)")
+    extra_detail_views: tuple[str] = ("victim", "killer")
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._victim: str = MiscEnum.NOTHING
+        self._killer: str = MiscEnum.NOTHING
+
+    @property
+    def victim(self) -> Optional[str]:
+        if self._victim is MiscEnum.NOTHING:
+            parsed_data = self.parse(self.message)
+            self._victim = parsed_data.get("victim", None)
+            self._killer = parsed_data.get("killer", None)
+        return self._victim
+
+    @property
+    def killer(self) -> Optional[str]:
+        if self._killer is MiscEnum.NOTHING:
+            parsed_data = self.parse(self.message)
+            self._victim = parsed_data.get("victim", None)
+            self._killer = parsed_data.get("killer", None)
+        return self._killer
+
+    @classmethod
+    def parse(cls, message: str) -> dict[str, Any]:
+        return cls.parse_regex.match(message.strip()).groupdict()
+
+    @classmethod
+    def check(cls, log_record: "LogRecord") -> bool:
+        if "killed by " in log_record.message:
+            return True
+        return False
 # region[Main_Exec]
 
 

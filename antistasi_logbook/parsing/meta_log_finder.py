@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 from pathlib import Path
 from datetime import datetime
 from collections import namedtuple
-
+import pp
 # * Third Party Imports --------------------------------------------------------------------------------->
 from dateutil.tz import UTC
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
@@ -72,7 +72,7 @@ class MetaFinder:
 
     def all_found(self) -> bool:
         # takes about 0.000742 s
-        return all(i is not MiscEnum.NOT_FOUND for i in [self.game_map, self.full_datetime, self.version, self.campaign_id, self.is_new_campaign])
+        return all(i is not MiscEnum.NOT_FOUND for i in [self.game_map, self.full_datetime, self.version, self.campaign_id, self.is_new_campaign, self.mods])
 
     def _resolve_full_datetime(self, text: str) -> None:
         if match := self.regex_keeper.first_full_datetime.search(text):
@@ -105,12 +105,17 @@ class MetaFinder:
 
     def _resolve_mods(self, text: str) -> None:
         # takes about 0.263012 s
-        if match := self.regex_keeper.mods.search(text):
+        match = self.regex_keeper.mods.search(text)
+        if match:
             mod_lines = match.group('mod_lines').splitlines()
 
-            cleaned_mod_lines = [self.regex_keeper.mod_time_strip.sub("", line) for line in mod_lines if '|' in line and 'modDir' not in line]
-
-            self.mods = [ModItem.from_text_line(line) for line in cleaned_mod_lines]
+            cleaned_mod_lines = [self.regex_keeper.mod_time_strip.sub("", line, 1) for line in mod_lines if '|' in line and 'modDir' not in line]
+            self.mods = []
+            for line in cleaned_mod_lines:
+                try:
+                    self.mods.append(ModItem.from_text_line(line))
+                except (ValueError, IndexError) as e:
+                    log.critical("%r errored mod line: %r", e, line)
 
     def _resolve_campaign_id(self, text: str) -> None:
         if match := self.regex_keeper.campaign_id.search(text):

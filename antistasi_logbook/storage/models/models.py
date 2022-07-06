@@ -1,22 +1,26 @@
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import re
 import json
+import os
 from io import TextIOWrapper
 from time import sleep
-from typing import TYPE_CHECKING, Any, Union, Literal, Optional, Generator
+from typing import TYPE_CHECKING, Any, Union, Literal, Optional, Generator, Callable
 from pathlib import Path
 from zipfile import ZIP_LZMA, ZipFile
 from datetime import datetime, timezone, timedelta
 from functools import cached_property, cache
 from threading import Lock, RLock
 from operator import add
+import hashlib
 from contextlib import contextmanager
 from statistics import StatisticsError, mean
 from functools import reduce
 from collections import defaultdict
 from statistics import stdev, variance, quantiles, correlation, covariance, pstdev
-from concurrent.futures import Future
+from threading import Event
+from concurrent.futures import Future, wait, ALL_COMPLETED
 import numpy
+import apsw
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QColor
 
@@ -82,17 +86,13 @@ LOCAL_TIMEZONE = get_localzone()
 
 
 class BaseModel(Model):
+
+    # non-db attributes
     _column_name_set: set[str] = None
+    is_view: bool = False
 
     class Meta:
         database: "GidSqliteApswDatabase" = database_proxy
-
-    # @classmethod
-    # def create_or_get(cls, **kwargs) -> "BaseModel":
-    #     try:
-    #         return cls.create(**kwargs)
-    #     except IntegrityError:
-    #         return cls.get(*[getattr(cls, k) == v for k, v in kwargs.items()])
 
     @classmethod
     def has_column_named(cls, name: str) -> bool:
@@ -157,6 +157,10 @@ class BaseModel(Model):
         return super().__str__()
 
 
+class ViewBaseModel(BaseModel):
+    is_view: bool = True
+
+
 class ArmaFunctionAuthorPrefix(BaseModel):
     name = TextField(unique=True)
     full_name = TextField(unique=True, null=True)
@@ -167,6 +171,9 @@ class ArmaFunctionAuthorPrefix(BaseModel):
 
     class Meta:
         table_name = 'ArmaFunctionAuthorPrefix'
+        indexes = (
+            (('name', 'full_name'), True),
+        )
 
     @property
     def pretty_name(self) -> str:
@@ -176,39 +183,60 @@ class ArmaFunctionAuthorPrefix(BaseModel):
 
 
 class ArmaFunction(BaseModel):
-    name = TextField()
+    name = TextField(null=False, index=True)
     author_prefix = ForeignKeyField(column_name='author_prefix', field='id', model=ArmaFunctionAuthorPrefix, lazy_load=True, index=True, verbose_name="Author Prefix")
     link = URLField(null=True)
     local_path = PathField(null=True)
     comments = CommentsField(null=True)
     marked = MarkedField()
+    file_name = TextField(null=True, index=True)
+    function_name = TextField(null=True, unique=True, index=True)
     show_as: Literal["file_name", "function_name"] = "function_name"
+
+    # non-db attributes
     parsing_regex: re.Pattern = re.compile(r"(?P<author_prefix>[\w_]+)_fnc_(?P<name>.*)")
 
     class Meta:
         table_name = 'ArmaFunction'
         indexes = (
             (('name', 'author_prefix'), True),
+            (("file_name", "author_prefix"), True),
         )
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def load_extras(self) -> None:
+        if self.file_name is None:
+            file_name = self._get_file_name()
 
-    @cached_property
-    def file_name(self) -> str:
-        if self.author_prefix.name == "FSM":
-            return f"{self.name}.fsm"
+            ArmaFunction.update(file_name=file_name).where(ArmaFunction.id == self.id).execute()
+            self.file_name = file_name
 
-        return f"fn_{self.name}.sqf"
+        if self.function_name is None:
+            function_name = self._get_function_name()
 
-    @cached_property
-    def function_name(self) -> str:
-        if self.author_prefix.name == "UNKNOWN":
-            return self.file_name
-        if self.author_prefix.name == "FSM":
-            return self.name
+            ArmaFunction.update(function_name=function_name).where(ArmaFunction.id == self.id).execute()
+            self.function_name = function_name
 
-        return f"{self.author_prefix}_fnc_{self.name}"
+    def _get_function_name(self) -> Optional[str]:
+        try:
+            if self.author_prefix.name == "UNKNOWN":
+                return self.file_name
+            if self.author_prefix.name == "FSM":
+                return self.name
+
+            return f"{self.author_prefix.name}_fnc_{self.name}"
+        except Exception as error:
+            log.critical("Encountered %r while getting function name of %r", error, self)
+            return None
+
+    def _get_file_name(self) -> Optional[str]:
+        try:
+            if self.author_prefix.name == "FSM":
+                return f"{self.name}.fsm"
+
+            return f"fn_{self.name}.sqf"
+        except Exception as error:
+            log.critical("Encountered %r while getting file name of %r", error, self)
+            return None
 
     @classmethod
     def parse_raw_function_name(cls, in_name: str) -> dict[str, Optional[str]]:
@@ -228,7 +256,11 @@ class ArmaFunction(BaseModel):
 
         return parsed_data
 
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(name={self.name!r})"
+
     def __str__(self) -> str:
+        self.load_extras()
         if self.show_as == "file_name":
             return self.file_name
         elif self.show_as == "function_name":
@@ -251,6 +283,10 @@ class GameMap(BaseModel):
 
     class Meta:
         table_name = 'GameMap'
+        indexes = (
+            (('name', 'full_name', 'workshop_link'), True),
+
+        )
 
     def get_avg_players_per_hour(self) -> dict[str, Union[float, int, datetime]]:
         log_files_query = LogFile.select().where((LogFile.game_map_id == self.id) & (LogFile.unparsable == False))
@@ -385,15 +421,20 @@ class Server(BaseModel):
     name = TextField(unique=True, index=True, verbose_name="Name", help_text="The Name of the Server")
     remote_path = RemotePathField(null=True, unique=True, verbose_name="Remote Path", help_text="The Path in the Remote Storage containing the log files")
     remote_storage = ForeignKeyField(column_name='remote_storage', default=0, field='id', model=RemoteStorage, lazy_load=True, index=True, verbose_name="Remote Storage")
-    update_enabled = BooleanField(default=False, verbose_name="Update", help_text="If this Server should update")
+    update_enabled = BooleanField(default=False, verbose_name="Update", help_text="If this Server should update", index=True)
     ip = TextField(null=True, verbose_name="IP Address", help_text="IP Adress of the Server")
     port = IntegerField(null=True, verbose_name="Port", help_text="Port the Server uses")
     comments = CommentsField(null=True)
     marked = MarkedField()
+
+    # non-db attributes
     archive_lock = RLock()
 
     class Meta:
         table_name = 'Server'
+        indexes = (
+            (('ip', 'port'), True),
+        )
 
     @cached_property
     def background_color(self):
@@ -460,16 +501,20 @@ class Server(BaseModel):
 
 
 class Version(BaseModel):
-    full = VersionField(unique=True, verbose_name="Full Version")
-    major = IntegerField(verbose_name="Major")
-    minor = IntegerField(verbose_name="Minor")
-    patch = IntegerField(verbose_name="Patch", null=True)
-    extra = TextField(null=True, verbose_name="Extra")
+    full = VersionField(unique=True, verbose_name="Full Version", index=True)
+    major = IntegerField(verbose_name="Major", index=True)
+    minor = IntegerField(verbose_name="Minor", index=True)
+    patch = IntegerField(verbose_name="Patch", null=True, index=True)
+    extra = TextField(null=True, verbose_name="Extra", index=True)
     comments = CommentsField(null=True)
     marked = MarkedField()
 
     class Meta:
         table_name = 'Version'
+        indexes = (
+            (('major', 'minor', 'patch', 'extra'), True),
+
+        )
 
     @classmethod
     def add_or_get_version(cls, version: "VersionItem"):
@@ -491,6 +536,10 @@ class Version(BaseModel):
 
 class OriginalLogFile(BaseModel):
     text = CompressedTextField(compression_level=9, unique=True)
+    text_hash = TextField(index=True, unique=True)
+
+    # non-db attributes
+    hash_algorithm = hashlib.blake2b
 
     class Meta:
         table_name = 'OriginalLogFile'
@@ -505,6 +554,25 @@ class OriginalLogFile(BaseModel):
     @cached_property
     def lines(self) -> tuple[int, str]:
         return tuple(enumerate(self.text.splitlines()))
+
+    @classmethod
+    def init_from_file(cls, file_path: os.PathLike) -> "OriginalLogFile":
+        file_path = Path(file_path)
+        text_hash = cls.create_text_hash(file_path.read_bytes())
+        text = file_path.read_text(encoding='utf-8', errors='ignore')
+        return cls(text=text, text_hash=text_hash)
+
+    @classmethod
+    def create_text_hash(cls, text_or_bytes: Union[str, bytes]) -> str:
+        if isinstance(text_or_bytes, str):
+            text_or_bytes = text_or_bytes.encode()
+        return cls.hash_algorithm(text_or_bytes).hexdigest()
+
+    def modify_update_from_file(self, file_path: os.PathLike) -> "OriginalLogFile":
+        file_path = Path(file_path)
+        self.text_hash = self.create_text_hash(file_path.read_bytes())
+        self.text = file_path.read_text(encoding='utf-8', errors='ignore')
+        return self
 
     def to_file(self) -> Path:
         path = self.temp_path
@@ -542,7 +610,7 @@ class LogFile(BaseModel):
     startup_text = CompressedTextField(null=True, verbose_name="Startup Text")
     last_parsed_line_number = IntegerField(default=0, null=True, verbose_name="Last Parsed Line Number")
     utc_offset = TzOffsetField(null=True, verbose_name="UTC Offset")
-    version = ForeignKeyField(null=True, model=Version, field="id", column_name="version", lazy_load=True, index=False, verbose_name="Version")
+    version = ForeignKeyField(null=True, model=Version, field="id", column_name="version", lazy_load=True, index=True, verbose_name="Version")
     game_map = ForeignKeyField(column_name='game_map', field='id', model=GameMap, null=True, lazy_load=True, index=True, verbose_name="Game-Map")
     is_new_campaign = BooleanField(null=True, index=True, verbose_name="New Campaign")
     campaign_id = IntegerField(null=True, index=True, verbose_name="Campaign Id")
@@ -550,7 +618,7 @@ class LogFile(BaseModel):
     unparsable = BooleanField(default=False, index=True, verbose_name="Unparsable")
     last_parsed_datetime = AwareTimeStampField(null=True, utc=True, verbose_name="Last Parsed Datetime")
     max_mem = IntegerField(verbose_name="Max Memory", null=True)
-    original_file = ForeignKeyField(model=OriginalLogFile, field="id", column_name="original_file", lazy_load=True, backref="log_file", null=True, on_delete="SET NULL")
+    original_file = ForeignKeyField(model=OriginalLogFile, field="id", column_name="original_file", lazy_load=True, backref="log_file", null=True, on_delete="SET NULL", index=True)
     manually_added = BooleanField(null=False, default=False, verbose_name="Manually added", index=True)
     comments = CommentsField(null=True)
     marked = MarkedField()
@@ -559,6 +627,7 @@ class LogFile(BaseModel):
         table_name = 'LogFile'
         indexes = (
             (('name', 'server', 'remote_path'), True),
+            (("name", "server", "created_at"), True)
 
         )
 
@@ -568,10 +637,12 @@ class LogFile(BaseModel):
 
     def determine_mod_set(self) -> Optional["ModSet"]:
         own_mod_names = frozenset([m.cleaned_name for m in Mod.select().join(LogFileAndModJoin).join(LogFile).where(LogFile.id == self.id)])
-
+        mod_set_value = None
         for mod_set in sorted(ModSet.select(), key=lambda x: len(x.mod_names), reverse=True):
             if all(mod_name in own_mod_names for mod_name in mod_set.mod_names):
-                return mod_set
+                mod_set_value = mod_set
+                break
+        return mod_set_value
 
     @cached_property
     def mod_set(self) -> Optional["ModSet"]:
@@ -590,7 +661,9 @@ class LogFile(BaseModel):
         min_date_time, max_date_time = cursor.fetchone()
         min_date_time = LogRecord.recorded_at.python_value(min_date_time)
         max_date_time = LogRecord.recorded_at.python_value(max_date_time)
-        return DateTimeFrame(min_date_time, max_date_time)
+        result = DateTimeFrame(min_date_time, max_date_time)
+        cursor.close()
+        return result
 
     @cached_property
     def pretty_time_frame(self) -> str:
@@ -610,28 +683,37 @@ class LogFile(BaseModel):
 
     @cached_property
     def amount_log_records(self) -> int:
+        self.database.connect(reuse_if_open=True)
         # query = LogRecord.select(fn.count(LogRecord.id)).where(LogRecord.log_file_id == self.id)
         query_string = """SELECT count("t1"."id") FROM "LogRecord" AS "t1" WHERE ("t1"."log_file" = ?)"""
 
         cursor = self.database.execute_sql(query_string, (self.id,))
-        return cursor.fetchone()[0]
+        result = cursor.fetchone()[0]
+        cursor.close()
+        return result
 
     @cached_property
     def amount_errors(self) -> int:
+        self.database.connect(reuse_if_open=True)
         error_log_level = self.database.foreign_key_cache.all_log_levels.get("ERROR")
         # query = LogRecord.select(fn.count(LogRecord.id)).where((LogRecord.log_file_id == self.id) & (LogRecord.log_level_id == error_log_level.id))
         query_string = """SELECT count("t1"."id") FROM "LogRecord" AS "t1" WHERE (("t1"."log_file" = ?) AND ("t1"."log_level" = ?))"""
         cursor = self.database.execute_sql(query_string, (self.id, error_log_level.id))
-        return cursor.fetchone()[0]
+        result = cursor.fetchone()[0]
+        cursor.close()
+        return result
 
     @cached_property
     def amount_warnings(self) -> int:
+        self.database.connect(reuse_if_open=True)
         warning_log_level = self.database.foreign_key_cache.all_log_levels.get("WARNING")
         # query = LogRecord.select(fn.count(LogRecord.id)).where((LogRecord.log_file_id == self.id) & (LogRecord.log_level_id == warning_log_level.id))
         query_string = """SELECT count("t1"."id") FROM "LogRecord" AS "t1" WHERE (("t1"."log_file" = ?) AND ("t1"."log_level" = ?))"""
 
         cursor = self.database.execute_sql(query_string, (self.id, warning_log_level.id))
-        return cursor.fetchone()[0]
+        result = cursor.fetchone()[0]
+        cursor.close()
+        return result
 
     @cached_property
     def pretty_size(self) -> str:
@@ -654,6 +736,7 @@ class LogFile(BaseModel):
 
     @cached_property
     def average_players_per_hour(self) -> int:
+        self.database.connect(reuse_if_open=True)
         performance_record_class = RecordClass.get(name="PerformanceRecord")
         generic_performance_record_class = RecordClass.get(name="PerfProfilingRecord")
         ideal_entries_per_hour = (60 * 60) // 10
@@ -718,13 +801,16 @@ class LogFile(BaseModel):
         return self.server_id is not None
 
     def has_mods(self) -> bool:
-        with self.database.connection_context() as ctx:
 
-            return Mod.select().join(LogFileAndModJoin).join(LogFile).where(LogFile.id == self.id).count() > 0
+        self.database.connect(reuse_if_open=True)
+
+        has_mods_value = LogFileAndModJoin.select().where(LogFileAndModJoin.log_file_id == self.id).count()
+        log.debug("amount of has_mods for log_file %r is %r", self, has_mods_value)
+        return has_mods_value > 0
 
     def get_marked_records(self) -> list["LogRecord"]:
-        with self.database:
-            return [i.to_record_class() for i in LogRecord.select().where((LogRecord.log_file_id == self.id) & (LogRecord.marked == True))]
+        self.database.connect(reuse_if_open=True)
+        return [i.to_record_class() for i in LogRecord.select().where((LogRecord.log_file_id == self.id) & (LogRecord.marked == True))]
 
     def get_campaign_stats(self) -> tuple[list[dict[str, Any]], tuple["LogFile"]]:
         self.database.connect(True)
@@ -733,7 +819,7 @@ class LogFile(BaseModel):
         all_log_files = tuple(log_files_query)
         for log_file in all_log_files:
             all_stats += log_file.get_stats()
-        self.database.close()
+
         return all_stats, all_log_files
 
     def get_stats(self):
@@ -754,7 +840,7 @@ class LogFile(BaseModel):
                 item_stats = conc_record_class.parse(message) | {"timestamp": recorded_at}
 
             all_stats.append(item_stats)
-        self.database.close()
+
         return all_stats
 
     def get_resource_check_stats(self):
@@ -769,7 +855,7 @@ class LogFile(BaseModel):
 
             if "PARSING ERROR" not in item_stats.keys():
                 all_stats.append(item_stats)
-        self.database.close()
+
         return all_stats
 
     @property
@@ -801,7 +887,8 @@ class LogFile(BaseModel):
 
     def download(self) -> Path:
         try:
-            return self.server.remote_manager.download_file(self)
+            path = self.server.remote_manager.download_file(self)
+            return path
         except Exception as e:
             log.warning("unable to download log-file %r because of %r", self, e)
             log.error(e, exc_info=True)
@@ -815,47 +902,44 @@ class LogFile(BaseModel):
         try:
             if self.is_downloaded is False:
                 self.download()
-            with self.local_path.open('r', encoding='utf-8', errors='ignore') as f:
 
+            with self.local_path.open('r', encoding='utf-8', errors='ignore') as f:
                 yield f
         finally:
             if cleanup is True:
                 self._cleanup()
 
-    def store_original_log_file(self):
+    def store_original_log_file(self) -> Future:
 
         if self.original_file is None:
             log.debug("creating new orginal log file for logfile %r, because logfile.original_file=%r", self, self.original_file)
-            with self.database.write_lock:
-                with self.database:
-                    text = self.local_path.read_text(encoding='utf-8', errors='ignore')
-                    try:
-                        original_file = OriginalLogFile.create(text=text)
-                    except IntegrityError as e:
-                        log.critical("error %r while creating OriginalLogFile for LogFile %r", e, self)
-                        original_file = OriginalLogFile.get(text=text)
-                    self.update(original_file=original_file).where(LogFile.id == self.id).execute()
+            _future = self.database.backend.records_inserter.insert_original_log_file(self.local_path, log_file=self)
         else:
-            with self.database.write_lock:
-                with self.database:
-                    log.debug("updating original log file for log file %r, because it already exists", self)
-                    OriginalLogFile.update(text=self.local_path.read_text(encoding='utf-8', errors='ignore')).where(OriginalLogFile.id == self.original_file.id).execute()
+            log.debug("updating original log file for log file %r, because it already exists", self)
+            _future = self.database.backend.records_inserter.update_original_log_file(self.original_file, self.local_path)
+
+        return _future
 
     def _cleanup(self) -> None:
+
+        def _remove_file(fu: Future):
+            self.local_path.unlink(missing_ok=True)
+            self.is_downloaded = False
+            log.debug('deleted local-file of log_file_item %r from path %r', self.name, self.local_path.as_posix())
+
         log.debug("cleaning up LogFile %r", self)
         if self.is_downloaded is True:
-            self.store_original_log_file()
-            self.local_path.unlink(missing_ok=True)
-            log.debug('deleted local-file of log_file_item %r from path %r', self.name, self.local_path.as_posix())
-            self.is_downloaded = False
+            original_file_future = self.store_original_log_file()
+            original_file_future.add_done_callback(_remove_file)
 
     def get_mods(self) -> Optional[list["Mod"]]:
-        with self.database.connection_context() as ctx:
-            query = Mod.select().join(LogFileAndModJoin).join(LogFile).where(LogFile.id == self.id)
-            _out = list(query)
-            if not _out:
-                return None
-            return _out
+        self.database.connect(reuse_if_open=True)
+        query = Mod.select().join(LogFileAndModJoin).join(LogFile).where(LogFile.id == self.id)
+        _out = list(query)
+        if not _out:
+            return None
+
+        return _out
 
     def __rich__(self):
         return f"[u b blue]{self.server.name}/{self.name}[/u b blue]"
@@ -868,8 +952,8 @@ class LogFile(BaseModel):
 
 
 class ModLink(BaseModel):
-    cleaned_mod_name = TextField(unique=True)
-    link = URLField(unique=True)
+    cleaned_mod_name = TextField(unique=True, index=True)
+    link = URLField(unique=True, index=True)
 
     class Meta:
         table_name = 'ModLink'
@@ -879,9 +963,9 @@ class ModLink(BaseModel):
 
 
 class Mod(BaseModel):
-    full_path = PathField(null=True)
-    mod_hash = TextField(null=True)
-    mod_hash_short = TextField(null=True)
+    full_path = PathField(null=True, index=True)
+    mod_hash = TextField(null=True, index=True)
+    mod_hash_short = TextField(null=True, index=True)
     mod_dir = TextField()
     name = TextField(index=True)
     default = BooleanField(default=False, index=True)
@@ -935,8 +1019,8 @@ class Mod(BaseModel):
 
 
 class LogFileAndModJoin(BaseModel):
-    log_file = ForeignKeyField(model=LogFile, lazy_load=True, backref="mods")
-    mod = ForeignKeyField(model=Mod, lazy_load=True, backref="log_files")
+    log_file = ForeignKeyField(model=LogFile, lazy_load=True, backref="mods", index=True)
+    mod = ForeignKeyField(model=Mod, lazy_load=True, backref="log_files", index=True)
 
     class Meta:
         table_name = 'LogFile_and_Mod_join'
@@ -952,14 +1036,18 @@ class LogFileAndModJoin(BaseModel):
 
 class ModSet(BaseModel):
     name = TextField(index=True, unique=True, verbose_name="Mod-Set Name")
-    mod_names = JSONField(unique=True, verbose_name="Mod names")
+    mod_names = JSONField(unique=True, verbose_name="Mod names", index=True)
 
     class Meta:
         table_name = 'ModSet'
+        indexes = (
+            (('name', 'mod_names'), True),
+
+        )
 
 
 class LogLevel(BaseModel):
-    name = TextField(unique=True)
+    name = TextField(unique=True, index=True)
     comments = CommentsField(null=True)
 
     @cached_property
@@ -974,10 +1062,12 @@ class LogLevel(BaseModel):
 
 
 class RecordClass(BaseModel):
-    record_class_manager: "RecordClassManager" = None
     name = TextField(unique=True, index=True)
     comments = CommentsField(null=True)
     marked = MarkedField()
+
+    # non-db attributes
+    record_class_manager: "RecordClassManager" = None
     _record_class: "RECORD_CLASS_TYPE" = None
 
     class Meta:
@@ -1016,16 +1106,16 @@ class RecordClass(BaseModel):
 class RecordOrigin(BaseModel):
     name = TextField(unique=True, verbose_name="Name", index=True)
     identifier = CaselessTextField(unique=True, verbose_name="Identifier", index=True)
-    is_default = BooleanField(default=False, verbose_name="Is Default Origin")
+    is_default = BooleanField(default=False, verbose_name="Is Default Origin", index=True)
     comments = CommentsField(null=True)
     marked = MarkedField()
 
     class Meta:
         table_name = 'RecordOrigin'
+        indexes = (
+            (('name', 'identifier'), True),
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        _ = self.record_family
+        )
 
     def check(self, raw_record: "RawRecord") -> bool:
         return self.identifier in raw_record.content.casefold()
@@ -1038,29 +1128,23 @@ class RecordOrigin(BaseModel):
 class LogRecord(BaseModel):
     start = IntegerField(help_text="Start Line number of the Record", verbose_name="Start")
     end = IntegerField(help_text="End Line number of the Record", verbose_name="End")
-    message = TextField(help_text="Message part of the Record", verbose_name="Message")
-    recorded_at = AwareTimeStampField(index=True, utc=True, verbose_name="Recorded at")
-    called_by = ForeignKeyField(column_name='called_by', field='id', model=ArmaFunction, backref="log_records_called_by", lazy_load=True, null=True, verbose_name="Called by", index=True)
-    origin = ForeignKeyField(column_name="origin", field="id", model=RecordOrigin, backref="records", lazy_load=True, verbose_name="Origin", default=0, index=True)
+    message = TextField(help_text="Message part of the Record", verbose_name="Message", index=True)
+    recorded_at = AwareTimeStampField(utc=True, verbose_name="Recorded at")
+    called_by = ForeignKeyField(column_name='called_by', field='id', model=ArmaFunction, backref="log_records_called_by", lazy_load=True, null=True, verbose_name="Called by")
+    origin = ForeignKeyField(column_name="origin", field="id", model=RecordOrigin, backref="records", lazy_load=True, verbose_name="Origin", default=0)
     logged_from = ForeignKeyField(column_name='logged_from', field='id', model=ArmaFunction, backref="log_records_logged_from", lazy_load=True, null=True, verbose_name="Logged from", index=True)
     log_file = ForeignKeyField(column_name='log_file', field='id', model=LogFile, lazy_load=True, backref="log_records", null=False, verbose_name="Log-File", index=True)
-    log_level = ForeignKeyField(column_name='log_level', default=0, field='id', model=LogLevel, null=True, lazy_load=True, verbose_name="Log-Level")
+    log_level = ForeignKeyField(column_name='log_level', default=0, field='id', model=LogLevel, null=True, lazy_load=True, verbose_name="Log-Level", index=True)
     record_class = ForeignKeyField(column_name='record_class', field='id', model=RecordClass, lazy_load=True, verbose_name="Record Class", null=True, index=True)
     marked = MarkedField(index=False)
 
+    # non-db attributes
     message_size_hint = None
 
     class Meta:
         table_name = 'LogRecord'
         indexes = (
             (('start', 'end', 'log_file'), True),
-            (("log_file", "log_level"), False),
-            (("log_file", "record_class"), False),
-            (("log_file", "logged_from"), False),
-            (("log_file", "record_class", "logged_from"), False),
-            (("record_class", "logged_from"), False),
-            (("log_file", "called_by"), False),
-            (("log_file", "origin"), False)
         )
 
     @classmethod
@@ -1094,19 +1178,22 @@ class LogRecord(BaseModel):
         return f"{self.recorded_at.isoformat(sep=' ')} {self.message}"
 
 
-DATABASE_META_LOCK = RLock()
-
-
 class DatabaseMetaData(BaseModel):
-    started_at = AwareTimeStampField(utc=True)
-    app_version = VersionField()
+    started_at = AwareTimeStampField(utc=True, index=True)
+    app_version = VersionField(index=True)
     new_log_files = IntegerField(default=0)
     updated_log_files = IntegerField(default=0)
     added_log_records = IntegerField(default=0)
     errored = TextField(null=True)
-    last_update_started_at = AwareTimeStampField(null=True, utc=True)
-    last_update_finished_at = AwareTimeStampField(null=True, utc=True)
-    stored_last_update_finished_at: datetime = MiscEnum.NOTHING
+    last_update_started_at = AwareTimeStampField(null=True, utc=True, index=True)
+    last_update_finished_at = AwareTimeStampField(null=True, utc=True, index=True)
+
+    # non-db attributes
+    database_meta_lock = RLock()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.stored_last_update_finished_at: datetime = MiscEnum.NOTHING
 
     class Meta:
         table_name = 'DatabaseMetaData'
@@ -1159,17 +1246,17 @@ class DatabaseMetaData(BaseModel):
             return LogRecord.select().where(LogRecord.log_file == log_file).count()
 
     def increment_new_log_file(self, **kwargs) -> None:
-        with DATABASE_META_LOCK:
+        with self.database_meta_lock:
             amount = kwargs.get("amount", 1)
             self.new_log_files += amount
 
     def increment_updated_log_file(self, **kwargs) -> None:
-        with DATABASE_META_LOCK:
+        with self.database_meta_lock:
             amount = kwargs.get("amount", 1)
             self.updated_log_files += amount
 
     def increment_added_log_records(self, **kwargs) -> None:
-        with DATABASE_META_LOCK:
+        with self.database_meta_lock:
             amount = kwargs.get("amount", 1)
             self.added_log_records += amount
 
@@ -1192,7 +1279,7 @@ def setup_db(database: "GidSqliteApswDatabase"):
     from antistasi_logbook.data.coordinates import MAP_COORDS_DIR
     database_proxy.initialize(database)
 
-    all_models = BaseModel.__subclasses__()
+    all_models = [m for m in BaseModel.__subclasses__() if m.is_view is False]
 
     setup_data = {RemoteStorage: [{"name": "local_files", "id": 0, "base_url": "--LOCAL--", "manager_type": "LocalManager", "credentials_required": False},
                                   {"name": "community_webdav", "id": 1, "base_url": "https://antistasi.de", "manager_type": "WebdavManager", "credentials_required": True}],

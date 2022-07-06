@@ -198,7 +198,7 @@ class Backend:
             ThreadPoolExecutor: [description]
         """
         if self._thread_pool is None:
-            self._thread_pool = ThreadPoolExecutor(max_workers=max(1, int(self.max_threads * 0.34)), thread_name_prefix="backend", initializer=self.database.connect, initargs=(True,))
+            self._thread_pool = ThreadPoolExecutor(max_workers=max(1, self.max_threads - 2), thread_name_prefix="backend")
         return self._thread_pool
 
     @property
@@ -216,7 +216,7 @@ class Backend:
             ThreadPoolExecutor: [description]
         """
         if self._inserting_thread_pool is None:
-            self._inserting_thread_pool = ThreadPoolExecutor(max_workers=max(1, int(self.max_threads * 0.67)), thread_name_prefix="backend_inserting", initializer=self.database.connect, initargs=(True,))
+            self._inserting_thread_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="backend_inserting", initializer=self.database.connect, initargs=(True,))
         return self._inserting_thread_pool
 
     @property

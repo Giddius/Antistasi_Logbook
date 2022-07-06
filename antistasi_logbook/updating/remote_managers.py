@@ -189,7 +189,7 @@ class WebdavManager(AbstractRemoteStorageManager):
     config: "GidIniConfig" = CONFIG
     _extra_base_url_parts = ["dev_drive", "remote.php", "dav", "files"]
 
-    download_semaphores: dict[yarl.URL, MinDurationSemaphore] = {}
+    download_semaphores: dict[yarl.URL, Semaphore] = {}
     config_name = 'webdav'
 
     def __init__(self, base_url: yarl.URL, login: str, password: str) -> None:
@@ -205,7 +205,7 @@ class WebdavManager(AbstractRemoteStorageManager):
         if any(x is None for x in [remote_storage_item.get_login(), remote_storage_item.get_password()]):
             raise MissingLoginAndPasswordError(remote_storage_item=remote_storage_item)
 
-    def _get_download_semaphore(self) -> MinDurationSemaphore:
+    def _get_download_semaphore(self) -> Semaphore:
         download_semaphore = self.download_semaphores.get(self.full_base_url)
         if download_semaphore is None:
             download_semaphore = Semaphore(self.max_connections)
@@ -260,7 +260,7 @@ class WebdavManager(AbstractRemoteStorageManager):
         _out = InfoItem.from_webdav_info(info)
         return _out
 
-    @Retrier([httpx.ReadError, httpx.RemoteProtocolError], allowed_attempts=3, timeout=5, timeout_function=exponential_timeout)
+    @Retrier([httpx.ReadError, httpx.RemoteProtocolError], allowed_attempts=5, timeout=10, timeout_function=exponential_timeout)
     def download_file(self, log_file: "LogFile") -> "LogFile":
         with self.download_semaphore:
             local_path = log_file.local_path

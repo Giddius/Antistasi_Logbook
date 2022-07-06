@@ -81,7 +81,7 @@ mkdir %WORKSPACE_FOLDER%\.venv
 ECHO.
 
 ECHO ################# Calling venv module to initialize new venv
-python -m venv --clear %WORKSPACE_FOLDER%\.venv
+python -m venv --clear --upgrade-deps %WORKSPACE_FOLDER%\.venv
 ECHO.
 
 ECHO ################# activating venv for package installation
@@ -89,11 +89,7 @@ CALL %WORKSPACE_FOLDER%\.venv\Scripts\activate.bat
 ECHO.
 
 
-ECHO ################# upgrading venv for package installation
 
-call %WORKSPACE_FOLDER%\.venv\Scripts\python.exe -m pip install --upgrade pip
-
-ECHO.
 
 ECHO.
 ECHO -------------------------------------------------------------------------------------------------------------
@@ -108,9 +104,7 @@ ECHO +++++++++++++++++++++++++++++ Standard Packages +++++++++++++++++++++++++++
 ECHO.
 ECHO.
 
-ECHO ################# Installing Setuptools
-CALL pip install --upgrade setuptools
-ECHO.
+
 
 ECHO ################# Installing wheel
 CALL pip install --upgrade wheel
@@ -155,15 +149,15 @@ ECHO.
 ECHO.
 ECHO.
 
-Echo +++++++++++++++++++++++++++++ Experimental Packages +++++++++++++++++++++++++++++
-ECHO.
+rem Echo +++++++++++++++++++++++++++++ Experimental Packages +++++++++++++++++++++++++++++
+rem ECHO.
 
-ECHO.
-CALL pip install -r %TOOLS_FOLDER%\venv_setup_settings\required_experimental.txt
-ECHO.
+rem ECHO.
+rem CALL pip install -r %TOOLS_FOLDER%\venv_setup_settings\required_experimental.txt
+rem ECHO.
 
-ECHO.
-ECHO.
+rem ECHO.
+rem ECHO.
 
 
 

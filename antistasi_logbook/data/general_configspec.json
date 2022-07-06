@@ -29,7 +29,23 @@
             "default": "0",
             "implemented": false
         },
-        "log_connection_creation": {
+        "enable_connection_creation_logging": {
+            "converter": "boolean",
+            "default": "False"
+        },
+        "enable_profiling_hook_logging": {
+            "converter": "boolean",
+            "default": "False"
+        },
+        "enable_update_hook_logging": {
+            "converter": "boolean",
+            "default": "False"
+        },
+        "enable_rollback_hook_logging": {
+            "converter": "boolean",
+            "default": "False"
+        },
+        "enable_wal_hook_logging": {
             "converter": "boolean",
             "default": "False"
         }

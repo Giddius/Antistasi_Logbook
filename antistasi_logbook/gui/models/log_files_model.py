@@ -127,7 +127,7 @@ class LogFilesModel(BaseQueryDataModel):
             return super().on_display_data_bool(role=role, item=item, column=column, value=value)
 
     def get_query(self) -> "Query":
-        query = LogFile.select().join(GameMap, join_type=JOIN.LEFT_OUTER).switch(LogFile).join(Server).switch(LogFile).join(Version).switch(LogFile)
+        query = LogFile.select(LogFile, GameMap, Server, Version).join(GameMap, join_type=JOIN.LEFT_OUTER).switch(LogFile).join(Server).switch(LogFile).join(Version).switch(LogFile)
         if self.show_unparsable is False:
             query = query.where(LogFile.unparsable == False)
         if self.filter_item is not None:

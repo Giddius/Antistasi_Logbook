@@ -46,18 +46,26 @@ class CustomRole(int, UserRole):
 class UpdaterSignaler(QObject):
     update_started = Signal(bool)
     update_finished = Signal(bool)
+    update_record_classes_started = Signal(bool)
+    update_record_classes_finished = Signal(bool)
     update_info = Signal(int, str)
-    update_increment = Signal()
+    update_increment = Signal(int)
     change_update_text = Signal(str)
 
-    def send_update_increment(self):
-        self.update_increment.emit()
+    def send_update_increment(self, amount: int = 1):
+        self.update_increment.emit(amount)
 
     def send_update_started(self):
         self.update_started.emit(True)
 
     def send_update_finished(self):
         self.update_finished.emit(False)
+
+    def send_update_record_classes_started(self):
+        self.update_record_classes_started.emit(True)
+
+    def send_update_record_classes_finished(self):
+        self.update_record_classes_finished.emit(False)
 
     def send_update_info(self, amount, name):
         self.update_info.emit(amount, name)

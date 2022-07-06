@@ -251,8 +251,8 @@ class LogbookStatusBar(QStatusBar):
         else:
             self.clearMessage()
 
-    def increment_progress_bar(self):
-        self.update_progress.setValue(self.update_progress.value() + 1)
+    def increment_progress_bar(self, amount: int):
+        self.update_progress.setValue(self.update_progress.value() + amount)
 
     def shutdown(self):
         self.last_updated_label.shutdown()

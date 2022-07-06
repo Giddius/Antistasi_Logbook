@@ -12,6 +12,7 @@ from abc import ABC
 from typing import TYPE_CHECKING, Any, Union, Optional, Generator, Literal
 from pathlib import Path
 from functools import partial
+from collections.abc import Iterable
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
 from PySide6.QtGui import QFont, QColor, QAction, QPixmap, QTextFormat, QTextOption, QFontMetrics, QTextDocument, QTextCharFormat, QDesktopServices, QSyntaxHighlighter
@@ -73,9 +74,12 @@ class ModModel(QAbstractTableModel):
     ace_compat_regex = re.compile(r"ace.*compat", re.IGNORECASE)
     column_names_to_exclude = {"id", "full_path", "mod_hash_short", "mod_hash", "marked", "comments", "link", "mod_dir"}
 
-    def __init__(self, mods: Mod, parent: Optional[PySide6.QtCore.QObject] = None) -> None:
+    def __init__(self, mods: Iterable[Mod], parent: Optional[PySide6.QtCore.QObject] = None) -> None:
         super().__init__(parent=parent)
-        self.mods = sorted(mods, key=lambda x: (x.official is True, x.default is True, self.ace_compat_regex.search(x.name) is not None, "rhs" in x.name.casefold(), "3cb" in x.name.casefold(), "cup" in x.name.casefold()))
+        if not mods:
+            self.mods = []
+        else:
+            self.mods = sorted(mods, key=lambda x: (x.official is True, x.default is True, self.ace_compat_regex.search(x.name) is not None, "rhs" in x.name.casefold(), "3cb" in x.name.casefold(), "cup" in x.name.casefold()))
         self.columns: tuple[Field] = self.get_columns()
 
     def get_columns(self) -> tuple[Field]:
@@ -230,7 +234,7 @@ class ModView(QListView):
         self.mod_data_view.show()
 
     def contextMenuEvent(self, event: PySide6.QtGui.QContextMenuEvent) -> None:
-        index = self.indexAt(event.position().toPoint())
+        index = self.indexAt(event.pos())
         self.setCurrentIndex(index)
         item = self.model().mods[index.row()]
         if index.isValid():

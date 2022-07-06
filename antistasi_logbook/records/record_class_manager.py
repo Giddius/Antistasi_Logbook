@@ -23,6 +23,7 @@ from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_glo
 from antistasi_logbook.records.base_record import BaseRecord, RecordFamily
 from antistasi_logbook.storage.models.models import LogRecord, RecordClass
 from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
+from antistasi_logbook.parsing.raw_record import RawRecord
 from frozendict import frozendict
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
@@ -32,6 +33,7 @@ if TYPE_CHECKING:
 
 # region [TODO]
 
+# TODO: Make record-class checking available with LogRecords, RawRecords and just a Record-dict
 
 # endregion [TODO]
 
@@ -76,33 +78,46 @@ class RecordClassChecker:
 
     def _determine_generic_record_class(self, log_record: LogRecord) -> "RecordClass":
         for stored_class in self.generic_record_classes:
-            if stored_class.check(log_record) is True:
+            if stored_class.concrete_class.check(log_record) is True:
                 return stored_class.model
 
     def _determine_antistasi_record_class(self, log_record: LogRecord) -> "RecordClass":
         try:
             function_name = log_record.logged_from.function_name
+        except AttributeError:
+            function_name = log_record.parsed_data.get("logged_from").function_name
+        try:
 
             sub_set = self.antistasi_record_classes[function_name]
             for stored_class in sub_set:
-                if stored_class.check(log_record) is True:
+                if stored_class.concrete_class.check(log_record) is True:
                     return stored_class.model
         except KeyError:
             pass
-        except AttributeError as e:
-            log.critical("Error %r with log_record %r, of log_file %r from server %r", e, log_record, log_record.log_file, log_record.log_file.server)
 
         return self.antistasi_record_classes["DEFAULT"].model
 
     def _determine_record_class(self, log_record: LogRecord) -> "RecordClass":
-        record_class = self.family_handler_table.get(log_record.origin.record_family, self._determine_generic_record_class)(log_record)
+        if log_record is None:
+            log.critical("Log record %r is None", log_record)
+            return
+        try:
+            origin = log_record.origin.record_family
+        except AttributeError:
+            origin = log_record.record_origin.record_family
+        record_class = self.family_handler_table.get(origin, self._determine_generic_record_class)(log_record)
         if record_class is None:
-            return self.default_record_class.model
-        return record_class
+            _out = self.default_record_class.model
+        else:
+            _out = record_class
+        if isinstance(log_record, RawRecord):
+            log_record.record_class = _out
+        else:
+            return _out
 
 
 class RecordClassManager:
-    __slots__ = ("backend", "foreign_key_cache", "_default_record_concrete_class", "_default_record_class", "family_handler_table", "record_class_checker")
+    __slots__ = ("backend", "foreign_key_cache", "_default_record_concrete_class", "_default_record_class", "family_handler_table", "_record_class_checker")
     record_class_registry: dict[str, StoredRecordClass] = {}
     record_class_registry_by_id: dict[str, StoredRecordClass] = {}
     generic_record_classes: SortedSet[StoredRecordClass] = SortedSet(key=lambda x: -x.concrete_class.___specificity___)
@@ -115,13 +130,19 @@ class RecordClassManager:
         self._default_record_concrete_class = BaseRecord if default_record_class is None else default_record_class
         self._default_record_class: "StoredRecordClass" = None
 
-        self.record_class_checker: RecordClassChecker = None
+        self._record_class_checker: RecordClassChecker = None
+
+    @property
+    def record_class_checker(self) -> RecordClassChecker:
+        if self._record_class_checker is None:
+            self._create_record_checker()
+        return self._record_class_checker
 
     def _create_record_checker(self) -> RecordClassChecker:
 
-        self.record_class_checker = RecordClassChecker(default_record_class=self.default_record_class,
-                                                       generic_record_classes=tuple(self.generic_record_classes.copy()),
-                                                       antistasi_record_classes=self.antistasi_record_classes.copy())
+        self._record_class_checker = RecordClassChecker(default_record_class=self.default_record_class,
+                                                        generic_record_classes=tuple(self.generic_record_classes.copy()),
+                                                        antistasi_record_classes=self.antistasi_record_classes.copy())
 
     @property
     def default_record_class(self) -> StoredRecordClass:
@@ -164,6 +185,9 @@ class RecordClassManager:
 
     def get_by_id(self, model_id: int) -> RECORD_CLASS_TYPE:
         return self.record_class_registry_by_id.get(str(model_id), self.default_record_class).concrete_class
+
+    def get_model_by_id(self, model_id: int) -> RecordClass:
+        return self.record_class_registry_by_id.get(str(model_id), self.default_record_class).model
 
     def determine_record_class(self, log_record: LogRecord) -> tuple["RECORD_CLASS_TYPE", LogRecord]:
         if self.record_class_checker is None:

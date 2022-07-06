@@ -61,7 +61,7 @@ class RawSQLPhrase:
 
 
 class RawRecord:
-    insert_sql_phrase = RawSQLPhrase(phrase="""INSERT OR IGNORE INTO "LogRecord" ("start", "end", "message", "recorded_at", "called_by", "origin", "logged_from", "log_file", "log_level", "marked") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""")
+    insert_sql_phrase = RawSQLPhrase(phrase="""INSERT OR IGNORE INTO "LogRecord" ("start", "end", "message", "recorded_at", "called_by", "origin", "logged_from", "log_file", "log_level", "marked","record_class") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""")
     __slots__ = ("lines", "_is_antistasi_record", "start", "end", "_content", "parsed_data", "record_class", "record_origin")
 
     def __init__(self, lines: Iterable["RecordLine"]) -> None:
@@ -106,10 +106,14 @@ class RawRecord:
         if logged_from is not None:
             logged_from = logged_from.id
 
-        return (self.start, self.end, self.parsed_data.get("message"), LogRecord.recorded_at.db_value(self.parsed_data.get("recorded_at")), called_by, self.record_origin.id, logged_from, log_file.id, self.parsed_data.get("log_level").id, 0)
+        return (self.start, self.end, self.parsed_data.get("message"), LogRecord.recorded_at.db_value(self.parsed_data.get("recorded_at")), called_by, self.record_origin.id, logged_from, log_file.id, self.parsed_data.get("log_level").id, 0, self.record_class.id)
+
+    @property
+    def message(self) -> str:
+        return self.parsed_data.get("message")
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(start={self.start!r}, end={self.end!r}, content={self.content!r}, origin={self.record_origin!r}, lines={self.lines!r})"
+        return f"{self.__class__.__name__}(start={self.start!r}, end={self.end!r}, content={self.content[:200]!r}, origin={self.record_origin!r})"
 
     def __eq__(self, o: object) -> bool:
         if isinstance(o, self.__class__):

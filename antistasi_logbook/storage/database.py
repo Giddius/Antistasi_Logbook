@@ -10,6 +10,7 @@ Soon.
 import os
 import sys
 from typing import TYPE_CHECKING, Union, Protocol, Generator
+import random
 from pathlib import Path
 from weakref import WeakSet
 from functools import cached_property
@@ -22,6 +23,8 @@ from concurrent.futures import Future, ThreadPoolExecutor, wait, FIRST_COMPLETED
 
 from apsw import SQLITE_OK, SQLITE_CHECKPOINT_TRUNCATE, Connection
 from peewee import JOIN, DatabaseProxy, chunked
+from playhouse.sqlite_ext import CYTHON_SQLITE_EXTENSIONS
+
 from playhouse.apsw_ext import APSWDatabase
 from apsw import ThreadingViolationError
 import apsw
@@ -35,6 +38,7 @@ from antistasi_logbook import setup
 from antistasi_logbook.storage.models.models import (Server, GameMap, LogFile, Version, LogLevel, LogRecord, RecordClass, ArmaFunction,
                                                      RecordOrigin, RemoteStorage, DatabaseMetaData, ArmaFunctionAuthorPrefix, setup_db)
 from antistasi_logbook.storage.models.migration import run_migration
+from antistasi_logbook.utilities.locks import FakeLock
 import inspect
 
 setup()
@@ -69,22 +73,24 @@ META_INFO = get_meta_info()
 CONFIG: "GidIniConfig" = get_meta_config().get_config('general')
 CONFIG.config.load()
 log = get_logger(__name__)
+
 # endregion[Constants]
 
 DEFAULT_DB_NAME = "storage.db"
 
 DEFAULT_PRAGMAS = frozendict({
-    "cache_size": -1 * 128_000,
-    "journal_mode": 'wal',
+    "cache_size": -1 * 512_000,
+    "journal_mode": 'WAL',
     "synchronous": 0,
     "ignore_check_constraints": 0,
     "foreign_keys": 1,
-    "temp_store": "MEMORY",
+    "temp_store": "memory",
     "mmap_size": 268_435_456 * 2,
+    "auto_vacuum": 2,
     "journal_size_limit": human2bytes("500mb"),
-    "wal_autocheckpoint": 1_000_000 // 2,
-    "page_size": 32_768 * 2,
-    "analysis_limit": 100_000_000,
+    "wal_autocheckpoint": 1_000_000,
+    # "page_size": 32_768,
+    "read_uncommitted": False,
     "case_sensitive_like": False
 })
 
@@ -140,8 +146,8 @@ def rollback_hook():
     log.critical("<<SQL-ROLLBACK>> Rollback-Hook was called")
 
 
-def profile_hook(stmt, time_taken):
-    log.debug('<<SQL-PROFILING>> {"statement":"%s", "time":%r}', stmt, ns_to_s(time_taken, 6))
+def profile_hook(stmt: str, time_taken):
+    log.debug('<<SQL-PROFILING>> {"statement":"%s", "time":%r}', stmt.replace('"', r'\"'), ns_to_s(time_taken, 6))
 
 
 def update_hook(typus: int, database_name: str, table_name: str, row_id: int):
@@ -149,13 +155,28 @@ def update_hook(typus: int, database_name: str, table_name: str, row_id: int):
     log.debug('<<SQL-UPDATE>> {"typus": %r, "database_name": %r, "table_name": %r, "row_id": %r', typus, database_name, table_name, row_id)
 
 
+def connection_hook(conn: apsw.Connection):
+    call_frame = sys._getframe().f_back.f_back.f_back.f_back.f_back
+    while Path(call_frame.f_code.co_filename).stem == "peewee" or Path(call_frame.f_code.co_filename).parent.stem == "playhouse":
+        call_frame = call_frame.f_back
+    caller = call_frame.f_code.co_name
+    module_name: str = 'main.' + call_frame.f_globals.get("__name__").split(".", 1)[-1]
+
+    caller_file = Path(call_frame.f_code.co_filename)
+
+    log.debug("opening connection %r in thread %r and caller %r, file: %r", conn, current_thread(), caller, caller_file.name, extra={"function_name": caller, "module": module_name})
+
+
 class GidSqliteApswDatabase(APSWDatabase):
 
-    default_extensions = {"json_contains": True,
-                          "regexp_function": False}
+    default_extensions = {"c_extensions": True,
+                          "rank_functions": True,
+                          "hash_functions": True,
+                          "json_contains": True,
+                          "bloomfilter": True,
+                          "regexp_function": True}
 
     default_db_path = META_PATHS.db_dir if os.getenv('IS_DEV', 'false') == "false" else THIS_FILE_DIR
-    conns = WeakSet()
 
     def __init__(self,
                  database_path: Path = None,
@@ -165,7 +186,7 @@ class GidSqliteApswDatabase(APSWDatabase):
                  autoconnect=True,
                  pragmas=None,
                  extensions=None):
-        self.all_connections: WeakSet[Connection] = WeakSet()
+        self.all_connections: WeakSet[apsw.Connection] = WeakSet()
         self.database_path = self.resolve_db_path(database_path=database_path)
         self.database_path.parent.mkdir(exist_ok=True, parents=True)
         self.database_existed: bool = self.database_path.is_file()
@@ -174,12 +195,12 @@ class GidSqliteApswDatabase(APSWDatabase):
         self.auto_backup = auto_backup
         self.started_up = False
         self.session_meta_data: "DatabaseMetaData" = None
-        extensions = self.default_extensions.copy() | (extensions or {})
-        pragmas = dict(DEFAULT_PRAGMAS | (pragmas or {}))
-        super().__init__(make_db_path(self.database_path), thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, timeout=100, statementcachesize=100, ** extensions)
+        extensions = dict(self.default_extensions.copy() | (extensions or {}))
+        pragmas = dict(DEFAULT_PRAGMAS) | (pragmas or {})
+        super().__init__(make_db_path(self.database_path), thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, timeout=100, statementcachesize=10_000, ** extensions)
 
         self.foreign_key_cache: "ForeignKeyCache" = ForeignKeyCache(database=self)
-        self.write_lock = RLock()
+        self.write_lock = FakeLock()
         self.record_processor: "RecordProcessor" = None
         self.record_inserter: "RecordInserter" = None
         self.backend: "Backend" = None
@@ -202,38 +223,60 @@ class GidSqliteApswDatabase(APSWDatabase):
     def base_record_id(self) -> int:
         return RecordClass.select().where(RecordClass.name == "BaseRecord").scalar()
 
-    def _add_conn_hooks(self, conn: apsw.Connection):
-        self.conns.add(conn)
+    def _add_conn_hooks(self, conn: "apsw.Connection"):
+        self.all_connections.add(conn)
 
-        if self.config.get("database", "log_connection_creation") is True:
-            call_frame = sys._getframe().f_back.f_back.f_back.f_back
-            while Path(call_frame.f_code.co_filename).stem == "peewee" or Path(call_frame.f_code.co_filename).parent.stem == "playhouse":
-                call_frame = call_frame.f_back
-            caller = call_frame.f_code.co_name
-            caller_file = Path(call_frame.f_code.co_filename).resolve().name
+        if self.config.get("database", "enable_connection_creation_logging") is True:
+            connection_hook(conn)
 
-            log.debug("opening connection %r in thread %r and caller %r, file: %r", conn, current_thread(), caller, caller_file)
-
+        if self.config.get("database", "enable_profiling_hook_logging") is True:
             conn.setprofile(profile_hook)
-            conn.setwalhook(wal_hook)
-            conn.setrollbackhook(rollback_hook)
+
+        if self.config.get("database", "enable_update_hook_logging") is True:
             conn.setupdatehook(update_hook)
+
+        if self.config.get("database", "enable_rollback_hook_logging") is True:
+            conn.setrollbackhook(rollback_hook)
+
+        if self.config.get("database", "enable_wal_hook_logging") is True:
+            conn.setwalhook(wal_hook)
+
         super()._add_conn_hooks(conn)
+        conn.setbusyhandler(self._busy_handling)
+
+    def _busy_handling(self, prior_calls: int) -> bool:
+        if prior_calls == 0:
+            sleep_time = 0
+        else:
+            _prior_calls = prior_calls if prior_calls != 0 else 1
+            base = 0.5
+            sleep_time = round((base * (_prior_calls / 2)) + (random.random()), 4)
+
+        sleep(sleep_time)
+        if prior_calls > 0 and prior_calls % 5 == 0:
+            log.debug("%r busy sleeping for %r prior-calls", sleep_time, prior_calls)
+        if prior_calls > 1_000:
+            return False
+        return True
 
     def _close(self, conn):
-        if self.config.get("database", "log_connection_creation") is True:
-            log.debug("closed connection %r of thread %r", conn, current_thread())
-        self.conns.remove(conn)
-        conn.close()
+        self.optimize()
+        if self.config.get("database", "enable_connection_creation_logging") is True:
+            log.debug("closed connection %r (changes: %r, total changes: %r) of thread %r", conn, conn.changes(), conn.totalchanges(), current_thread())
+
+        self.all_connections.remove(conn)
+        super()._close(conn)
 
     def _pre_start_up(self, overwrite: bool = False) -> None:
         self.database_path.parent.mkdir(exist_ok=True, parents=True)
         if overwrite is True:
             self.database_path.unlink(missing_ok=True)
+            LogFile
 
     def _post_start_up(self, **kwargs) -> None:
+
         self.session_meta_data = DatabaseMetaData.new_session()
-        self.optimize()
+        self.backend.inserting_thread_pool.submit(self.resolve_all_armafunction_extras)
 
     def checkpoint(self, mode=SQLITE_CHECKPOINT_TRUNCATE):
         with self.write_lock:
@@ -253,8 +296,7 @@ class GidSqliteApswDatabase(APSWDatabase):
         log.info("starting up %r", self)
         self._pre_start_up(overwrite=overwrite)
         self.connect(reuse_if_open=True)
-        # for k, v in DEFAULT_PRAGMAS.items():
-        #     self.pragma(k, v)
+
         with self.write_lock:
             if self.database_existed is True:
                 log.debug("starting migration for %r", self)
@@ -268,46 +310,45 @@ class GidSqliteApswDatabase(APSWDatabase):
         self.started_up = True
         self.foreign_key_cache.reset_all()
         self.foreign_key_cache.preload_all()
-        self.checkpoint()
-        self.optimize()
+
         log.info("finished starting up %r", self)
         return self
 
     def optimize(self) -> "GidSqliteApswDatabase":
-        log.info("optimizing %r", self)
-        with self.write_lock:
-            time_start = perf_counter()
-            result = self.pragma("OPTIMIZE")
-            time_taken = perf_counter() - time_start
-        log.info("finished optimizing %r, result: %r, time taken: %rs", self, result, round(time_taken, 3))
+        result = self.execute_sql(f"PRAGMA analysis_limit={1_000};PRAGMA optimize;")
+        self.commit()
         return self
 
     def vacuum(self) -> "GidSqliteApswDatabase":
-        with self.write_lock:
-            log.info("vacuuming %r", self)
-            time_start = perf_counter()
-            result: apsw.Cursor = self.execute_sql("VACUUM;")
-            time_taken = perf_counter() - time_start
+        log.info("vacuuming %r", self)
+        time_start = perf_counter()
+        result: apsw.Cursor = self.execute_sql("VACUUM;")
+        self.optimize()
+        self.checkpoint()
+        time_taken = perf_counter() - time_start
 
-        log.info("finished vacuuming %r, result: %r, time taken: %rs", self, result.getconnection().totalchanges(), round(time_taken, 3))
+        log.debug("finished vacuuming %r, result: %r, time taken: %rs", self, result.getconnection().totalchanges(), round(time_taken, 3))
         return self
 
     def shutdown(self, error: BaseException = None) -> None:
         log.debug("shutting down %r", self)
-        with self.write_lock:
-            self.session_meta_data.save()
-        with self.connection_context() as ctx:
-            self.checkpoint()
-            self.optimize()
-            self.checkpoint()
-            with self.write_lock:
-                for conn in self.conns:
-                    try:
-                        log.debug("Trying to close connection %r", conn)
-                        conn.close()
-                        del conn
-                    except ThreadingViolationError as e:
-                        log.critical("encountered error %e  while closing connection %r", e, conn)
+
+        self.session_meta_data.save()
+        self.optimize()
+        self.checkpoint()
+
+        for conn in self.all_connections:
+            try:
+                cur = conn.cursor()
+                log.debug("optimizing before closing connection %r", conn)
+                _result = cur.execute(f"PRAGMA analysis_limit={15_000_000};PRAGMA optimize;")
+                log.debug("optimizing result for connection %r: %r", conn, tuple(_result))
+                cur.close()
+                log.debug("Trying to close connection %r", conn)
+                conn.close()
+                del conn
+            except ThreadingViolationError as e:
+                log.critical("encountered error %e  while closing connection %r", e, conn)
         self.started_up = False
         log.debug("finished shutting down %r", self)
 
@@ -329,67 +370,65 @@ class GidSqliteApswDatabase(APSWDatabase):
 
     def get_all_log_levels(self, ordered_by=LogLevel.id) -> tuple[LogLevel]:
 
-        result = tuple(LogLevel.select().order_by(ordered_by).iterator(self))
+        result = tuple(LogLevel.select().order_by(ordered_by))
 
         return result
 
     def get_all_arma_functions(self, ordered_by=ArmaFunction.id) -> tuple[ArmaFunction]:
-        result = []
-        for item in ArmaFunction.select(ArmaFunction, ArmaFunctionAuthorPrefix).join(ArmaFunctionAuthorPrefix).order_by(ordered_by).iterator(self):
-            _ = item.function_name
-            _ = item.file_name
-            result.append(item)
-
-        return tuple(result)
+        with self:
+            return tuple(item for item in ArmaFunction.select(ArmaFunction, ArmaFunctionAuthorPrefix).join(ArmaFunctionAuthorPrefix).order_by(ordered_by))
 
     def get_all_game_maps(self, ordered_by=GameMap.id) -> tuple[GameMap]:
 
-        result = tuple(GameMap.select(GameMap).order_by(ordered_by).iterator(self))
+        result = tuple(GameMap.select(GameMap).order_by(ordered_by))
 
         return result
 
     def get_all_origins(self, ordered_by=RecordOrigin.id) -> tuple[RecordOrigin]:
 
-        result = tuple(RecordOrigin.select().order_by(ordered_by).iterator(self))
+        result = tuple(RecordOrigin.select().order_by(ordered_by))
         return result
 
     def get_all_versions(self, ordered_by=Version) -> tuple[Version]:
 
-        result = tuple(Version.select(Version).order_by(ordered_by).iterator(self))
+        result = tuple(Version.select(Version).order_by(ordered_by))
         return result
 
     def iter_all_records(self, server: Server = None, log_file: LogFile = None, only_missing_record_class: bool = False) -> Generator[LogRecord, None, None]:
-        with self.connection_context() as ctx:
+        self.connect(True)
 
-            foreign_key_cache = ForeignKeyCache(self)
-            foreign_key_cache.preload_all()
+        foreign_key_cache = ForeignKeyCache(self)
+        foreign_key_cache.preload_all()
 
-            if log_file is not None:
-                log_files = LogFile.select(LogFile.id).where(LogFile.id == log_file.id)
-            elif server is not None:
-                log_files = LogFile.select(LogFile.id).where((LogFile.server_id == server.id) & (LogFile.unparsable == False))
-            else:
-                log_files = LogFile.select(LogFile.id).where(LogFile.unparsable == False)
+        if log_file is not None:
+            log_files = LogFile.select(LogFile.id).where(LogFile.id == log_file.id)
+        elif server is not None:
+            log_files = LogFile.select(LogFile.id).where((LogFile.server_id == server.id) & (LogFile.unparsable == False))
+        else:
+            # log_files = LogFile.select(LogFile.id).where(LogFile.unparsable == False)
+            log_files = None
 
-            query = LogRecord.select(LogRecord)
+        query = LogRecord.select(LogRecord.id, LogRecord.message, LogRecord.origin_id, LogRecord.called_by_id, LogRecord.logged_from_id, LogRecord.record_class_id)
 
-            if only_missing_record_class is True:
-                query = query.where(LogRecord.record_class_id >> None)
+        if only_missing_record_class is True:
+            query = query.where(LogRecord.record_class_id >> None)
 
-            def _get_records(in_log_file_id: int):
-                sub_query = query.where(LogRecord.log_file_id == in_log_file_id)
-                for _record in sub_query.iterator():
-                    yield _record
+        def _get_records(in_log_file_id: int):
+            sub_query = query.where(LogRecord.log_file_id == in_log_file_id)
+            for _record in sub_query.iterator():
+                yield _record
 
-            for log_file_id in log_files.iterator():
-                sub_query = query.where(LogRecord.log_file_id == log_file_id)
-                for record in sub_query.iterator():
-                    record.origin = foreign_key_cache.get_origin_by_id(record.origin_id)
-                    record.called_by = foreign_key_cache.get_arma_file_by_id(record.called_by_id)
-                    record.logged_from = foreign_key_cache.get_arma_file_by_id(record.logged_from_id)
-                    record.origin = foreign_key_cache.get_origin_by_id(record.origin_id)
-
-                    yield record
+        if log_files is not None:
+            sub_query = query.where(LogRecord.log_file_id << log_files).order_by(LogRecord.record_class)
+        else:
+            sub_query = query.order_by(LogRecord.record_class_id)
+        for record in sub_query.iterator():
+            record.origin = foreign_key_cache.get_origin_by_id(record.origin_id)
+            record.called_by = foreign_key_cache.get_arma_file_by_id(record.called_by_id)
+            record.logged_from = foreign_key_cache.get_arma_file_by_id(record.logged_from_id)
+            record.record_class = self.backend.record_class_manager.get_model_by_id(record.record_class_id)
+            yield record
+        self.optimize()
 
     def get_amount_iter_all_records(self, server: Server = None, log_file: LogFile = None, only_missing_record_class: bool = False) -> int:
         with self.connection_context() as ctx:
@@ -417,6 +456,14 @@ class GidSqliteApswDatabase(APSWDatabase):
 
         _out = set(l.campaign_id for l in LogFile.select().where(LogFile.unparsable == False).iterator(self) if l.campaign_id is not None)
         return tuple(sorted(_out))
+
+    def resolve_all_armafunction_extras(self) -> None:
+        query = ArmaFunction.select(ArmaFunction, ArmaFunctionAuthorPrefix).join(ArmaFunctionAuthorPrefix, join_type=JOIN.LEFT_OUTER)
+        log.critical(query.sql())
+        for arma_func in query.iterator():
+            arma_func.load_extras()
+
+        self.optimize()
 
     def __repr__(self) -> str:
         repr_attrs = ("database_name", "config", "auto_backup", "thread_safe", "autoconnect")

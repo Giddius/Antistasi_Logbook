@@ -17,7 +17,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
-from peewee import DoesNotExist
+from peewee import DoesNotExist, chunked, IntegrityError
 from dateutil.tz import UTC, tzoffset
 from playhouse.shortcuts import update_model_from_dict
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
@@ -27,14 +27,14 @@ from gidapptools.general_helper.conversion import number_to_pretty
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.parsing.raw_record import RawRecord
-from antistasi_logbook.storage.models.models import Mod, GameMap, LogFile, LogRecord, RecordClass, ArmaFunction, RecordOrigin, LogFileAndModJoin, ArmaFunctionAuthorPrefix
+from antistasi_logbook.storage.models.models import Mod, GameMap, LogFile, LogRecord, RecordClass, ArmaFunction, RecordOrigin, LogFileAndModJoin, ArmaFunctionAuthorPrefix, OriginalLogFile
 from antistasi_logbook.parsing.parsing_context import LogParsingContext
 from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
-
+    import apsw
     from antistasi_logbook.backend import Backend
     from antistasi_logbook.parsing.parser import SimpleRegexKeeper, RecordClassManager
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
@@ -84,13 +84,15 @@ class ManyRecordsInsertResult:
 
 
 class RecordInserter:
-    __slots__ = ("config", "backend")
+    __slots__ = ("config", "backend", "write_lock", "mods_lock")
 
     update_record_record_class_phrase = """UPDATE "LogRecord" SET "record_class" = ? WHERE "id" = ?"""
 
     def __init__(self, config: "GidIniConfig", backend: "Backend") -> None:
         self.config = config
         self.backend = backend
+        self.write_lock: RLock = self.backend.database.write_lock
+        self.mods_lock = Lock()
 
     @property
     def thread_pool(self) -> ThreadPoolExecutor:
@@ -100,19 +102,18 @@ class RecordInserter:
     def database(self) -> "GidSqliteApswDatabase":
         return self.backend.database
 
-    @property
-    def write_lock(self) -> Lock:
-        return self.database.write_lock
+    # @property
+    # def write_lock(self) -> Lock:
+    #     return self.database.write_lock
 
     def _insert_func(self, records: Iterable["RawRecord"], context: "LogParsingContext") -> ManyRecordsInsertResult:
 
         # LogRecord.insert_many(i.to_log_record_dict(log_file=context._log_file) for i in records).execute()
-        records = [r for r in records if r]
 
-        params = (r.to_sql_params(log_file=context._log_file) for r in records)
+        params = (r.to_sql_params(log_file=context._log_file) for r in records if r)
         amount_records = len(records)
         with self.write_lock:
-            with self.database.atomic() as txn:
+            with self.database.atomic("IMMEDIATE") as txn:
                 cur = self.database.cursor(True)
 
                 cur.executemany(RawRecord.insert_sql_phrase.phrase, params)
@@ -122,7 +123,7 @@ class RecordInserter:
         #     params = record.to_sql_params(log_file=context._log_file)
         #     self.database.execute_sql(self.insert_phrase, params=params)
 
-        result = ManyRecordsInsertResult(max_line_number=max(item.end for item in records), max_recorded_at=max(item.recorded_at for item in records), amount=len(records), context=context)
+        result = ManyRecordsInsertResult(max_line_number=max(item.end for item in records if item), max_recorded_at=max(item.recorded_at for item in records if item), amount=len([r for r in records if r]), context=context)
         return result
 
     def insert(self, records: Iterable["RawRecord"], context: "LogParsingContext") -> Future:
@@ -135,43 +136,43 @@ class RecordInserter:
         future.add_done_callback(_callback(_context=context))
         return future
 
-    def _execute_update_record_class(self, log_record: LogRecord, record_class: RecordClass) -> None:
-        with self.write_lock:
-            with self.database.atomic() as txn:
-                LogRecord.update(record_class=record_class).where(LogRecord.id == log_record.id).execute()
-                txn.commit()
+    def _execute_update_record_class(self, log_record_id: int, record_class_id: int) -> None:
 
-    def _execute_many_update_record_class(self, pairs: list[tuple[int, int]]) -> int:
+        # with self.database.atomic("IMMEDIATE") as txn:
+        cur: apsw.Cursor = self.database.cursor(True)
+        cur.execute(self.update_record_record_class_phrase, (record_class_id, log_record_id))
+        # txn.commit()
 
-        with self.write_lock:
-            with self.database:
-                cur = self.database.cursor(True)
-                cur.executemany(self.update_record_record_class_phrase, pairs)
+    def _execute_many_update_record_class(self, pairs: tuple[tuple[int, int]]) -> int:
+
+        with self.database.atomic("IMMEDIATE") as txn:
+            cur = self.database.cursor(True)
+            cur.executemany(self.update_record_record_class_phrase, tuple(pairs))
+            txn.commit()
 
         log.info("inserted new record class for %s records", number_to_pretty(len(pairs)))
         return len(pairs)
 
-    def update_record_class(self, log_record: LogRecord, record_class: RecordClass) -> Future:
-        return self.thread_pool.submit(self._execute_update_record_class, log_record=log_record, record_class=record_class)
+    def update_record_class(self, log_record_id: int, record_class_id: int) -> Future:
+        return self.thread_pool.submit(self._execute_update_record_class, log_record_id=log_record_id, record_class_id=record_class_id)
 
-    def many_update_record_class(self, pairs: list[tuple[int, int]]) -> Future:
+    def many_update_record_class(self, pairs: tuple[tuple[int, int]]) -> Future:
         return self.thread_pool.submit(self._execute_many_update_record_class, pairs=pairs)
 
     def _execute_insert_mods(self, mod_items: Iterable[Mod], log_file: LogFile) -> None:
         mod_data = [mod_item.as_dict() for mod_item in mod_items]
         q_1 = Mod.insert_many(mod_data).on_conflict_ignore()
-        with self.write_lock:
+        with self.mods_lock:
             with self.database.atomic() as txn:
 
                 amount_inserted = q_1.execute()
 
                 txn.commit()
-        if amount_inserted > 0:
-            log.info("inserted %r new mods", amount_inserted)
-        refreshed_mods = (Mod.get(**mod_item.as_dict()) for mod_item in mod_items)
-        q_2 = LogFileAndModJoin.insert_many({"log_file": log_file, "mod": refreshed_mod} for refreshed_mod in refreshed_mods).on_conflict_ignore()
+            if amount_inserted > 0:
+                log.info("inserted %r new mods", amount_inserted)
+            refreshed_mods = [Mod.get(**mod_item.as_dict()) for mod_item in mod_items]
+            q_2 = LogFileAndModJoin.insert_many({"log_file": log_file, "mod": refreshed_mod} for refreshed_mod in refreshed_mods).on_conflict_ignore()
 
-        with self.write_lock:
             with self.database.atomic() as txn:
 
                 amount_assigned = q_2.execute()
@@ -195,13 +196,31 @@ class RecordInserter:
 
     def _execute_insert_game_map(self, game_map: "GameMap"):
         with self.write_lock:
-            with self.database.atomic() as txn:
-                game_map.save()
-                txn.commit()
-        log.info("inserted game map %r", game_map)
+            try:
+                with self.database.connection_context() as ctx:
+                    game_map.save()
+                log.info("inserted game map %r", game_map)
+
+            except IntegrityError as e:
+                log.critical("encountered error %r while inserting game-map %r", e, game_map)
 
     def insert_game_map(self, game_map: "GameMap") -> Future:
         return self.thread_pool.submit(self._execute_insert_game_map, game_map=game_map)
+
+    def _execute_insert_original_log_file(self, original_log_file: Path, log_file: LogFile):
+        original_log_file.save()
+        LogFile.update(original_file=original_log_file).where(LogFile.id == log_file.id).execute()
+        return original_log_file
+
+    def insert_original_log_file(self, file_path: Path, log_file: LogFile) -> Future:
+        return self.thread_pool.submit(self._execute_insert_original_log_file, original_log_file=OriginalLogFile.init_from_file(file_path), log_file=log_file)
+
+    def _execute_update_original_log_file(self, original_log_file: OriginalLogFile):
+        original_log_file.save()
+        return original_log_file
+
+    def update_original_log_file(self, existing_original_log_file: OriginalLogFile, file_path: Path) -> Future:
+        return self.thread_pool.submit(self._execute_update_original_log_file, original_log_file=existing_original_log_file.modify_update_from_file(file_path=file_path))
 
     def __call__(self, records: Iterable["RawRecord"], context: "LogParsingContext") -> Future:
         return self.insert(records=records, context=context)
@@ -289,6 +308,10 @@ class RecordProcessor:
                 "log_level": log_level_part.strip().upper(),
                 "logged_from": file_part.strip().removeprefix("File:")}
 
+        # if _out["logged_from"] in {None, ""}:
+        #     log.critical("empty logged from with %r", raw_record.content)
+        #     del _out["logged_from"]
+
         if called_by_match := self.regex_keeper.called_by.match(rest):
             _rest, called_by, _other_rest = called_by_match.groups()
             _out["called_by"] = called_by
@@ -309,6 +332,7 @@ class RecordProcessor:
 
         def _get_or_create_antistasi_file(raw_name: str) -> ArmaFunction:
             parsed_function_data = ArmaFunction.parse_raw_function_name(raw_name)
+
             try:
                 return self.foreign_key_cache.all_arma_file_objects[(parsed_function_data["name"], parsed_function_data["author_prefix"])]
 
@@ -333,10 +357,10 @@ class RecordProcessor:
         else:
             parsed_data["log_level"] = self.foreign_key_cache.all_log_levels["NO_LEVEL"]
 
-        if parsed_data.get("logged_from"):
+        if parsed_data.get("logged_from") is not None:
             parsed_data["logged_from"] = _get_or_create_antistasi_file(parsed_data["logged_from"])
 
-        if parsed_data.get("called_by"):
+        if parsed_data.get("called_by") is not None:
             parsed_data["called_by"] = _get_or_create_antistasi_file(parsed_data["called_by"])
 
         if parsed_data.get("local_recorded_at"):
@@ -372,7 +396,6 @@ class RecordProcessor:
         raw_record.parsed_data = self._convert_raw_record_foreign_keys(parsed_data=raw_record.parsed_data, utc_offset=utc_offset)
 
         return raw_record
-
 
         # region[Main_Exec]
 if __name__ == '__main__':

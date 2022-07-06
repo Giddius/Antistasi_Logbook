@@ -13,14 +13,17 @@ from io import BytesIO
 from typing import Union, Literal, Optional, Any
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
-
+from functools import partial
+import time
+import calendar
+from peewee import Value, _timestamp_date_part, long, basestring, BigIntegerField
 # * Third Party Imports --------------------------------------------------------------------------------->
 import yarl
 import httpx
 from PIL import Image
 from dateutil.tz import UTC, tzoffset
 from playhouse.fields import CompressedField
-from playhouse.apsw_ext import Field, BlobField, TextField, BooleanField, BigIntegerField
+from playhouse.apsw_ext import Field, BlobField, TextField, BooleanField, BigIntegerField, DateTimeField, TimestampField
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
@@ -150,7 +153,7 @@ class AwareTimeStampField(BigIntegerField):
 
     def _get_default(self):
         if self.utc is True:
-            return datetime.now(tz=UTC)
+            return datetime.now(tz=timezone.utc)
         return datetime.now()
 
     def db_value(self, value: datetime):
@@ -167,9 +170,8 @@ class AwareTimeStampField(BigIntegerField):
     def python_value(self, value):
         if value is None:
             return
-
         reduced_value = value / self.mult_factor
-        tz = UTC if self.utc is True else None
+        tz = timezone.utc if self.utc is True else None
         return datetime.fromtimestamp(reduced_value, tz=tz)
 
 

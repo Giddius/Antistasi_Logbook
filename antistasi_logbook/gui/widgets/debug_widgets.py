@@ -110,7 +110,7 @@ class PathButton(QPushButton):
 
             if maybe_path.resolve().exists() is True:
                 return True
-        except TypeError:
+        except (TypeError, ValueError):
             return False
         return False
 
@@ -312,6 +312,8 @@ class ShowFunctionResultButton(QPushButton):
 
         self.setText(f"show result for {self._text}")
         self.pressed.connect(self.show_info_box)
+        if getattr(self.function, "is_disabled", False) is True:
+            self.setEnabled(False)
 
     def show_info_box(self):
         title = f"Result for {self.function.__name__}"

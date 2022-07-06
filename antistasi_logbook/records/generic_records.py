@@ -22,7 +22,7 @@ from gidapptools.general_helper.string_helper import fix_multiple_quotes, escape
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.records.base_record import BaseRecord, RecordFamily, MessageFormat
 from antistasi_logbook.utilities.parsing_misc import parse_text_array
-
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
@@ -43,7 +43,7 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
@@ -56,6 +56,7 @@ class PerfProfilingRecord(BaseRecord):
 
     ___record_family___ = RecordFamily.GENERIC
     ___specificity___ = 10
+    check_regex = re.compile(r"\[ASU\] Perf-profiling")
     performance_regex = re.compile(r"(?P<name>(FPS)|(nbPlayers)|(nbAIs))\=(?P<value>[\d\.]+)")
 
     __slots__ = ("_stats",)
@@ -80,7 +81,7 @@ class PerfProfilingRecord(BaseRecord):
 
     @classmethod
     def check(cls, log_record: "LogRecord") -> bool:
-        if log_record.message.strip().startswith("[ASU] Perf-profiling"):
+        if cls.check_regex.match(log_record.message.strip()):
             return True
 
         return False
@@ -130,7 +131,7 @@ ALL_GENERIC_RECORD_CLASSES.add(TFEInfoSettings)
 class PlayerDisconnected(BaseRecord):
     ___record_family___ = RecordFamily.GENERIC
     ___specificity___ = 10
-
+    check_regex = re.compile(r"\[TFE\] Info\: Player disconnected\:")
     extra_detail_views: Iterable[str] = ("player_name", "player_id", "array_data")
     __slots__ = ("_array_data",
                  "_player_name",
@@ -193,7 +194,7 @@ class PlayerDisconnected(BaseRecord):
 
     @classmethod
     def check(cls, log_record: "LogRecord") -> bool:
-        if log_record.message.startswith("[TFE] Info: Player disconnected:"):
+        if cls.check_regex.match(log_record.message.strip()):
             return True
 
         return False
@@ -205,7 +206,7 @@ ALL_GENERIC_RECORD_CLASSES.add(PlayerDisconnected)
 class PlayerConnected(BaseRecord):
     ___record_family___ = RecordFamily.GENERIC
     ___specificity___ = 10
-
+    check_regex = re.compile(r"\[TFE\] Info\: Player connected\:")
     __slots__ = ("_array_data",
                  "_player_name",
                  "_player_id")
@@ -268,7 +269,7 @@ class PlayerConnected(BaseRecord):
 
     @classmethod
     def check(cls, log_record: "LogRecord") -> bool:
-        if log_record.message.startswith("[TFE] Info: Player connected:"):
+        if cls.check_regex.match(log_record.message.strip()):
             return True
 
         return False

@@ -14,7 +14,7 @@ from datetime import timedelta
 from threading import Lock, RLock
 from contextlib import contextmanager
 from collections import deque
-from concurrent.futures import FIRST_EXCEPTION, Future, wait
+from concurrent.futures import FIRST_EXCEPTION, Future, wait, ALL_COMPLETED
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
@@ -331,6 +331,7 @@ class LogParsingContext:
 
     def insert_record(self, record: "RawRecord") -> None:
         with self.record_lock:
+            self.database.backend.record_class_manager.record_class_checker._determine_record_class(record)
             self.record_storage.append(record)
             if len(self.record_storage) == self._log_record_batch_size:
 
@@ -339,23 +340,27 @@ class LogParsingContext:
 
     def _dump_rest(self) -> None:
         if len(self.record_storage) > 0:
-            self.futures.append(self.inserter(records=tuple(self.record_storage), context=self))
+            rest_records = []
+            for record in self.record_storage:
+                self.database.backend.record_class_manager.record_class_checker._determine_record_class(record)
+                rest_records.append(record)
+            self.futures.append(self.inserter(records=tuple(rest_records), context=self))
             self.record_storage.clear()
 
     def wait_on_futures(self, timeout: float = None) -> None:
-        done, not_done = wait(self.futures, return_when=FIRST_EXCEPTION, timeout=timeout)
+        done, not_done = wait(self.futures, return_when=ALL_COMPLETED, timeout=timeout)
 
-        if len(not_done) != 0:
-            try:
-                for t in list(done) + list(not_done):
-                    if t.exception():
-                        raise t.exception()
-            except Exception as e:
-                log.error(e, exc_info=True)
-                log.critical("error %r encountered with log-file %r", e, self._log_file)
-        else:
-            with self.data_lock:
-                self.log_file_data["last_parsed_datetime"] = self.log_file_data.get("modified_at")
+        # if len(not_done) != 0:
+        #     try:
+        #         for t in list(done) + list(not_done):
+        #             if t.exception():
+        #                 raise t.exception()
+        #     except Exception as e:
+        #         log.error(e, exc_info=True)
+        #         log.critical("error %r encountered with log-file %r", e, self._log_file)
+        # else:
+        with self.data_lock:
+            self.log_file_data["last_parsed_datetime"] = self.log_file_data.get("modified_at")
 
     def __enter__(self) -> "LogParsingContext":
         self._log_file.download()
