@@ -73,6 +73,7 @@ from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog
                                QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
 from peewee import JOIN, fn
 import pandas as pd
+from concurrent.futures import Future
 import apsw
 from argparse import Action
 from gidapptools import get_logger
@@ -172,16 +173,37 @@ def all_log_record_message_size():
     app: AntistasiLogbookApplication = QApplication.instance()
     db = app.backend.database
 
-    with db:
-        # b_size = LogRecord.select(fn.SUM(fn.LENGHT(LogRecord.message))).scalar()
-        query_string = """SELECT SUM(LENGTH(message)) FROM LogRecord;"""
-        cur: apsw.Cursor = db.cursor()
-        cur.execute(query_string)
-        b_size = cur.fetchone()[0]
+    def get_b_sizes(_db):
+        with _db:
+            # b_size = LogRecord.select(fn.SUM(fn.LENGHT(LogRecord.message))).scalar()
+            query_string = """SELECT MAX(LENGTH(message)), MIN(LENGTH(message)) FROM LogRecord;"""
+            cur: apsw.Cursor = _db.cursor()
+            cur = cur.execute(query_string)
+            res = cur.fetchone()
+            return res[0], res[1]
 
-    mb_size = b_size / 1048576
-    gb_size = mb_size / 1024
-    return {"bytes": b_size, "mega-bytes": round(mb_size, 3), "giga-bytes": round(gb_size, 3)}
+    def _get_max_text(_db, max_length):
+        with _db:
+            query_string = """SELECT message from LogRecord ORDER BY LENGTH(message) DESC;"""
+            cur: apsw.Cursor = _db.cursor()
+            cur = cur.execute(query_string)
+            _out = []
+            for i in range(5):
+                _out.append(cur.fetchone()[0])
+            return _out
+
+    fut: Future = db.backend.thread_pool.submit(get_b_sizes, _db=db)
+
+    max_size, min_size = fut.result()
+
+    fut_2 = db.backend.thread_pool.submit(_get_max_text, _db=db, max_length=max_size)
+
+    max_texts = fut_2.result()
+    _out_dict = {"max size": max_size, "min size": min_size}
+    for idx, text in enumerate(max_texts):
+
+        _out_dict[f"largest_text_{idx+1}"] = text
+    return _out_dict
 
 
 def setup_debug_widget(debug_dock_widget: "DebugDockWidget") -> None:

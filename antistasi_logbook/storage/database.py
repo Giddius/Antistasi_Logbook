@@ -21,7 +21,7 @@ from concurrent.futures import Future, ThreadPoolExecutor, wait, FIRST_COMPLETED
 # from more_itertools import chunked
 # * Third Party Imports --------------------------------------------------------------------------------->
 
-from apsw import SQLITE_OK, SQLITE_CHECKPOINT_TRUNCATE, Connection
+from apsw import SQLITE_OK, SQLITE_CHECKPOINT_TRUNCATE, Connection, SQLITE_CHECKPOINT_FULL, ConnectionClosedError
 from peewee import JOIN, DatabaseProxy, chunked
 from playhouse.sqlite_ext import CYTHON_SQLITE_EXTENSIONS
 
@@ -30,7 +30,8 @@ from apsw import ThreadingViolationError
 import apsw
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
-from gidapptools.meta_data.interface import MetaPaths, get_meta_info, get_meta_paths, get_meta_config
+from gidapptools.meta_data.interface import MetaPaths, get_meta_info, get_meta_paths
+from gidapptools.gid_config.interface import GidIniConfig, get_config
 from gidapptools.general_helper.conversion import ns_to_s, human2bytes, number_to_pretty
 
 # * Local Imports --------------------------------------------------------------------------------------->
@@ -70,8 +71,7 @@ get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 META_PATHS: MetaPaths = get_meta_paths()
 META_INFO = get_meta_info()
-CONFIG: "GidIniConfig" = get_meta_config().get_config('general')
-CONFIG.config.load()
+
 log = get_logger(__name__)
 
 # endregion[Constants]
@@ -86,9 +86,9 @@ DEFAULT_PRAGMAS = frozendict({
     "foreign_keys": 1,
     "temp_store": "memory",
     "mmap_size": 268_435_456 * 2,
-    "auto_vacuum": 2,
+    "auto_vacuum": "INCREMENTAL",
     "journal_size_limit": human2bytes("500mb"),
-    "wal_autocheckpoint": 1_000_000,
+    "wal_autocheckpoint": 100_000,
     # "page_size": 32_768,
     "read_uncommitted": False,
     "case_sensitive_like": False
@@ -191,7 +191,7 @@ class GidSqliteApswDatabase(APSWDatabase):
         self.database_path.parent.mkdir(exist_ok=True, parents=True)
         self.database_existed: bool = self.database_path.is_file()
         self.database_name = self.database_path.name
-        self.config = CONFIG if config is None else config
+        self.config = config
         self.auto_backup = auto_backup
         self.started_up = False
         self.session_meta_data: "DatabaseMetaData" = None
@@ -271,21 +271,19 @@ class GidSqliteApswDatabase(APSWDatabase):
         self.database_path.parent.mkdir(exist_ok=True, parents=True)
         if overwrite is True:
             self.database_path.unlink(missing_ok=True)
-            LogFile
 
     def _post_start_up(self, **kwargs) -> None:
 
         self.session_meta_data = DatabaseMetaData.new_session()
         self.backend.inserting_thread_pool.submit(self.resolve_all_armafunction_extras)
 
-    def checkpoint(self, mode=SQLITE_CHECKPOINT_TRUNCATE):
-        with self.write_lock:
-            time_start = perf_counter()
-            self.connect(True)
-            conn = self.connection()
-            result = conn.wal_checkpoint(mode=mode)
-            time_taken = perf_counter() - time_start
-            log.info("checkpoint wal with return: %r, time taken: %rs", result, round(time_taken, 3))
+    def checkpoint(self):
+        time_start = perf_counter()
+        conn = self.connection()
+        conn.setbusyhandler(self._busy_handling)
+        result = conn.wal_checkpoint(mode=SQLITE_CHECKPOINT_TRUNCATE)
+        time_taken = perf_counter() - time_start
+        log.info("checkpoint wal with return: %r, time taken: %rs", result, round(time_taken, 3))
 
     def start_up(self,
                  overwrite: bool = False,
@@ -322,23 +320,32 @@ class GidSqliteApswDatabase(APSWDatabase):
     def vacuum(self) -> "GidSqliteApswDatabase":
         log.info("vacuuming %r", self)
         time_start = perf_counter()
-        result: apsw.Cursor = self.execute_sql("VACUUM;")
-        self.optimize()
-        self.checkpoint()
-        time_taken = perf_counter() - time_start
+        with self.connection_context() as ctx:
 
-        log.debug("finished vacuuming %r, result: %r, time taken: %rs", self, result.getconnection().totalchanges(), round(time_taken, 3))
+            self.checkpoint()
+            # self.execute_sql("VACUUM;")
+            self.pragma("incremental_vacuum")
+            self.checkpoint()
+            self.optimize()
+
+            time_taken = perf_counter() - time_start
+
+        log.debug("finished vacuuming %r, time taken: %rs", self, round(time_taken, 3))
         return self
 
     def shutdown(self, error: BaseException = None) -> None:
         log.debug("shutting down %r", self)
 
         self.session_meta_data.save()
-        self.optimize()
+        # self.execute_sql("VACUUM;")
+        self.pragma("incremental_vacuum")
         self.checkpoint()
 
         for conn in self.all_connections:
+
             try:
+                self.pragma("incremental_vacuum")
+                # self.execute_sql("VACUUM;")
                 cur = conn.cursor()
                 log.debug("optimizing before closing connection %r", conn)
                 _result = cur.execute(f"PRAGMA analysis_limit={15_000_000};PRAGMA optimize;")
@@ -347,14 +354,14 @@ class GidSqliteApswDatabase(APSWDatabase):
                 log.debug("Trying to close connection %r", conn)
                 conn.close()
                 del conn
-            except ThreadingViolationError as e:
-                log.critical("encountered error %e  while closing connection %r", e, conn)
+            except (ThreadingViolationError, ConnectionClosedError) as e:
+                log.critical("encountered error %r while closing connection %r", e, conn)
         self.started_up = False
         log.debug("finished shutting down %r", self)
 
     def get_all_server(self, ordered_by=Server.id) -> tuple[Server]:
-
-        result = tuple(Server.select(Server, RemoteStorage).join(RemoteStorage, on=Server.remote_storage).order_by(ordered_by).iterator(self))
+        with self.connection_context() as ctx:
+            result = tuple(Server.select(Server, RemoteStorage).join(RemoteStorage, on=Server.remote_storage).order_by(ordered_by).iterator(self))
 
         return result
 
@@ -459,7 +466,7 @@ class GidSqliteApswDatabase(APSWDatabase):
 
     def resolve_all_armafunction_extras(self) -> None:
         query = ArmaFunction.select(ArmaFunction, ArmaFunctionAuthorPrefix).join(ArmaFunctionAuthorPrefix, join_type=JOIN.LEFT_OUTER)
-        log.critical(query.sql())
+
         for arma_func in query.iterator():
             arma_func.load_extras()
 

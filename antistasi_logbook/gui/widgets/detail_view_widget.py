@@ -447,7 +447,7 @@ class ServerDetailWidget(BaseDetailWidget):
         y = []
         for record in list(LogRecord.select().where((LogRecord.log_file << log_files) & (LogRecord.record_class == record_class)).order_by(LogRecord.recorded_at).dicts()):
             log_file = all_log_files.get(record.get("log_file"))
-            item = conc_record_class.from_model_dict(record, log_file=log_file)
+            item = conc_record_class.from_model_dict(record, foreign_key_cache=self.backend.foreign_key_cache, log_file=log_file)
             x.append(item.recorded_at.timestamp())
             y.append(item.stats.get("Players"))
 
@@ -922,6 +922,20 @@ class LogRecordDetailView(BaseDetailWidget):
         self.get_stats_button = QPushButton(AllResourceItems.stats_icon_2_image.get_as_icon(), "Stats for this Record")
         self.layout.addWidget(self.get_stats_button)
         self.get_stats_button.pressed.connect(self.get_stats)
+
+        self.amount_selected = 1
+        self.amount_selected_value = ValueLineEdit(str(self.amount_selected))
+        self.layout.addRow("amount items selected", self.amount_selected_value)
+
+    def on_multiple_items_selected(self, indexes: list):
+        self.set_amount_selected(len(indexes))
+
+    def on_single_item_selected(self, item):
+        self.set_amount_selected(1)
+
+    def set_amount_selected(self, amount: int = 1):
+        self.amount_selected = amount
+        self.amount_selected_value.setText(str(self.amount_selected))
 
     def get_stats(self):
         all_stats = self.record.log_file.get_stats()

@@ -24,7 +24,7 @@ from PySide6.QtWidgets import QApplication
 import attr
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
-from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
+from gidapptools import get_logger, get_meta_info, get_meta_paths
 from gidapptools.gid_signal.interface import get_signal
 
 # * Local Imports --------------------------------------------------------------------------------------->
@@ -38,7 +38,7 @@ from antistasi_logbook.parsing.parsing_context import LogParsingContext
 from antistasi_logbook.updating.update_manager import UpdateManager
 from antistasi_logbook.parsing.record_processor import RecordInserter, RecordProcessor
 from antistasi_logbook.regex_store.regex_keeper import SimpleRegexKeeper
-from antistasi_logbook.updating.remote_managers import remote_manager_registry
+from antistasi_logbook.updating.remote_managers import remote_manager_registry, AbstractRemoteStorageManager
 from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 from antistasi_logbook.records.record_class_manager import RECORD_CLASS_TYPE, RecordClassManager
 
@@ -67,7 +67,7 @@ if TYPE_CHECKING:
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 META_INFO = get_meta_info()
 META_PATHS = get_meta_paths()
-CONFIG = get_meta_config().get_config("general")
+
 
 log = get_logger(__name__)
 # endregion[Constants]
@@ -142,6 +142,7 @@ class Backend:
         self.locks = Locks()
         self.signals = Signals()
         self.config = config
+        self.color_config: "GidIniConfig" = None
         self.database = database
         self.database.backend = self
         self.update_signaler = update_signaler
@@ -150,6 +151,7 @@ class Backend:
 
         self.time_clock = TimeClock(config=self.config, stop_event=self.events.stop)
         self.remote_manager_registry = remote_manager_registry
+        AbstractRemoteStorageManager.config = self.config
         self.record_processor = RecordProcessor(backend=self, regex_keeper=SimpleRegexKeeper(), foreign_key_cache=ForeignKeyCache(self.database))
         self.updater = Updater(stop_event=self.events.stop, pause_event=self.events.pause, backend=self, signaler=self.update_signaler)
         self.records_inserter = RecordInserter(config=self.config, backend=self)

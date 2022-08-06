@@ -35,7 +35,8 @@ from playhouse.apsw_ext import TextField, BooleanField, IntegerField, ForeignKey
 from playhouse.sqlite_ext import JSONField
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
-from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
+from gidapptools import get_logger, get_meta_info, get_meta_paths
+from gidapptools.gid_config.interface import GidIniConfig, get_config
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 from gidapptools.general_helper.enums import MiscEnum
 
@@ -62,7 +63,6 @@ setup()
 # * Gid Imports ----------------------------------------------------------------------------------------->
 
 if TYPE_CHECKING:
-    from gidapptools.gid_config.meta_factory import GidIniConfig
 
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
     from antistasi_logbook.parsing.raw_record import RawRecord
@@ -74,7 +74,7 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 get_dummy_profile_decorator_in_globals()
 META_PATHS = get_meta_paths()
-CONFIG: "GidIniConfig" = get_meta_config().get_config('general')
+
 META_INFO = get_meta_info()
 log = get_logger(__name__)
 
@@ -110,11 +110,11 @@ class BaseModel(Model):
 
     @property
     def config(self) -> "GidIniConfig":
-        return self._meta.database.config
+        return self._meta.database.backend.config
 
     @cached_property
     def color_config(self) -> "GidIniConfig":
-        return get_meta_config().get_config("color")
+        return self._meta.database.backend.color_config
 
     def get_data(self, attr_name: str, default: Any = "") -> Any:
         _out = getattr(self, f"pretty_{attr_name}", MiscEnum.NOTHING)
@@ -468,7 +468,7 @@ class Server(BaseModel):
     @cached_property
     def full_local_path(self) -> Path:
 
-        local_path = META_PATHS.get_new_temp_dir(name=self.name)
+        local_path = META_PATHS.get_new_temp_dir(name=self.name, exists_ok=True)
 
         local_path.mkdir(exist_ok=True, parents=True)
         return local_path
@@ -618,7 +618,7 @@ class LogFile(BaseModel):
     unparsable = BooleanField(default=False, index=True, verbose_name="Unparsable")
     last_parsed_datetime = AwareTimeStampField(null=True, utc=True, verbose_name="Last Parsed Datetime")
     max_mem = IntegerField(verbose_name="Max Memory", null=True)
-    original_file = ForeignKeyField(model=OriginalLogFile, field="id", column_name="original_file", lazy_load=True, backref="log_file", null=True, on_delete="SET NULL", index=True)
+    original_file = ForeignKeyField(model=OriginalLogFile, field="id", column_name="original_file", lazy_load=True, backref="log_file", null=True, on_delete="CASCADE", index=True)
     manually_added = BooleanField(null=False, default=False, verbose_name="Manually added", index=True)
     comments = CommentsField(null=True)
     marked = MarkedField()
@@ -643,6 +643,10 @@ class LogFile(BaseModel):
                 mod_set_value = mod_set
                 break
         return mod_set_value
+
+    @property
+    def check_if_triggered(self):
+        print("i was triggered by a getattr")
 
     @cached_property
     def mod_set(self) -> Optional["ModSet"]:
@@ -689,7 +693,7 @@ class LogFile(BaseModel):
 
         cursor = self.database.execute_sql(query_string, (self.id,))
         result = cursor.fetchone()[0]
-        cursor.close()
+
         return result
 
     @cached_property
@@ -700,7 +704,7 @@ class LogFile(BaseModel):
         query_string = """SELECT count("t1"."id") FROM "LogRecord" AS "t1" WHERE (("t1"."log_file" = ?) AND ("t1"."log_level" = ?))"""
         cursor = self.database.execute_sql(query_string, (self.id, error_log_level.id))
         result = cursor.fetchone()[0]
-        cursor.close()
+
         return result
 
     @cached_property
@@ -712,7 +716,7 @@ class LogFile(BaseModel):
 
         cursor = self.database.execute_sql(query_string, (self.id, warning_log_level.id))
         result = cursor.fetchone()[0]
-        cursor.close()
+
         return result
 
     @cached_property
@@ -1019,7 +1023,7 @@ class Mod(BaseModel):
 
 
 class LogFileAndModJoin(BaseModel):
-    log_file = ForeignKeyField(model=LogFile, lazy_load=True, backref="mods", index=True)
+    log_file = ForeignKeyField(model=LogFile, lazy_load=True, backref="mods", index=True, on_delete="CASCADE")
     mod = ForeignKeyField(model=Mod, lazy_load=True, backref="log_files", index=True)
 
     class Meta:
@@ -1044,6 +1048,17 @@ class ModSet(BaseModel):
             (('name', 'mod_names'), True),
 
         )
+
+    @cached_property
+    def background_color(self) -> QColor:
+        if "vanilla" in self.name.casefold():
+            return QColor(243, 229, 171, 155)
+
+        if "rhs" in self.name.casefold():
+            return QColor(220, 50, 50, 155)
+
+        if "3cb" in self.name.casefold():
+            return QColor(50, 50, 235, 155)
 
 
 class LogLevel(BaseModel):
@@ -1126,14 +1141,14 @@ class RecordOrigin(BaseModel):
 
 
 class LogRecord(BaseModel):
-    start = IntegerField(help_text="Start Line number of the Record", verbose_name="Start")
-    end = IntegerField(help_text="End Line number of the Record", verbose_name="End")
-    message = TextField(help_text="Message part of the Record", verbose_name="Message", index=True)
-    recorded_at = AwareTimeStampField(utc=True, verbose_name="Recorded at")
+    start = IntegerField(help_text="Start Line number of the Record", verbose_name="Start", index=True)
+    end = IntegerField(help_text="End Line number of the Record", verbose_name="End", index=True)
+    message = TextField(help_text="Message part of the Record", verbose_name="Message")
+    recorded_at = AwareTimeStampField(utc=True, verbose_name="Recorded at", index=True)
     called_by = ForeignKeyField(column_name='called_by', field='id', model=ArmaFunction, backref="log_records_called_by", lazy_load=True, null=True, verbose_name="Called by")
     origin = ForeignKeyField(column_name="origin", field="id", model=RecordOrigin, backref="records", lazy_load=True, verbose_name="Origin", default=0)
     logged_from = ForeignKeyField(column_name='logged_from', field='id', model=ArmaFunction, backref="log_records_logged_from", lazy_load=True, null=True, verbose_name="Logged from", index=True)
-    log_file = ForeignKeyField(column_name='log_file', field='id', model=LogFile, lazy_load=True, backref="log_records", null=False, verbose_name="Log-File", index=True)
+    log_file = ForeignKeyField(column_name='log_file', field='id', model=LogFile, lazy_load=True, backref="log_records", null=False, verbose_name="Log-File", index=True, on_delete="CASCADE")
     log_level = ForeignKeyField(column_name='log_level', default=0, field='id', model=LogLevel, null=True, lazy_load=True, verbose_name="Log-Level", index=True)
     record_class = ForeignKeyField(column_name='record_class', field='id', model=RecordClass, lazy_load=True, verbose_name="Record Class", null=True, index=True)
     marked = MarkedField(index=False)
@@ -1145,6 +1160,7 @@ class LogRecord(BaseModel):
         table_name = 'LogRecord'
         indexes = (
             (('start', 'end', 'log_file'), True),
+            (("log_file", "log_level"), False)
         )
 
     @classmethod

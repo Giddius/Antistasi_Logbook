@@ -26,7 +26,7 @@ from gidapptools.gid_signal.interface import get_signal
 from gidapptools.general_helper.conversion import number_to_pretty
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord, RecordClass
+from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord, RecordClass, OriginalLogFile
 from antistasi_logbook.updating.remote_managers import remote_manager_registry
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 
@@ -152,7 +152,7 @@ class Updater:
         """
         if self.get_cutoff_datetime() is None:
             return False
-        return self.config.get(self.config_name, "remove_items_older_than_max_update_time_frame", default=False)
+        return self.config.get(self.config_name, "remove_items_older_than_max_update_time_frame")
 
     def get_cutoff_datetime(self) -> Optional[datetime]:
         """
@@ -246,6 +246,7 @@ class Updater:
 
         return sorted(to_update_files, key=lambda x: x.modified_at, reverse=True)
 
+    @profile
     def _handle_old_log_files(self, server: "Server") -> None:
         if self.remove_items_older_than_max_update_time_frame is False:
             return 0
@@ -253,12 +254,25 @@ class Updater:
         if cutoff_datetime is None:
             return 0
         amount_deleted = 0
-        for log_file in server.log_files.select().where(LogFile.modified_at < cutoff_datetime):
+        tasks = []
+        for log_file in LogFile.select().where(LogFile.server_id == server.id).where(LogFile.modified_at < cutoff_datetime).iterator():
+
             log.info("removing log-file %r of server %r", log_file, server)
+
             if log_file.original_file is not None:
-                log_file.original_file.delete_instance()
-            log_file.delete_instance(True)
-            amount_deleted += 1
+                # tasks.append(self.backend.inserting_thread_pool.submit(log_file.original_file.delete_instance, True))
+                log_file.original_file.delete_instance(True, True)
+            # tasks.append(self.backend.inserting_thread_pool.submit(log_file.delete_instance, True))
+
+            log_file.delete_instance(True, True)
+
+            # sleep(0.5)
+            # amount_deleted += 1
+            # if amount_deleted % 10 == 0:
+            #     self.database.checkpoint()
+            # tasks.append(self.backend.inserting_thread_pool.submit(self.database.checkpoint))
+        # self.database.checkpoint()
+        wait(tasks, return_when=ALL_COMPLETED)
         return amount_deleted
 
     def process_log_file(self, log_file: "LogFile", force: bool = False) -> None:
@@ -451,7 +465,7 @@ class Updater:
 
             if amount_deleted > 0:
                 if self.stop_event.is_set() is False:
-
+                    self.database.vacuum()
                     self.database.optimize()
                     self.database.checkpoint()
             self.database.session_meta_data.update_finished()

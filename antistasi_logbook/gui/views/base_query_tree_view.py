@@ -8,6 +8,7 @@ Soon.
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 from typing import TYPE_CHECKING, Union, Optional
+from time import sleep
 from pathlib import Path
 from concurrent.futures import Future
 
@@ -353,6 +354,7 @@ class BaseQueryTreeView(QTreeView):
         log.debug("on_model_reset was triggered for %r", self)
 
         if self.model.last_selection_ids is None or len(self.model.last_selection_ids) <= 0:
+            log.debug("model.last_selection_ids is either None or empty (%r)", self.model.last_selection_ids)
             return
 
         all_indexes = []
@@ -364,7 +366,7 @@ class BaseQueryTreeView(QTreeView):
                 # index_last = self.model.index(row_num, self.model.columnCount())
                 all_indexes.append(index_first)
             except IndexError:
-                log.debug("indexerror for item_id %r", item_id)
+
                 continue
         selection = QItemSelection()
         selection.append([QItemSelectionRange(i) for i in all_indexes])
@@ -417,11 +419,16 @@ class BaseQueryTreeView(QTreeView):
 
             if model.content_items is None:
                 self.model.refresh()
-                self.reset()
+                # self.reset()
                 # task = self.app.gui_thread_pool.submit(self.model.refresh)
                 # task.add_done_callback(_callback)
-
+            try:
+                while self.model.collecting_records is True:
+                    sleep(0.25)
+            except AttributeError:
+                pass
         finally:
+
             self.post_set_model()
 
     def __repr__(self) -> str:

@@ -22,13 +22,13 @@ from PySide6.QtWidgets import (QFrame, QLabel, QWidget, QSpinBox, QCheckBox, QCo
 from gidapptools import get_logger
 from gidapptools.errors import EntryMissingError
 from gidapptools.general_helper.string_helper import StringCase, StringCaseConverter
-
+from gidapptools.gid_config.interface import GidIniConfig, ResolvedEntry, ResolvedSection
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.application import AntistasiLogbookApplication
 from antistasi_logbook.storage.models.models import RemoteStorage
 from antistasi_logbook.gui.widgets.form_widgets.type_widgets import ALL_VALUE_FIELDS, StyleValueField, StringValueField, UpdateTimeFrameValueField
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-
+from gidapptools.general_helper.enums import MiscEnum
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
@@ -223,7 +223,7 @@ class SettingsField:
             field = UpdateTimeFrameValueField()
 
         else:
-            field_class = ALL_VALUE_FIELDS.get(self.value_typus.base_typus, StringValueField)
+            field_class = ALL_VALUE_FIELDS.get(self.value_typus, StringValueField)
             field = field_class()
 
         if self.start_value is not None:
@@ -269,6 +269,25 @@ class SettingsForm(QFrame):
         self.fields[field.name] = field
 
     @classmethod
+    def from_resolve_section_item(cls, resolve_section: ResolvedSection, parent: QStackedWidget = None) -> "SettingsForm":
+        instance: "SettingsForm" = cls(resolve_section.name, parent)
+        instance.setWindowTitle(resolve_section.verbose_name)
+        for resolve_entry in resolve_section.entries:
+            if resolve_entry.gui_visible is False:
+                continue
+
+            field = SettingsField(resolve_entry.entry_name, resolve_entry.value, value_typus=resolve_entry.value_typus, verbose_name=resolve_entry.verbose_name)
+            if resolve_entry.description:
+                field.setToolTip(resolve_entry.description)
+            if resolve_entry.implemented is False:
+                field.setEnabled(False)
+                field.setToolTip("NOT IMPLEMENTED")
+
+            instance.add_field(field)
+
+        return instance
+
+    @classmethod
     def from_dict(cls, section_name: str, data_dict: Mapping[str, tuple[Any, Any]], parent: QStackedWidget = None) -> "SettingsForm":
         instance: "SettingsForm" = cls(section_name, parent)
 
@@ -280,7 +299,8 @@ class SettingsForm(QFrame):
             try:
 
                 field = SettingsField(key, attributes["value"], value_typus=attributes["converter"], verbose_name=attributes.get("verbose_name", None))
-                field.setToolTip(attributes.get("short_description", ""))
+                if attributes.get("short_description", "") is not MiscEnum.NOTHING:
+                    field.setToolTip(attributes.get("short_description", ""))
                 if attributes.get("implemented", True) is False:
                     field.setEnabled(False)
                     field.setToolTip("NOT IMPLEMENTED")
@@ -345,15 +365,11 @@ class SettingsWindow(QWidget):
         self.setup_content_widget()
         self.setup_selection_box()
 
-        for section, entries in self.general_config.spec.data.items():
-            if section in self.exclude_categories:
+        for section in self.general_config.sections:
+            if section.name in self.exclude_categories:
                 continue
-            for entry_name, entry_attributes in entries.items():
-                try:
-                    entry_attributes["value"] = self.general_config.get(section, entry_name)
-                except EntryMissingError:
-                    entry_attributes["value"] = None
-            self.add_category(section, entries, getattr(AllResourceItems, f"{section}_settings_image").get_as_pixmap(), self.general_config.spec.get_verbose_name(section))
+
+            self.add_category(section, getattr(AllResourceItems, f"{section.name}_settings_image").get_as_pixmap())
 
         # for cat, sub_data in self.general_config.as_dict(with_typus=True, only_gui_visible=True).items():
         #     if cat in self.exclude_categories:
@@ -384,9 +400,12 @@ class SettingsWindow(QWidget):
 
         self.main_layout.addWidget(self.selection_box, 0, 0, 1, 1, Qt.AlignTop)
 
-    def add_category(self, text: str, data_dict: Mapping[str, Any], picture: QPixmap, verbose_name: str = None):
-        page_number = self.content_widget.addWidget(SettingsForm.from_dict(section_name=text, data_dict=data_dict, parent=self.content_widget))
-        self.selection_box.add_category(text, picture, page_number)
+    def add_category(self, section_item: ResolvedSection, picture: QPixmap):
+        form = SettingsForm.from_resolve_section_item(resolve_section=section_item, parent=self.content_widget)
+        if section_item.description:
+            form.setToolTip(section_item.description)
+        page_number = self.content_widget.addWidget(form)
+        self.selection_box.add_category(section_item.verbose_name, picture, page_number)
 
     def change_page(self, current_item, previous_item):
         self.content_widget.setCurrentIndex(current_item.page_number)

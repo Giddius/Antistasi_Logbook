@@ -292,6 +292,7 @@ class MainWidget(QWidget):
         item = self.query_result_tab.model.content_items[index.row()]
 
         view = LogRecordDetailView(record=item, parent=self.detail_widget)
+        self.query_result_tab.multiple_items_selected.connect(view.on_multiple_items_selected)
         self.detail_widget.setWidget(view)
         view.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
 

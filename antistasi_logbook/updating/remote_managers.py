@@ -26,7 +26,7 @@ from webdav4.client import Client as WebdavClient
 
 from gidapptools.general_helper.conversion import human2bytes
 # * Gid Imports ----------------------------------------------------------------------------------------->
-from gidapptools import get_logger, get_meta_paths, get_meta_config
+from gidapptools import get_logger, get_meta_paths
 
 
 # * Local Imports --------------------------------------------------------------------------------------->
@@ -42,7 +42,7 @@ setup()
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.meta_data.interface import MetaPaths
-    from gidapptools.gid_config.meta_factory import GidIniConfig
+    from gidapptools.gid_config.interface import GidIniConfig
 
     from antistasi_logbook.storage.models.models import LogFile, RemoteStorage
 
@@ -63,7 +63,7 @@ if TYPE_CHECKING:
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 META_PATHS: "MetaPaths" = get_meta_paths()
-CONFIG: "GidIniConfig" = get_meta_config().get_config('general')
+
 log = get_logger(__name__)
 # endregion[Constants]
 
@@ -115,7 +115,7 @@ remote_manager_registry = RemoteManagerRegistry()
 
 
 class AbstractRemoteStorageManager(ABC):
-    config: "GidIniConfig" = CONFIG
+    config: "GidIniConfig" = None
 
     def __init__(self, base_url: yarl.URL = None, login: str = None, password: str = None) -> None:
         self.base_url = base_url
@@ -157,7 +157,6 @@ class AbstractRemoteStorageManager(ABC):
 
 @remote_manager_registry.register_decorator()
 class LocalManager(AbstractRemoteStorageManager):
-    config: "GidIniConfig" = CONFIG
 
     def __init__(self, base_url: yarl.URL, login: str, password: str) -> None:
         super().__init__(base_url=base_url, login=login, password=password)
@@ -186,7 +185,7 @@ class LocalManager(AbstractRemoteStorageManager):
 
 @remote_manager_registry.register_decorator()
 class WebdavManager(AbstractRemoteStorageManager):
-    config: "GidIniConfig" = CONFIG
+
     _extra_base_url_parts = ["dev_drive", "remote.php", "dav", "files"]
 
     download_semaphores: dict[yarl.URL, Semaphore] = {}
@@ -197,7 +196,7 @@ class WebdavManager(AbstractRemoteStorageManager):
         self.full_base_url = self._make_full_base_url()
         self._client: WebdavClient = None
         self.download_semaphore = self._get_download_semaphore()
-        self.config.config.changed_signal.connect(self.reset_client)
+        self.config.changed_signal.connect(self.reset_client)
 
     @classmethod
     def _validate_remote_storage_item(cls, remote_storage_item: "RemoteStorage") -> None:
@@ -205,9 +204,9 @@ class WebdavManager(AbstractRemoteStorageManager):
         if any(x is None for x in [remote_storage_item.get_login(), remote_storage_item.get_password()]):
             raise MissingLoginAndPasswordError(remote_storage_item=remote_storage_item)
 
-    def _get_download_semaphore(self) -> Semaphore:
+    def _get_download_semaphore(self, fresh: bool = False) -> Semaphore:
         download_semaphore = self.download_semaphores.get(self.full_base_url)
-        if download_semaphore is None:
+        if download_semaphore is None or fresh is True:
             download_semaphore = Semaphore(self.max_connections)
 
             self.download_semaphores[self.full_base_url] = download_semaphore
@@ -216,12 +215,11 @@ class WebdavManager(AbstractRemoteStorageManager):
     def reset_client(self, config: "GidIniConfig") -> None:
         log.debug("client reset called")
         self._client = None
-        del self.download_semaphores[self.full_base_url]
-        self.download_semaphore = self._get_download_semaphore()
+        self.download_semaphore = self._get_download_semaphore(fresh=True)
 
     @property
     def max_connections(self) -> Optional[int]:
-        return CONFIG.get(self.config_name, "max_concurrent_connections", default=100)
+        return self.config.get(self.config_name, "max_concurrent_connections", default=100)
 
     def _get_new_client(self) -> WebdavClient:
         return WebdavClient(base_url=str(self.full_base_url),
@@ -344,7 +342,7 @@ class FakeWebdavManager(AbstractRemoteStorageManager):
     info_file: Path = None
     _info_data: dict[RemotePath, InfoItem] = None
     download_semaphores: dict[yarl.URL, MinDurationSemaphore] = {}
-    config: "GidIniConfig" = CONFIG
+
     config_name = 'webdav'
     metrics = FakeManagerMetrics()
     for_datetime_of: datetime = datetime(year=2021, month=11, day=9, hour=12, minute=0, second=0, microsecond=0, tzinfo=UTC)

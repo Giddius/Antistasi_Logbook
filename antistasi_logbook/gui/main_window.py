@@ -10,6 +10,7 @@ Soon.
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import sys
+import os
 from typing import TYPE_CHECKING, Union, Optional
 from pathlib import Path
 from datetime import timedelta, datetime
@@ -29,7 +30,7 @@ from tempfile import TemporaryDirectory
 import qt_material
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
-from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
+from gidapptools import get_logger, get_meta_info, get_meta_paths
 from gidapptools.gid_logger.misc import QtMessageHandler
 
 from gidapptools.general_helper.string_helper import StringCaseConverter
@@ -67,6 +68,7 @@ from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import
 from antistasi_logbook.gui.debug import setup_debug_widget
 from gidapptools.gidapptools_qt.helper.misc import center_window
 import pp
+from gidapptools.gid_config.interface import GidIniConfig, get_config
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
@@ -91,7 +93,7 @@ if TYPE_CHECKING:
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
-META_CONFIG = get_meta_config()
+
 META_PATHS = get_meta_paths()
 META_INFO = get_meta_info()
 
@@ -289,6 +291,10 @@ class AntistasiLogbookMainWindow(QMainWindow):
         # self.viewer.show()
 
     @property
+    def config(self):
+        return self.app.config
+
+    @property
     def cyclic_update_running(self) -> bool:
         if self.update_timer is None:
             return False
@@ -403,7 +409,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
     def start_backend(self):
 
         log.debug("starting backend")
-        config = META_CONFIG.get_config('general')
+        config = self.config.get_config('general')
         db_path = config.get('database', "database_path", default=THIS_FILE_DIR.parent.joinpath("storage"))
 
         database = GidSqliteApswDatabase(db_path, config=config, thread_safe=True, autoconnect=True)
@@ -718,8 +724,11 @@ def start_gui() -> int:
     if app.is_full_gui is False:
         return
 
-    config = META_CONFIG.get_config('general')
-
+    config_path = META_PATHS.config_dir.joinpath("general_config.ini")
+    if os.getenv("is_dev", "false") != "false":
+        config_path = Path(os.getenv("_MAIN_DIR")).joinpath("dev_temp", "config", config_path.name)
+    config = get_config(spec_path=DATA_DIR.joinpath("general_configspec.json"), config_path=config_path)
+    config.reload()
     if config.get("general", "is_first_start", default=True) is True:
         temp_db_path = config.get('database', "database_path", default=None)
         config.set("general", "is_first_start", False, create_missing_section=True)

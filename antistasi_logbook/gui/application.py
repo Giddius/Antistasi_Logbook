@@ -9,6 +9,7 @@ Soon.
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import shutil
 import argparse
+import os
 from typing import TYPE_CHECKING, Any, Optional, TypedDict
 from pathlib import Path
 from datetime import datetime
@@ -19,18 +20,20 @@ from collections.abc import Iterable, Mapping
 from PySide6.QtGui import QFont, QIcon, QColor, QScreen, QGuiApplication
 from PySide6.QtCore import Qt, QRect, QSettings, QObject, Signal
 from PySide6.QtWidgets import QMainWindow, QMessageBox, QApplication, QSplashScreen
-
+from antistasi_logbook.data import DATA_DIR
 # * Third Party Imports --------------------------------------------------------------------------------->
 from jinja2 import BaseLoader, Environment, Template
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
-from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
-from gidapptools.gid_config.interface import EntryTypus
+from gidapptools import get_logger, get_meta_info, get_meta_paths
+from gidapptools.gid_config.interface import get_config, ConfigValueConverter
+from gidapptools.gidapptools_qt.basics.application_info import ApplicationInfoData
 from gidapptools.gidapptools_qt.basics.application import WindowHolder
 from gidapptools.general_helper.string_helper import StringCase, StringCaseConverter
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 from antistasi_logbook.errors import ExceptionHandlerManager, MissingLoginAndPasswordError
+from antistasi_logbook.records.base_record import BaseRecord, RecordColorCache
 import psutil
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
@@ -64,39 +67,60 @@ META_PATHS = get_meta_paths()
 
 # endregion[Constants]
 
+ABOUT_STYLESHEET = r"""
+.aboutSummary {
+        background-color: lightgrey;
+        text-align: center;
+        color: black;
+        font-style: italic;
+        font-weight: bold;
+        font-size: large;
+}
 
-ABOUT_TEMPLATE = """
+"""
+
+ABOUT_TEMPLATE = r"""
+<style>
+{% if style %}
+    {{style}}
+{% endif %}
+</style>
 <dl>
-    {% for key, value in data.items() %}
+    {% for key, value in data.items() if key!="Summary" and key!="Description" %}
     <dt><b><u>{{key}}:</u></b></dt>
     <dd>{{value}}</dd>
+
     {% endfor %}
-</dl>"""
+</dl>
+    {% if data.Summary %}
+    <br>
+    <hr>
+    <div class="aboutSummary">
+    <center>
+    <br>
+    {{data.Summary}}
+    <br>
+    <hr>
+    </center>
+
+    </div>
+
+    {% endif %}
+
+"""
 
 
-def _qcolor(value: str, mode: str = 'decode', **named_arguments) -> float:
-    if mode == "decode":
-        if value:
-            r, g, b, a = (int(i.strip()) for i in value.split(',') if i.strip())
-            return QColor(r, g, b, a)
+class QColorValueConverter(ConfigValueConverter):
+    __slots__ = tuple()
+    value_typus = "qcolor"
 
-    elif mode == "encode":
-        if value:
-            return ', '.join(str(i) for i in value.getRgb())
+    def to_config_value(self, value: Any, **named_arguments) -> str:
+        return ', '.join(str(i) for i in value.getRgb())
 
+    def to_python_value(self, value: str, **named_arguments) -> Any:
+        r, g, b, a = (int(i.strip()) for i in value.split(',') if i.strip())
+        return QColor(r, g, b, a)
 
-def _handle_qcolor(value: Any, sub_arguments: dict[str, str]) -> EntryTypus:
-    return EntryTypus(original_value=value, base_typus=QColor)
-
-
-META_CONFIG = get_meta_config()
-META_CONFIG.add_spec_value_handler("qcolor", _handle_qcolor)
-META_CONFIG.add_converter_function(QColor, _qcolor)
-
-COLOR_CONFIG = META_CONFIG.get_config("color")
-
-
-COLOR_CONFIG.reload()
 
 ARG_DOC_MARKDOWN_TEMPLATE = """
 
@@ -316,6 +340,7 @@ class AntistasiLogbookApplication(QApplication):
         self.init_app_meta_data()
         self.cli_arguments = self.parse_cli_arguments()
         self.argument_doc_items: list[CommandLineArgDoc] = None
+        self.color_config: "GidIniConfig" = None
 
     @cached_property
     def screen_points(self) -> dict[str, int]:
@@ -341,15 +366,23 @@ class AntistasiLogbookApplication(QApplication):
             return
 
         self.backend = backend
+        self.config.conversion_table.add_extra_converter(QColorValueConverter)
         self.icon = icon.get_as_icon() if icon is not None else icon
 
         self.jinja_environment = Environment(loader=BaseLoader)
 
-        self.color_config = get_meta_config().get_config("color")
+        color_config_file = self.meta_paths.config_dir.joinpath("color_config.ini")
+        if self.is_dev is True:
+            color_config_file = Path(os.getenv("_MAIN_DIR")).joinpath("dev_temp", "config", color_config_file.name)
+        self.color_config = get_config(DATA_DIR.joinpath("color_configspec.json"), color_config_file, extra_converter=[QColorValueConverter])
+        self.color_config.reload()
+        self.backend.color_config = self.color_config
+        self.config.reload()
         self.backend.start_up()
 
         self.setQuitOnLastWindowClosed(False)
         self.setup_app_font()
+        BaseRecord._color_cache = RecordColorCache(self.color_config)
         self.is_setup = True
 
     @ classmethod
@@ -411,9 +444,12 @@ class AntistasiLogbookApplication(QApplication):
                       "Version": self.applicationVersion(),
                       "Dev Mode": "Yes" if self.is_dev is True else "No",
                       "Operating System": self.meta_info.os,
-                      "Python Version": self.meta_info.python_version}
+                      "Python Version": self.meta_info.python_version,
+                      "License": self.meta_info.app_license,
+                      "Summary": self.meta_info.summary,
+                      "Description": self.meta_info.description}
 
-        return self.jinja_environment.from_string(ABOUT_TEMPLATE).render(data=text_parts)
+        return self.jinja_environment.from_string(ABOUT_TEMPLATE).render(data=text_parts, style=ABOUT_STYLESHEET)
 
     def show_about(self) -> None:
         title = f"About {self.applicationDisplayName()}"
@@ -421,7 +457,7 @@ class AntistasiLogbookApplication(QApplication):
         QMessageBox.about(self.main_window, title, text)
 
     def show_about_qt(self) -> None:
-        self.aboutQt()
+        x = self.aboutQt()
 
     def get_argument_parser(self) -> argparse.ArgumentParser:
         self.argument_doc_items = []

@@ -124,7 +124,7 @@ class ForeignKeyCache:
 
         if self._all_log_levels is None:
             self.log_levels_blocker.wait()
-            self._all_log_levels = frozendict({log_level.name: log_level for log_level in self.database.get_all_log_levels()})
+            self._all_log_levels = {log_level.name: log_level for log_level in self.database.get_all_log_levels()}
 
         return self._all_log_levels
 
@@ -135,7 +135,7 @@ class ForeignKeyCache:
             self.arma_file_model_blocker.wait()
             log.info("refreshing 'all_arma_file_objects'.")
             with self.database.connection_context() as ctx:
-                self._all_arma_file_objects = frozendict({(antistasi_file.name, antistasi_file.author_prefix.name): antistasi_file for antistasi_file in self.database.get_all_arma_functions()})
+                self._all_arma_file_objects = {(antistasi_file.name, antistasi_file.author_prefix.name): antistasi_file for antistasi_file in self.database.get_all_arma_functions()}
 
         return self._all_arma_file_objects
 
@@ -144,7 +144,7 @@ class ForeignKeyCache:
 
         if self._all_game_map_objects is None:
             self.game_map_model_blocker.wait()
-            self._all_game_map_objects = frozendict({game_map.name: game_map for game_map in self.database.get_all_game_maps()})
+            self._all_game_map_objects = {game_map.name: game_map for game_map in self.database.get_all_game_maps()}
 
         return self._all_game_map_objects
 
@@ -152,7 +152,7 @@ class ForeignKeyCache:
     def all_game_map_objects_case_insensitive(self) -> frozendict[str, GameMap]:
         if self._all_game_map_objects_case_insensitive is None:
             self.game_map_model_blocker.wait()
-            self._all_game_map_objects_case_insensitive = frozendict({game_map.name.casefold(): game_map for game_map in self.database.get_all_game_maps()})
+            self._all_game_map_objects_case_insensitive = {game_map.name.casefold(): game_map for game_map in self.database.get_all_game_maps()}
         return self._all_game_map_objects_case_insensitive
 
     @property
@@ -160,7 +160,7 @@ class ForeignKeyCache:
 
         if self._all_log_levels_by_id is None:
             self.log_levels_blocker.wait()
-            self._all_log_levels_by_id = frozendict({log_level.id: log_level for log_level in self.database.get_all_log_levels()})
+            self._all_log_levels_by_id = sorted([log_level for log_level in self.database.get_all_log_levels()], key=lambda x: x.id)
 
         return self._all_log_levels_by_id
 
@@ -173,7 +173,7 @@ class ForeignKeyCache:
             log.info("refreshing '_all_arma_file_objects_by_id'.")
             with self.database.connection_context() as ctx:
 
-                self._all_arma_file_objects_by_id = frozendict({antistasi_file.id: antistasi_file for antistasi_file in self.database.get_all_arma_functions()})
+                self._all_arma_file_objects_by_id = {antistasi_file.id: antistasi_file for antistasi_file in self.database.get_all_arma_functions()}
 
         return self._all_arma_file_objects_by_id
 
@@ -182,7 +182,7 @@ class ForeignKeyCache:
 
         if self._all_game_map_objects_by_id is None:
             self.game_map_model_blocker.wait()
-            self._all_game_map_objects_by_id = frozendict({game_map.id: game_map for game_map in self.database.get_all_game_maps()})
+            self._all_game_map_objects_by_id = {game_map.id: game_map for game_map in self.database.get_all_game_maps()}
 
         return self._all_game_map_objects_by_id
 
@@ -190,7 +190,7 @@ class ForeignKeyCache:
     def all_origin_objects(self) -> dict[str, RecordOrigin]:
         if self._all_origin_objects is None:
             self.origin_blocker.wait()
-            self._all_origin_objects = frozendict({origin.identifier: origin for origin in self.database.get_all_origins()})
+            self._all_origin_objects = {origin.identifier: origin for origin in self.database.get_all_origins()}
             for origin in self._all_origin_objects.values():
                 _ = origin.record_family
         return self._all_origin_objects
@@ -199,7 +199,7 @@ class ForeignKeyCache:
     def all_origin_objects_by_id(self) -> dict[str, RecordOrigin]:
         if self._all_origin_objects_by_id is None:
             self.origin_blocker.wait()
-            self._all_origin_objects_by_id = frozendict({origin.id: origin for origin in self.database.get_all_origins()})
+            self._all_origin_objects_by_id = {origin.id: origin for origin in self.database.get_all_origins()}
             for origin in self._all_origin_objects_by_id.values():
                 _ = origin.record_family
         return self._all_origin_objects_by_id
@@ -208,14 +208,14 @@ class ForeignKeyCache:
     def all_version_objects(self) -> dict[str, Version]:
         if self._all_version_objects is None:
             self.version_blocker.wait()
-            self._all_version_objects = frozendict({version: version for version in self.database.get_all_versions()})
+            self._all_version_objects = {version: version for version in self.database.get_all_versions()}
         return self._all_version_objects
 
     @property
     def all_version_objects_by_id(self) -> dict[str, Version]:
         if self._all_version_objects_by_id is None:
             self.version_blocker.wait()
-            self._all_version_objects_by_id = frozendict({version.id: Version for version in self.database.get_all_versions()})
+            self._all_version_objects_by_id = {version.id: Version for version in self.database.get_all_versions()}
         return self._all_version_objects_by_id
 
     def get_log_level_by_id(self, model_id: int) -> Optional[LogLevel]:

@@ -23,7 +23,8 @@ from peewee import Field, Query, IntegerField
 from natsort import natsorted
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
-from gidapptools import get_logger, get_meta_config
+from gidapptools import get_logger
+from gidapptools.gid_config.interface import GidIniConfig
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.misc import CustomRole
@@ -174,13 +175,17 @@ class BaseQueryDataModel(QAbstractTableModel):
         self.columns: tuple[Field] = tuple(c for c in list(self.db_model.get_meta().sorted_fields) + list(self.extra_columns) if c.name not in self.strict_exclude_columns)
         self.data_tool: "BaseDataToolWidget" = None
         self.original_sort_order: tuple[int] = tuple()
-        self.color_config = get_meta_config().get_config("color")
+
         self.filter_item = None
         self._median_width: int = None
         self._size_hints: dict[tuple[int, int], QSize] = {}
         self._last_selection_ids: list[int] = None
 
         super().__init__(parent=parent)
+
+    @property
+    def color_config(self) -> GidIniConfig:
+        return self.app.color_config
 
     @property
     def last_selection_ids(self) -> Optional[list[int]]:
@@ -368,13 +373,12 @@ class BaseQueryDataModel(QAbstractTableModel):
         if not 0 <= index.row() < len(self.content_items):
             return None
 
-        if role not in self.data_role_table:
-            return
         if role is not None:
-            handler = self.data_role_table.get(role, None)
-            if handler is not None:
 
-                return handler(index=self.modify_index(index))
+            try:
+                return self.data_role_table.get(role, None)(index=self.modify_index(index))
+            except TypeError:
+                return None
 
     def _get_raw_data(self, index: INDEX_TYPE) -> Any:
         item, column = self.get(index)

@@ -11,13 +11,14 @@ from typing import TYPE_CHECKING, Any, Union, Optional, Generator, Iterable
 from pathlib import Path
 from datetime import datetime
 from threading import Lock, RLock, Condition, Event, Semaphore, Thread
+import sys
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
-from gidapptools import get_logger, get_meta_config, GidIniConfig
+from gidapptools import get_logger
 from gidapptools.general_helper.color.color_item import Color
-
+from gidapptools.gid_config.interface import get_config, GidIniConfig
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.records.enums import RecordFamily, MessageFormat
 
@@ -59,26 +60,29 @@ log = get_logger(__name__)
 # endregion[Constants]
 
 
-@attr.s(slots=True, auto_attribs=True, auto_detect=True)
 class QtAttributes:
-    # background_color: "QColor" = attr.ib(default=MiscEnum.NOTHING)
-    message_size_hint: "QSize" = attr.ib(default=None)
+    __slots__ = ("message_size_hint",)
+
+    def __init__(self, message_size_hint: "QSize" = None) -> None:
+        self.message_size_hint = message_size_hint
 
 
-@attr.s(slots=True, auto_attribs=True, auto_detect=True)
 class PrettyAttributeCache:
-    pretty_recorded_at: str = attr.ib(default=MiscEnum.NOTHING)
-    pretty_log_level: str = attr.ib(default=MiscEnum.NOTHING)
-    pretty_message: str = attr.ib(default=MiscEnum.NOTHING)
-    pretty_log_file: str = attr.ib(default=MiscEnum.NOTHING)
+    __slots__ = ("pretty_recorded_at", "pretty_log_level", "pretty_message", "pretty_log_file")
+
+    def __init__(self, pretty_recorded_at: str = None, pretty_log_level: str = None, pretty_message: str = None, pretty_log_file: str = None) -> None:
+        self.pretty_recorded_at: str = pretty_recorded_at or MiscEnum.NOTHING
+        self.pretty_log_level: str = pretty_log_level or MiscEnum.NOTHING
+        self.pretty_message: str = pretty_message or MiscEnum.NOTHING
+        self.pretty_log_file: str = pretty_log_file or MiscEnum.NOTHING
 
 
 class RecordColorCache:
     __slots__ = ("_config", "_cache", "_access_lock")
     default_color_values = frozendict(**{"r": 255, "g": 255, "b": 255, "a": 150})
 
-    def __init__(self, config: GidIniConfig) -> None:
-        self._config = config
+    def __init__(self, config: GidIniConfig = None) -> None:
+        self._config = config or qApp.color_config
         self._cache: dict[str, "QColor"] = {}
         self._access_lock = Lock()
 
@@ -91,7 +95,7 @@ class RecordColorCache:
         self._cache[name] = color
         return color
 
-    def get(self, record_class: type["BaseRecord"]) -> Optional["QColor"]:
+    def get(self, record_class: type) -> Optional["QColor"]:
         name = record_class.__name__
         with self._access_lock:
             try:
@@ -99,7 +103,7 @@ class RecordColorCache:
             except KeyError:
                 return self._retrieve_color_from_config(name)
 
-    def set(self, record_class: type["BaseRecord"], color: QColor) -> None:
+    def set(self, record_class: type, color: QColor) -> None:
         name = record_class.__name__
         with self._access_lock:
             self._config.set("record", name, color, create_missing_section=True)
@@ -124,10 +128,9 @@ BASE_SLOTS: list[str] = ("record_id",
 class BaseRecord:
     ___record_family___ = RecordFamily.GENERIC | RecordFamily.ANTISTASI
     ___specificity___ = 0
-    foreign_key_cache: "ForeignKeyCache" = None
-    color_config = get_meta_config().get_config("color")
-    _color_cache = RecordColorCache(config=color_config)
-    extra_detail_views: Iterable[str] = []
+
+    _color_cache: RecordColorCache = None
+    extra_detail_views: tuple[str] = tuple()
     __slots__ = ("record_id",
                  "log_file",
                  "origin",
@@ -140,8 +143,7 @@ class BaseRecord:
                  "called_by",
                  "logged_from",
                  "qt_attributes",
-                 "pretty_attribute_cache",
-                 "_formated_message_cache")
+                 "pretty_attribute_cache")
 
     def __init__(self,
                  record_id: int,
@@ -161,6 +163,7 @@ class BaseRecord:
         self.start = start
         self.end = end
         self.message = message
+
         self.recorded_at = recorded_at
         self.log_level = log_level
         self.marked = marked
@@ -168,7 +171,6 @@ class BaseRecord:
         self.logged_from = logged_from
         self.qt_attributes: QtAttributes = QtAttributes()
         self.pretty_attribute_cache: PrettyAttributeCache = PrettyAttributeCache()
-        self._formated_message_cache: dict[MessageFormat:str] = {}
 
     def get_data(self, name: str):
         try:
@@ -224,22 +226,19 @@ class BaseRecord:
 
     def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
         msg_format = MessageFormat(msg_format)
-        if msg_format in self._formated_message_cache:
-            return self._formated_message_cache[msg_format]
-        match msg_format:
 
-            case MessageFormat.SHORT:
-                text = shorten_string(self.message, max_length=30)
+        if msg_format is MessageFormat.SHORT:
+            text = shorten_string(self.message, max_length=30)
 
-            case MessageFormat.ORIGINAL:
-                text = self.log_file.original_file.get_lines(start=self.start, end=self.end)
+        elif msg_format is MessageFormat.ORIGINAL:
+            text = self.log_file.original_file.get_lines(start=self.start, end=self.end)
 
-            case MessageFormat.DISCORD:
-                text = discord_format(in_record=self)
+        elif msg_format is MessageFormat.DISCORD:
+            text = discord_format(in_record=self)
 
-            case _:
-                text = self.message
-        self._formated_message_cache[msg_format] = text
+        else:
+            text = self.message
+
         return text
 
     def get_db_item(self, database: "GidSqliteApswDatabase") -> "LogRecord":
@@ -270,22 +269,22 @@ class BaseRecord:
                    logged_from=item.logged_from)
 
     @classmethod
-    def from_model_dict(cls, model_dict: dict[str, Any], log_file: "LogFile" = None) -> "BaseRecord":
+    def from_model_dict(cls, model_dict: dict[str, Any], foreign_key_cache: "ForeignKeyCache", log_file: "LogFile" = None) -> "BaseRecord":
 
         if log_file is not None:
             model_dict['log_file'] = log_file
 
         return cls(record_id=model_dict["id"],
                    log_file=model_dict["log_file"],
-                   origin=cls.foreign_key_cache.get_origin_by_id(model_dict["origin"]),
+                   origin=foreign_key_cache.get_origin_by_id(model_dict["origin"]),
                    start=model_dict['start'],
                    end=model_dict["end"],
                    message=model_dict["message"],
                    recorded_at=model_dict["recorded_at"],
-                   log_level=cls.foreign_key_cache.get_log_level_by_id(model_dict['log_level']),
+                   log_level=foreign_key_cache.get_log_level_by_id(model_dict['log_level']),
                    marked=model_dict["marked"],
-                   called_by=cls.foreign_key_cache.get_arma_file_by_id(model_dict["called_by"]),
-                   logged_from=cls.foreign_key_cache.get_arma_file_by_id(model_dict["logged_from"]))
+                   called_by=foreign_key_cache.get_arma_file_by_id(model_dict["called_by"]),
+                   logged_from=foreign_key_cache.get_arma_file_by_id(model_dict["logged_from"]))
 
     def __getattr__(self, name: str):
         if name == "id":

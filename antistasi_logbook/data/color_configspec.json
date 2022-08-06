@@ -1,7 +1,34 @@
 {
-    "server": { "__default__": { "converter": "qcolor" } },
-    "log_level": { "__default__": { "converter": "qcolor" } },
-    "stats": { "__default__": { "converter": "qcolor" } },
-    "record_origin": { "__default__": { "converter": "qcolor" } },
-    "record": { "__default__": { "converter": "qcolor" } }
+    "sections": {
+        "server": {
+            "entries": {},
+            "dynamic_entries_allowed": true,
+            "default_converter": "qcolor"
+        },
+        "log_level": {
+            "entries": {},
+            "dynamic_entries_allowed": true,
+            "default_converter": "qcolor"
+        },
+        "stats": {
+            "entries": {},
+            "dynamic_entries_allowed": true,
+            "default_converter": "qcolor"
+        },
+        "record_origin": {
+            "entries": {},
+            "dynamic_entries_allowed": true,
+            "default_converter": "qcolor"
+        },
+        "record": {
+            "entries": {},
+            "dynamic_entries_allowed": true,
+            "default_converter": "qcolor"
+        },
+        "mod_set": {
+            "entries": {},
+            "dynamic_entries_allowed": true,
+            "default_converter": "qcolor"
+        }
+    }
 }

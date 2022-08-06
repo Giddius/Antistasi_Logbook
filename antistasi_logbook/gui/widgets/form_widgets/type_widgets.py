@@ -67,7 +67,7 @@ class TypeWidgetProtocol(Protocol):
         ...
 
 
-ALL_VALUE_FIELDS: dict[type, type[TypeWidgetProtocol]] = {}
+ALL_VALUE_FIELDS: dict[str, type[TypeWidgetProtocol]] = {}
 
 
 def _add_value_field(value_field: type[TypeWidgetProtocol]):
@@ -76,7 +76,7 @@ def _add_value_field(value_field: type[TypeWidgetProtocol]):
 
 @implements_protocol(TypeWidgetProtocol)
 class BoolValueField(QWidget):
-    ___for_type___ = bool
+    ___for_type___ = "boolean"
 
     def __init__(self, true_text: str = "Yes", false_text: str = "No", parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
         super().__init__(parent=parent)
@@ -159,7 +159,7 @@ class TimeSpinBox(QSpinBox):
 
 @implements_protocol(TypeWidgetProtocol)
 class TimeDeltaValueField(QWidget):
-    ___for_type___ = timedelta
+    ___for_type___ = "timedelta"
     all_units = tuple(unit for unit in TimeUnits(False) if unit.factor >= TimeUnits(False)["second"].factor)
 
     def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
@@ -255,7 +255,7 @@ class UpdateTimeFrameValueField(TimeDeltaValueField):
 
 @implements_protocol(TypeWidgetProtocol)
 class FileSizeValueField(QWidget):
-    ___for_type___ = NonTypeBaseTypus.FILE_SIZE
+    ___for_type___ = "file_size"
     all_symbols = tuple(["b"] + list(FILE_SIZE_REFERENCE.symbols))
     extraction_regex = re.compile(r"(?P<number_value>[\d\.\,]+)\s*(?P<unit_value>" + r'|'.join(all_symbols) + r")", re.IGNORECASE)
 
@@ -343,7 +343,7 @@ _add_value_field(FileSizeValueField)
 
 @implements_protocol(TypeWidgetProtocol)
 class IntegerValueField(QWidget):
-    ___for_type___ = int
+    ___for_type___ = "integer"
 
     def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None, maximum: int = 100000) -> None:
         super().__init__(parent=parent)
@@ -377,7 +377,7 @@ _add_value_field(IntegerValueField)
 
 @implements_protocol(TypeWidgetProtocol)
 class FloatValueField(QWidget):
-    ___for_type___ = float
+    ___for_type___ = "float"
 
     def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None, maximum: int = 100000, decimals: int = 2) -> None:
         super().__init__(parent=parent)
@@ -412,7 +412,7 @@ _add_value_field(FloatValueField)
 
 @implements_protocol(TypeWidgetProtocol)
 class StringValueField(QWidget):
-    ___for_type___ = str
+    ___for_type___ = "string"
 
     def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None, multiline: bool = False) -> None:
         super().__init__(parent=parent)
@@ -446,7 +446,7 @@ _add_value_field(StringValueField)
 
 @implements_protocol(TypeWidgetProtocol)
 class PathValueField(QWidget):
-    ___for_type___ = Path
+    ___for_type___ = "path"
 
     def __init__(self, base_dir: Path = Path.cwd(),
                  parent: Optional[PySide6.QtWidgets.QWidget] = None,
@@ -512,7 +512,7 @@ _add_value_field(PathValueField)
 
 @implements_protocol(TypeWidgetProtocol)
 class ListValueField(QWidget):
-    ___for_type___ = list
+    ___for_type___ = "list"
 
     def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
         super().__init__(parent=parent)
@@ -539,45 +539,6 @@ class ListValueField(QWidget):
 
     def set_alignment(self, alignment: Qt.Alignment):
         self.layout.setAlignment(alignment)
-
-
-_add_value_field(ListValueField)
-
-
-@implements_protocol(TypeWidgetProtocol)
-class StringChoicesValueField(QWidget):
-    ___for_type___ = NonTypeBaseTypus.STRING_CHOICE
-
-    def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None, choices: Iterable[str] = tuple()) -> None:
-        super().__init__(parent=parent)
-        self.setLayout(QGridLayout(self))
-        self.start_value: str = None
-        self.choices = [""] + list(choices)
-        self.text_part = QComboBox(self)
-
-        self.text_part.addItems(self.choices)
-        self.layout.addWidget(self.text_part)
-
-    def set_value(self, value: str, is_start: bool = False):
-        self.text_part.setCurrentIndex(self.choices.index(value))
-        if is_start is True:
-            self.start_value = value
-
-    def get_value(self) -> str:
-        text = self.text_part.currentText()
-        if text == "":
-            return None
-        return text
-
-    def value_is_changed(self) -> bool:
-        return self.get_value() != self.start_value
-
-    def set_alignment(self, alignment: Qt.Alignment):
-        self.layout.setAlignment(alignment)
-
-    @property
-    def layout(self):
-        return super().layout()
 
 
 _add_value_field(ListValueField)

@@ -53,7 +53,8 @@ class LogFilesModel(BaseQueryDataModel):
     extra_columns = {FakeField(name="amount_log_records", verbose_name="Records"),
                      FakeField("time_frame", "Time Frame"),
                      FakeField(name="amount_errors", verbose_name="Errors"),
-                     FakeField(name="amount_warnings", verbose_name="Warnings")}
+                     FakeField(name="amount_warnings", verbose_name="Warnings"),
+                     FakeField(name="mod_set", verbose_name="Mod Set")}
     strict_exclude_columns = {"startup_text", "remote_path", "header_text", "original_file"}
 
     def __init__(self, parent: Optional[QtCore.QObject] = None) -> None:
@@ -138,7 +139,7 @@ class LogFilesModel(BaseQueryDataModel):
 
         with self.backend.database.connection_context() as ctx:
             self.content_items = []
-            for log_file in self.get_query().execute():
+            for log_file in self.get_query().iterator():
                 self.content_items.append(log_file)
 
         return self

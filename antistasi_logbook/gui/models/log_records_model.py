@@ -87,6 +87,7 @@ class LogRecordsModel(BaseQueryDataModel):
         self.proxy_model = BaseProxyModel()
         self.proxy_model.setSourceModel(self)
         self._refresh_task: Future = None
+        self.collecting_records = False
 
     def set_message_font(self, font):
         self.layoutAboutToBeChanged.emit()
@@ -197,13 +198,14 @@ class LogRecordsModel(BaseQueryDataModel):
     def _get_record(self, _item_data, _all_log_files):
         record_class = self.backend.record_class_manager.get_by_id(_item_data.get('record_class'))
         log_file = _all_log_files[_item_data.get('log_file')]
-        record_item = record_class.from_model_dict(_item_data, log_file=log_file)
+        record_item = record_class.from_model_dict(_item_data, foreign_key_cache=self.backend.foreign_key_cache, log_file=log_file)
 
         return record_item
 
     def get_content(self) -> "LogRecordsModel":
 
         log.debug("starting getting content for %r", self)
+        self.collecting_records = True
         all_log_files = {log_file.id: log_file for log_file in self.backend.database.get_log_files()}
 
         self.content_items = []
@@ -212,28 +214,27 @@ class LogRecordsModel(BaseQueryDataModel):
         for record_item in self.app.backend.thread_pool.map(records_getter, self.get_query().dicts().iterator()):
 
             self.content_items.append(record_item)
-            num_collected += 1
-            if num_collected % 1_000 == 0:
-                sleep(0.0001)
+            # num_collected += 1
+            # if num_collected % 1_000 == 0:
+            #     sleep(0.0001)
         log.debug("finished getting content for %r", self)
-
+        self.collecting_records = False
         return self
 
     def refresh(self) -> "BaseQueryDataModel":
-        self.request_view_change_visibility.emit(False)
+        # self.request_view_change_visibility.emit(False)
 
         self.beginResetModel()
-        with self.database.connection_context() as ctx:
-            self.get_columns().get_content()
+        self.get_columns().get_content()
         self.endResetModel()
-        self.request_view_change_visibility.emit(True)
+        # self.request_view_change_visibility.emit(True)
 
         return self
 
     def refresh_item(self, index: "INDEX_TYPE"):
         item, column = self.get(index)
-        with self.database:
-            setattr(item, column.name, getattr(self.db_model.get_by_id(item.id), column.name))
+
+        setattr(item, column.name, getattr(self.db_model.get_by_id(item.id), column.name))
 
 
 # region[Main_Exec]

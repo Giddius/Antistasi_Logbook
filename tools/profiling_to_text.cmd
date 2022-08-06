@@ -35,6 +35,6 @@ set BASE_OUTPUT_FOLDER=%OLDHOME_FOLDER%reports
 set SUB_OUTPUT_FOLDER=%BASE_OUTPUT_FOLDER%\%CLEANED_FILE_NAME%\text_profiling
 set _OUTPUT_FILE_PATH=%SUB_OUTPUT_FOLDER%\[%_years%-%_months%-%_days%_%_hours%-%_minutes%-%_seconds%]_%CLEANED_FILE_NAME%.txt
 mkdir %SUB_OUTPUT_FOLDER%
-python -m cProfile -s pcalls %FULLINPATH% >%_OUTPUT_FILE_PATH%
+python -m cProfile -s cumtime %FULLINPATH% >%_OUTPUT_FILE_PATH%
 
 

@@ -7,7 +7,7 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from time import sleep
+from time import sleep, perf_counter, thread_time
 from queue import Queue
 from typing import TYPE_CHECKING, Any, Iterable, Optional
 from pathlib import Path
@@ -114,11 +114,13 @@ class RecordInserter:
         amount_records = len(records)
         with self.write_lock:
             with self.database.atomic("IMMEDIATE") as txn:
+                start_time = thread_time()
                 cur = self.database.cursor(True)
 
                 cur.executemany(RawRecord.insert_sql_phrase.phrase, params)
                 txn.commit()
-        log.info("inserted %s records", number_to_pretty(amount_records))
+            time_taken = round(thread_time() - start_time, 3)
+        log.info("inserted %s records in %s s", number_to_pretty(amount_records), time_taken)
         # for record in records:
         #     params = record.to_sql_params(log_file=context._log_file)
         #     self.database.execute_sql(self.insert_phrase, params=params)
@@ -396,6 +398,7 @@ class RecordProcessor:
         raw_record.parsed_data = self._convert_raw_record_foreign_keys(parsed_data=raw_record.parsed_data, utc_offset=utc_offset)
 
         return raw_record
+
 
         # region[Main_Exec]
 if __name__ == '__main__':

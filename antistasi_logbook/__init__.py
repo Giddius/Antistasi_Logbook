@@ -1,6 +1,8 @@
 """Antistasi Logbook"""
 
-__version__ = '0.4.5'
+__version__ = '0.4.6'
+
+__description_for_setup_tools__ = "this"
 
 import os
 
@@ -14,9 +16,9 @@ from rich.box import DOUBLE_EDGE
 from rich.traceback import install as rich_traceback_install
 
 from pathlib import Path
-from gidapptools import setup_main_logger_with_file_logging, get_meta_paths, get_meta_config
+from gidapptools import setup_main_logger_with_file_logging, get_meta_paths
 from gidapptools.meta_data import setup_meta_data
-
+from gidapptools.gid_config.interface import get_config
 
 import sys
 
@@ -122,8 +124,10 @@ def setup():
                     file_changed_parameter="changed_time")
     META_PATHS = get_meta_paths()
     # log = get_main_logger("__main__", Path(__file__).resolve(), extra_logger=_extra_logger)
-
-    general_config = get_meta_config().get_config("general")
+    general_config_path = META_PATHS.config_dir.joinpath("general_config.ini")
+    if os.getenv('IS_DEV', "false") != "false":
+        general_config_path = Path(__file__).resolve().parent.joinpath("dev_temp", "config", general_config_path.name)
+    general_config = get_config(spec_path=DATA_DIR.joinpath("general_configspec.json"), config_path=general_config_path, preload_ini_file=True)
     log_to_stdout = os.getenv('IS_DEV', "false") != "false"
     log = setup_main_logger_with_file_logging("__main__",
                                               log_level=general_config.get("logging", "level", default="DEBUG"),

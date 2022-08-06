@@ -77,7 +77,7 @@ class CaselessTextField(TextField):
 
 
 class RemotePathField(Field):
-    field_type = "REMOTEPATH"
+    field_type = "TEXT"
 
     def db_value(self, value: RemotePath) -> Optional[str]:
         if value is not None:
@@ -91,7 +91,7 @@ class RemotePathField(Field):
 
 
 class PathField(Field):
-    field_type = "PATH"
+    field_type = "TEXT"
 
     def db_value(self, value: Path) -> Optional[str]:
         if value is not None:
@@ -111,7 +111,7 @@ class VersionField(TextField):
     Version has to be in the format `MAJOR.MINOR.PATCH.EXTRA` where `EXTRA` is optional.
 
     """
-    field_type = "VERSION"
+    field_type = "TEXT"
 
     def db_value(self, value: VersionItem):
         if value is not None:
@@ -123,7 +123,7 @@ class VersionField(TextField):
 
 
 class URLField(Field):
-    field_type = "URL"
+    field_type = "TEXT"
 
     def db_value(self, value: Union[str, yarl.URL, httpx.URL, Path]):
         if value is None:
@@ -140,7 +140,7 @@ class URLField(Field):
 
 
 class AwareTimeStampField(BigIntegerField):
-    field_type = 'TIMESTAMP'
+    field_type = 'BIGINT'
     mult_factor = 1000000
 
     def __init__(self, *args, **kwargs):
@@ -176,7 +176,7 @@ class AwareTimeStampField(BigIntegerField):
 
 
 class TzOffsetField(Field):
-    field_type = "TZOFFSET"
+    field_type = "FLOAT"
 
     def db_value(self, value: Optional[tzoffset]) -> Optional[str]:
         if value is not None:
