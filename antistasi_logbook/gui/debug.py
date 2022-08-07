@@ -121,91 +121,6 @@ def show_parser_usage():
     return QApplication.instance().get_argument_parser().format_usage()
 
 
-@disable
-def count_unique_messages():
-    app: AntistasiLogbookApplication = QApplication.instance()
-    db = app.backend.database
-    with db.connection_context() as ctx:
-        counter = Counter()
-        query = LogRecord.select(LogRecord.message)
-        for record in query.iterator():
-            counter.update([record.message])
-
-    log.debug("finished collecting")
-
-    _out = {k: a for k, a in counter.most_common(n=5)}
-    log.debug("finished converting to dict")
-    return _out
-
-
-@disable
-def get_all_killed_by():
-    app: AntistasiLogbookApplication = QApplication.instance()
-    db = app.backend.database
-    _out = defaultdict(dict)
-    idx = 0
-    with db.connection_context() as ctx:
-
-        killed_by_record_class: RecordClass = RecordClass.get(name="KilledBy")
-        _actual_record_class = killed_by_record_class.record_class
-
-        for record in LogRecord.select(LogRecord.recorded_at, LogRecord.message, LogRecord.log_file, LogFile.name).join_from(LogRecord, LogFile).switch(LogRecord).where(LogRecord.record_class_id == killed_by_record_class.id).order_by(LogRecord.recorded_at).iterator():
-            idx += 1
-            if idx % 100_000 == 0:
-                log.debug("handled %s", number_to_pretty(idx))
-            parsed_data = _actual_record_class.parse(record.message)
-            victim = parsed_data["victim"]
-            killer = parsed_data["killer"]
-            log_file_name = record.log_file.name
-            if victim is not None and victim.strip().startswith("C_man") is False and victim.strip() not in {"Goat_random_F", } and victim.strip().casefold().startswith("land_") is False and killer is not None:
-                _out[log_file_name][record.recorded_at.isoformat()] = (victim, killer)
-
-    with open("blah.json", "w", encoding='utf-8', errors='ignore') as f:
-        json.dump(_out, f, default=str, sort_keys=False, indent=4)
-    with open("blah.csv", "w", encoding='utf-8', errors='ignore') as f:
-        for log_file, values in _out.items():
-            for datum, message in values.items():
-                f.write(f"{log_file},{datum},{message[0]},{message[1]}\n")
-    return Path("blah.csv").read_text(encoding='utf-8', errors='ignore')
-
-
-def all_log_record_message_size():
-    app: AntistasiLogbookApplication = QApplication.instance()
-    db = app.backend.database
-
-    def get_b_sizes(_db):
-        with _db:
-            # b_size = LogRecord.select(fn.SUM(fn.LENGHT(LogRecord.message))).scalar()
-            query_string = """SELECT MAX(LENGTH(message)), MIN(LENGTH(message)) FROM LogRecord;"""
-            cur: apsw.Cursor = _db.cursor()
-            cur = cur.execute(query_string)
-            res = cur.fetchone()
-            return res[0], res[1]
-
-    def _get_max_text(_db, max_length):
-        with _db:
-            query_string = """SELECT message from LogRecord ORDER BY LENGTH(message) DESC;"""
-            cur: apsw.Cursor = _db.cursor()
-            cur = cur.execute(query_string)
-            _out = []
-            for i in range(5):
-                _out.append(cur.fetchone()[0])
-            return _out
-
-    fut: Future = db.backend.thread_pool.submit(get_b_sizes, _db=db)
-
-    max_size, min_size = fut.result()
-
-    fut_2 = db.backend.thread_pool.submit(_get_max_text, _db=db, max_length=max_size)
-
-    max_texts = fut_2.result()
-    _out_dict = {"max size": max_size, "min size": min_size}
-    for idx, text in enumerate(max_texts):
-
-        _out_dict[f"largest_text_{idx+1}"] = text
-    return _out_dict
-
-
 def setup_debug_widget(debug_dock_widget: "DebugDockWidget") -> None:
     app: AntistasiLogbookApplication = QApplication.instance()
     debug_dock_widget.add_show_attr_button(attr_name="amount_log_records", obj=LogRecord)
@@ -222,9 +137,7 @@ def setup_debug_widget(debug_dock_widget: "DebugDockWidget") -> None:
                       "libraryPaths",
                       "isQuitLockEnabled"]:
         debug_dock_widget.add_show_attr_button(attr_name=attr_name, obj=app)
-    debug_dock_widget.add_show_func_result_button(count_unique_messages, "record_message")
-    debug_dock_widget.add_show_func_result_button(get_all_killed_by, "killed_by_all")
-    debug_dock_widget.add_show_func_result_button(all_log_record_message_size, "column_sizes")
+
 # region[Main_Exec]
 
 

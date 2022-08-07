@@ -27,8 +27,9 @@ from gidapptools.general_helper.color.color_item import Color
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.misc import CustomRole
+from antistasi_logbook.storage.models.custom_fields import FakeField
 from antistasi_logbook.records.enums import MessageFormat
-from antistasi_logbook.storage.models.models import LogRecord, RecordClass, LogFile
+from antistasi_logbook.storage.models.models import LogRecord, RecordClass, LogFile, Message
 from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE, BaseQueryDataModel
 from antistasi_logbook.gui.models.proxy_models.base_proxy_model import BaseProxyModel
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
@@ -73,8 +74,8 @@ class RefreshItem:
 class LogRecordsModel(BaseQueryDataModel):
     request_view_change_visibility = Signal(bool)
 
-    extra_columns = set()
-    strict_exclude_columns = {"record_class"}
+    extra_columns = {FakeField(name="message", verbose_name="Message")}
+    strict_exclude_columns = {"record_class", "message_item"}
     bool_images = {True: AllResourceItems.check_mark_green_image.get_as_icon(),
                    False: AllResourceItems.close_black_image.get_as_icon()}
 
@@ -122,7 +123,7 @@ class LogRecordsModel(BaseQueryDataModel):
 
     def get_query(self) -> "Query":
 
-        query = LogRecord.select().join_from(LogRecord, LogFile)
+        query = LogRecord.select(LogRecord, Message.text).join_from(LogRecord, LogFile).join_from(LogRecord, Message)
         if self._base_filter_item is not None:
             query = query.where(self._base_filter_item)
         if self.filter_item is not None:
@@ -196,6 +197,7 @@ class LogRecordsModel(BaseQueryDataModel):
         return self.message_font
 
     def _get_record(self, _item_data, _all_log_files):
+
         record_class = self.backend.record_class_manager.get_by_id(_item_data.get('record_class'))
         log_file = _all_log_files[_item_data.get('log_file')]
         record_item = record_class.from_model_dict(_item_data, foreign_key_cache=self.backend.foreign_key_cache, log_file=log_file)

@@ -15,7 +15,7 @@ import re
 from gidapptools import get_logger
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.storage.models.models import LogFile, LogRecord, RecordOrigin, BaseModel
+from antistasi_logbook.storage.models.models import LogFile, LogRecord, RecordOrigin, BaseModel, Message
 import attr
 from gidapptools.general_helper.string_helper import string_strip
 
@@ -61,7 +61,7 @@ class RawSQLPhrase:
 
 
 class RawRecord:
-    insert_sql_phrase = RawSQLPhrase(phrase="""INSERT OR IGNORE INTO "LogRecord" ("start", "end", "message", "recorded_at", "called_by", "origin", "logged_from", "log_file", "log_level", "marked","record_class") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""")
+    insert_sql_phrase = RawSQLPhrase(phrase="""INSERT OR IGNORE INTO "LogRecord" ("start", "end", "message_item", "recorded_at", "called_by", "origin", "logged_from", "log_file", "log_level", "marked","record_class") VALUES (?, ?, (SELECT "id" FROM "Message" WHERE "text"=?), ?, ?, ?, ?, ?, ?, ?, ?)""")
     __slots__ = ("lines", "_is_antistasi_record", "start", "end", "_content", "parsed_data", "record_class", "record_origin")
 
     def __init__(self, lines: Iterable["RecordLine"]) -> None:
@@ -94,7 +94,7 @@ class RawRecord:
         return '\n'.join(line.content for line in self.lines)
 
     def to_log_record_dict(self, log_file: "LogFile") -> dict[str, Any]:
-        return {"start": self.start, "end": self.end, 'message': self.parsed_data.get("message"), 'recorded_at': self.parsed_data.get("recorded_at"),
+        return {"start": self.start, "end": self.end, 'message': self.message, 'recorded_at': self.parsed_data.get("recorded_at"),
                 'called_by': self.parsed_data.get("called_by"), "record_origin": self.record_origin, 'logged_from': self.parsed_data.get("logged_from"),
                 "log_file": log_file.id, 'log_level': self.parsed_data.get("log_level"), "record_class": self.record_class.id, "marked": False}
 
@@ -106,7 +106,7 @@ class RawRecord:
         if logged_from is not None:
             logged_from = logged_from.id
 
-        return (self.start, self.end, self.parsed_data.get("message"), LogRecord.recorded_at.db_value(self.parsed_data.get("recorded_at")), called_by, self.record_origin.id, logged_from, log_file.id, self.parsed_data.get("log_level").id, 0, self.record_class.id)
+        return (self.start, self.end, Message.text.db_value(self.message), LogRecord.recorded_at.db_value(self.parsed_data.get("recorded_at")), called_by, self.record_origin.id, logged_from, log_file.id, self.parsed_data.get("log_level").id, 0, self.record_class.id)
 
     @property
     def message(self) -> str:

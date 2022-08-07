@@ -10,6 +10,7 @@ from zipfile import ZIP_LZMA, ZipFile
 from datetime import datetime, timezone, timedelta
 from functools import cached_property, cache
 from threading import Lock, RLock
+import sys
 from operator import add
 import hashlib
 from contextlib import contextmanager
@@ -746,6 +747,7 @@ class LogFile(BaseModel):
         ideal_entries_per_hour = (60 * 60) // 10
 
         def _handle_record(in_message, in_recorded_at, in_record_class_id) -> tuple[datetime, int]:
+            in_message = Message.text.python_value(in_message)
             _timestamp: datetime = LogRecord.recorded_at.python_value(in_recorded_at).replace(microsecond=0, second=0, minute=0)
             if in_record_class_id == performance_record_class.id:
                 stats = performance_record_class.record_class.parse(in_message)
@@ -780,7 +782,7 @@ class LogFile(BaseModel):
                 all_values += v
             return all_values
 
-        query = LogRecord.select(LogRecord.message, LogRecord.recorded_at, LogRecord.record_class_id).where((LogRecord.log_file_id == self.id)).where((LogRecord.record_class_id == performance_record_class.id) | (LogRecord.record_class_id == generic_performance_record_class.id)).order_by(-LogRecord.recorded_at)
+        query = LogRecord.select(Message.text, LogRecord.recorded_at, LogRecord.record_class_id).join_from(LogRecord, Message).where((LogRecord.log_file_id == self.id)).where((LogRecord.record_class_id == performance_record_class.id) | (LogRecord.record_class_id == generic_performance_record_class.id)).order_by(-LogRecord.recorded_at)
         hour_data = defaultdict(list)
         for message, raw_recorded_at, record_class_id in list(self.database.execute(query)):
             timestamp, players = _handle_record(message, raw_recorded_at, record_class_id)
@@ -831,10 +833,11 @@ class LogFile(BaseModel):
         self.database.connect(True)
         record_class = RecordClass.get(name="PerformanceRecord")
         record_class_2 = RecordClass.get(name="PerfProfilingRecord")
-        query = LogRecord.select(LogRecord.message, LogRecord.recorded_at, LogRecord.record_class_id).where(LogRecord.log_file_id == self.id).where((LogRecord.record_class_id == record_class.id) | (LogRecord.record_class_id == record_class_2.id)).order_by(-LogRecord.recorded_at)
+        query = LogRecord.select(Message.text, LogRecord.recorded_at, LogRecord.record_class_id).join_from(LogRecord, Message).where(LogRecord.log_file_id == self.id).where((LogRecord.record_class_id == record_class.id) | (LogRecord.record_class_id == record_class_2.id)).order_by(-LogRecord.recorded_at)
 
         for (message, recorded_at, _record_class_id) in self.database.execute(query):
             recorded_at = LogRecord.recorded_at.python_value(recorded_at)
+            message = Message.text.python_value(message)
             if _record_class_id == record_class.id:
                 conc_record_class = record_class.record_class
                 item_stats = conc_record_class.parse(message) | {"timestamp": recorded_at}
@@ -851,10 +854,11 @@ class LogFile(BaseModel):
         all_stats: list[dict[str, Any]] = []
         self.database.connect(True)
         record_class = RecordClass.get(name="ResourceCheckRecord")
-        query = LogRecord.select(LogRecord.message, LogRecord.recorded_at).where(LogRecord.log_file_id == self.id).where(LogRecord.record_class_id == record_class.id).order_by(-LogRecord.recorded_at)
+        query = LogRecord.select(Message.text, LogRecord.recorded_at).join_from(LogRecord, Message).where(LogRecord.log_file_id == self.id).where(LogRecord.record_class_id == record_class.id).order_by(-LogRecord.recorded_at)
         conc_record_class = record_class.record_class
         for (message, recorded_at) in self.database.execute(query):
             recorded_at = LogRecord.recorded_at.python_value(recorded_at)
+            message = Message.text.python_value(message)
             item_stats = conc_record_class.parse(message) | {"timestamp": recorded_at}
 
             if "PARSING ERROR" not in item_stats.keys():
@@ -1140,10 +1144,20 @@ class RecordOrigin(BaseModel):
         return RecordFamily.from_record_origin(self)
 
 
+class Message(BaseModel):
+    text = CompressedTextField(unique=True, null=False)
+
+    class Meta:
+        table_name = 'Message'
+
+    def __str__(self) -> str:
+        return sys.intern(self.text)
+
+
 class LogRecord(BaseModel):
     start = IntegerField(help_text="Start Line number of the Record", verbose_name="Start", index=True)
     end = IntegerField(help_text="End Line number of the Record", verbose_name="End", index=True)
-    message = TextField(help_text="Message part of the Record", verbose_name="Message")
+    message_item = ForeignKeyField(help_text="Message part of the Record", verbose_name="Message", column_name="message_item", field="id", model=Message, lazy_load=True, null=False, index=True)
     recorded_at = AwareTimeStampField(utc=True, verbose_name="Recorded at", index=True)
     called_by = ForeignKeyField(column_name='called_by', field='id', model=ArmaFunction, backref="log_records_called_by", lazy_load=True, null=True, verbose_name="Called by")
     origin = ForeignKeyField(column_name="origin", field="id", model=RecordOrigin, backref="records", lazy_load=True, verbose_name="Origin", default=0)
@@ -1166,6 +1180,10 @@ class LogRecord(BaseModel):
     @classmethod
     def amount_log_records(cls) -> int:
         return LogRecord.select(LogRecord.id).count(cls._meta.database, True)
+
+    @cached_property
+    def message(self) -> str:
+        return sys.intern(self.message_item.text)
 
     @cached_property
     def pretty_log_level(self) -> str:

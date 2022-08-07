@@ -371,11 +371,6 @@ class SettingsWindow(QWidget):
 
             self.add_category(section, getattr(AllResourceItems, f"{section.name}_settings_image").get_as_pixmap())
 
-        # for cat, sub_data in self.general_config.as_dict(with_typus=True, only_gui_visible=True).items():
-        #     if cat in self.exclude_categories:
-        #         continue
-        #     self.add_category(cat, sub_data, getattr(AllResourceItems, f"{cat}_settings_image").get_as_pixmap())
-
         self.selection_box.resize_categories()
         return self
 

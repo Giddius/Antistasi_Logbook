@@ -37,11 +37,11 @@ from gidapptools.general_helper.conversion import ns_to_s, human2bytes, number_t
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook import setup
 from antistasi_logbook.storage.models.models import (Server, GameMap, LogFile, Version, LogLevel, LogRecord, RecordClass, ArmaFunction,
-                                                     RecordOrigin, RemoteStorage, DatabaseMetaData, ArmaFunctionAuthorPrefix, setup_db)
+                                                     RecordOrigin, RemoteStorage, DatabaseMetaData, ArmaFunctionAuthorPrefix, setup_db, Message)
 from antistasi_logbook.storage.models.migration import run_migration
 from antistasi_logbook.utilities.locks import FakeLock
 import inspect
-
+import pp
 setup()
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
@@ -79,6 +79,7 @@ log = get_logger(__name__)
 DEFAULT_DB_NAME = "storage.db"
 
 DEFAULT_PRAGMAS = frozendict({
+    "auto_vacuum": 2,
     "cache_size": -1 * 512_000,
     "journal_mode": 'WAL',
     "synchronous": 0,
@@ -86,7 +87,6 @@ DEFAULT_PRAGMAS = frozendict({
     "foreign_keys": 1,
     "temp_store": "memory",
     "mmap_size": 268_435_456 * 2,
-    "auto_vacuum": "INCREMENTAL",
     "journal_size_limit": human2bytes("500mb"),
     "wal_autocheckpoint": 100_000,
     # "page_size": 32_768,
@@ -197,6 +197,7 @@ class GidSqliteApswDatabase(APSWDatabase):
         self.session_meta_data: "DatabaseMetaData" = None
         extensions = dict(self.default_extensions.copy() | (extensions or {}))
         pragmas = dict(DEFAULT_PRAGMAS) | (pragmas or {})
+
         super().__init__(make_db_path(self.database_path), thread_safe=thread_safe, autoconnect=autoconnect, pragmas=pragmas, timeout=100, statementcachesize=10_000, ** extensions)
 
         self.foreign_key_cache: "ForeignKeyCache" = ForeignKeyCache(database=self)
@@ -243,6 +244,7 @@ class GidSqliteApswDatabase(APSWDatabase):
 
         super()._add_conn_hooks(conn)
         conn.setbusyhandler(self._busy_handling)
+        conn.cursor().execute("""PRAGMA threads = 5;""")
 
     def _busy_handling(self, prior_calls: int) -> bool:
         if prior_calls == 0:
@@ -294,6 +296,7 @@ class GidSqliteApswDatabase(APSWDatabase):
         log.info("starting up %r", self)
         self._pre_start_up(overwrite=overwrite)
         self.connect(reuse_if_open=True)
+        self.pragma("auto_vacuum", 2)
 
         with self.write_lock:
             if self.database_existed is True:
@@ -324,6 +327,7 @@ class GidSqliteApswDatabase(APSWDatabase):
 
             self.checkpoint()
             # self.execute_sql("VACUUM;")
+            self.pragma("auto_vacuum", 2, True)
             self.pragma("incremental_vacuum")
             self.checkpoint()
             self.optimize()
@@ -338,6 +342,7 @@ class GidSqliteApswDatabase(APSWDatabase):
 
         self.session_meta_data.save()
         # self.execute_sql("VACUUM;")
+        self.pragma("auto_vacuum", 2, True)
         self.pragma("incremental_vacuum")
         self.checkpoint()
 
@@ -415,7 +420,7 @@ class GidSqliteApswDatabase(APSWDatabase):
             # log_files = LogFile.select(LogFile.id).where(LogFile.unparsable == False)
             log_files = None
 
-        query = LogRecord.select(LogRecord.id, LogRecord.message, LogRecord.origin_id, LogRecord.called_by_id, LogRecord.logged_from_id, LogRecord.record_class_id)
+        query = LogRecord.select(LogRecord.id, Message.text, LogRecord.origin_id, LogRecord.called_by_id, LogRecord.logged_from_id, LogRecord.record_class_id).join_from(LogRecord, Message)
 
         if only_missing_record_class is True:
             query = query.where(LogRecord.record_class_id >> None)
