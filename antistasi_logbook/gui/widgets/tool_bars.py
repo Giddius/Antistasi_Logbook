@@ -22,7 +22,7 @@ from gidapptools import get_logger
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-from antistasi_logbook.storage.models.models import LogRecord
+from antistasi_logbook.storage.models.models import LogRecord, Message
 from antistasi_logbook.gui.models.log_records_model import LogRecordsModel
 from antistasi_logbook.gui.views.log_records_query_view import LogRecordsQueryView
 from antistasi_logbook.gui.widgets.base_tool_bar import BaseToolBar
@@ -160,7 +160,7 @@ class FindLogRecordsForm(QWidget):
     def _set_query(self):
         query_filter = []
         text = rf"%{self.search_text_field.text()}%"
-        query_filter.append((LogRecord.message ** text))
+        query_filter.append((Message.text ** text))
         self.model = LogRecordsModel()
         self.model.filter_item = reduce(and_, query_filter)
         self.model.ordered_by = (LogRecord.log_file.modified_at, LogRecord.recorded_at)

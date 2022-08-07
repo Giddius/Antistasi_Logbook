@@ -128,32 +128,32 @@ ARG_DOC_MARKDOWN_TEMPLATE = """
 
 ---
 
-## Description
+# Description
 
 
 > {help_text}
 
 ---
 
-## Arguments
+# Arguments
 
 {argument_strings}
 
 ---
 
-## Default
+# Default
 
 {default_value}
 
 ---
 
-## Required
+# Required
 
 {is_required}
 
 ---
 
-## Flag
+# Flag
 
 {is_flag}
 
@@ -529,10 +529,10 @@ class AntistasiLogbookApplication(QApplication):
         log.debug("temp_path: %r", temp_path.as_posix())
         for item in temp_path.iterdir():
             if item.is_file():
-                log.debug(f"deleting file {item.as_posix()!r}")
+                log.debug("deleting file %r", item.as_posix())
                 item.unlink(missing_ok=True)
             elif item.is_dir():
-                log.debug(f"deleting folder {item.as_posix()!r}")
+                log.debug("deleting folder %r", item.as_posix())
                 shutil.rmtree(item)
 
         log.debug(pp.fmt(self.extra_windows.windows))

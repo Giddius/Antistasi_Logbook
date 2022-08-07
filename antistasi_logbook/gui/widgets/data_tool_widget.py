@@ -30,6 +30,7 @@ from gidapptools import get_logger
 from antistasi_logbook.gui.models import LogLevelsModel, ArmaFunctionModel, RecordClassesModel, RecordOriginsModel
 from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord, ArmaFunction, LogLevel, RecordClass
 from antistasi_logbook.gui.models.server_model import ServerModel
+from antistasi_logbook.gui.models.log_records_model import LogRecordsModel
 from antistasi_logbook.gui.models.version_model import VersionModel
 from antistasi_logbook.gui.models.game_map_model import GameMapModel
 from antistasi_logbook.gui.models.base_query_data_model import EmptyContentItem
@@ -492,7 +493,7 @@ class LogRecordSearchPage(BaseDataToolPage):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.column_select_combo = QComboBox(self)
-        items = list(LogRecord.get_meta().columns)
+        items = list(LogRecord.get_meta().columns) + [ec.name for ec in LogRecordsModel.extra_columns]
         self.column_select_combo.addItems(items)
         self.column_select_combo.setCurrentIndex(items.index("message"))
         self.layout.addRow("column", self.column_select_combo)

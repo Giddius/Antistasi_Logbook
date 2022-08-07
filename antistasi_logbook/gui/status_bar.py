@@ -225,6 +225,7 @@ class LogbookStatusBar(QStatusBar):
         self.update_progress.reset()
         self.update_progress.setMaximum(max_amount)
         self.update_running_label.setText(f"Updating Server {server_name.title()}")
+        self.update_progress.setToolTip(f"0/{max_amount}")
 
     def set_showing_error(self, value: bool = False):
 
@@ -253,6 +254,7 @@ class LogbookStatusBar(QStatusBar):
 
     def increment_progress_bar(self, amount: int):
         self.update_progress.setValue(self.update_progress.value() + amount)
+        self.update_progress.setToolTip(f"{self.update_progress.value()}/{self.update_progress.maximum()}")
 
     def shutdown(self):
         self.last_updated_label.shutdown()

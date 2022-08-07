@@ -133,7 +133,6 @@ class ForeignKeyCache:
 
         if self._all_arma_file_objects is None:
             self.arma_file_model_blocker.wait()
-            log.info("refreshing 'all_arma_file_objects'.")
             with self.database.connection_context() as ctx:
                 self._all_arma_file_objects = {(antistasi_file.name, antistasi_file.author_prefix.name): antistasi_file for antistasi_file in self.database.get_all_arma_functions()}
 
@@ -170,7 +169,6 @@ class ForeignKeyCache:
         if self._all_arma_file_objects_by_id is None:
 
             self.arma_file_model_blocker.wait()
-            log.info("refreshing '_all_arma_file_objects_by_id'.")
             with self.database.connection_context() as ctx:
 
                 self._all_arma_file_objects_by_id = {antistasi_file.id: antistasi_file for antistasi_file in self.database.get_all_arma_functions()}
@@ -310,7 +308,7 @@ class ForeignKeyCache:
             with event:
                 for attr_name in class_attr_names:
                     setattr(self, attr_name, None)
-            log.warning(" reseted %r, because %r of %r was created: %r", class_attr_names, model_to_dict(instance, recurse=False), sender.__name__, created)
+            log.debug(" reseted %r, because %r of %r was created: %r", class_attr_names, model_to_dict(instance, recurse=False), sender.__name__, created)
         else:
             log.debug(" reseted, because %r of %r was created: %r", model_to_dict(instance, recurse=False), sender.__name__, created)
 

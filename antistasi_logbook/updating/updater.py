@@ -246,7 +246,6 @@ class Updater:
 
         return sorted(to_update_files, key=lambda x: x.modified_at, reverse=True)
 
-    @profile
     def _handle_old_log_files(self, server: "Server") -> None:
         if self.remove_items_older_than_max_update_time_frame is False:
             return 0
@@ -255,16 +254,17 @@ class Updater:
             return 0
         amount_deleted = 0
         tasks = []
-        for log_file in LogFile.select().where(LogFile.server_id == server.id).where(LogFile.modified_at < cutoff_datetime).iterator():
+        with self.database.connection_context() as ctx:
+            for log_file in tuple(LogFile.select().where(LogFile.server_id == server.id).where(LogFile.modified_at < cutoff_datetime).iterator()):
 
-            log.info("removing log-file %r of server %r", log_file, server)
+                log.info("removing log-file %r of server %r", log_file, server)
 
-            if log_file.original_file is not None:
-                # tasks.append(self.backend.inserting_thread_pool.submit(log_file.original_file.delete_instance, True))
-                log_file.original_file.delete_instance(True, True)
-            # tasks.append(self.backend.inserting_thread_pool.submit(log_file.delete_instance, True))
+                if log_file.original_file is not None:
+                    # tasks.append(self.backend.inserting_thread_pool.submit(log_file.original_file.delete_instance, True))
+                    log_file.original_file.delete_instance(True, True)
+                # tasks.append(self.backend.inserting_thread_pool.submit(log_file.delete_instance, True))
 
-            log_file.delete_instance(True, True)
+                log_file.delete_instance(True, True)
 
             # sleep(0.5)
             # amount_deleted += 1

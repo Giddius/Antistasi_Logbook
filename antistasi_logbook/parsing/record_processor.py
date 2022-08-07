@@ -27,7 +27,7 @@ from gidapptools.general_helper.conversion import number_to_pretty
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.parsing.raw_record import RawRecord
-from antistasi_logbook.storage.models.models import Mod, GameMap, LogFile, LogRecord, RecordClass, ArmaFunction, RecordOrigin, LogFileAndModJoin, ArmaFunctionAuthorPrefix, OriginalLogFile
+from antistasi_logbook.storage.models.models import Mod, GameMap, LogFile, LogRecord, Message, RecordClass, ArmaFunction, RecordOrigin, LogFileAndModJoin, ArmaFunctionAuthorPrefix, OriginalLogFile
 from antistasi_logbook.parsing.parsing_context import LogParsingContext
 from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 
@@ -109,9 +109,17 @@ class RecordInserter:
     def _insert_func(self, records: Iterable["RawRecord"], context: "LogParsingContext") -> ManyRecordsInsertResult:
 
         # LogRecord.insert_many(i.to_log_record_dict(log_file=context._log_file) for i in records).execute()
-
+        all_messages = {r.message for r in records if r}
+        with self.write_lock:
+            with self.database.atomic("IMMEDIATE") as txn:
+                message_insert_start_time = thread_time()
+                Message.insert_many(({"text": m} for m in all_messages)).on_conflict_ignore().execute()
+                txn.commit()
+            message_insert_time_taken = round(thread_time() - message_insert_start_time, 3)
+        log.debug("inserted %r messages in %r seconds", len(all_messages), message_insert_time_taken)
         params = (r.to_sql_params(log_file=context._log_file) for r in records if r)
         amount_records = len(records)
+
         with self.write_lock:
             with self.database.atomic("IMMEDIATE") as txn:
                 start_time = thread_time()
@@ -120,7 +128,7 @@ class RecordInserter:
                 cur.executemany(RawRecord.insert_sql_phrase.phrase, params)
                 txn.commit()
             time_taken = round(thread_time() - start_time, 3)
-        log.info("inserted %s records in %s s", number_to_pretty(amount_records), time_taken)
+        log.debug("inserted %s records in %s s", number_to_pretty(amount_records), time_taken)
         # for record in records:
         #     params = record.to_sql_params(log_file=context._log_file)
         #     self.database.execute_sql(self.insert_phrase, params=params)
@@ -296,7 +304,7 @@ class RecordProcessor:
 
         match = self.regex_keeper.full_datetime.match(datetime_part)
         if not match:
-            log.critical("unable to parse full datetime for Antistasi record with rest %r", rest)
+            log.critical("unable to parse full datetime for Antistasi record with rest %r, content: %r", rest, raw_record.content)
             return None
 
         _out = {"recorded_at": datetime(tzinfo=UTC,

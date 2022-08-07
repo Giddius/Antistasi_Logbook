@@ -111,7 +111,7 @@ class ColorSelector(QGroupBox):
     def color_change_proxy(self, button: pg.ColorButton):
         key = self.key_map[button]
         color = button.color()
-        self.app.color_config.set(self.color_config_name, key.replace(" ", "_"), color, create_missing_section=True)
+        self.app.color_config.set(self.color_config_name, key.replace(" ", "_"), color)
         self.color_changed.emit(key, color)
 
     @property

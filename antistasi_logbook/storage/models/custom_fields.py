@@ -142,6 +142,7 @@ class URLField(Field):
 class AwareTimeStampField(BigIntegerField):
     field_type = 'BIGINT'
     mult_factor = 1000000
+    mult_factor_reversed = 1 / mult_factor
 
     def __init__(self, *args, **kwargs):
 
@@ -170,7 +171,7 @@ class AwareTimeStampField(BigIntegerField):
     def python_value(self, value):
         if value is None:
             return
-        reduced_value = value / self.mult_factor
+        reduced_value = value * self.mult_factor_reversed
         tz = timezone.utc if self.utc is True else None
         return datetime.fromtimestamp(reduced_value, tz=tz)
 
