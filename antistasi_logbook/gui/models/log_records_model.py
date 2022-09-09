@@ -74,7 +74,8 @@ class RefreshItem:
 class LogRecordsModel(BaseQueryDataModel):
     request_view_change_visibility = Signal(bool)
 
-    extra_columns = {FakeField(name="message", verbose_name="Message")}
+    extra_columns = {FakeField(name="message", verbose_name="Message"),
+                     FakeField(name="server", verbose_name="Server")}
     strict_exclude_columns = {"record_class", "message_item"}
     bool_images = {True: AllResourceItems.check_mark_green_image.get_as_icon(),
                    False: AllResourceItems.close_black_image.get_as_icon()}
@@ -210,15 +211,8 @@ class LogRecordsModel(BaseQueryDataModel):
         self.collecting_records = True
         all_log_files = {log_file.id: log_file for log_file in self.backend.database.get_log_files()}
 
-        self.content_items = []
-        records_getter = partial(self._get_record, _all_log_files=all_log_files)
-        num_collected = 0
-        for record_item in self.app.backend.thread_pool.map(records_getter, self.get_query().dicts().iterator()):
+        self.content_items = list(self.app.backend.thread_pool.map(partial(self._get_record, _all_log_files=all_log_files), self.get_query().dicts().iterator()))
 
-            self.content_items.append(record_item)
-            # num_collected += 1
-            # if num_collected % 1_000 == 0:
-            #     sleep(0.0001)
         log.debug("finished getting content for %r", self)
         self.collecting_records = False
         return self

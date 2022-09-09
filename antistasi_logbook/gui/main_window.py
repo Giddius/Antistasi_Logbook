@@ -144,7 +144,6 @@ class AntistasiLogbookMainWindow(QMainWindow):
     calculated_average_players = Signal(list)
 
     def __init__(self, app: "AntistasiLogbookApplication", flags=None) -> None:
-
         self.app = app
         self.main_widget: MainWidget = None
         self.menubar: LogbookMenuBar = None
@@ -174,7 +173,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
     @property
     def initial_size(self) -> list[int, int]:
-        return self.config.get("main_window", "initial_size", default=[1600, 1000])
+        return [1600, 1000]
 
     @property
     def current_app_style_sheet(self) -> str:
@@ -286,9 +285,6 @@ class AntistasiLogbookMainWindow(QMainWindow):
         help_file = Path(self.temp_help_dir.name).joinpath("help.html")
         help_file.write_text(html, encoding='utf-8', errors='ignore')
         QDesktopServices.openUrl(help_file.as_uri())
-        # self.viewer = CLIHelpWindow(html=html)
-        # self.viewer.setMinimumSize(QSize(750, 500))
-        # self.viewer.show()
 
     @property
     def config(self):

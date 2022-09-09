@@ -21,7 +21,7 @@ from gidapptools.general_helper.enums import MiscEnum
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.records.base_record import BaseRecord, RecordFamily, MessageFormat
 from antistasi_logbook.utilities.parsing_misc import parse_text_array
-
+from gidapptools.general_helper.general_classes import DecorateAbleList
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
@@ -48,15 +48,10 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
 
-ALL_ANTISTASI_RECORD_CLASSES: set[type[BaseRecord]] = set()
+ALL_ANTISTASI_RECORD_CLASSES: DecorateAbleList[type["BaseAntistasiRecord"]] = DecorateAbleList()
 
 
-def add_to_all_antistasi_record_classes_decorator(in_klass):
-    ALL_ANTISTASI_RECORD_CLASSES.add(in_klass)
-    return in_klass
-
-
-@add_to_all_antistasi_record_classes_decorator
+@ALL_ANTISTASI_RECORD_CLASSES
 class BaseAntistasiRecord(BaseRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 1
@@ -78,7 +73,7 @@ class BaseAntistasiRecord(BaseRecord):
         return super().get_formated_message(msg_format=msg_format)
 
 
-@add_to_all_antistasi_record_classes_decorator
+@ALL_ANTISTASI_RECORD_CLASSES
 class PerformanceRecord(BaseAntistasiRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 10
@@ -123,7 +118,7 @@ class PerformanceRecord(BaseAntistasiRecord):
         return True
 
 
-@add_to_all_antistasi_record_classes_decorator
+@ALL_ANTISTASI_RECORD_CLASSES
 class IsNewCampaignRecord(BaseAntistasiRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 20
@@ -139,7 +134,7 @@ class IsNewCampaignRecord(BaseAntistasiRecord):
         return False
 
 
-@add_to_all_antistasi_record_classes_decorator
+@ALL_ANTISTASI_RECORD_CLASSES
 class FFPunishmentRecord(BaseAntistasiRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 10
@@ -168,7 +163,7 @@ class FFPunishmentRecord(BaseAntistasiRecord):
         return True
 
 
-@add_to_all_antistasi_record_classes_decorator
+@ALL_ANTISTASI_RECORD_CLASSES
 class UpdatePreferenceRecord(BaseAntistasiRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 20
@@ -213,7 +208,7 @@ class UpdatePreferenceRecord(BaseAntistasiRecord):
         return super().get_formated_message(msg_format=msg_format)
 
 
-@add_to_all_antistasi_record_classes_decorator
+@ALL_ANTISTASI_RECORD_CLASSES
 class CreateConvoyInputRecord(BaseAntistasiRecord):
     ___record_family___ = RecordFamily.ANTISTASI
     ___specificity___ = 20
@@ -256,7 +251,7 @@ class CreateConvoyInputRecord(BaseAntistasiRecord):
         return super().get_formated_message(msg_format=msg_format)
 
 
-@add_to_all_antistasi_record_classes_decorator
+@ALL_ANTISTASI_RECORD_CLASSES
 class SaveParametersRecord(BaseAntistasiRecord):
     ___specificity___ = 20
     ___function___ = "A3A_fnc_saveLoop"
@@ -306,7 +301,7 @@ class SaveParametersRecord(BaseAntistasiRecord):
         return super().get_formated_message(msg_format=msg_format)
 
 
-@add_to_all_antistasi_record_classes_decorator
+@ALL_ANTISTASI_RECORD_CLASSES
 class ResourceCheckRecord(BaseAntistasiRecord):
     ___specificity___ = 20
     ___function___ = "A3A_fnc_economicsAI"
@@ -369,7 +364,7 @@ class ResourceCheckRecord(BaseAntistasiRecord):
         return super().get_formated_message(msg_format=msg_format)
 
 
-@add_to_all_antistasi_record_classes_decorator
+@ALL_ANTISTASI_RECORD_CLASSES
 class FreeSpawnPositionsRecord(BaseAntistasiRecord):
     ___specificity___ = 20
     ___function___ = "A3A_fnc_freeSpawnPositions"
@@ -429,7 +424,7 @@ class FreeSpawnPositionsRecord(BaseAntistasiRecord):
         return False
 
 
-@add_to_all_antistasi_record_classes_decorator
+@ALL_ANTISTASI_RECORD_CLASSES
 class SelectReinfUnitsRecord(BaseAntistasiRecord):
     ___specificity___ = 20
     ___function___ = "A3A_fnc_selectReinfUnits"
@@ -500,7 +495,7 @@ class SelectReinfUnitsRecord(BaseAntistasiRecord):
         return False
 
 
-@add_to_all_antistasi_record_classes_decorator
+@ALL_ANTISTASI_RECORD_CLASSES
 class ChangingSidesRecord(BaseAntistasiRecord):
     ___specificity___ = 30
     ___function___ = "A3A_fnc_markerChange"
@@ -551,7 +546,7 @@ class ChangingSidesRecord(BaseAntistasiRecord):
         return False
 
 
-@add_to_all_antistasi_record_classes_decorator
+@ALL_ANTISTASI_RECORD_CLASSES
 class ToggleLockRecord(BaseAntistasiRecord):
     ___specificity___ = 20
     ___function___ = "HR_GRG_fnc_toggleLock"
@@ -622,7 +617,7 @@ class ToggleLockRecord(BaseAntistasiRecord):
         return False
 
 
-@add_to_all_antistasi_record_classes_decorator
+@ALL_ANTISTASI_RECORD_CLASSES
 class QRFAvailableRecord(BaseAntistasiRecord):
     ___specificity___ = 20
     ___function___ = "A3A_fnc_SUP_QRFAvailable"
@@ -637,7 +632,7 @@ class QRFAvailableRecord(BaseAntistasiRecord):
         return True
 
 
-@add_to_all_antistasi_record_classes_decorator
+@ALL_ANTISTASI_RECORD_CLASSES
 class PatrolCommanderRecord(BaseAntistasiRecord):
     ___specificity___ = 20
     ___function___ = "A3A_fnc_patrolCommander"
@@ -710,7 +705,7 @@ class PatrolCommanderRecord(BaseAntistasiRecord):
         return False
 
 
-@add_to_all_antistasi_record_classes_decorator
+@ALL_ANTISTASI_RECORD_CLASSES
 class HeadlessClientConnected(BaseAntistasiRecord):
 
     ___specificity___ = 20
@@ -745,7 +740,7 @@ class HeadlessClientConnected(BaseAntistasiRecord):
 
 
 # B_G_Soldier_F killed by GUER
-@add_to_all_antistasi_record_classes_decorator
+@ALL_ANTISTASI_RECORD_CLASSES
 class KilledBy(BaseAntistasiRecord):
     ___specificity___ = 10
     ___function___ = ("A3A_fnc_initServer", "fn_initServer.sqf")
@@ -783,6 +778,9 @@ class KilledBy(BaseAntistasiRecord):
         if "killed by " in log_record.message:
             return True
         return False
+
+
+ALL_ANTISTASI_RECORD_CLASSES: set[type["BaseAntistasiRecord"]] = set(ALL_ANTISTASI_RECORD_CLASSES)
 # region[Main_Exec]
 
 

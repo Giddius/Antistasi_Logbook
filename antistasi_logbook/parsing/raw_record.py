@@ -10,12 +10,14 @@ Soon.
 from typing import TYPE_CHECKING, Any, Iterable, Optional, ClassVar
 from pathlib import Path
 from datetime import datetime
+from peewee import fn
 import re
+from hashlib import md5
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.storage.models.models import LogFile, LogRecord, RecordOrigin, BaseModel, Message
+from antistasi_logbook.storage.models.models import LogFile, LogRecord, RecordOrigin, BaseModel, Message, ArmaFunction
 import attr
 from gidapptools.general_helper.string_helper import string_strip
 
@@ -62,7 +64,7 @@ class RawSQLPhrase:
 
 class RawRecord:
     insert_sql_phrase = RawSQLPhrase(phrase="""INSERT OR IGNORE INTO "LogRecord" ("start", "end", "message_item", "recorded_at", "called_by", "origin", "logged_from", "log_file", "log_level", "marked","record_class") VALUES (?, ?, (SELECT "id" FROM "Message" WHERE "text"=?), ?, ?, ?, ?, ?, ?, ?, ?)""")
-    __slots__ = ("lines", "_is_antistasi_record", "start", "end", "_content", "parsed_data", "record_class", "record_origin")
+    __slots__ = ("lines", "_is_antistasi_record", "start", "end", "_content", "parsed_data", "record_class", "record_origin", "message_item_id")
 
     def __init__(self, lines: Iterable["RecordLine"]) -> None:
         self.lines = tuple(lines)
@@ -73,6 +75,7 @@ class RawRecord:
         self.parsed_data: dict[str, Any] = None
         self.record_class: "RecordClass" = None
         self.record_origin: "RecordOrigin" = None
+        self.message_item_id: int = None
 
     @property
     def content(self) -> str:
@@ -94,11 +97,6 @@ class RawRecord:
         return '\n'.join(line.content for line in self.lines)
 
     def to_log_record_dict(self, log_file: "LogFile") -> dict[str, Any]:
-        return {"start": self.start, "end": self.end, 'message': self.message, 'recorded_at': self.parsed_data.get("recorded_at"),
-                'called_by': self.parsed_data.get("called_by"), "record_origin": self.record_origin, 'logged_from': self.parsed_data.get("logged_from"),
-                "log_file": log_file.id, 'log_level': self.parsed_data.get("log_level"), "record_class": self.record_class.id, "marked": False}
-
-    def to_sql_params(self, log_file: "LogFile") -> tuple:
         called_by = self.parsed_data.get("called_by")
         if called_by is not None:
             called_by = called_by.id
@@ -106,7 +104,38 @@ class RawRecord:
         if logged_from is not None:
             logged_from = logged_from.id
 
-        return (self.start, self.end, Message.text.db_value(self.message), LogRecord.recorded_at.db_value(self.parsed_data.get("recorded_at")), called_by, self.record_origin.id, logged_from, log_file.id, self.parsed_data.get("log_level").id, 0, self.record_class.id)
+        return {LogRecord.start: self.start,
+                LogRecord.end: self.end,
+                LogRecord.message_item: self.message_item_id,
+                LogRecord.recorded_at: self.parsed_data["recorded_at"],
+                LogRecord.called_by: called_by,
+                LogRecord.origin: self.record_origin.id,
+                LogRecord.logged_from: logged_from,
+                LogRecord.log_file: log_file.id,
+                LogRecord.log_level: self.parsed_data["log_level"].id,
+                LogRecord.record_class: self.record_class.id,
+                LogRecord.marked: False}
+
+    def to_sql_params(self, log_file: "LogFile") -> tuple:
+
+        called_by = self.parsed_data.get("called_by")
+        if called_by is not None:
+            called_by = called_by.id
+        logged_from = self.parsed_data.get("logged_from")
+        if logged_from is not None:
+            logged_from = logged_from.id
+
+        return (self.start,
+                self.end,
+                Message.text.db_value(self.message),
+                LogRecord.recorded_at.db_value(self.parsed_data.get("recorded_at")),
+                called_by,
+                self.record_origin.id,
+                logged_from,
+                log_file.id,
+                self.parsed_data.get("log_level").id,
+                0,
+                self.record_class.id)
 
     @property
     def message(self) -> str:

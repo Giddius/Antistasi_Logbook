@@ -40,7 +40,7 @@ python -m cProfile -o %INFILEBASE%_graph.pstats %INFILE%
 
 
 MKDIR %SUB_OUTPUT_FOLDER%
-call gprof2dot.exe -f pstats --root="*:*:<built-in method exec>" --skew="0.1" %INFILEBASE%_graph.pstats | %PATH_GRAPHVIZ% -Tsvg -o %SUB_OUTPUT_FOLDER%\[%_years%-%_months%-%_days%_%_hours%-%_minutes%-%_seconds%]_%INFILEBASE%.svg
+call gprof2dot.exe -f pstats -e 0.001 -n 0.001 %INFILEBASE%_graph.pstats | %PATH_GRAPHVIZ% -Tsvg -o %SUB_OUTPUT_FOLDER%\[%_years%-%_months%-%_days%_%_hours%-%_minutes%-%_seconds%]_%INFILEBASE%.svg
 
 
 DEL %INFILEBASE%_graph.pstats

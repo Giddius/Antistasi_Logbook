@@ -210,7 +210,5 @@ class DateTimeFrame:
 
 # region[Main_Exec]
 if __name__ == '__main__':
-    now = datetime.now(tz=timezone.utc)
-    x = DateTimeFrame(now, now + timedelta(days=3, hours=5, seconds=10))
-    print(x)
+    pass
 # endregion[Main_Exec]

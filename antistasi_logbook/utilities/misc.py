@@ -50,11 +50,33 @@ def get_subclasses_recursive(klass: type, predicate: Callable[[type, int], bool]
 
 
 class NoFuture:
+    __slots__ = ("__weakref__", "_id", "_result", "_exception", "_func", "_args", "_kwargs")
     id_counter = 0
 
-    def __init__(self) -> None:
+    def __init__(self, func: Callable, *args, **kwargs) -> None:
         self.__class__.id_counter += 1
         self._id = self.__class__.id_counter
+        self._func = func
+        self._args = args
+        self._kwargs = kwargs
+        self._result = None
+        self._exception = None
+        self._run_func()
+
+    def _run_func(self):
+        try:
+            self._result = self._func(*self._args, **self._kwargs)
+        except Exception as e:
+            self._exception = e
+
+    def result(self):
+        return self._result
+
+    def exception(self):
+        return self._exception
+
+    def done(self):
+        return True
 
     def add_done_callback(self, func):
         func(self)
@@ -82,8 +104,8 @@ class NoThreadPoolExecutor:
         return
 
     def submit(self, func, *args, **kwargs) -> None:
-        func(*args, **kwargs)
-        return NoFuture()
+
+        return NoFuture(func=func, *args, **kwargs)
 
 
 def try_convert_int(data: Union[str, int, None]) -> Union[str, int, None]:
@@ -164,6 +186,9 @@ class VersionItem:
         if isinstance(other, str):
             return False
         return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash(self.as_tuple())
 
 
 def strip_converter(data: Optional[str] = None, extra_strip_chars: str = None) -> Optional[str]:

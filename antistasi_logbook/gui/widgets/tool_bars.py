@@ -165,17 +165,16 @@ class FindLogRecordsForm(QWidget):
         self.model.filter_item = reduce(and_, query_filter)
         self.model.ordered_by = (LogRecord.log_file.modified_at, LogRecord.recorded_at)
         log.info("amount to query: %r", self.model.amount_items_to_query())
-        return self.app.gui_thread_pool.submit(self.model.refresh)
 
     def search(self):
         self._set_query()
         self.start_search_button.start_spinner_with_stop_signal(self.model.modelReset)
-        self.model.modelReset.connect(self.show_result)
+        # self.model.modelReset.connect(self.show_result)
+        self.show_result()
 
     def show_result(self):
         self.view = LogRecordsQueryView(parent=None)
         self.view.setModel(self.model)
-        self.view.repaint()
         self.view.show()
 
     @property

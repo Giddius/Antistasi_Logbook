@@ -31,7 +31,7 @@ from yarl import URL
 from peewee import DatabaseProxy, IntegrityError, fn
 from tzlocal import get_localzone
 from dateutil.tz import UTC
-from playhouse.signals import Model
+from playhouse.signals import Model as SignalsModel
 from playhouse.apsw_ext import TextField, BooleanField, IntegerField, ForeignKeyField, ManyToManyField
 from playhouse.sqlite_ext import JSONField
 
@@ -86,7 +86,7 @@ database_proxy = DatabaseProxy()
 LOCAL_TIMEZONE = get_localzone()
 
 
-class BaseModel(Model):
+class BaseModel(SignalsModel):
 
     # non-db attributes
     _column_name_set: set[str] = None
@@ -263,11 +263,12 @@ class ArmaFunction(BaseModel):
     def __str__(self) -> str:
         self.load_extras()
         if self.show_as == "file_name":
-            return self.file_name
+            _out = self.file_name
         elif self.show_as == "function_name":
-            return self.function_name
+            _out = self.function_name
         else:
-            return self.name
+            _out = self.name
+        return _out
 
 
 class GameMap(BaseModel):
@@ -518,25 +519,23 @@ class Version(BaseModel):
         )
 
     @classmethod
-    def add_or_get_version(cls, version: "VersionItem"):
+    def add_or_get_version(cls, version: "VersionItem") -> "Version":
         if version is None:
             return
 
         extra = version.extra
         if isinstance(extra, int):
             extra = str(extra)
-        try:
-            with cls.get_meta().database.write_lock:
-                return Version.create(full=version, major=version.major, minor=version.minor, patch=version.patch, extra=version.extra)
-        except IntegrityError:
-            return Version.get(full=version)
+        Version.insert(full=version, major=version.major, minor=version.minor, patch=version.patch, extra=version.extra).on_conflict_ignore().execute()
+
+        return tuple(Version.select().where(Version.full == version))[0]
 
     def __str__(self) -> str:
         return str(self.full)
 
 
 class OriginalLogFile(BaseModel):
-    text = CompressedTextField(compression_level=9, unique=True)
+    text = CompressedTextField(compression_level=6, unique=True)
     text_hash = TextField(index=True, unique=True)
 
     # non-db attributes
@@ -547,8 +546,8 @@ class OriginalLogFile(BaseModel):
 
     @cached_property
     def temp_path(self) -> Path:
+        temp_path = META_PATHS.temp_dir.joinpath(self.log_file[0].server.name, f'{self.log_file[0].name}.txt')
 
-        temp_path = META_PATHS.temp_dir.joinpath(self.log_file[0].server.name, self.log_file[0].name + '.txt')
         temp_path.parent.mkdir(parents=True, exist_ok=True)
         return temp_path
 
@@ -628,7 +627,8 @@ class LogFile(BaseModel):
         table_name = 'LogFile'
         indexes = (
             (('name', 'server', 'remote_path'), True),
-            (("name", "server", "created_at"), True)
+            (("name", "server", "created_at"), True),
+            (("server", "modified_at"), False)
 
         )
 
@@ -644,10 +644,6 @@ class LogFile(BaseModel):
                 mod_set_value = mod_set
                 break
         return mod_set_value
-
-    @property
-    def check_if_triggered(self):
-        print("i was triggered by a getattr")
 
     @cached_property
     def mod_set(self) -> Optional["ModSet"]:
@@ -795,6 +791,19 @@ class LogFile(BaseModel):
 
         return round(sum(average_hour_data.values()) / len(hour_data), 3), _all_values(hour_data)
 
+    @classmethod
+    def amount_log_files(cls) -> int:
+        return LogFile.select(LogFile.id).count(cls._meta.database, True)
+
+    @classmethod
+    def average_file_size_per_log_file(cls) -> int:
+        amount_log_files = cls.amount_log_files()
+        db_file_size = cls._meta.database.database_file_size
+        try:
+            return db_file_size // amount_log_files
+        except ZeroDivisionError:
+            return 5242880  # 5mb
+
     def is_fully_parsed(self) -> bool:
         if self.last_parsed_datetime is None:
             return False
@@ -806,12 +815,13 @@ class LogFile(BaseModel):
     def has_server(self) -> bool:
         return self.server_id is not None
 
+    @cached_property
     def has_mods(self) -> bool:
 
         self.database.connect(reuse_if_open=True)
 
         has_mods_value = LogFileAndModJoin.select().where(LogFileAndModJoin.log_file_id == self.id).count()
-        log.debug("amount of has_mods for log_file %r is %r", self, has_mods_value)
+
         return has_mods_value > 0
 
     def get_marked_records(self) -> list["LogRecord"]:
@@ -1077,7 +1087,7 @@ class LogLevel(BaseModel):
         table_name = 'LogLevel'
 
     def __str__(self) -> str:
-        return f"{self.name}"
+        return str(self.name)
 
 
 class RecordClass(BaseModel):
@@ -1136,6 +1146,10 @@ class RecordOrigin(BaseModel):
 
         )
 
+    @cached_property
+    def pretty_name(self) -> str:
+        return sys.inter(self.name)
+
     def check(self, raw_record: "RawRecord") -> bool:
         return self.identifier in raw_record.content.casefold()
 
@@ -1145,7 +1159,7 @@ class RecordOrigin(BaseModel):
 
 
 class Message(BaseModel):
-    text = CompressedTextField(unique=True, null=False)
+    text = TextField(unique=True, null=False, index=True)
 
     class Meta:
         table_name = 'Message'
@@ -1155,16 +1169,16 @@ class Message(BaseModel):
 
 
 class LogRecord(BaseModel):
-    start = IntegerField(help_text="Start Line number of the Record", verbose_name="Start", index=True)
-    end = IntegerField(help_text="End Line number of the Record", verbose_name="End", index=True)
-    message_item = ForeignKeyField(help_text="Message part of the Record", verbose_name="Message", column_name="message_item", field="id", model=Message, lazy_load=True, null=False, index=True)
-    recorded_at = AwareTimeStampField(utc=True, verbose_name="Recorded at", index=True)
+    start = IntegerField(help_text="Start Line number of the Record", verbose_name="Start", index=False)
+    end = IntegerField(help_text="End Line number of the Record", verbose_name="End", index=False)
+    message_item = ForeignKeyField(help_text="Message part of the Record", verbose_name="Message", column_name="message_item", backref="log_records", field="id", model=Message, lazy_load=True, null=False, _hidden=True, index=True)
+    recorded_at = AwareTimeStampField(utc=True, verbose_name="Recorded at", index=False)
     called_by = ForeignKeyField(column_name='called_by', field='id', model=ArmaFunction, backref="log_records_called_by", lazy_load=True, null=True, verbose_name="Called by")
     origin = ForeignKeyField(column_name="origin", field="id", model=RecordOrigin, backref="records", lazy_load=True, verbose_name="Origin", default=0)
-    logged_from = ForeignKeyField(column_name='logged_from', field='id', model=ArmaFunction, backref="log_records_logged_from", lazy_load=True, null=True, verbose_name="Logged from", index=True)
-    log_file = ForeignKeyField(column_name='log_file', field='id', model=LogFile, lazy_load=True, backref="log_records", null=False, verbose_name="Log-File", index=True, on_delete="CASCADE")
-    log_level = ForeignKeyField(column_name='log_level', default=0, field='id', model=LogLevel, null=True, lazy_load=True, verbose_name="Log-Level", index=True)
-    record_class = ForeignKeyField(column_name='record_class', field='id', model=RecordClass, lazy_load=True, verbose_name="Record Class", null=True, index=True)
+    logged_from = ForeignKeyField(column_name='logged_from', field='id', model=ArmaFunction, backref="log_records_logged_from", lazy_load=True, null=True, verbose_name="Logged from")
+    log_file = ForeignKeyField(column_name='log_file', field='id', model=LogFile, lazy_load=True, backref="log_records", null=False, verbose_name="Log-File", index=False, on_delete="CASCADE")
+    log_level = ForeignKeyField(column_name='log_level', default=0, field='id', model=LogLevel, null=True, lazy_load=True, verbose_name="Log-Level")
+    record_class = ForeignKeyField(column_name='record_class', field='id', model=RecordClass, lazy_load=True, verbose_name="Record Class", null=True)
     marked = MarkedField(index=False)
 
     # non-db attributes
@@ -1173,13 +1187,18 @@ class LogRecord(BaseModel):
     class Meta:
         table_name = 'LogRecord'
         indexes = (
-            (('start', 'end', 'log_file'), True),
-            (("log_file", "log_level"), False)
+            # (('start', "log_file"), True),
+            # (('end', 'log_file'), True),
+            (("start", "end", "log_file"), True),
         )
 
     @classmethod
     def amount_log_records(cls) -> int:
         return LogRecord.select(LogRecord.id).count(cls._meta.database, True)
+
+    @cached_property
+    def server(self) -> Server:
+        return self.log_file.server
 
     @cached_property
     def message(self) -> str:
@@ -1773,6 +1792,7 @@ def setup_db(database: "GidSqliteApswDatabase"):
         },
         {'author_prefix': 3, 'id': 170, 'link': None, 'name': 'AS_Traitor'}]}
     with database:
+
         database.create_tables(all_models)
     for model, data in setup_data.items():
         if model == GameMap:

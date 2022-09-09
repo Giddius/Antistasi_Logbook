@@ -201,18 +201,35 @@ class _ExceptionHandlerManager:
             self.default_exception_handler.handle_thread_except_hook(args)
 
     def except_hook(self, type_, value, traceback):
-        if issubclass(type_, RuntimeError):
-            self.default_exception_handler.original_sys_except_hook(type_, value, traceback)
-        else:
-            handler = self.exception_handler_registry.get(type_, self.default_exception_handler)
-            handler.handle_except_hook(type_=type_, value=value, traceback=traceback)
+        try:
+            if issubclass(type_, RuntimeError):
+                self.default_exception_handler.original_sys_except_hook(type_, value, traceback)
+            else:
+                handler = self.exception_handler_registry.get(type_, self.default_exception_handler)
+                handler.handle_except_hook(type_=type_, value=value, traceback=traceback)
+        except Exception as e:
+            log.critical("encountered exception %r while handling thread exception(%r).", e, (type_, value, traceback))
+            self.default_exception_handler.handle_thread_except_hook((type_, value, traceback))
 
+
+_HANDLER_SETUP_LOCK = threading.RLock()
+
+_HANDLER_IS_SETUP = False
 
 ExceptionHandlerManager = _ExceptionHandlerManager()
 
 
-threading.excepthook = ExceptionHandlerManager.thread_except_hook
-sys.excepthook = ExceptionHandlerManager.except_hook
+def setup_exception_handler():
+    global _HANDLER_IS_SETUP
+    with _HANDLER_SETUP_LOCK:
+        if _HANDLER_IS_SETUP is True:
+            return
+        else:
+            threading.excepthook = ExceptionHandlerManager.thread_except_hook
+            sys.excepthook = ExceptionHandlerManager.except_hook
+            _HANDLER_IS_SETUP = True
+
+
 # region[Main_Exec]
 if __name__ == '__main__':
     pass

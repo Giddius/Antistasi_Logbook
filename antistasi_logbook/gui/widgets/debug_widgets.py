@@ -10,7 +10,7 @@ Soon.
 import os
 import sys
 import subprocess
-from typing import Any, Union, Iterable, Optional, Callable
+from typing import Any, Union, Iterable, Optional, Callable, TYPE_CHECKING
 from pathlib import Path
 from collections import defaultdict
 
@@ -26,7 +26,8 @@ from gidapptools.general_helper.conversion import number_to_pretty
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.widgets.dock_widget import BaseDockWidget
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-
+if TYPE_CHECKING:
+    from antistasi_logbook.gui.application import AntistasiLogbookApplication
 # endregion[Imports]
 
 # region [TODO]
@@ -314,6 +315,11 @@ class ShowFunctionResultButton(QPushButton):
         self.pressed.connect(self.show_info_box)
         if getattr(self.function, "is_disabled", False) is True:
             self.setEnabled(False)
+
+    @property
+    def app(self) -> "AntistasiLogbookApplication":
+        return QApplication.instance()
+
 
     def show_info_box(self):
         title = f"Result for {self.function.__name__}"

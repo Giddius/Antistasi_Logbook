@@ -201,17 +201,19 @@ class MainWidget(QWidget):
             if self.log_files_tab.model is None:
 
                 return
+            widget = None
             if self.log_files_tab.model.data_tool is None:
 
                 widget = LogFileDataToolWidget()
                 self.query_widget.add_page(widget, name="log_file")
                 self.log_files_tab.model.data_tool = widget
-                widget.pages["filter"].query_filter_changed.connect(self.log_files_tab.model.on_query_filter_changed)
-                widget.pages["filter"].show_unparsable_check_box.toggled.connect(self.log_files_tab.model.change_show_unparsable)
 
             self.query_widget.set_current_index(self.log_files_tab.model.data_tool)
             self.query_widget.resize(self.query_widget.sizeHint())
             self.log_files_tab.resize_header_sections()
+            if widget is not None:
+                widget.pages["filter"].query_filter_changed.connect(self.log_files_tab.model.on_query_filter_changed)
+                widget.pages["filter"].show_unparsable_check_box.toggled.connect(self.log_files_tab.model.change_show_unparsable)
 
         elif index == self.main_tabs_widget.indexOf(self.server_tab):
             self.main_window.set_tool_bar(self.server_tab.tool_bar_item)
@@ -233,6 +235,8 @@ class MainWidget(QWidget):
             if self.query_result_tab.model is None:
                 self.query_widget.resize(self.query_widget.sizeHint())
                 return
+
+            widget = None
             if self.query_result_tab.model.data_tool is None:
                 widget = LogRecordDataToolWidget()
                 self.query_widget.add_page(widget, name="log_record")
@@ -242,12 +246,12 @@ class MainWidget(QWidget):
 
                     self.query_result_tab.model.request_view_change_visibility.connect(page.setEnabled)
 
-                widget.pages["filter"].query_filter_changed.connect(self.query_result_tab.model.on_query_filter_changed)
-                widget.pages["search"].search_changed.connect(self.query_result_tab.filter)
             self.query_widget.set_current_index(self.query_result_tab.model.data_tool)
             self.query_widget.resize(self.query_widget.sizeHint())
             self.query_result_tab.resize_header_sections()
-
+            if widget is not None:
+                widget.pages["filter"].query_filter_changed.connect(self.query_result_tab.model.on_query_filter_changed)
+                widget.pages["search"].search_changed.connect(self.query_result_tab.filter)
         self.query_widget.resize(self.query_widget.sizeHint())
 
     def setup_views(self) -> None:

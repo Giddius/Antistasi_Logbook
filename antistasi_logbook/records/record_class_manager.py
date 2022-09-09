@@ -10,11 +10,12 @@ Soon.
 from typing import TYPE_CHECKING, Union
 from pathlib import Path
 from collections import defaultdict
-
+from functools import lru_cache
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
 from sortedcontainers import SortedSet
 from concurrent.futures import Future
+from threading import RLock
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.general_classes import GenericThreadsafePool
@@ -27,7 +28,7 @@ from antistasi_logbook.parsing.raw_record import RawRecord
 from frozendict import frozendict
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-    from antistasi_logbook.backend import Backend
+    from antistasi_logbook.backend import Backend, GidSqliteApswDatabase
 
 # endregion[Imports]
 
@@ -98,6 +99,7 @@ class RecordClassChecker:
         return self.antistasi_record_classes["DEFAULT"].model
 
     def _determine_record_class(self, log_record: LogRecord) -> "RecordClass":
+
         if log_record is None:
             log.critical("Log record %r is None", log_record)
             return
@@ -112,12 +114,12 @@ class RecordClassChecker:
             _out = record_class
         if isinstance(log_record, RawRecord):
             log_record.record_class = _out
-        else:
-            return _out
+
+        return _out
 
 
 class RecordClassManager:
-    __slots__ = ("backend", "foreign_key_cache", "_default_record_concrete_class", "_default_record_class", "family_handler_table", "_record_class_checker")
+    __slots__ = ("backend", "foreign_key_cache", "_default_record_class_lock", "_default_record_concrete_class", "_default_record_class", "family_handler_table", "_record_class_checker")
     record_class_registry: dict[str, StoredRecordClass] = {}
     record_class_registry_by_id: dict[str, StoredRecordClass] = {}
     generic_record_classes: SortedSet[StoredRecordClass] = SortedSet(key=lambda x: -x.concrete_class.___specificity___)
@@ -131,12 +133,14 @@ class RecordClassManager:
         self._default_record_class: "StoredRecordClass" = None
 
         self._record_class_checker: RecordClassChecker = None
+        self._default_record_class_lock = RLock()
 
     @property
     def record_class_checker(self) -> RecordClassChecker:
-        if self._record_class_checker is None:
-            self._create_record_checker()
-        return self._record_class_checker
+        with self._default_record_class_lock:
+            if self._record_class_checker is None:
+                self._create_record_checker()
+            return self._record_class_checker
 
     def _create_record_checker(self) -> RecordClassChecker:
 
@@ -146,25 +150,27 @@ class RecordClassManager:
 
     @property
     def default_record_class(self) -> StoredRecordClass:
-        if self._default_record_class is None:
-            try:
-                model = RecordClass.select().where(RecordClass.name == self._default_record_concrete_class.__name__)[0]
-            except IndexError:
-                model = RecordClass(name=self._default_record_concrete_class.__name__)
-                model.save()
-            self._default_record_class = StoredRecordClass(self._default_record_concrete_class, model)
-        return self._default_record_class
+        with self._default_record_class_lock:
+            if self._default_record_class is None:
+                try:
+                    model = RecordClass.select().where(RecordClass.name == self._default_record_concrete_class.__name__)[0]
+                except IndexError:
+                    model = RecordClass(name=self._default_record_concrete_class.__name__)
+                    model.save()
+                self._default_record_class = StoredRecordClass(self._default_record_concrete_class, model)
+            return self._default_record_class
 
     @classmethod
-    def register_record_class(cls, record_class: RECORD_CLASS_TYPE) -> None:
+    def register_record_class(cls, record_class: RECORD_CLASS_TYPE, database: "GidSqliteApswDatabase") -> None:
         name = record_class.__name__
         if name in cls.record_class_registry:
             return
-        try:
-            model = RecordClass.select().where(RecordClass.name == name)[0]
-        except IndexError:
-            model = RecordClass(name=name)
-            model.save()
+        with database.connection_context():
+            try:
+                model = RecordClass.select().where(RecordClass.name == name)[0]
+            except IndexError:
+                model = RecordClass(name=name)
+                model.save()
         model._record_class = record_class
         stored_item = StoredRecordClass(record_class, model)
         cls.record_class_registry[name] = stored_item
@@ -190,8 +196,6 @@ class RecordClassManager:
         return self.record_class_registry_by_id.get(str(model_id), self.default_record_class).model
 
     def determine_record_class(self, log_record: LogRecord) -> tuple["RECORD_CLASS_TYPE", LogRecord]:
-        if self.record_class_checker is None:
-            self._create_record_checker()
 
         return self.record_class_checker._determine_record_class(log_record), log_record
 
@@ -203,9 +207,9 @@ class RecordClassManager:
         self.generic_record_classes.clear()
         self._default_record_class = None
         for registered_class in all_registered_classes:
-            self.register_record_class(registered_class.concrete_class)
+            self.register_record_class(registered_class.concrete_class, database=self.backend.database)
 
-        self.record_class_checker = None
+        _ = self.record_class_checker
 # region[Main_Exec]
 
 

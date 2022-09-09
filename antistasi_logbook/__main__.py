@@ -16,7 +16,8 @@ from pathlib import Path
 import sys
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
-
+from antistasi_logbook.errors import setup_exception_handler
+setup_exception_handler()
 from gidapptools import get_logger
 from gidapptools.meta_data import get_meta_info, get_meta_paths
 
@@ -44,6 +45,7 @@ from antistasi_logbook.gui.main_window import start_gui
 
 # region [Constants]
 
+
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 META_PATHS = get_meta_paths()
 META_INFO = get_meta_info()
@@ -63,6 +65,7 @@ def main():
 # region[Main_Exec]
 
 if __name__ == '__main__':
+
     main()
 
 # endregion[Main_Exec]

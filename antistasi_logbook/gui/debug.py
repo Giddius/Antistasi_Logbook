@@ -25,7 +25,7 @@ import platform
 import importlib
 import subprocess
 import inspect
-
+from hashlib import md5
 from time import sleep, process_time, process_time_ns, perf_counter, perf_counter_ns
 from io import BytesIO, StringIO
 from abc import ABC, ABCMeta, abstractmethod
@@ -71,14 +71,14 @@ from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog
                                QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
                                QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
                                QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
-from peewee import JOIN, fn
+from peewee import JOIN, fn, prefetch
 import pandas as pd
 from concurrent.futures import Future
 import apsw
 from argparse import Action
 from gidapptools import get_logger
-from gidapptools.general_helper.conversion import number_to_pretty
-from antistasi_logbook.storage.models.models import DatabaseMetaData, LogRecord, GameMap, RecordClass, LogFile
+from gidapptools.general_helper.conversion import number_to_pretty, bytes2human
+from antistasi_logbook.storage.models.models import DatabaseMetaData, LogRecord, GameMap, RecordClass, LogFile, Server, Message, LogLevel, RecordOrigin, ArmaFunction, ArmaFunctionAuthorPrefix
 if TYPE_CHECKING:
     from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
@@ -121,9 +121,84 @@ def show_parser_usage():
     return QApplication.instance().get_argument_parser().format_usage()
 
 
+def get_all_widgets():
+    app: "AntistasiLogbookApplication" = QApplication.instance()
+    _out = {}
+    for w in app.allWidgets():
+
+        _out[str(w)] = w.metaObject().className()
+
+    return _out
+
+
+def get_all_windows():
+    app: "AntistasiLogbookApplication" = QApplication.instance()
+    return {str(i): i for i in app.allWindows()}
+
+
+def do_incremental_vacuum():
+    def _vac_func(*args, **kwargs):
+        log.debug("%r || %r", args, kwargs)
+        return 100
+    app: "AntistasiLogbookApplication" = QApplication.instance()
+    db = app.backend.database
+
+    cur: apsw.Cursor = db.cursor()
+    cur.execute("PRAGMA auto_vacuum(2);")
+
+    conn: apsw.Connection = cur.getconnection()
+
+    conn.autovacuum_pages(None)
+    result = conn.changes()
+    cur.close()
+    return result
+
+
+def show_average_file_size_per_log_file():
+    raw = LogFile.average_file_size_per_log_file()
+    return bytes2human(raw)
+
+
+def show_amount_messages_compared_to_amount_records():
+    app: "AntistasiLogbookApplication" = QApplication.instance()
+    db = app.backend.database
+    with db.connection_context() as ctx:
+        amount_messages = Message.select(Message.id).count()
+        amount_records = LogRecord.select(LogRecord.id).count()
+
+    if amount_records == 0:
+        factor = None
+    else:
+        factor = round(amount_messages / amount_records, ndigits=3)
+    return {"messages": amount_messages, "records": amount_records, "messages/record": factor}
+
+
+def show_database_file_size():
+    app: "AntistasiLogbookApplication" = QApplication.instance()
+    db = app.backend.database
+    raw = db.database_file_size
+    return bytes2human(raw)
+
+
+def check_hash_functions():
+    app: "AntistasiLogbookApplication" = QApplication.instance()
+    db = app.backend.database
+    with db.connection_context() as ctx:
+        log.debug("starting to collect data")
+        start_time = perf_counter()
+        query = Message.select(fn.murmurhash(Message.text), Message.text).tuples().iterator()
+        data = {i[0]: i[1] for i in query}
+        time_taken = round(perf_counter() - start_time, ndigits=4)
+        log.debug("finished collecting, it took %r s", time_taken)
+        log.debug("collected %r data", len(data))
+
+    return {k: v for k, v in list(data.items())[:100]}
+
+
 def setup_debug_widget(debug_dock_widget: "DebugDockWidget") -> None:
     app: AntistasiLogbookApplication = QApplication.instance()
     debug_dock_widget.add_show_attr_button(attr_name="amount_log_records", obj=LogRecord)
+    debug_dock_widget.add_show_attr_button(attr_name="amount_log_files", obj=LogFile)
     debug_dock_widget.add_show_attr_button(attr_name="get_amount_meta_data_items", obj=DatabaseMetaData)
     for attr_name in ["applicationVersion",
                       "organizationName",
@@ -137,6 +212,14 @@ def setup_debug_widget(debug_dock_widget: "DebugDockWidget") -> None:
                       "libraryPaths",
                       "isQuitLockEnabled"]:
         debug_dock_widget.add_show_attr_button(attr_name=attr_name, obj=app)
+
+    debug_dock_widget.add_show_func_result_button(get_all_widgets, "widgets")
+    debug_dock_widget.add_show_func_result_button(get_all_windows, "widgets")
+    debug_dock_widget.add_show_func_result_button(do_incremental_vacuum, "database")
+    debug_dock_widget.add_show_func_result_button(show_average_file_size_per_log_file, "database")
+    debug_dock_widget.add_show_func_result_button(show_database_file_size, "database")
+    debug_dock_widget.add_show_func_result_button(show_amount_messages_compared_to_amount_records, "database")
+    debug_dock_widget.add_show_func_result_button(check_hash_functions, "database")
 
 # region[Main_Exec]
 

@@ -69,7 +69,9 @@ class Parser:
         with context.open(cleanup=False) as file:
 
             text = file.read(self.log_file_data_scan_chunk_initial)
-            finder = MetaFinder(context=context, regex_keeper=self.regex_keeper.__class__(), force=context.force)
+            regex_keeper = self.regex_keeper.__class__()
+            force = context.force
+            finder = MetaFinder(context=context, regex_keeper=regex_keeper, force=force)
             idx = 0
             while True:
                 finder.search(text)

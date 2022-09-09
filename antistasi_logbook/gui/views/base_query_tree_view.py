@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Union, Optional
 from time import sleep
 from pathlib import Path
 from concurrent.futures import Future
-
+import sys
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
 from PySide6.QtGui import QIcon, QAction
@@ -352,6 +352,8 @@ class BaseQueryTreeView(QTreeView):
 
     def on_model_reset(self):
         log.debug("on_model_reset was triggered for %r", self)
+        co = sys._getframe(3).f_code
+        log.debug("called_by %r of %r", co.co_name, co.co_filename)
 
         if self.model.last_selection_ids is None or len(self.model.last_selection_ids) <= 0:
             log.debug("model.last_selection_ids is either None or empty (%r)", self.model.last_selection_ids)
@@ -417,11 +419,10 @@ class BaseQueryTreeView(QTreeView):
             self.setup_headers()
             self.resize_header_sections()
 
-            if model.content_items is None:
-                self.model.refresh()
-                # self.reset()
-                # task = self.app.gui_thread_pool.submit(self.model.refresh)
-                # task.add_done_callback(_callback)
+            self.model.refresh()
+            # self.reset()
+            # task = self.app.gui_thread_pool.submit(self.model.refresh)
+            # task.add_done_callback(_callback)
             try:
                 while self.model.collecting_records is True:
                     sleep(0.25)

@@ -254,7 +254,7 @@ class LogbookStatusBar(QStatusBar):
 
     def increment_progress_bar(self, amount: int):
         self.update_progress.setValue(self.update_progress.value() + amount)
-        self.update_progress.setToolTip(f"{self.update_progress.value()}/{self.update_progress.maximum()}")
+        self.update_progress.setToolTip(f"{self.update_progress.value()//2}/{self.update_progress.maximum()//2} Log-Files")
 
     def shutdown(self):
         self.last_updated_label.shutdown()

@@ -43,23 +43,25 @@ dd {
     font-family: monospace;
     font-size: 14px;
     font-weight: bolder;
-    background-color: rgba(200,200,200,100);
+    background-color: rgba(200, 200, 200, 100);
     border: 3px double black;
     text-align: center;
     padding-top: 14px;
     padding-bottom: 14px;
 
 }
+
 *.app_name {
 
     font-family: Arial, Helvetica, sans-serif;
     font-weight: 900;
     text-decoration: underline;
-display: inline-block;
-white-space: nowrap;
+    display: inline-block;
+    white-space: nowrap;
 
 
 }
+
 /* The sidebar menu */
 .toc {
     height: 100%;
@@ -85,13 +87,13 @@ white-space: nowrap;
 .toc a {
     padding: 6px 8px 6px 16px;
     text-decoration: none;
-text-shadow: -1px -1px 1px gray,
-1px -1px 1px gray,
--1px 1px 1px gray,
-1px 1px 1px gray;
+    text-shadow: -1px -1px 1px gray,
+        1px -1px 1px gray,
+        -1px 1px 1px gray,
+        1px 1px 1px gray;
     font-size: 16px;
     font-weight: bolder;
-    color:  darkblue;
+    color: darkblue;
     display: block;
 }
 
@@ -141,6 +143,3 @@ hr {
     height: 4px;
     background-image: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0));
 }
-
-
-

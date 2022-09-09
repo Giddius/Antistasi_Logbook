@@ -118,7 +118,7 @@
                 },
                 "time_format": {
                     "converter": "string",
-                    "default": "%Y-%m-%d %H:%M:%S"
+                    "default": "%Y-%m-%d %H:%M:%S.f"
                 }
             }
         },
@@ -163,7 +163,7 @@
         "webdav": {
             "entries": {
                 "max_concurrent_connections": {
-                    "converter": "integer",
+                    "converter": "integer(minimum=1)",
                     "default": "1"
                 }
             }

@@ -681,8 +681,8 @@ class LogRecordDataToolWidget(BaseDataToolWidget):
     def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
         super().__init__(parent=parent)
 
-        self.add_page(LogRecordFilterPage(self).setup())
-        self.add_page(LogRecordSearchPage(self).setup())
+        self.add_page(LogRecordFilterPage(self))
+        self.add_page(LogRecordSearchPage(self))
 
     def set_log_file(self, log_file: LogFile):
         log.debug("setting log_file %r", log_file)
@@ -691,6 +691,7 @@ class LogRecordDataToolWidget(BaseDataToolWidget):
                 page.set_log_file(log_file)
             except AttributeError:
                 continue
+            page.setup()
         self.repaint()
 # region[Main_Exec]
 

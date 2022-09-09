@@ -12,9 +12,11 @@ import base64
 from io import BytesIO
 from typing import Union, Literal, Optional, Any
 from pathlib import Path
+import sys
 from datetime import datetime, timezone, timedelta
 from functools import partial
 import time
+from hashlib import md5, blake2b, blake2s, sha256, sha512, shake_128, sha3_512, shake_256
 import calendar
 from peewee import Value, _timestamp_date_part, long, basestring, BigIntegerField
 # * Third Party Imports --------------------------------------------------------------------------------->
@@ -23,7 +25,7 @@ import httpx
 from PIL import Image
 from dateutil.tz import UTC, tzoffset
 from playhouse.fields import CompressedField
-from playhouse.apsw_ext import Field, BlobField, TextField, BooleanField, BigIntegerField, DateTimeField, TimestampField
+from playhouse.apsw_ext import Field, BlobField, TextField, BooleanField, BigIntegerField, DateTimeField, TimestampField, nh, CharField, IntegerField, IdentityField, AutoField, BigAutoField
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
@@ -142,7 +144,6 @@ class URLField(Field):
 class AwareTimeStampField(BigIntegerField):
     field_type = 'BIGINT'
     mult_factor = 1000000
-    mult_factor_reversed = 1 / mult_factor
 
     def __init__(self, *args, **kwargs):
 
@@ -171,7 +172,7 @@ class AwareTimeStampField(BigIntegerField):
     def python_value(self, value):
         if value is None:
             return
-        reduced_value = value * self.mult_factor_reversed
+        reduced_value = value / self.mult_factor
         tz = timezone.utc if self.utc is True else None
         return datetime.fromtimestamp(reduced_value, tz=tz)
 
@@ -315,6 +316,5 @@ class PasswordField(BlobField):
 
 # region[Main_Exec]
 if __name__ == '__main__':
-
     pass
 # endregion[Main_Exec]

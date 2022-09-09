@@ -4,6 +4,7 @@ __version__ = '0.4.6'
 
 __description_for_setup_tools__ = "this"
 
+
 import os
 
 
@@ -21,6 +22,7 @@ from gidapptools.meta_data import setup_meta_data
 from gidapptools.gid_config.interface import get_config
 
 import sys
+
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
@@ -125,12 +127,14 @@ def setup():
     META_PATHS = get_meta_paths()
     # log = get_main_logger("__main__", Path(__file__).resolve(), extra_logger=_extra_logger)
     general_config_path = META_PATHS.config_dir.joinpath("general_config.ini")
+    default_log_level = "INFO"
     if os.getenv('IS_DEV', "false") != "false":
         general_config_path = Path(__file__).resolve().parent.joinpath("dev_temp", "config", general_config_path.name)
+        default_log_level = "DEBUG"
     general_config = get_config(spec_path=DATA_DIR.joinpath("general_configspec.json"), config_path=general_config_path, preload_ini_file=True)
     log_to_stdout = os.getenv('IS_DEV', "false") != "false"
     log = setup_main_logger_with_file_logging("__main__",
-                                              log_level=general_config.get("logging", "level", default="DEBUG"),
+                                              log_level=general_config.get("logging", "level", default=default_log_level),
                                               log_file_base_name=Path(__file__).resolve().parent.stem,
                                               path=Path(__file__).resolve(),
                                               extra_logger=_extra_logger,
@@ -140,5 +144,8 @@ def setup():
                                               log_to_stdout=log_to_stdout)
 
     ERROR_CONSOLE = RichConsole(soft_wrap=True, record=False, width=150)
-    rich_traceback_install(console=ERROR_CONSOLE, width=150)
+    # rich_traceback_install(console=ERROR_CONSOLE, width=150)
     IS_SETUP = True
+
+
+import antistasi_logbook.errors

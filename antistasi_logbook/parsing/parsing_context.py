@@ -11,6 +11,7 @@ import re
 from typing import TYPE_CHECKING, Any, TextIO, Callable, Iterable, Generator
 from pathlib import Path
 from datetime import timedelta
+from time import sleep
 from threading import Lock, RLock
 from contextlib import contextmanager
 from collections import deque
@@ -103,7 +104,8 @@ class LineCache(deque):
             super().append(x)
 
     def appendleft(self, x: "RecordLine") -> None:
-        return super().appendleft(x)
+        with self.lock:
+            return super().appendleft(x)
 
     def pop(self) -> "RecordLine":
         with self.lock:
@@ -171,7 +173,7 @@ class LogParsingContext:
         self._current_line_number = 0
         self.futures: list[Future] = []
         self._bulk_create_batch_size: int = None
-        self.record_lock = Lock()
+        self.record_lock = RLock()
         self.is_open: bool = False
         self.done_signal: Callable[[], None] = None
         self.force: bool = False
@@ -192,9 +194,9 @@ class LogParsingContext:
         self.log_file_data["unparsable"] = True
 
     def set_found_meta_data(self, finder: "MetaFinder") -> None:
-
+        log.debug("starting to set meta-data for %r", self._log_file)
         # TODO: Refractor this Monster!
-        LogFile.get_meta().database.connect(True)
+
         if finder is None or finder.full_datetime is None or finder.campaign_id is None:
             log.debug("setting to unparsable, because either finder(%r) is None or finder.full_datetime(%r) is None or finder.campaign_id(%r) is None", finder, finder.full_datetime, finder.campaign_id)
             self.set_unparsable()
@@ -211,7 +213,11 @@ class LogParsingContext:
             self.log_file_data["game_map"] = game_map_item
 
         if self.log_file_data.get("version") is None:
-            version = Version.add_or_get_version(finder.version)
+            try:
+                version = self.foreign_key_cache.all_version_objects[str(finder.version)]
+            except KeyError:
+                version = self.inserter.thread_pool.submit(Version.add_or_get_version, finder.version)
+                self.inserter.thread_pool.submit(self.foreign_key_cache.reset_sender_for_all_instances, sender=Version, created=True)
             self.log_file_data["version"] = version
 
         if self.log_file_data.get("is_new_campaign") is None:
@@ -229,8 +235,8 @@ class LogParsingContext:
             self.log_file_data["utc_offset"] = offset
 
             with self.database.write_lock:
-                with self.database:
-                    self._log_file.update(utc_offset=offset)
+                self.inserter.thread_pool.submit(self._log_file.update, utc_offset=offset)
+
             self.log_file_data["created_at"] = self._log_file.name_datetime.replace(tzinfo=offset).astimezone(UTC)
 
         if finder.mods is not None and finder.mods is not MiscEnum.DEFAULT:
@@ -291,10 +297,14 @@ class LogParsingContext:
             log.debug("updating log-file %r", self._log_file)
             self.log_file_data.pop("original_file")
             self.log_file_data.pop("is_downloaded")
-            task = self.inserter.update_log_file_from_dict(log_file=self._log_file, in_dict=self.log_file_data)
+            data_dict = {}
+            for k, v in self.log_file_data.items():
+                if isinstance(v, Future):
+                    v = v.result()
+                data_dict[k] = v
+            task = self.inserter.update_log_file_from_dict(log_file=self._log_file, in_dict=data_dict)
             log.debug("waiting for result of 'updating log-file %r'", self._log_file)
-            if task.exception():
-                raise task.exception()
+
             _ = task.result()
 
         if self._line_iterator is not None:
@@ -331,33 +341,38 @@ class LogParsingContext:
 
     def insert_record(self, record: "RawRecord") -> None:
         with self.record_lock:
-            self.database.backend.record_class_manager.record_class_checker._determine_record_class(record)
+            record.record_class = self.database.backend.record_class_manager.determine_record_class(record)[0]
             self.record_storage.append(record)
             if len(self.record_storage) == self._log_record_batch_size:
 
-                self.futures.append(self.inserter(records=tuple(self.record_storage), context=self))
-                self.record_storage.clear()
+                self.futures.append(self.inserter(records=self.record_storage.copy(), context=self))
+                self.record_storage = []
 
     def _dump_rest(self) -> None:
-        if len(self.record_storage) > 0:
-            rest_records = []
-            for record in self.record_storage:
-                self.database.backend.record_class_manager.record_class_checker._determine_record_class(record)
-                rest_records.append(record)
-            self.futures.append(self.inserter(records=tuple(rest_records), context=self))
-            self.record_storage.clear()
+        with self.record_lock:
+            if len(self.record_storage) > 0:
+                rest_records = []
+
+                for record in self.record_storage:
+                    record.record_class = self.database.backend.record_class_manager.determine_record_class(record)[0]
+                    rest_records.append(record)
+                self.futures.append(self.inserter(records=rest_records.copy(), context=self))
+                self.record_storage = []
 
     def wait_on_futures(self, timeout: float = None) -> None:
-        done, not_done = wait(self.futures, return_when=ALL_COMPLETED, timeout=timeout)
+        with self.record_lock:
+            done, not_done = wait(self.futures, return_when=ALL_COMPLETED, timeout=timeout)
 
-        # if len(not_done) != 0:
-        #     try:
-        #         for t in list(done) + list(not_done):
-        #             if t.exception():
-        #                 raise t.exception()
-        #     except Exception as e:
-        #         log.error(e, exc_info=True)
-        #         log.critical("error %r encountered with log-file %r", e, self._log_file)
+        if len(not_done) != 0:
+            try:
+                for t in list(done) + list(not_done):
+                    exception = t.exception()
+                    if exception is not None:
+                        log.error(exception, exc_info=True)
+                        raise exception
+            except Exception as e:
+                log.error(e, exc_info=True)
+                log.critical("error %r encountered with log-file %r", e, self._log_file)
         # else:
         with self.data_lock:
             self.log_file_data["last_parsed_datetime"] = self.log_file_data.get("modified_at")
@@ -368,10 +383,10 @@ class LogParsingContext:
         return self
 
     def __exit__(self, exception_type: type = None, exception_value: BaseException = None, traceback: Any = None) -> None:
+        self.close()
         if exception_value is not None:
             log.error("%s, %s", exception_type, exception_value, exc_info=True)
-
-        self.close()
+            raise exception_value
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(log_file={self._log_file!r})"

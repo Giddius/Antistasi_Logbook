@@ -87,6 +87,5 @@ def parse_text_array(in_text: str) -> list[list[Any]]:
 
 # region[Main_Exec]
 if __name__ == '__main__':
-    x = '''[["CUP_arifle_ACRC_EGLM_blk_556","CUP_muzzle_snds_M16","CUP_acc_ANPEQ_15_Black","CUP_optic_1P87_RIS",["CUP_30Rnd_556x45_PMAG_QP",30],["CUP_1Rnd_HE_M203",1],""],[],[],[],[],[],"","",[],["","","","","",""]]'''
-    pprint(parse_text_array(x))
+    pass
 # endregion[Main_Exec]

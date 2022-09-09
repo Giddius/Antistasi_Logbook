@@ -27,7 +27,7 @@ from jinja2 import BaseLoader, Environment, Template
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger, get_meta_info, get_meta_paths
 from gidapptools.gid_config.interface import get_config, ConfigValueConverter
-from gidapptools.gidapptools_qt.basics.application_info import ApplicationInfoData
+
 from gidapptools.gidapptools_qt.basics.application import WindowHolder
 from gidapptools.general_helper.string_helper import StringCase, StringCaseConverter
 # * Local Imports --------------------------------------------------------------------------------------->
@@ -35,6 +35,8 @@ from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import
 from antistasi_logbook.errors import ExceptionHandlerManager, MissingLoginAndPasswordError
 from antistasi_logbook.records.base_record import BaseRecord, RecordColorCache
 import psutil
+from antistasi_logbook.data.templates import ABOUT_STYLESHEET_FILE, ABOUT_TEMPLATE_FILE
+from antistasi_logbook.data.templates.cli_argument_templates import ARG_DOC_HTML_TEMPLATE, ARG_DOC_MARKDOWN_TEMPLATE
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
@@ -43,7 +45,6 @@ if TYPE_CHECKING:
     from antistasi_logbook.gui.main_window import LogbookSystemTray, AntistasiLogbookMainWindow
     from gidapptools.meta_data.meta_info import MetaInfo
 # * Third Party Imports --------------------------------------------------------------------------------->
-import pp
 
 
 # endregion[Imports]
@@ -67,138 +68,6 @@ META_PATHS = get_meta_paths()
 
 # endregion[Constants]
 
-ABOUT_STYLESHEET = r"""
-.aboutSummary {
-        background-color: lightgrey;
-        text-align: center;
-        color: black;
-        font-style: italic;
-        font-weight: bold;
-        font-size: large;
-}
-
-"""
-
-ABOUT_TEMPLATE = r"""
-<style>
-{% if style %}
-    {{style}}
-{% endif %}
-</style>
-<dl>
-    {% for key, value in data.items() if key!="Summary" and key!="Description" %}
-    <dt><b><u>{{key}}:</u></b></dt>
-    <dd>{{value}}</dd>
-
-    {% endfor %}
-</dl>
-    {% if data.Summary %}
-    <br>
-    <hr>
-    <div class="aboutSummary">
-    <center>
-    <br>
-    {{data.Summary}}
-    <br>
-    <hr>
-    </center>
-
-    </div>
-
-    {% endif %}
-
-"""
-
-
-class QColorValueConverter(ConfigValueConverter):
-    __slots__ = tuple()
-    value_typus = "qcolor"
-
-    def to_config_value(self, value: Any, **named_arguments) -> str:
-        return ', '.join(str(i) for i in value.getRgb())
-
-    def to_python_value(self, value: str, **named_arguments) -> Any:
-        r, g, b, a = (int(i.strip()) for i in value.split(',') if i.strip())
-        return QColor(r, g, b, a)
-
-
-ARG_DOC_MARKDOWN_TEMPLATE = """
-
-# {name}
-
----
-
-# Description
-
-
-> {help_text}
-
----
-
-# Arguments
-
-{argument_strings}
-
----
-
-# Default
-
-{default_value}
-
----
-
-# Required
-
-{is_required}
-
----
-
-# Flag
-
-{is_flag}
-
-
-""".strip()
-
-
-_ARG_DOC_HTML_TEMPLATE: str = """
-
-
-
-<a id="{{name}}"><b><u>{{name}}</b></u></a>
-
-<dl>
-<dt>Description</dt>
-<dd>
-<blockquote>
-<div class="description">
-{{help_text}}
-</div>
-</blockquote>
-
-</dd>
-
-<dt>Arguments</dt>
-<dd>
-<ul>
-{%for arg in argument_strings%}
-<li> <pre><code>{{arg}}</code></pre>
-{% endfor %}
-</ul>
-</dd>
-{% if default_value is not none %}
-<dt>Default</dt>
-<dd>{{default_value}}</dd>
-{% endif %}
-<dt>Required</dt>
-<dd>{{is_required}}</dd>
-
-<dt>Flag</dt>
-<dd>{{is_flag}}</dd>
-</dl>
-
-"""
-
 
 class CommandLineArgDoc:
 
@@ -206,7 +75,7 @@ class CommandLineArgDoc:
     single_line_text_template: str = "{name} - {help_text} - {argument_strings} - default: {default_value} - required: {is_required} - is flag:{is_flag}"
     text_template: str = "{name}\n{help_text}\n{argument_strings}\ndefault: {default_value}\nrequired: {is_required}\nis flag:{is_flag}"
     markdown_template: str = ARG_DOC_MARKDOWN_TEMPLATE
-    html_template: Template = Environment(loader=BaseLoader).from_string(_ARG_DOC_HTML_TEMPLATE)
+    html_template: Template = Environment(loader=BaseLoader).from_string(ARG_DOC_HTML_TEMPLATE)
 
     def __init__(self, argument: argparse.Action, app_meta_info: "MetaInfo" = None) -> None:
         self.argument = argument
@@ -366,7 +235,7 @@ class AntistasiLogbookApplication(QApplication):
             return
 
         self.backend = backend
-        self.config.conversion_table.add_extra_converter(QColorValueConverter)
+
         self.icon = icon.get_as_icon() if icon is not None else icon
 
         self.jinja_environment = Environment(loader=BaseLoader)
@@ -374,7 +243,7 @@ class AntistasiLogbookApplication(QApplication):
         color_config_file = self.meta_paths.config_dir.joinpath("color_config.ini")
         if self.is_dev is True:
             color_config_file = Path(os.getenv("_MAIN_DIR")).joinpath("dev_temp", "config", color_config_file.name)
-        self.color_config = get_config(DATA_DIR.joinpath("color_configspec.json"), color_config_file, extra_converter=[QColorValueConverter])
+        self.color_config = get_config(DATA_DIR.joinpath("color_configspec.json"), color_config_file)
         self.color_config.reload()
         self.backend.color_config = self.color_config
         self.config.reload()
@@ -449,7 +318,7 @@ class AntistasiLogbookApplication(QApplication):
                       "Summary": self.meta_info.summary,
                       "Description": self.meta_info.description}
 
-        return self.jinja_environment.from_string(ABOUT_TEMPLATE).render(data=text_parts, style=ABOUT_STYLESHEET)
+        return self.jinja_environment.from_string(ABOUT_TEMPLATE_FILE.read_text(encoding='utf-8', errors='ignore')).render(data=text_parts, style=ABOUT_STYLESHEET_FILE.read_text(encoding='utf-8', errors='ignore'))
 
     def show_about(self) -> None:
         title = f"About {self.applicationDisplayName()}"
@@ -535,7 +404,7 @@ class AntistasiLogbookApplication(QApplication):
                 log.debug("deleting folder %r", item.as_posix())
                 shutil.rmtree(item)
 
-        log.debug(pp.fmt(self.extra_windows.windows))
+        log.debug(dict(self.extra_windows.windows))
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}(name={self.applicationDisplayName()!r})"

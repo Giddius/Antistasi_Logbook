@@ -23,7 +23,7 @@ from gidapptools.general_helper.string_helper import fix_multiple_quotes, escape
 from antistasi_logbook.records.base_record import BaseRecord, RecordFamily, MessageFormat
 from antistasi_logbook.utilities.parsing_misc import parse_text_array
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
-
+from gidapptools.general_helper.general_classes import DecorateAbleList
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from PySide6.QtGui import QColor
@@ -48,10 +48,10 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
 
-ALL_GENERIC_RECORD_CLASSES: set[type[BaseRecord]] = set()
-# "[ASU] Perf-profiling : FPS=11.1111 nbPlayers=28 nbAIs=421"
+ALL_GENERIC_RECORD_CLASSES: DecorateAbleList[type[BaseRecord]] = DecorateAbleList()
 
 
+@ALL_GENERIC_RECORD_CLASSES
 class PerfProfilingRecord(BaseRecord):
 
     ___record_family___ = RecordFamily.GENERIC
@@ -87,9 +87,7 @@ class PerfProfilingRecord(BaseRecord):
         return False
 
 
-ALL_GENERIC_RECORD_CLASSES.add(PerfProfilingRecord)
-
-
+@ALL_GENERIC_RECORD_CLASSES
 class TFEInfoSettings(BaseRecord):
     ___record_family___ = RecordFamily.GENERIC
     ___specificity___ = 10
@@ -125,9 +123,7 @@ class TFEInfoSettings(BaseRecord):
         return False
 
 
-ALL_GENERIC_RECORD_CLASSES.add(TFEInfoSettings)
-
-
+@ALL_GENERIC_RECORD_CLASSES
 class PlayerDisconnected(BaseRecord):
     ___record_family___ = RecordFamily.GENERIC
     ___specificity___ = 10
@@ -200,9 +196,7 @@ class PlayerDisconnected(BaseRecord):
         return False
 
 
-ALL_GENERIC_RECORD_CLASSES.add(PlayerDisconnected)
-
-
+@ALL_GENERIC_RECORD_CLASSES
 class PlayerConnected(BaseRecord):
     ___record_family___ = RecordFamily.GENERIC
     ___specificity___ = 10
@@ -275,9 +269,7 @@ class PlayerConnected(BaseRecord):
         return False
 
 
-ALL_GENERIC_RECORD_CLASSES.add(PlayerConnected)
-
-
+@ALL_GENERIC_RECORD_CLASSES
 class SendTfarRadioRequestResponseEvent(BaseRecord):
     ___record_family___ = RecordFamily.GENERIC
     ___specificity___ = 10
@@ -324,7 +316,7 @@ class SendTfarRadioRequestResponseEvent(BaseRecord):
         return False
 
 
-ALL_GENERIC_RECORD_CLASSES.add(SendTfarRadioRequestResponseEvent)
+ALL_GENERIC_RECORD_CLASSES: set[type[BaseRecord]] = set(ALL_GENERIC_RECORD_CLASSES)
 
 
 # region[Main_Exec]

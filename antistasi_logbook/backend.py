@@ -9,7 +9,7 @@ Soon.
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import gc
 import shutil
-from time import sleep
+from time import sleep, time, perf_counter
 from typing import TYPE_CHECKING, Iterable, Optional
 from pathlib import Path
 from weakref import WeakSet
@@ -152,7 +152,7 @@ class Backend:
         self.time_clock = TimeClock(config=self.config, stop_event=self.events.stop)
         self.remote_manager_registry = remote_manager_registry
         AbstractRemoteStorageManager.config = self.config
-        self.record_processor = RecordProcessor(backend=self, regex_keeper=SimpleRegexKeeper(), foreign_key_cache=ForeignKeyCache(self.database))
+        self.record_processor = RecordProcessor(backend=self, regex_keeper=SimpleRegexKeeper(), foreign_key_cache=self.foreign_key_cache)
         self.updater = Updater(stop_event=self.events.stop, pause_event=self.events.pause, backend=self, signaler=self.update_signaler)
         self.records_inserter = RecordInserter(config=self.config, backend=self)
 
@@ -200,7 +200,7 @@ class Backend:
             ThreadPoolExecutor: [description]
         """
         if self._thread_pool is None:
-            self._thread_pool = ThreadPoolExecutor(max_workers=max(1, self.max_threads - 2), thread_name_prefix="backend")
+            self._thread_pool = ThreadPoolExecutor(max_workers=max(1, self.max_threads - 1), thread_name_prefix="backend")
         return self._thread_pool
 
     @property
@@ -218,7 +218,7 @@ class Backend:
             ThreadPoolExecutor: [description]
         """
         if self._inserting_thread_pool is None:
-            self._inserting_thread_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="backend_inserting", initializer=self.database.connect, initargs=(True,))
+            self._inserting_thread_pool = ThreadPoolExecutor(max_workers=10, thread_name_prefix="backend_inserting", initializer=self.database.connect, initargs=(True,))
         return self._inserting_thread_pool
 
     @property
@@ -260,12 +260,12 @@ class Backend:
 
     def register_record_classes(self, record_classes: Iterable[RECORD_CLASS_TYPE]) -> "Backend":
         for record_class in record_classes:
-            self.record_class_manager.register_record_class(record_class=record_class)
+            self.record_class_manager.register_record_class(record_class=record_class, database=self.database)
         return self
 
     def fill_record_class_manager(self) -> None:
         for record_class in chain(ALL_ANTISTASI_RECORD_CLASSES, ALL_GENERIC_RECORD_CLASSES):
-            self.record_class_manager.register_record_class(record_class=record_class)
+            self.record_class_manager.register_record_class(record_class=record_class, database=self.database)
         RecordClass.record_class_manager = self.record_class_manager
 
     def start_up(self, overwrite: bool = False) -> "Backend":
@@ -273,7 +273,7 @@ class Backend:
         Start up the database, populates the database with all necessary tables and default entries ("or_ignore"), registers all record_classes and connects basic signals.
 
         """
-        self.record_class_manager.foreign_key_cache = self.foreign_key_cache
+
         self.events.stop.clear()
         self.events.pause.clear()
         self.database.record_inserter = self.records_inserter
@@ -281,7 +281,7 @@ class Backend:
         self.database.start_up(overwrite=overwrite)
 
         self.database.connect(True)
-
+        self.record_class_manager = RecordClassManager(backend=self, foreign_key_cache=ForeignKeyCache(self.database))
         self.fill_record_class_manager()
 
         self.signals.new_log_record.connect(self.database.session_meta_data.increment_added_log_records)
@@ -305,8 +305,12 @@ class Backend:
             while len(self.all_parsing_context) > 0:
                 ctx = self.all_parsing_context.pop()
                 log.debug("checking ctx %r", ctx)
+                open_wait_start_time = time()
                 while ctx.is_open is True:
-                    sleep(0.0001)
+                    sleep(0.1)
+                    if int(time() - open_wait_start_time) >= 5:
+                        log.critical("timed out waiting for context %r to finish", ctx)
+                        break
                 all_futures += ctx.futures
             log.debug("waiting for all futures to finish")
             wait(all_futures, return_when=ALL_COMPLETED, timeout=3.0)

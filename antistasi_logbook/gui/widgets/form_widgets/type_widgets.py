@@ -194,6 +194,7 @@ class TimeDeltaValueField(QWidget):
 
     def set_value(self, value: timedelta, is_start: bool = False):
         parts = seconds2human(value, as_dict_result=True)
+        log.debug("seconds2human-parts: %r", parts)
         for _unit, _value in parts.items():
             self.inputs[_unit].setValue(_value)
         if is_start:
@@ -247,10 +248,10 @@ class UpdateTimeFrameValueField(TimeDeltaValueField):
             input_field.setEnabled(not active)
             if active == 2 or active is True:
                 input_field.setValue(0)
-        if active == 0 or active is False:
+        # if active == 0 or active is False:
 
-            if self.get_value().total_seconds() == 0:
-                self.inputs[TimeUnits(False)["days"]].setValue(1)
+        #     if self.get_value().total_seconds() == 0:
+        #         self.inputs[TimeUnits(False)["days"]].setValue(1)
 
 
 @implements_protocol(TypeWidgetProtocol)

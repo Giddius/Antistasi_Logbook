@@ -9,7 +9,7 @@ Soon.
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import queue
 import random
-from time import sleep
+from time import sleep, perf_counter, perf_counter_ns
 from typing import TYPE_CHECKING, Any, Optional, Generator, Iterator, Iterable
 from pathlib import Path
 from datetime import datetime
@@ -23,10 +23,10 @@ from dateutil.tz import UTC
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.gid_signal.interface import get_signal
-from gidapptools.general_helper.conversion import number_to_pretty
+from gidapptools.general_helper.conversion import number_to_pretty, ns_to_s
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord, RecordClass, OriginalLogFile
+from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord, RecordClass, OriginalLogFile, Mod, LogFileAndModJoin
 from antistasi_logbook.updating.remote_managers import remote_manager_registry
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 
@@ -191,6 +191,8 @@ class Updater:
 
         new_log_file = LogFile(server=server, **info_dict)
         new_log_file.save()
+        _ = new_log_file.has_mods
+
         self.new_log_file_signal.emit(log_file=new_log_file)
         return new_log_file
 
@@ -209,6 +211,7 @@ class Updater:
         """
         log_file.modified_at = remote_info.modified_at
         log_file.size = remote_info.size
+        _ = log_file.has_mods
         self.updated_log_file_signal.emit(log_file=log_file)
         return log_file
 
@@ -225,7 +228,12 @@ class Updater:
             [type]: [description]
         """
         to_update_files = []
+
         current_log_files = {log_file.name: log_file for log_file in self.database.get_log_files(server=server)}
+        for l in current_log_files.values():
+            _ = l.has_mods
+            _ = l.has_mods
+            _ = l.has_mods
         cutoff_datetime = self.get_cutoff_datetime()
         log.debug("cutoff_datetime: %r", cutoff_datetime)
 
@@ -316,7 +324,6 @@ class Updater:
                 sub_task = self.thread_pool.submit(self.process_log_file, log_file=log_file)
 
                 tasks.append(sub_task)
-                sleep(random.random())
 
         wait(tasks, return_when=ALL_COMPLETED, timeout=None)
 
@@ -334,7 +341,7 @@ class Updater:
                 self.record_class_updated_counter.increment(_amount)
                 self.signaler.change_update_text.emit(f"Updating Record-Classes --- Checked {self.record_class_updated_counter.value:,} of {in_full_amount:,} Records")
                 # self.signaler.send_update_increment(in_amount - in_old_amount)
-        self.backend.thread_pool.submit(_do_emit, old_amount, amount, full_amount)
+        _do_emit(old_amount, amount, full_amount)
 
     def _update_record_classes(self, server: Server = None, log_file: LogFile = None, force: bool = False):
 
@@ -354,7 +361,7 @@ class Updater:
         amount_updated_record_classes = 0
         self.backend.record_class_manager._create_record_checker()
         full_amount = self.database.get_amount_iter_all_records(server=server, log_file=log_file, only_missing_record_class=not force)
-        log.debug("amount of log-records to update: %r", full_amount)
+        log.debug("amount of log-records to check: %r", full_amount)
         if full_amount <= 0:
             return
         # if force is True:
@@ -363,7 +370,7 @@ class Updater:
         records_gen = self.database.iter_all_records(server=server, log_file=log_file, only_missing_record_class=not force)
 
         record_class_determiner = self.backend.record_class_manager.record_class_checker._determine_record_class
-
+        task_creator = self.database.record_inserter.update_record_class
         for record in records_gen:
             record_class = record_class_determiner(record)
             idx += 1
@@ -376,7 +383,7 @@ class Updater:
 
             if record.record_class_id is None or record.record_class_id != record_class.id:
                 # TODO: make both take the argument in the same order
-                task = self.database.record_inserter.update_record_class(log_record_id=int(record.id), record_class_id=int(record_class.id))
+                task = task_creator(log_record_id=int(record.id), record_class_id=int(record_class.id))
                 tasks.append(task)
                 amount_updated_record_classes += 1
                 if amount_updated_record_classes % 1000 == 0:
@@ -392,15 +399,16 @@ class Updater:
 
         if len(to_update) > 0:
             log.debug("updating %s records with their record class", number_to_pretty(len(to_update)))
-            task = self.database.record_inserter.many_update_record_class(list(to_update))
+            task = task_creator(list(to_update))
             tasks.append(task)
             to_update.clear()
             sleep(0.01)
         done, not_done = wait(tasks, return_when=FIRST_EXCEPTION)
         if not_done:
             for f in done:
-                if f.exception():
-                    log.error(f.exception(), exc_info=True)
+                exception = f.exception()
+                if exception is not None:
+                    log.error(exception)
         running_tasks = [fu for fu in tasks if fu.done() is False]
         old_len = len(running_tasks)
         while running_tasks:
@@ -434,6 +442,8 @@ class Updater:
         if self.is_updating_event.is_set() is True:
             log.info("update already running, returning!")
             return None, None
+
+        update_start_time = perf_counter_ns()
         self.is_updating_event.set()
         self.before_updates()
         amount_log_files_updated = 0
@@ -473,7 +483,10 @@ class Updater:
         finally:
             self.is_updating_event.clear()
             self.after_updates()
-
+        update_finish_time = perf_counter_ns()
+        update_time_taken = ns_to_s(update_finish_time - update_start_time, 3)
+        time_per_log_file = ns_to_s(update_finish_time - update_start_time) / max(1, amount_log_files_updated)
+        log.info("The update took %r s for %r updated log-files and %r deleted log-files -> %r s per updated log-file", update_time_taken, amount_log_files_updated, amount_deleted, round(time_per_log_file, ndigits=3))
         return amount_log_files_updated, amount_deleted
 
     def update_all_record_classes(self):

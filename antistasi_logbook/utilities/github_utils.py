@@ -73,13 +73,9 @@ def get_repo_file_list(url: str, branch_name: str = None):
     return file_items
 
 
-print(GITHUB_CLIENT.rate_limiting_resettime)
 fi = get_repo_file_list("https://github.com/official-antistasi-community/A3-Antistasi")
 
 
-for k, v in fi.items():
-    if "CfgFunctions" in k:
-        print(f"{k!r} :{v!r}")
 # region[Main_Exec]
 
 if __name__ == '__main__':
