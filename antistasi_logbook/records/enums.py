@@ -8,7 +8,12 @@ Soon.
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 from enum import Enum, Flag, auto, unique
+from typing import TYPE_CHECKING
 from pathlib import Path
+
+# * Type-Checking Imports --------------------------------------------------------------------------------->
+if TYPE_CHECKING:
+    from antistasi_logbook.storage.models.models import RecordOrigin
 
 # endregion[Imports]
 
@@ -83,11 +88,26 @@ class MessageFormat(Enum):
     PRETTY = auto()
     SHORT = auto()
     ORIGINAL = auto()
+    DISCORD = auto()
+
+    @ classmethod
+    def _missing_(cls, value: str):
+        mod_value = value.casefold()
+        for member in cls.__members__.values():
+            if member.name.casefold() == mod_value:
+                return member
+
+        raise ValueError("%r is not a valid %s" % (value, cls.__name__))
 
 
 class RecordFamily(Flag):
     GENERIC = auto()
     ANTISTASI = auto()
+
+    @classmethod
+    def from_record_origin(cls, record_origin: "RecordOrigin") -> "RecordFamily":
+        name = record_origin.name
+        return cls._member_map_.get(name.upper())
 
 
 class MessageTypus(Enum):

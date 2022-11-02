@@ -12,18 +12,18 @@ from pathlib import Path
 from weakref import WeakSet
 
 # * Qt Imports --------------------------------------------------------------------------------------->
-import PySide6
 from PySide6.QtGui import QAction
-from PySide6.QtCore import Signal, QObject
-from PySide6.QtWidgets import QWidget, QApplication, QStyle
+from PySide6.QtCore import Qt, QTimer, Signal, QObject, QTimerEvent
+from PySide6.QtWidgets import QStyle, QWidget, QApplication
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
+from gidapptools.general_helper.conversion import seconds2human
 from gidapptools.general_helper.string_helper import StringCase, StringCaseConverter
 from gidapptools.gidapptools_qt.basics.menu_bar import BaseMenuBar
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.storage.models.models import Mod, GameMap, Version, LogLevel, BaseModel, RecordClass, RecordOrigin, RemoteStorage, ArmaFunction, ArmaFunctionAuthorPrefix
+from antistasi_logbook.storage.models.models import Mod, ModSet, GameMap, Version, LogLevel, BaseModel, RecordClass, ArmaFunction, RecordOrigin, RemoteStorage, ArmaFunctionAuthorPrefix
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
@@ -73,6 +73,13 @@ class DataMenuAction(QAction):
     def on_triggered(self):
         self.new_triggered.emit(self.db_model)
 
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
 
 class DataMenuActionGroup(QObject):
     triggered = Signal(object)
@@ -85,8 +92,54 @@ class DataMenuActionGroup(QObject):
         self.actions.add(action)
         action.new_triggered.connect(self.triggered.emit)
 
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
+
+class TimeRemainingAction(QAction):
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setEnabled(False)
+        self.setText("")
+        self.timer_id: int = None
+        self.timer_to_watch: QTimer = None
+
+    def start(self, timer: QTimer):
+        self.timer_to_watch = timer
+        if self.timer_id is None:
+            self.timer_id = self.startTimer(1000 * 0.9, Qt.VeryCoarseTimer)
+
+    def stop(self):
+        if self.timer_id is not None:
+            self.killTimer(self.timer_id)
+            self.timer_id = None
+        self.setText("")
+
+    def timerEvent(self, event: QTimerEvent) -> None:
+        if self.timer_id is not None and event.timerId() == self.timer_id:
+            time_remaining = self.timer_to_watch.remainingTime() // 1000
+            if time_remaining <= 0:
+                text = "updating now!"
+            else:
+                text = f"updating in {seconds2human(time_remaining, with_year=False)}"
+
+            self.setText(text)
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
 
 class LogbookMenuBar(BaseMenuBar):
+    general_disabled_action_names = frozenset(["show_app_log", "show_errors"])
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent=parent, auto_connect_standard_actions=True)
@@ -100,14 +153,23 @@ class LogbookMenuBar(BaseMenuBar):
 
         self.database_menu = self.add_new_menu("Database", add_before=self.help_menu.menuAction())
         self.single_update_action = self.add_new_action(self.database_menu, "Update Once")
+        self.cyclic_update_action = self.add_new_action(self.database_menu, "Start Cyclic Update")
+        self.cyclic_update_remaining = TimeRemainingAction()
+
+        self.add_action(self.database_menu, self.cyclic_update_remaining)
         self.database_menu.addSeparator()
         self.reassign_record_classes_action = self.add_new_action(self.database_menu, "Reassign Record-Classes")
-
+        self.database_menu.addSeparator()
+        self.run_full_vaccum_action = self.add_new_action(self.database_menu, "Full Vacuum")
         self.open_settings_window_action = self.add_new_action(self.settings_menu, "Open Settings")
 
         self.exit_action.setIcon(AllResourceItems.close_cancel_image.get_as_icon())
 
         self.show_folder_action = self.add_new_action(self.help_menu, "Show Folder", add_before=self.help_separator, icon=self.style().standardIcon(QStyle.SP_DirIcon))
+
+        self.show_cli_arguments = self.add_new_action(self.help_menu, "Show Command Line Arguments")
+
+        self.show_help = self.add_new_action(self.help_menu, "Help")
 
         self.show_app_log_action = self.add_new_action(self.help_menu, "Show App Log", add_before=self.help_separator)
         self.show_errors_action = self.add_new_action(self.help_menu, "Show Errors", add_before=self.help_separator, icon=AllResourceItems.error_symbol_image.get_as_icon())
@@ -123,6 +185,7 @@ class LogbookMenuBar(BaseMenuBar):
         self.show_log_level_action = self.add_action(self.data_menu, DataMenuAction(LogLevel, self.data_menu))
         self.show_remote_storage_action = self.add_action(self.data_menu, DataMenuAction(RemoteStorage, self.data_menu))
         self.show_record_classes_action = self.add_action(self.data_menu, DataMenuAction(RecordClass, self.data_menu))
+        self.show_mod_sets_action = self.add_action(self.data_menu, DataMenuAction(ModSet, self.data_menu))
 
         self.data_menu_actions_group = DataMenuActionGroup(self.data_menu)
         self.data_menu_actions_group.add_action(self.show_game_maps_action)
@@ -134,6 +197,7 @@ class LogbookMenuBar(BaseMenuBar):
         self.data_menu_actions_group.add_action(self.show_log_level_action)
         self.data_menu_actions_group.add_action(self.show_remote_storage_action)
         self.data_menu_actions_group.add_action(self.show_record_classes_action)
+        self.data_menu_actions_group.add_action(self.show_mod_sets_action)
 # region[Main_Exec]
 
 

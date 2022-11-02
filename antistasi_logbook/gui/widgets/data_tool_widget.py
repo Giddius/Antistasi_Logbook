@@ -27,11 +27,12 @@ from dateutil.tz import UTC
 from gidapptools import get_logger
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.gui.models import LogLevelsModel, RecordClassesModel, RecordOriginsModel, ArmaFunctionModel
-from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord, ArmaFunction
+from antistasi_logbook.gui.models import LogLevelsModel, ArmaFunctionModel, RecordClassesModel, RecordOriginsModel
+from antistasi_logbook.storage.models.models import Server, LogFile, LogLevel, LogRecord, RecordClass, ArmaFunction
 from antistasi_logbook.gui.models.server_model import ServerModel
 from antistasi_logbook.gui.models.version_model import VersionModel
 from antistasi_logbook.gui.models.game_map_model import GameMapModel
+from antistasi_logbook.gui.models.log_records_model import LogRecordsModel
 from antistasi_logbook.gui.models.base_query_data_model import EmptyContentItem
 from antistasi_logbook.gui.models.remote_storages_model import RemoteStoragesModel
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
@@ -78,6 +79,9 @@ class BaseDataToolPage(QWidget):
         super().__init__(parent=parent)
         self.setLayout(QFormLayout(self))
         self.layout.setLabelAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        font = self.font()
+        font.setPointSizeF(font.pointSizeF() * 0.8)
+        self.setFont(font)
 
     @property
     def app(self) -> "AntistasiLogbookApplication":
@@ -111,6 +115,11 @@ class BaseDataToolWidget(QWidget):
         self.tool_box = QToolBox()
         self.layout.addWidget(self.tool_box)
 
+        font = self.font()
+        font.setPointSizeF(font.pointSizeF() * 0.8)
+        self.setFont(font)
+        self.tool_box.setFont(font)
+
     def add_page(self, page: BaseDataToolPage):
         if page.name is None or page.icon is None:
 
@@ -118,6 +127,14 @@ class BaseDataToolWidget(QWidget):
 
         self.tool_box.addItem(page, page.icon, page.name)
         self.pages[page.name.casefold()] = page
+        for idx in range(page.layout.rowCount()):
+            child = page.layout.itemAt(idx).widget()
+            try:
+
+                child.setFont(self.font())
+            except Exception as e:
+                log.critical("encountered error %r while setting font for child %r", e, child)
+        page.repaint()
 
     def get_page_by_name(self, name: str) -> BaseDataToolPage:
         return self.pages[name.casefold()]
@@ -367,7 +384,6 @@ class LogFileFilterPage(BaseDataToolPage):
         return None
 
     def on_change(self, *args):
-        log.debug("on_change was triggered with %r", args)
         query_filter = self.collect_query_filters()
         self.query_filter_changed.emit(query_filter)
 
@@ -439,7 +455,6 @@ class ServerFilterPage(BaseDataToolPage):
         return None
 
     def on_change(self, *args):
-        log.debug("on_change was triggered with %r", args)
         query_filter = self.collect_query_filters()
         self.query_filter_changed.emit(query_filter)
 
@@ -494,7 +509,7 @@ class LogRecordSearchPage(BaseDataToolPage):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.column_select_combo = QComboBox(self)
-        items = list(LogRecord.get_meta().columns)
+        items = list(LogRecord.get_meta().columns) + [ec.name for ec in LogRecordsModel.extra_columns]
         self.column_select_combo.addItems(items)
         self.column_select_combo.setCurrentIndex(items.index("message"))
         self.layout.addRow("column", self.column_select_combo)
@@ -550,6 +565,7 @@ class LogRecordFilterPage(BaseDataToolPage):
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
+        self.log_file = None
         self.filter_by_log_level_combo_box = QComboBox()
         log_level_model = LogLevelsModel().refresh()
         log_level_model.add_empty_item()
@@ -565,7 +581,7 @@ class LogRecordFilterPage(BaseDataToolPage):
         logged_from_model.refresh()
         logged_from_model.add_empty_item()
         self.filter_by_logged_from_combo_box.setModel(logged_from_model)
-        self.filter_by_logged_from_combo_box.setModelColumn(logged_from_model.get_column_index("file_name"))
+        self.filter_by_logged_from_combo_box.setModelColumn(logged_from_model.get_column_index("function_name"))
         self.filter_by_logged_from_combo_box.setCurrentIndex(-1)
 
         self.layout.addRow("Filter by Logged-from", self.filter_by_logged_from_combo_box)
@@ -605,6 +621,32 @@ class LogRecordFilterPage(BaseDataToolPage):
         self.setup_signals()
 
         return self
+
+    def set_log_file(self, log_file: LogFile):
+        self.log_file = log_file
+        level_ids = [i.log_level.id for i in LogRecord.select(LogRecord.log_level).where(LogRecord.log_file_id == self.log_file.id).left_outer_join(LogLevel).distinct()]
+        self.filter_by_log_level_combo_box.model().filter_item = (LogLevel.id << level_ids)
+        self.filter_by_log_level_combo_box.model().refresh()
+        self.filter_by_log_level_combo_box.model().add_empty_item()
+        self.filter_by_log_level_combo_box.setCurrentIndex(-1)
+
+        logged_from_ids = []
+        for item in LogRecord.select(LogRecord.logged_from).where(LogRecord.log_file_id == self.log_file.id).left_outer_join(ArmaFunction, on=LogRecord.logged_from).distinct():
+            try:
+                logged_from_ids.append(item.logged_from.id)
+            except AttributeError:
+                continue
+
+        self.filter_by_logged_from_combo_box.model().filter_item = (ArmaFunction.id << logged_from_ids)
+        self.filter_by_logged_from_combo_box.model().refresh()
+        self.filter_by_logged_from_combo_box.model().add_empty_item()
+        self.filter_by_logged_from_combo_box.setCurrentIndex(-1)
+
+        record_class_ids = [i.record_class.id for i in LogRecord.select(LogRecord.record_class).where(LogRecord.log_file_id == self.log_file.id).left_outer_join(RecordClass, on=LogRecord.record_class).distinct()]
+        self.filter_by_record_class_combo_box.model().filter_item = (RecordClass.id << record_class_ids)
+        self.filter_by_record_class_combo_box.model().refresh()
+        self.filter_by_record_class_combo_box.model().add_empty_item()
+        self.filter_by_record_class_combo_box.setCurrentIndex(-1)
 
     def setup_signals(self):
         self.filter_by_log_level_combo_box.currentIndexChanged.connect(self.on_change)
@@ -646,7 +688,6 @@ class LogRecordFilterPage(BaseDataToolPage):
         return None
 
     def on_change(self, *args):
-        log.debug("on_change was triggered with %r", args)
         query_filter = self.collect_query_filters()
         self.query_filter_changed.emit(query_filter)
 
@@ -656,8 +697,18 @@ class LogRecordDataToolWidget(BaseDataToolWidget):
     def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
         super().__init__(parent=parent)
 
-        self.add_page(LogRecordFilterPage(self).setup())
-        self.add_page(LogRecordSearchPage(self).setup())
+        self.add_page(LogRecordFilterPage(self))
+        self.add_page(LogRecordSearchPage(self))
+
+    def set_log_file(self, log_file: LogFile):
+        log.debug("setting log_file %r", log_file)
+        for page in self.pages.values():
+            try:
+                page.set_log_file(log_file)
+            except AttributeError:
+                continue
+            page.setup()
+        self.repaint()
 # region[Main_Exec]
 
 

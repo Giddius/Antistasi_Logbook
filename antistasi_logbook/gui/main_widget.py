@@ -15,7 +15,7 @@ from threading import Event
 import PySide6
 from PySide6.QtGui import QMovie
 from PySide6.QtCore import Qt, QSize, Signal, QThread, QByteArray, QModelIndex
-from PySide6.QtWidgets import QLabel, QDialog, QWidget, QTabWidget, QGridLayout, QSizePolicy, QVBoxLayout, QApplication
+from PySide6.QtWidgets import QLabel, QDialog, QWidget, QGridLayout, QSizePolicy, QVBoxLayout, QApplication
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -31,8 +31,9 @@ from antistasi_logbook.gui.widgets.data_tool_widget import ServerDataToolWidget,
 from antistasi_logbook.gui.views.log_files_query_view import LogFilesQueryTreeView
 from antistasi_logbook.gui.widgets.detail_view_widget import ServerDetailWidget, LogFileDetailWidget, LogRecordDetailView
 from antistasi_logbook.gui.views.log_records_query_view import LogRecordsQueryView
+from antistasi_logbook.gui.main_tab_display.main_tab_widget import MainTabWidget
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-from antistasi_logbook.gui.widgets.tool_bars import LogFileToolBar
+
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
@@ -78,6 +79,13 @@ class SpinnerWidget(QDialog):
         self.spinner_movie.stop()
         return super().close()
 
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
 
 class Spinner(QThread):
 
@@ -92,6 +100,13 @@ class Spinner(QThread):
     def request_term(self):
         self.term_requested = True
 
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
 
 class MainWidget(QWidget):
     query_result_finished = Event()
@@ -103,7 +118,7 @@ class MainWidget(QWidget):
 
         self.query_widget: QueryWidget = None
         self.detail_widget: BaseDockWidget = None
-        self.main_tabs_widget: QTabWidget = None
+        self.main_tabs_widget: MainTabWidget = None
         self.server_tab: ServerQueryTreeView = None
         self.log_files_tab: LogFilesQueryTreeView = None
         self.query_result_tab: LogRecordsQueryView = None
@@ -143,7 +158,7 @@ class MainWidget(QWidget):
         self.main_window.addDockWidget(Qt.RightDockWidgetArea, self.detail_widget, Qt.Vertical)
 
     def setup_main_tabs_widget(self) -> None:
-        self.main_tabs_widget = QTabWidget(self)
+        self.main_tabs_widget = MainTabWidget(self)
         size_policy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         size_policy.setHorizontalStretch(2)
         size_policy.setVerticalStretch(0)
@@ -152,20 +167,20 @@ class MainWidget(QWidget):
 
         self.server_tab = ServerQueryTreeView().setup()
 
-        self.main_tabs_widget.addTab(self.server_tab, self.server_tab.icon, self.server_tab.name)
+        self.main_tabs_widget.add_fixed_tab(self.server_tab, icon=self.server_tab.icon, label=self.server_tab.name)
         old_icon_size = self.main_tabs_widget.iconSize()
         new_icon_size = QSize(old_icon_size.width() * 1.25, old_icon_size.height() * 1.25)
         self.main_tabs_widget.setIconSize(new_icon_size)
         self.log_files_tab = LogFilesQueryTreeView().setup()
         self.log_files_tab.doubleClicked.connect(self.query_log_file)
-        self.main_tabs_widget.addTab(self.log_files_tab, self.log_files_tab.icon, self.log_files_tab.name)
+        self.main_tabs_widget.add_fixed_tab(self.log_files_tab, icon=self.log_files_tab.icon, label=self.log_files_tab.name)
 
         self.query_result_tab = LogRecordsQueryView().setup()
         self.query_result_tab.about_to_screenshot.connect(self.hide_dock_widgets)
         self.query_result_tab.screenshot_finished.connect(self.unhide_dock_widgets)
 
         # self.query_result_tab.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-        self.main_tabs_widget.addTab(self.query_result_tab, self.query_result_tab.icon, "Log-Records")
+        self.main_tabs_widget.add_fixed_tab(self.query_result_tab, icon=self.query_result_tab.icon, label="Log-Records")
 
         self.main_layout.addWidget(self.main_tabs_widget, 1, 1, 4, 3)
         self.main_tabs_widget.currentChanged.connect(self.on_tab_changed)
@@ -182,23 +197,24 @@ class MainWidget(QWidget):
         # TODO change it so, that the view has all the widgets and provides it
 
         if index == self.main_tabs_widget.indexOf(self.log_files_tab):
-            log.debug("setting tool_bar %r", self.log_files_tab.tool_bar_item)
             self.main_window.set_tool_bar(self.log_files_tab.tool_bar_item)
             self.main_window.tool_bar.show_records_action.triggered.connect(self.query_log_file)
             if self.log_files_tab.model is None:
 
                 return
+            widget = None
             if self.log_files_tab.model.data_tool is None:
 
                 widget = LogFileDataToolWidget()
                 self.query_widget.add_page(widget, name="log_file")
                 self.log_files_tab.model.data_tool = widget
-                widget.pages["filter"].query_filter_changed.connect(self.log_files_tab.model.on_query_filter_changed)
-                widget.pages["filter"].show_unparsable_check_box.toggled.connect(self.log_files_tab.model.change_show_unparsable)
 
             self.query_widget.set_current_index(self.log_files_tab.model.data_tool)
             self.query_widget.resize(self.query_widget.sizeHint())
             self.log_files_tab.resize_header_sections()
+            if widget is not None:
+                widget.pages["filter"].query_filter_changed.connect(self.log_files_tab.model.on_query_filter_changed)
+                widget.pages["filter"].show_unparsable_check_box.toggled.connect(self.log_files_tab.model.change_show_unparsable)
 
         elif index == self.main_tabs_widget.indexOf(self.server_tab):
             self.main_window.set_tool_bar(self.server_tab.tool_bar_item)
@@ -220,36 +236,38 @@ class MainWidget(QWidget):
             if self.query_result_tab.model is None:
                 self.query_widget.resize(self.query_widget.sizeHint())
                 return
+
+            widget = None
             if self.query_result_tab.model.data_tool is None:
                 widget = LogRecordDataToolWidget()
                 self.query_widget.add_page(widget, name="log_record")
                 self.query_result_tab.model.data_tool = widget
+
                 for page in widget.pages.values():
 
                     self.query_result_tab.model.request_view_change_visibility.connect(page.setEnabled)
 
-                widget.pages["filter"].query_filter_changed.connect(self.query_result_tab.model.on_query_filter_changed)
-                widget.pages["search"].search_changed.connect(self.query_result_tab.filter)
             self.query_widget.set_current_index(self.query_result_tab.model.data_tool)
             self.query_widget.resize(self.query_widget.sizeHint())
             self.query_result_tab.resize_header_sections()
-
+            if widget is not None:
+                widget.pages["filter"].query_filter_changed.connect(self.query_result_tab.model.on_query_filter_changed)
+                widget.pages["search"].search_changed.connect(self.query_result_tab.filter)
         self.query_widget.resize(self.query_widget.sizeHint())
 
     def setup_views(self) -> None:
+        log_file_model = LogFilesModel()
+        self.log_files_tab.setModel(log_file_model)
         server_model = ServerModel()
 
         self.server_tab.setModel(server_model)
 
         self.server_tab.single_item_selected.connect(self.show_server_detail)
         self.on_tab_changed(0)
-        log_file_model = LogFilesModel()
-
-        self.log_files_tab.setModel(log_file_model)
 
         self.log_files_tab.resize_header_sections()
         self.log_files_tab.single_item_selected.connect(self.show_log_file_detail)
-        self.log_files_tab.clicked.connect(self.show_log_file_detail)
+        self.log_files_tab.activated.connect(self.show_log_file_detail)
 
     def show_server_detail(self, index):
         item = self.server_tab.model.content_items[index.row()]
@@ -264,6 +282,7 @@ class MainWidget(QWidget):
         self.detail_widget.show_if_first()
 
     def show_log_file_detail(self, index):
+
         item = self.log_files_tab.model.content_items[index.row()]
         view = LogFileDetailWidget(log_file=item, parent=self.detail_widget)
 
@@ -278,6 +297,7 @@ class MainWidget(QWidget):
         item = self.query_result_tab.model.content_items[index.row()]
 
         view = LogRecordDetailView(record=item, parent=self.detail_widget)
+        self.query_result_tab.multiple_items_selected.connect(view.on_multiple_items_selected)
         self.detail_widget.setWidget(view)
         view.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
 
@@ -297,14 +317,22 @@ class MainWidget(QWidget):
         log_file = self.log_files_tab.model.content_items[index.row()]
         log_record_model = LogRecordsModel(parent=self.query_result_tab)
         log_record_model._base_filter_item = log_record_model._base_filter_item & (LogRecord.log_file_id == log_file.id)
-        log_record_model.request_view_change_visibility.connect(self.query_result_tab.setEnabled)
-        log_record_model.request_view_change_visibility.connect(self.query_result_tab.setVisible)
+        # log_record_model.request_view_change_visibility.connect(self.query_result_tab.setEnabled)
+        # log_record_model.request_view_change_visibility.connect(self.query_result_tab.setVisible)
         self.main_tabs_widget.setCurrentWidget(self.query_result_tab)
-
+        self.query_result_tab.tool_bar_item.set_title_from_log_file(log_file)
         self.query_result_tab.setModel(log_record_model)
         self.on_tab_changed(self.main_tabs_widget.currentIndex())
+        self.query_result_tab.model.data_tool.set_log_file(log_file)
 
         self.query_result_tab.single_item_selected.connect(self.show_log_record_detail)
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 
 # region[Main_Exec]

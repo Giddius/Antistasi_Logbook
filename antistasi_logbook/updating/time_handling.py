@@ -17,7 +17,7 @@ from threading import Event
 from dateutil.tz import UTC
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
-from gidapptools import get_logger, get_meta_config
+from gidapptools import get_logger
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
@@ -37,11 +37,10 @@ if TYPE_CHECKING:
 
 # region [Constants]
 
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
-get_dummy_profile_decorator_in_globals()
+
 log = get_logger(__name__)
 THIS_FILE_DIR = Path(__file__).parent.absolute()
-CONFIG = get_meta_config().get_config("general")
+
 # endregion[Constants]
 
 

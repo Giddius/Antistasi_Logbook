@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Iterable, Optional, Generator
 from pathlib import Path
 from zipfile import ZipFile
 from datetime import datetime, timedelta
-from threading import Lock, RLock
+from threading import Lock, RLock, Semaphore
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 import yarl
@@ -25,8 +25,8 @@ from dateutil.tz import UTC
 from webdav4.client import Client as WebdavClient
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
-from gidapptools import get_logger, get_meta_paths, get_meta_config
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+from gidapptools import get_logger, get_meta_paths
+from gidapptools.general_helper.conversion import human2bytes
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook import setup
@@ -35,13 +35,13 @@ from antistasi_logbook.utilities.enums import RemoteItemType
 from antistasi_logbook.utilities.locks import MinDurationSemaphore
 from antistasi_logbook.updating.info_item import InfoItem
 from antistasi_logbook.utilities.nextcloud import Retrier, exponential_timeout
-from antistasi_logbook.utilities.path_utilities import RemotePath, url_to_path
+from antistasi_logbook.utilities.path_utilities import RemotePath
 
 setup()
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.meta_data.interface import MetaPaths
-    from gidapptools.gid_config.meta_factory import GidIniConfig
+    from gidapptools.gid_config.interface import GidIniConfig
 
     from antistasi_logbook.storage.models.models import LogFile, RemoteStorage
 
@@ -58,11 +58,11 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-get_dummy_profile_decorator_in_globals()
+
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 META_PATHS: "MetaPaths" = get_meta_paths()
-CONFIG: "GidIniConfig" = get_meta_config().get_config('general')
+
 log = get_logger(__name__)
 # endregion[Constants]
 
@@ -114,7 +114,7 @@ remote_manager_registry = RemoteManagerRegistry()
 
 
 class AbstractRemoteStorageManager(ABC):
-    config: "GidIniConfig" = CONFIG
+    config: "GidIniConfig" = None
 
     def __init__(self, base_url: yarl.URL = None, login: str = None, password: str = None) -> None:
         self.base_url = base_url
@@ -156,17 +156,16 @@ class AbstractRemoteStorageManager(ABC):
 
 @remote_manager_registry.register_decorator()
 class LocalManager(AbstractRemoteStorageManager):
-    config: "GidIniConfig" = CONFIG
 
     def __init__(self, base_url: yarl.URL, login: str, password: str) -> None:
         super().__init__(base_url=base_url, login=login, password=password)
-        try:
-            self.path = url_to_path(self.base_url)
-        except AssertionError:
-            self.path = Path.cwd()
+
+        self.path = None
 
     def get_files(self, folder_path: Path) -> Generator:
-        return (self.get_info(file) for file in folder_path.iterdir() if file.is_file())
+        _out = (self.get_info(file) for file in folder_path.iterdir() if file.is_file())
+        log.debug("get_files for folder_path %r result: %r", folder_path, _out)
+        return _out
 
     def get_info(self, file_path: Path) -> InfoItem:
         stat = file_path.stat()
@@ -185,10 +184,10 @@ class LocalManager(AbstractRemoteStorageManager):
 
 @remote_manager_registry.register_decorator()
 class WebdavManager(AbstractRemoteStorageManager):
-    config: "GidIniConfig" = CONFIG
+
     _extra_base_url_parts = ["dev_drive", "remote.php", "dav", "files"]
 
-    download_semaphores: dict[yarl.URL, MinDurationSemaphore] = {}
+    download_semaphores: dict[yarl.URL, Semaphore] = {}
     config_name = 'webdav'
 
     def __init__(self, base_url: yarl.URL, login: str, password: str) -> None:
@@ -196,7 +195,7 @@ class WebdavManager(AbstractRemoteStorageManager):
         self.full_base_url = self._make_full_base_url()
         self._client: WebdavClient = None
         self.download_semaphore = self._get_download_semaphore()
-        self.config.config.changed_signal.connect(self.reset_client)
+        self.config.changed_signal.connect(self.reset_client)
 
     @classmethod
     def _validate_remote_storage_item(cls, remote_storage_item: "RemoteStorage") -> None:
@@ -204,12 +203,10 @@ class WebdavManager(AbstractRemoteStorageManager):
         if any(x is None for x in [remote_storage_item.get_login(), remote_storage_item.get_password()]):
             raise MissingLoginAndPasswordError(remote_storage_item=remote_storage_item)
 
-    def _get_download_semaphore(self) -> MinDurationSemaphore:
+    def _get_download_semaphore(self, fresh: bool = False) -> Semaphore:
         download_semaphore = self.download_semaphores.get(self.full_base_url)
-        if download_semaphore is None:
-            delay = self.config.get(self.config_name, "delay_between_downloads", default=timedelta())
-            minimum_duration = CONFIG.get(self.config_name, "minimum_download_duration", default=timedelta())
-            download_semaphore = MinDurationSemaphore(self.max_connections, minimum_duration=minimum_duration, delay=delay)
+        if download_semaphore is None or fresh is True:
+            download_semaphore = Semaphore(self.max_connections)
 
             self.download_semaphores[self.full_base_url] = download_semaphore
         return download_semaphore
@@ -217,10 +214,11 @@ class WebdavManager(AbstractRemoteStorageManager):
     def reset_client(self, config: "GidIniConfig") -> None:
         log.debug("client reset called")
         self._client = None
+        self.download_semaphore = self._get_download_semaphore(fresh=True)
 
     @property
     def max_connections(self) -> Optional[int]:
-        return CONFIG.get(self.config_name, "max_concurrent_connections", default=100)
+        return self.config.get(self.config_name, "max_concurrent_connections", default=100)
 
     def _get_new_client(self) -> WebdavClient:
         return WebdavClient(base_url=str(self.full_base_url),
@@ -251,6 +249,7 @@ class WebdavManager(AbstractRemoteStorageManager):
             if info.type is RemoteItemType.DIRECTORY:
                 continue
             # dump_to_info_dump(info)
+
             yield info
 
     def get_info(self, file_path: RemotePath) -> InfoItem:
@@ -258,19 +257,20 @@ class WebdavManager(AbstractRemoteStorageManager):
         _out = InfoItem.from_webdav_info(info)
         return _out
 
-    @Retrier([httpx.ReadError, httpx.RemoteProtocolError], allowed_attempts=3, timeout=5, timeout_function=exponential_timeout)
+    @Retrier([httpx.ReadError, httpx.RemoteProtocolError], allowed_attempts=5, timeout=30, timeout_function=exponential_timeout)
     def download_file(self, log_file: "LogFile") -> "LogFile":
-        local_path = log_file.local_path
-        chunk_size = self.config.get("downloading", "chunk_size", default=None)
+        with self.download_semaphore:
+            local_path = log_file.local_path
+            chunk_size = self.config.get("downloading", "chunk_size", default=human2bytes("1 mb"))
 
-        log.info("downloading %s", log_file)
-        result = self.client.http.get(str(log_file.download_url), auth=(self.login, self.password))
-        with local_path.open("wb") as f:
-            for chunk in result.iter_bytes(chunk_size=chunk_size):
-                f.write(chunk)
-        log_file.is_downloaded = True
-        log.info("finished downloading %s", log_file)
-        return local_path
+            log.info("downloading %s", log_file)
+            result = self.client.http.get(str(log_file.download_url), auth=(self.login, self.password))
+            with local_path.open("wb") as f:
+                for chunk in result.iter_bytes(chunk_size=chunk_size):
+
+                    f.write(chunk)
+            log_file.is_downloaded = True
+            return local_path
 
     def close(self) -> None:
         if self._client is not None:
@@ -341,7 +341,7 @@ class FakeWebdavManager(AbstractRemoteStorageManager):
     info_file: Path = None
     _info_data: dict[RemotePath, InfoItem] = None
     download_semaphores: dict[yarl.URL, MinDurationSemaphore] = {}
-    config: "GidIniConfig" = CONFIG
+
     config_name = 'webdav'
     metrics = FakeManagerMetrics()
     for_datetime_of: datetime = datetime(year=2021, month=11, day=9, hour=12, minute=0, second=0, microsecond=0, tzinfo=UTC)
@@ -361,7 +361,7 @@ class FakeWebdavManager(AbstractRemoteStorageManager):
 
     @property
     def max_connections(self) -> Optional[int]:
-        return self.config.get(self.config_name, "max_concurrent_connections", default=100)
+        return max(1, self.config.get(self.config_name, "max_concurrent_connections", default=100))
 
     def _get_download_semaphore(self) -> MinDurationSemaphore:
         download_semaphore = self.download_semaphores.get(self.full_base_url)

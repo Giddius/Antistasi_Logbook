@@ -3,9 +3,6 @@ This File was auto-generated
 """
 
 
-
-
-
 # region[Imports]
 
 import os
@@ -18,7 +15,7 @@ import atexit
 import pp
 from pprint import pprint, pformat
 from gidapptools.gidapptools_qt.resources.resources_helper import ressource_item_factory, ResourceItem, AllResourceItemsMeta
-from gidapptools import get_meta_info, get_logger
+from gidapptools import get_logger
 from . import antistasi_logbook_resources
 
 # endregion[Imports]
@@ -29,6 +26,8 @@ log = get_logger(__name__)
 ANTISTASI_LOGBOOK_SPLASH_PREPARING_DATABASE_IMAGE = ressource_item_factory(file_path='antistasi_logbook_splash_preparing_database.png', qt_path=':/images/antistasi_logbook_splash_preparing_database.png')
 
 FILTER_PAGE_SYMBOL_IMAGE = ressource_item_factory(file_path='filter_page_symbol.svg', qt_path=':/images/filter_page_symbol.svg')
+
+ZOOM_OUT_CURSOR_IMAGE = ressource_item_factory(file_path='zoom_out_cursor.png', qt_path=':/images/zoom_out_cursor.png')
 
 ARMAFUNCTION_TAB_ICON_IMAGE = ressource_item_factory(file_path='armafunction_tab_icon.png', qt_path=':/images/armafunction_tab_icon.png')
 
@@ -68,7 +67,7 @@ ERROR_SYMBOL_IMAGE = ressource_item_factory(file_path='error_symbol.svg', qt_pat
 
 CLOSE_BLACK_IMAGE = ressource_item_factory(file_path='close_black.svg', qt_path=':/images/close_black.svg')
 
-PLACEHOLDER_IMAGE = ressource_item_factory(file_path='placeholder.png', qt_path=':/images/placeholder.png')
+VIEW_IMAGE = ressource_item_factory(file_path='view.svg', qt_path=':/images/view.svg')
 
 ANTISTASI_LOGBOOK_SPLASH_BACKUP_IMAGE = ressource_item_factory(file_path='antistasi_logbook_splash_backup.png', qt_path=':/images/antistasi_logbook_splash_backup.png')
 
@@ -78,6 +77,8 @@ WARNING_SIGN_ROUND_YELLOW_IMAGE = ressource_item_factory(file_path='warning_sign
 
 UNMARK_IMAGE = ressource_item_factory(file_path='unmark.png', qt_path=':/images/unmark.png')
 
+PLACEHOLDER_IMAGE = ressource_item_factory(file_path='placeholder.png', qt_path=':/images/placeholder.png')
+
 CLOSED_EYE_IMAGE = ressource_item_factory(file_path='closed_eye.svg', qt_path=':/images/closed_eye.svg')
 
 ANTISTASI_LOGBOOK_SPLASH_SHUTDOWN_BACKEND_IMAGE = ressource_item_factory(file_path='antistasi_logbook_splash_shutdown_backend.png', qt_path=':/images/antistasi_logbook_splash_shutdown_backend.png')
@@ -85,6 +86,8 @@ ANTISTASI_LOGBOOK_SPLASH_SHUTDOWN_BACKEND_IMAGE = ressource_item_factory(file_pa
 DATABASE_SETTINGS_IMAGE = ressource_item_factory(file_path='database_settings.svg', qt_path=':/images/database_settings.svg')
 
 SPINNER_GIF = ressource_item_factory(file_path='spinner.gif', qt_path=':/gifs/spinner.gif')
+
+ZOOM_IN_CURSOR_IMAGE = ressource_item_factory(file_path='zoom_in_cursor.png', qt_path=':/images/zoom_in_cursor.png')
 
 STATS_ICON_2_IMAGE = ressource_item_factory(file_path='stats_icon_2.svg', qt_path=':/images/stats_icon_2.svg')
 
@@ -98,9 +101,17 @@ SELECT_PATH_SYMBOL_IMAGE = ressource_item_factory(file_path='select_path_symbol.
 
 GAMEMAP_TAB_ICON_IMAGE = ressource_item_factory(file_path='gamemap_tab_icon.svg', qt_path=':/images/gamemap_tab_icon.svg')
 
+FONT_SETTINGS_IMAGE = ressource_item_factory(file_path='font_settings.png', qt_path=':/images/font_settings.png')
+
 LOGLEVEL_TAB_ICON_IMAGE = ressource_item_factory(file_path='loglevel_tab_icon.png', qt_path=':/images/loglevel_tab_icon.png')
 
+AVERAGE_PLAYERS_ICON_IMAGE = ressource_item_factory(file_path='average_players_icon.png', qt_path=':/images/average_players_icon.png')
+
 VISIBLE_ICON_IMAGE = ressource_item_factory(file_path='visible_icon.svg', qt_path=':/images/visible_icon.svg')
+
+ANTISTASI_LOGBOOK_SPLASH_STARTING_IMAGE = ressource_item_factory(file_path='antistasi_logbook_splash_starting.png', qt_path=':/images/antistasi_logbook_splash_starting.png')
+
+ANTISTASI_LOGBOOK_SPLASH_SHUTDOWN_IMAGE = ressource_item_factory(file_path='antistasi_logbook_splash_shutdown.png', qt_path=':/images/antistasi_logbook_splash_shutdown.png')
 
 GENERAL_SETTINGS_IMAGE = ressource_item_factory(file_path='general_settings.svg', qt_path=':/images/general_settings.svg')
 
@@ -137,6 +148,7 @@ class AllResourceItems(metaclass=AllResourceItemsMeta):
 
     antistasi_logbook_splash_preparing_database_image = ANTISTASI_LOGBOOK_SPLASH_PREPARING_DATABASE_IMAGE
     filter_page_symbol_image = FILTER_PAGE_SYMBOL_IMAGE
+    zoom_out_cursor_image = ZOOM_OUT_CURSOR_IMAGE
     armafunction_tab_icon_image = ARMAFUNCTION_TAB_ICON_IMAGE
     open_eye_image = OPEN_EYE_IMAGE
     mark_image = MARK_IMAGE
@@ -156,22 +168,28 @@ class AllResourceItems(metaclass=AllResourceItemsMeta):
     settings_window_symbol_image = SETTINGS_WINDOW_SYMBOL_IMAGE
     error_symbol_image = ERROR_SYMBOL_IMAGE
     close_black_image = CLOSE_BLACK_IMAGE
-    placeholder_image = PLACEHOLDER_IMAGE
+    view_image = VIEW_IMAGE
     antistasi_logbook_splash_backup_image = ANTISTASI_LOGBOOK_SPLASH_BACKUP_IMAGE
     antistasi_logbook_splash_starting_backend_image = ANTISTASI_LOGBOOK_SPLASH_STARTING_BACKEND_IMAGE
     warning_sign_round_yellow_image = WARNING_SIGN_ROUND_YELLOW_IMAGE
     unmark_image = UNMARK_IMAGE
+    placeholder_image = PLACEHOLDER_IMAGE
     closed_eye_image = CLOSED_EYE_IMAGE
     antistasi_logbook_splash_shutdown_backend_image = ANTISTASI_LOGBOOK_SPLASH_SHUTDOWN_BACKEND_IMAGE
     database_settings_image = DATABASE_SETTINGS_IMAGE
+    zoom_in_cursor_image = ZOOM_IN_CURSOR_IMAGE
     stats_icon_2_image = STATS_ICON_2_IMAGE
     hidden_icon_image = HIDDEN_ICON_IMAGE
     coloring_icon_3_image = COLORING_ICON_3_IMAGE
     armafunctionauthorprefix_tab_icon_image = ARMAFUNCTIONAUTHORPREFIX_TAB_ICON_IMAGE
     select_path_symbol_image = SELECT_PATH_SYMBOL_IMAGE
     gamemap_tab_icon_image = GAMEMAP_TAB_ICON_IMAGE
+    font_settings_image = FONT_SETTINGS_IMAGE
     loglevel_tab_icon_image = LOGLEVEL_TAB_ICON_IMAGE
+    average_players_icon_image = AVERAGE_PLAYERS_ICON_IMAGE
     visible_icon_image = VISIBLE_ICON_IMAGE
+    antistasi_logbook_splash_starting_image = ANTISTASI_LOGBOOK_SPLASH_STARTING_IMAGE
+    antistasi_logbook_splash_shutdown_image = ANTISTASI_LOGBOOK_SPLASH_SHUTDOWN_IMAGE
     general_settings_image = GENERAL_SETTINGS_IMAGE
     webdav_settings_image = WEBDAV_SETTINGS_IMAGE
     debug_settings_image = DEBUG_SETTINGS_IMAGE
@@ -188,7 +206,6 @@ class AllResourceItems(metaclass=AllResourceItemsMeta):
     parsing_settings_image = PARSING_SETTINGS_IMAGE
     spinner_gif = SPINNER_GIF
 
-
     @classmethod
     def dump_missing(cls):
         missing_items = {k: [i.rsplit('_', 1)[0] for i in v] for k, v in cls.missing_items.items()}
@@ -196,5 +213,5 @@ class AllResourceItems(metaclass=AllResourceItemsMeta):
         log.info("Missing Ressource Items:\n%s", pp.fmt(missing_items).replace("'", '"'))
 
 
-if get_meta_info().is_dev is True:
-    atexit.register(AllResourceItems.dump_missing)
+# if __debug__ is True:
+#     atexit.register(AllResourceItems.dump_missing)

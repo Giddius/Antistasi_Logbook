@@ -9,42 +9,23 @@ Soon.
 # * Standard Library Imports ---------------------------------------------------------------------------->
 from typing import TYPE_CHECKING, Any, Optional
 from pathlib import Path
-from time import sleep
+from concurrent.futures import Future
+
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6 import QtCore
-from PySide6.QtCore import Qt, Slot, QModelIndex
-import PySide6
-from PySide6 import (QtCore, QtGui, QtWidgets, Qt3DAnimation, Qt3DCore, Qt3DExtras, Qt3DInput, Qt3DLogic, Qt3DRender, QtAxContainer, QtBluetooth,
-                     QtCharts, QtConcurrent, QtDataVisualization, QtDesigner, QtHelp, QtMultimedia, QtMultimediaWidgets, QtNetwork, QtNetworkAuth,
-                     QtOpenGL, QtOpenGLWidgets, QtPositioning, QtPrintSupport, QtQml, QtQuick, QtQuickControls2, QtQuickWidgets, QtRemoteObjects,
-                     QtScxml, QtSensors, QtSerialPort, QtSql, QtStateMachine, QtSvg, QtSvgWidgets, QtTest, QtUiTools, QtWebChannel, QtWebEngineCore,
-                     QtWebEngineQuick, QtWebEngineWidgets, QtWebSockets, QtXml)
-
-from PySide6.QtCore import (QByteArray, QCoreApplication, QDate, QDateTime, QEvent, QLocale, QMetaObject, QModelIndex, QModelRoleData, QMutex,
-                            QMutexLocker, QObject, QPoint, QRect, QRecursiveMutex, QRunnable, QSettings, QSize, QThread, QThreadPool, QTime, QUrl,
-                            QWaitCondition, QMimeData, Qt, QAbstractItemModel, QFileInfo, QAbstractListModel, QAbstractTableModel, Signal, Slot)
-
-from PySide6.QtGui import (QAction, QDrag, QBrush, QMouseEvent, QDesktopServices, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
-                           QKeySequence, QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform)
-
-from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QDialogButtonBox,
-                               QDockWidget, QDoubleSpinBox, QFontComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
-                               QLCDNumber, QLabel, QLayout, QLineEdit, QListView, QListWidget, QMainWindow, QMenu, QMenuBar, QMessageBox,
-                               QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
-                               QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
-                               QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
+from PySide6.QtCore import Qt, QUrl, Slot, QMimeData, QModelIndex
 
 # * Third Party Imports --------------------------------------------------------------------------------->
-from peewee import JOIN, Field, Query
+from peewee import Field, Query
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.storage.models.models import Server, GameMap, LogFile, Version
+from antistasi_logbook.storage.models.models import ModSet, Server, LogFile, Version
 from antistasi_logbook.storage.models.custom_fields import FakeField
 from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE, BaseQueryDataModel, ModelContextMenuAction
-from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
+
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.storage.models.models import BaseModel
@@ -70,18 +51,18 @@ log = get_logger(__name__)
 
 
 class LogFilesModel(BaseQueryDataModel):
-    extra_columns = {FakeField(name="amount_log_records", verbose_name="Records"),
-                     FakeField("time_frame", "Time Frame"),
-                     FakeField(name="amount_errors", verbose_name="Errors"),
-                     FakeField(name="amount_warnings", verbose_name="Warnings")}
+    extra_columns = {
+        FakeField("time_frame", "Time Frame")
+    }
     strict_exclude_columns = {"startup_text", "remote_path", "header_text", "original_file"}
 
     def __init__(self, parent: Optional[QtCore.QObject] = None) -> None:
         self.show_unparsable = False
         super().__init__(LogFile, parent=parent)
-        self.ordered_by = (-LogFile.modified_at, LogFile.server)
+        self.ordered_by = (-LogFile.modified_at,)
         self.filter_item = None
         self.currently_reparsing: bool = False
+        self.refresh_future: Future = None
 
     def add_context_menu_actions(self, menu: "CustomContextMenu", index: QModelIndex):
         super().add_context_menu_actions(menu, index)
@@ -89,20 +70,34 @@ class LogFilesModel(BaseQueryDataModel):
 
         if item is None or column is None:
             return
-        force_reparse_action = ModelContextMenuAction(item, column, index, text=f"Force Reparse {item.name}", parent=menu)
+        force_reparse_action = ModelContextMenuAction(item, column, index, text=f"Force Reparse {item.pretty_name}", parent=menu)
         force_reparse_action.clicked.connect(self.reparse_log_file)
         if self.currently_reparsing is True:
             force_reparse_action.setEnabled(False)
         menu.add_action(force_reparse_action)
 
+        copy_action = ModelContextMenuAction(item, column, index, text=f"Copy {item.pretty_name} to Clipboard", parent=menu)
+        copy_action.clicked.connect(self.copy_file_to_clipboard)
+        menu.add_action(copy_action)
+
+    @Slot(object, object, QModelIndex)
+    def copy_file_to_clipboard(self, item: LogFile, column: Field, index: QModelIndex):
+        clipboard = self.app.clipboard()
+        data = QMimeData()
+        original_file: Path = item.original_file.to_file()
+        data.setUrls([QUrl.fromLocalFile(original_file)])
+        clipboard.setMimeData(data)
+
     @Slot(object, object, QModelIndex)
     def reparse_log_file(self, item: LogFile, column: Field, index: QModelIndex):
         def _actual_reparse(log_file: LogFile):
             self.backend.updater.process_log_file(log_file=log_file, force=True)
-            self.backend.updater.update_record_classes(server=log_file.server, force=True)
+            self.backend.updater._update_record_classes(log_file=log_file, force=True)
             self.refresh()
 
         def _callback(future):
+            if future.exception():
+                raise future.exception()
             self.layoutChanged.emit()
             self.currently_reparsing = False
 
@@ -133,7 +128,7 @@ class LogFilesModel(BaseQueryDataModel):
             return super().on_display_data_bool(role=role, item=item, column=column, value=value)
 
     def get_query(self) -> "Query":
-        query = LogFile.select().join(GameMap, join_type=JOIN.LEFT_OUTER).switch(LogFile).join(Server).switch(LogFile).join(Version).switch(LogFile)
+        query = LogFile.select(LogFile)
         if self.show_unparsable is False:
             query = query.where(LogFile.unparsable == False)
         if self.filter_item is not None:
@@ -141,33 +136,42 @@ class LogFilesModel(BaseQueryDataModel):
         return query.order_by(*self.ordered_by)
 
     def get_content(self) -> "BaseQueryDataModel":
-        def _load_probs(in_log_file: "LogFile") -> "LogFile":
-            try:
-                with self.database.connection_context() as ctx:
-                    _ = in_log_file.pretty_time_frame
-                    _ = in_log_file.pretty_utc_offset
-                    _ = in_log_file.amount_log_records
-                    _ = in_log_file.amount_errors
-                    _ = in_log_file.amount_warnings
-            except AttributeError as error:
-                log.debug("attribute_error %r for %r", error, in_log_file)
-            return in_log_file
-        with self.backend.database.connection_context() as ctx:
-            self.content_items = []
-            for log_file in self.get_query().execute():
-                self.app.gui_thread_pool.submit(_load_probs, log_file)
-                self.content_items.append(log_file)
+        def load_up_log_file(in_log_file: LogFile):
+            in_log_file.server = Server.get_by_id_cached(in_log_file.server_id)
+            in_log_file.game_map = self.backend.database.foreign_key_cache.get_game_map_by_id(in_log_file.game_map_id)
+            if in_log_file.version_id is not None:
+                in_log_file.version = Version.get_by_id_cached(in_log_file.version_id)
+            if in_log_file.mod_set_id is not None:
+                in_log_file.mod_set = ModSet.get_by_id_cached(in_log_file.mod_set_id)
+            in_log_file.ensure_dynamic_columns()
 
+            return in_log_file
+
+        # self.database.foreign_key_cache.reset_all()
+        self.database.foreign_key_cache.preload_all()
+
+        self.content_items = []
+        self.database.connect(True)
+        for log_file in self.backend.thread_pool.map(load_up_log_file, self.get_query().iterator()):
+
+            self.content_items.append(log_file)
+        self.content_items = tuple(self.content_items)
         return self
 
     def _get_tool_tip_data(self, index: INDEX_TYPE) -> Any:
         item = self.content_items[index.row()]
         column = self.columns[index.column()]
+
         if column.name == "marked":
             if item.marked is True:
                 return "This Log-File is marked"
             else:
                 return "This Log-File is not marked"
+
+        elif column.name == "amount_headless_clients":
+            return f"connected: {item.amount_headless_clients_connected}\ndisconnected: {item.amount_headless_clients_disconnected}"
+        elif column.name == "game_map" and item.game_map.has_low_res_image() is True:
+            return f'<b>{item.game_map.pretty_name!s}</b><br><img src="{item.game_map.map_image_low_resolution.image_path!s}">'
 
         return super()._get_tool_tip_data(index)
 # region[Main_Exec]

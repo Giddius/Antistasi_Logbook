@@ -11,20 +11,24 @@ from typing import TYPE_CHECKING
 from pathlib import Path
 
 # * Qt Imports --------------------------------------------------------------------------------------->
-from PySide6.QtGui import QAction
-from PySide6.QtCore import Signal, QMargins, QStandardPaths, QItemSelectionModel
-from PySide6.QtWidgets import QHeaderView
+from PySide6.QtGui import QFont, QAction
+from PySide6.QtCore import Qt, Signal, QMargins, QStandardPaths, QItemSelectionModel
+from PySide6.QtWidgets import QToolBar, QFontDialog, QGridLayout, QHeaderView, QPushButton
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.gui.misc import CustomRole
 from antistasi_logbook.gui.views.base_query_tree_view import BaseQueryTreeView, CustomContextMenu
+from antistasi_logbook.records.special_message_formats import DiscordText
+from antistasi_logbook.gui.widgets.log_records_tool_bar import LogRecordToolBar
+from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
+    from antistasi_logbook.records.base_record import BaseRecord
     from antistasi_logbook.gui.models.log_records_model import LogRecordsModel
+    from antistasi_logbook.gui.models.proxy_models.base_proxy_model import BaseProxyModel
 
 # endregion[Imports]
 
@@ -43,6 +47,24 @@ if TYPE_CHECKING:
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
+
+
+class FontSettingsWindow(QFontDialog):
+
+    def __init__(self, default_font: QFont, initial_font: QFont = None, parent=None):
+        super().__init__(parent)
+        self.setOptions(QFontDialog.FontDialogOptions() | QFontDialog.MonospacedFonts)
+        self.default_font = default_font
+        self.initial_font = initial_font
+        if self.initial_font is not None:
+            self.setCurrentFont(self.initial_font)
+        self.reset_button = QPushButton(AllResourceItems.reset_font_image.get_as_icon(), "Reset Font", self)
+        self.reset_button.pressed.connect(self.reset_font)
+        layout: QGridLayout = self.layout()
+        layout.addWidget(self.reset_button, layout.rowCount() - 1, 0, Qt.AlignLeft | Qt.AlignVCenter)
+
+    def reset_font(self):
+        self.setCurrentFont(self.default_font)
 
 
 class LogRecordsQueryView(BaseQueryTreeView):
@@ -66,9 +88,28 @@ class LogRecordsQueryView(BaseQueryTreeView):
         super().extra_setup()
         self.setSortingEnabled(False)
 
+    def create_tool_bar_item(self) -> QToolBar:
+        tool_bar = LogRecordToolBar()
+        tool_bar.font_settings_action.triggered.connect(self.show_font_settings_window)
+        if self.original_model is None:
+            tool_bar.font_settings_action.setEnabled(False)
+        return tool_bar
+
+    def show_font_settings_window(self):
+        font_dialog = FontSettingsWindow(self.original_model._create_message_font(reset=True), self.original_model.message_font, self)
+        _ok = font_dialog.exec()
+        if _ok:
+            font = font_dialog.currentFont()
+            self.original_model.set_message_font(font)
+            self.repaint()
+
     def add_free_context_menu_options(self, menu: "CustomContextMenu"):
         super().add_free_context_menu_options(menu)
         copy_as_menu = menu.add_menu("Copy as", menu)
+        discord_copy_action = QAction("Discord")
+        discord_copy_action.triggered.connect(self.on_discord_copy)
+        copy_as_menu.add_action(discord_copy_action)
+
         std_copy_action = QAction("Copy")
         std_copy_action.triggered.connect(self.on_std_copy)
         menu.add_action(std_copy_action)
@@ -77,11 +118,24 @@ class LogRecordsQueryView(BaseQueryTreeView):
         screenshot_action.triggered.connect(self.on_screenshot_selection)
         menu.add_action(screenshot_action)
 
-    def on_std_copy(self):
-        rows = self.selectionModel().selectedRows()
-        text = '\n'.join([t for t in (self.model.data(i, CustomRole.STD_COPY_DATA) for i in rows) if t is not None])
+    def on_discord_copy(self):
+        items: list["BaseRecord"] = [self.model.content_items[idx.row()] for idx in self.current_selection]
+        if len(items) <= 0:
+            return
+
+        text = DiscordText(items).make_text()
         clipboard = self.app.clipboard()
-        clipboard.setText(text)
+        clipboard.setText(text.strip())
+
+    def on_std_copy(self):
+        items = [self.model.content_items[idx.row()] for idx in self.current_selection]
+        text = ""
+
+        for item in items:
+            text += '\n'.join(item.get_formated_message(msg_format="ORIGINAL")) + '\n'
+
+        clipboard = self.app.clipboard()
+        clipboard.setText(text.strip())
 
     def on_screenshot_selection(self):
         self.about_to_screenshot.emit()
@@ -117,6 +171,13 @@ class LogRecordsQueryView(BaseQueryTreeView):
 
         self.screenshot_finished.emit()
 
+    @property
+    def model(self) -> "BaseProxyModel":
+        _out = super().model
+        if callable(_out):
+            _out = _out()
+        return _out
+
     @ property
     def header_view(self) -> QHeaderView:
         return self.header()
@@ -126,6 +187,7 @@ class LogRecordsQueryView(BaseQueryTreeView):
 
     def post_set_model(self):
         super().post_set_model()
+        self.tool_bar_item.font_settings_action.setEnabled(True)
 
     def setModel(self, model: "LogRecordsModel") -> None:
         self.original_model = model

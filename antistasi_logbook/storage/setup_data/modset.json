@@ -1,0 +1,361 @@
+[
+    {
+        "name": "RHS",
+        "mod_names": [
+            "advanced combat environment",
+            "community base addons",
+            "enhanced movement",
+            "gruppe adler trenches",
+            "rhs: armed forces of the russian federation",
+            "rhs: gref",
+            "rhs: serbian armed forces",
+            "rhs: united states forces",
+            "tfar",
+            "vet_unflipping",
+            "zeus enhanced"
+        ]
+    },
+    {
+        "name": "3CB BAF",
+        "mod_names": [
+            "3cb: baf equipment",
+            "3cb: baf units",
+            "3cb: baf vehicles",
+            "3cb: baf weapons",
+            "advanced combat environment",
+            "community base addons",
+            "enhanced movement",
+            "gruppe adler trenches",
+            "rhs: armed forces of the russian federation",
+            "rhs: gref",
+            "rhs: serbian armed forces",
+            "rhs: united states forces",
+            "rksl attachments pack",
+            "tfar",
+            "vet_unflipping",
+            "zeus enhanced"
+        ]
+    },
+    {
+        "name": "RHS CUP",
+        "mod_names": [
+            "advanced combat environment",
+            "community base addons",
+            "cup terrains - core",
+            "cup terrains - maps",
+            "enhanced movement",
+            "gruppe adler trenches",
+            "rhs: armed forces of the russian federation",
+            "rhs: gref",
+            "rhs: serbian armed forces",
+            "rhs: united states forces",
+            "tfar",
+            "vet_unflipping",
+            "zeus enhanced"
+        ]
+    },
+    {
+        "name": "Vanilla",
+        "mod_names": [
+            "advanced combat environment",
+            "community base addons",
+            "enhanced movement",
+            "gruppe adler trenches",
+            "tfar",
+            "vet_unflipping",
+            "zeus enhanced"
+        ]
+    },
+    {
+        "name": "3CB Combo",
+        "mod_names": [
+            "3cb factions",
+            "3cb: baf equipment",
+            "3cb: baf units",
+            "3cb: baf vehicles",
+            "3cb: baf weapons",
+            "advanced combat environment",
+            "community base addons",
+            "enhanced movement",
+            "gruppe adler trenches",
+            "rhs: armed forces of the russian federation",
+            "rhs: gref",
+            "rhs: serbian armed forces",
+            "rhs: united states forces",
+            "rksl attachments pack",
+            "tfar",
+            "vet_unflipping",
+            "zeus enhanced"
+        ]
+    },
+    {
+        "name": "RHS Anizay",
+        "mod_names": [
+            "advanced combat environment",
+            "community base addons",
+            "cup terrains - core",
+            "enhanced movement",
+            "gruppe adler trenches",
+            "rhs: armed forces of the russian federation",
+            "rhs: gref",
+            "rhs: serbian armed forces",
+            "rhs: united states forces",
+            "tfar",
+            "vet_unflipping",
+            "zeus enhanced"
+        ]
+    },
+    {
+        "name": "3CB BAF CUP",
+        "mod_names": [
+            "3cb: baf equipment",
+            "3cb: baf units",
+            "3cb: baf vehicles",
+            "3cb: baf weapons",
+            "advanced combat environment",
+            "community base addons",
+            "cup terrains - core",
+            "cup terrains - maps",
+            "enhanced movement",
+            "gruppe adler trenches",
+            "rhs: armed forces of the russian federation",
+            "rhs: gref",
+            "rhs: serbian armed forces",
+            "rhs: united states forces",
+            "rksl attachments pack",
+            "tfar",
+            "vet_unflipping",
+            "zeus enhanced"
+        ]
+    },
+    {
+        "name": "Vanilla CUP",
+        "mod_names": [
+            "advanced combat environment",
+            "community base addons",
+            "cup terrains - core",
+            "cup terrains - maps",
+            "enhanced movement",
+            "gruppe adler trenches",
+            "tfar",
+            "vet_unflipping",
+            "zeus enhanced"
+        ]
+    },
+    {
+        "name": "3CB Factions",
+        "mod_names": [
+            "3cb factions",
+            "advanced combat environment",
+            "community base addons",
+            "enhanced movement",
+            "gruppe adler trenches",
+            "rhs: armed forces of the russian federation",
+            "rhs: gref",
+            "rhs: serbian armed forces",
+            "rhs: united states forces",
+            "tfar",
+            "vet_unflipping",
+            "zeus enhanced"
+        ]
+    },
+    {
+        "name": "3CB Combo CUP",
+        "mod_names": [
+            "3cb factions",
+            "3cb: baf equipment",
+            "3cb: baf units",
+            "3cb: baf vehicles",
+            "3cb: baf weapons",
+            "advanced combat environment",
+            "community base addons",
+            "cup terrains - core",
+            "cup terrains - maps",
+            "enhanced movement",
+            "gruppe adler trenches",
+            "rhs: armed forces of the russian federation",
+            "rhs: gref",
+            "rhs: serbian armed forces",
+            "rhs: united states forces",
+            "rksl attachments pack",
+            "tfar",
+            "vet_unflipping",
+            "zeus enhanced"
+        ]
+    },
+    {
+        "name": "RHS Virolahti",
+        "mod_names": [
+            "advanced combat environment",
+            "community base addons",
+            "cup terrains - core",
+            "enhanced movement",
+            "gruppe adler trenches",
+            "rhs: armed forces of the russian federation",
+            "rhs: gref",
+            "rhs: serbian armed forces",
+            "rhs: united states forces",
+            "tfar",
+            "vet_unflipping",
+            "virolahti",
+            "zeus enhanced"
+        ]
+    },
+    {
+        "name": "3CB BAF Anizay",
+        "mod_names": [
+            "3cb: baf equipment",
+            "3cb: baf units",
+            "3cb: baf vehicles",
+            "3cb: baf weapons",
+            "advanced combat environment",
+            "community base addons",
+            "cup terrains - core",
+            "enhanced movement",
+            "gruppe adler trenches",
+            "rhs: armed forces of the russian federation",
+            "rhs: gref",
+            "rhs: serbian armed forces",
+            "rhs: united states forces",
+            "rksl attachments pack",
+            "tfar",
+            "vet_unflipping",
+            "zeus enhanced"
+        ]
+    },
+    {
+        "name": "Vanilla Anizay",
+        "mod_names": [
+            "advanced combat environment",
+            "community base addons",
+            "cup terrains - core",
+            "enhanced movement",
+            "gruppe adler trenches",
+            "tfar",
+            "vet_unflipping",
+            "zeus enhanced"
+        ]
+    },
+    {
+        "name": "3CB Combo Anizay",
+        "mod_names": [
+            "3cb factions",
+            "3cb: baf equipment",
+            "3cb: baf units",
+            "3cb: baf vehicles",
+            "3cb: baf weapons",
+            "advanced combat environment",
+            "community base addons",
+            "cup terrains - core",
+            "enhanced movement",
+            "gruppe adler trenches",
+            "rhs: armed forces of the russian federation",
+            "rhs: gref",
+            "rhs: serbian armed forces",
+            "rhs: united states forces",
+            "rksl attachments pack",
+            "tfar",
+            "vet_unflipping",
+            "zeus enhanced"
+        ]
+    },
+    {
+        "name": "3CB BAF Virolahti",
+        "mod_names": [
+            "3cb: baf equipment",
+            "3cb: baf units",
+            "3cb: baf vehicles",
+            "3cb: baf weapons",
+            "advanced combat environment",
+            "community base addons",
+            "cup terrains - core",
+            "enhanced movement",
+            "gruppe adler trenches",
+            "rhs: armed forces of the russian federation",
+            "rhs: gref",
+            "rhs: serbian armed forces",
+            "rhs: united states forces",
+            "rksl attachments pack",
+            "tfar",
+            "vet_unflipping",
+            "virolahti",
+            "zeus enhanced"
+        ]
+    },
+    {
+        "name": "Vanilla Virolahti",
+        "mod_names": [
+            "advanced combat environment",
+            "community base addons",
+            "cup terrains - core",
+            "enhanced movement",
+            "gruppe adler trenches",
+            "tfar",
+            "vet_unflipping",
+            "virolahti",
+            "zeus enhanced"
+        ]
+    },
+    {
+        "name": "3CB Factions + CUP",
+        "mod_names": [
+            "3cb factions",
+            "advanced combat environment",
+            "community base addons",
+            "cup terrains - core",
+            "cup terrains - maps",
+            "enhanced movement",
+            "gruppe adler trenches",
+            "rhs: armed forces of the russian federation",
+            "rhs: gref",
+            "rhs: serbian armed forces",
+            "rhs: united states forces",
+            "tfar",
+            "vet_unflipping",
+            "zeus enhanced"
+        ]
+    },
+    {
+        "name": "3CB Combo Virolahti",
+        "mod_names": [
+            "3cb factions",
+            "3cb: baf equipment",
+            "3cb: baf units",
+            "3cb: baf vehicles",
+            "3cb: baf weapons",
+            "advanced combat environment",
+            "community base addons",
+            "cup terrains - core",
+            "enhanced movement",
+            "gruppe adler trenches",
+            "rhs: armed forces of the russian federation",
+            "rhs: gref",
+            "rhs: serbian armed forces",
+            "rhs: united states forces",
+            "rksl attachments pack",
+            "tfar",
+            "vet_unflipping",
+            "virolahti",
+            "zeus enhanced"
+        ]
+    },
+    {
+        "name": "3CB Factions + Virolahti",
+        "mod_names": [
+            "3cb factions",
+            "advanced combat environment",
+            "community base addons",
+            "cup terrains - core",
+            "enhanced movement",
+            "gruppe adler trenches",
+            "rhs: armed forces of the russian federation",
+            "rhs: gref",
+            "rhs: serbian armed forces",
+            "rhs: united states forces",
+            "tfar",
+            "vet_unflipping",
+            "virolahti",
+            "zeus enhanced"
+        ]
+    }
+]

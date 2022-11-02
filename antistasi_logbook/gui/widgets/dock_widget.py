@@ -63,6 +63,7 @@ class BaseDockWidget(QDockWidget):
         allowed_areas = Qt.DockWidgetAreas() | allowed_areas
         self.setAllowedAreas(allowed_areas)
         self.setFeatures(features)
+
         if add_to_menu is not None:
             self._add_to_menu_bar(add_to_menu)
 
@@ -96,6 +97,13 @@ class BaseDockWidget(QDockWidget):
         super().show()
         if self.first_shown is False:
             self.first_shown = True
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 
 class QueryWidget(BaseDockWidget):

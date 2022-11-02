@@ -93,12 +93,26 @@ class MinDurationSemaphore(Semaphore):
         duration = process_time() - start_time
         to_sleep = self.minimum_duration_seconds - duration
         if to_sleep <= 0:
-            log.debug(f"took longer than minimum, it took {duration!r}")
             return
-        log.debug(f"sleeping in {self.__class__.__name__!r} for {to_sleep!r} before releasing")
+
         sleep(to_sleep)
 
     def __exit__(self, t, v, tb):
         self._sleep_to_minimum()
         sleep(random.uniform(0.0, float(self.delay_seconds)))
         self.release()
+
+
+class FakeLock:
+
+    def acquire(self, blocking: bool = True, timeout: float = None) -> bool:
+        return True
+
+    def release(self):
+        return
+
+    def __enter__(self, blocking: bool = True, timeout: float = None) -> bool:
+        return True
+
+    def __exit__(self, t, v, tb):
+        return

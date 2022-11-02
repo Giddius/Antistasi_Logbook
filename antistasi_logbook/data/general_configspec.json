@@ -1,111 +1,203 @@
 {
-    "general": {
-        "max_threads": {
-            "converter": "integer",
-            "default": "5",
-            "verbose_name": "Maximum amount of Threads",
-            "short_description": "How many Threads should the App maximal use"
-        }
-    },
-    "database": {
-        "database_path": {
-            "converter": "path",
-            "default": null,
-            "verbose_name": "Database Path",
-            "short_description": "If Path is Folder, the App will use the default DB Name"
+    "sections": {
+        "general": {
+            "entries": {
+                "max_threads": {
+                    "converter": "integer",
+                    "default": "5",
+                    "verbose_name": "Maximum amount of Threads",
+                    "description": "How many Threads should the App maximal use"
+                },
+                "is_first_start": {
+                    "converter": "boolean",
+                    "default": "False",
+                    "gui_visible": false
+                }
+            }
         },
-        "backup_database": {
-            "converter": "boolean",
-            "default": "False",
-            "implemented": false
+        "database": {
+            "entries": {
+                "database_path": {
+                    "converter": "path",
+                    "default": null,
+                    "verbose_name": "Database Path",
+                    "description": "If Path is Folder, the App will use the default DB Name"
+                },
+                "backup_database": {
+                    "converter": "boolean",
+                    "default": "False",
+                    "implemented": false
+                },
+                "backup_limit": {
+                    "converter": "integer",
+                    "default": "0",
+                    "implemented": false
+                },
+                "enable_connection_creation_logging": {
+                    "converter": "boolean",
+                    "default": "False"
+                },
+                "enable_profiling_hook_logging": {
+                    "converter": "boolean",
+                    "default": "False"
+                },
+                "enable_update_hook_logging": {
+                    "converter": "boolean",
+                    "default": "False"
+                },
+                "enable_rollback_hook_logging": {
+                    "converter": "boolean",
+                    "default": "False"
+                },
+                "enable_wal_hook_logging": {
+                    "converter": "boolean",
+                    "default": "False"
+                }
+            }
         },
-        "backup_limit": {
-            "converter": "integer",
-            "default": "0",
-            "implemented": false
-        }
-    },
-    "updating": {
-        "updates_enabled": {
-            "converter": "boolean",
-            "default": "True",
-            "short_description": "Setting this to 'No' will disable updates globally, even for manual updates."
+        "updating": {
+            "entries": {
+                "updates_enabled": {
+                    "converter": "boolean",
+                    "default": "True",
+                    "description": "Setting this to 'No' will disable updates globally, even for manual updates."
+                },
+                "update_interval": {
+                    "converter": "timedelta",
+                    "default": "5 min"
+                },
+                "max_update_time_frame": {
+                    "converter": "timedelta",
+                    "default": null,
+                    "initial_value": "2 weeks",
+                    "description": "Logs that were modified in this Timeframe will get updated in the App."
+                },
+                "remove_items_older_than_max_update_time_frame": {
+                    "converter": "boolean",
+                    "default": "False",
+                    "description": "If set to 'Yes' will remove entries for items older than the max update time frame from the db (helps keep DB size small)"
+                }
+            }
         },
-        "update_interval": {
-            "converter": "timedelta",
-            "default": "5 min",
-            "implemented": false
+        "folder": {
+            "entries": {
+                "local_storage_folder": {
+                    "converter": "path",
+                    "default": null,
+                    "gui_visible": false,
+                    "description": "Where the app should download the log_file to when updating, defaults to Temp folder"
+                }
+            }
         },
-        "max_update_time_frame": {
-            "converter": "timedelta",
-            "default": null,
-            "short_description": "Logs that were modified in this Timeframe will get updated in the App."
+        "downloading": {
+            "entries": {
+                "keep_downloaded_files": {
+                    "converter": "boolean",
+                    "default": "False",
+                    "gui_visible": false,
+                    "description": "If set to 'yes' the app will not delete the original log-files after finishing parsing."
+                },
+                "chunk_size": {
+                    "converter": "file_size",
+                    "default": null,
+                    "initial_value": "5mb"
+                }
+            }
         },
-        "remove_items_older_than_max_update_time_frame": {
-            "converter": "boolean",
-            "default": "True",
-            "short_description": "If set to 'Yes' will remove entries for items older than the max update time frame from the db (helps keep DB size small)"
-        }
-    },
-    "folder": {
-        "local_storage_folder": {
-            "converter": "path",
-            "default": null,
-            "short_description": "Where the app should download the log_file to when updating, defaults to Temp folder",
-            "gui_visible": false
-        }
-    },
-    "downloading": {
-        "keep_downloaded_files": {
-            "converter": "boolean",
-            "default": "False",
-            "short_description": "If set to 'yes' the app will not delete the original log-files after finishing parsing.",
-            "gui_visible": false
+        "parsing": {
+            "entries": {
+                "record_insert_batch_size": {
+                    "converter": "integer",
+                    "default": "32767"
+                }
+            }
         },
-        "chunk_size": { "converter": "file_size", "default": null }
-    },
-
-    "parsing": {
-        "record_insert_batch_size": {
-            "converter": "integer",
-            "default": "32767"
-        }
-    },
-    "time": {
-        "use_local_timezone": { "converter": "boolean", "default": "False" },
-        "time_format": { "converter": "string", "default": "%Y-%m-%d %H:%M:%S" }
-    },
-    "gui": {
-        "style": { "converter": "string", "default": "base" },
-        "font_family": {
-            "converter": "string",
-            "default": null,
-            "implemented": false
+        "time": {
+            "entries": {
+                "use_local_timezone": {
+                    "converter": "boolean",
+                    "default": "False"
+                },
+                "time_format": {
+                    "converter": "string",
+                    "default": "%Y-%m-%d %H:%M:%S.%f"
+                }
+            }
         },
-        "font_size": {
-            "converter": "integer",
-            "default": null,
-            "implemented": false
-        }
-    },
-    "debug": {
-        "dev_mode": { "converter": "boolean", "default": "False" }
-    },
-    "logging": {
-        "level": {
-            "converter": "string",
-            "default": "debug",
-            "gui_visible": false
+        "gui": {
+            "entries": {
+                "style": {
+                    "converter": "string",
+                    "default": "base"
+                },
+                "font_family": {
+                    "converter": "string",
+                    "default": null,
+                    "implemented": false
+                },
+                "font_size": {
+                    "converter": "integer",
+                    "default": null,
+                    "implemented": false
+                },
+                "use_cat_busy_spinner": {
+                    "converter": "boolean",
+                    "default": "True",
+                    "implemented": true,
+                    "verbose_name": "Use Cat Busy-Spinner"
+                },
+                "notify_on_update_finished": {
+                    "converter": "boolean",
+                    "default": "False",
+                    "implemented": true,
+                    "verbose_name": "Send Windows Notification when update finishes"
+                }
+            }
         },
-        "max_function_name_length": {
-            "converter": "integer",
-            "default": "25",
-            "gui_visible": false
+        "debug": {
+            "entries": {
+                "dev_mode": {
+                    "converter": "boolean",
+                    "default": "False"
+                }
+            }
         },
-        "max_module_name_length": {
-            "converter": "integer",
-            "default": "25",
-            "gui_visible": false
+        "webdav": {
+            "entries": {
+                "max_concurrent_connections": {
+                    "converter": "integer(minimum=1)",
+                    "default": "1",
+                    "initial_value": "5"
+                }
+            }
+        },
+        "logging": {
+            "entries": {
+                "level": {
+                    "converter": "string",
+                    "default": "debug",
+                    "gui_visible": false
+                },
+                "max_function_name_length": {
+                    "converter": "integer",
+                    "default": "25",
+                    "gui_visible": false
+                },
+                "max_module_name_length": {
+                    "converter": "integer",
+                    "default": "25",
+                    "gui_visible": false
+                }
+            }
+        },
+        "mod_handling": {
+            "entries": {
+                "mod_set_exluded_mod_names": {
+                    "converter": "list",
+                    "default": "",
+                    "gui_visible": false
+                }
+            }
         }
     }
 }

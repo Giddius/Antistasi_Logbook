@@ -1,31 +1,22 @@
 """Antistasi Logbook"""
 
-__version__ = '0.4.3'
+__version__ = '0.4.6'
+
+__description_for_setup_tools__ = "this"
+
 
 import os
 
 
-def set_env():
-    os.environ["PYQTGRAPH_QT_LIB"] = "PySide6"
+from rich.traceback import install as rich_traceback_install
 
-
-set_env()
-
-import atexit
-from rich.console import Console as RichConsole
-from rich.table import Table
-from rich.panel import Panel
-from rich.containers import Renderables
-from rich.align import Align
-from rich.box import DOUBLE_EDGE
-from rich.text import Text
-import rich.traceback
 from pathlib import Path
-from gidapptools import setup_main_logger, setup_main_logger_with_file_logging, get_meta_paths, get_meta_config, get_meta_info, get_handlers, get_logger, get_main_logger
+from gidapptools import setup_main_logger_with_file_logging, get_meta_paths, get_logger
 from gidapptools.meta_data import setup_meta_data
+from gidapptools.gid_config.interface import get_config
 
-from gidapptools.gidapptools_qt.widgets.std_stream_widget import BaseStdStreamCapturer, LimitedStdStreamCapturer
 import sys
+
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
@@ -46,6 +37,13 @@ def on_init_error():
 
 
 def print_apsw_import_error_msg():
+    from rich.console import Console as RichConsole
+
+    from rich.table import Table
+    from rich.panel import Panel
+    from rich.containers import Renderables
+    from rich.align import Align
+    from rich.box import DOUBLE_EDGE
     # TODO: Create general functions/classes for something like that in 'gidapptools'
     info_console = RichConsole(soft_wrap=False, markup=True)
     info_console.bell()
@@ -87,57 +85,84 @@ Especially if you have access to a [b]Platform (Operating System)[/b] that is [b
     info_console.print("\n" * 3)
 
 
-if "apsw" not in sys.modules:
+def check_apsw():
     try:
-        from . import apsw
-
-        sys.modules["apsw"] = apsw
+        import apsw
     except ImportError:
-        on_init_error()
-        print_apsw_import_error_msg()
-        sys.exit(1)
+        pass
+    if "apsw" not in sys.modules:
+        try:
+            from .storage.apsw_extension import apsw
+
+            sys.modules["apsw"] = apsw
+        except ImportError:
+            on_init_error()
+            print_apsw_import_error_msg()
+            sys.exit(1)
 
 
-# _extra_logger = ["peewee"]
-_extra_logger = ["py.warnings"]
+def set_env():
+    os.environ["PYQTGRAPH_QT_LIB"] = "PySide6"
+
+
+_extra_logger = ["py.warnings", "sqlite"]
 
 IS_SETUP: bool = False
 original_stderr = sys.stderr
-stream_capturer = LimitedStdStreamCapturer()
-stream_capturer.original_stream = original_stderr
-sys.stderr = stream_capturer
 
 
 def setup():
     global IS_SETUP
     if IS_SETUP is True:
         return
+
+    set_env()
+    check_apsw()
+    import apsw
+    import logging
+    apsw.config(apsw.SQLITE_CONFIG_MULTITHREAD)
     os.environ["_MAIN_DIR"] = str(Path(__file__).resolve().parent)
+    from antistasi_logbook.data import DATA_DIR
     setup_meta_data(__file__,
-                    configs_to_create=[THIS_FILE_DIR.joinpath("data", "general_config.ini"), THIS_FILE_DIR.joinpath("data", "color_config.ini")],
-                    spec_to_create=[THIS_FILE_DIR.joinpath("data", "general_configspec.json"), THIS_FILE_DIR.joinpath("data", "color_configspec.json")],
+                    configs_to_create=[DATA_DIR.joinpath("general_config.ini"), DATA_DIR.joinpath("color_config.ini")],
+                    spec_files=[DATA_DIR.joinpath("general_configspec.json"), DATA_DIR.joinpath("color_configspec.json")],
                     file_changed_parameter="changed_time")
     META_PATHS = get_meta_paths()
     # log = get_main_logger("__main__", Path(__file__).resolve(), extra_logger=_extra_logger)
-
-    general_config = get_meta_config().get_config("general")
-    stream = sys.stdout if os.getenv('IS_DEV', "false") != "false" else None
+    general_config_path = META_PATHS.config_dir.joinpath("general_config.ini")
+    default_log_level = "INFO"
+    if os.getenv('IS_DEV', "false") != "false":
+        general_config_path = Path(__file__).resolve().parent.joinpath("dev_temp", "config", general_config_path.name)
+        default_log_level = "DEBUG"
+    general_config = get_config(spec_path=DATA_DIR.joinpath("general_configspec.json"), config_path=general_config_path, preload_ini_file=True)
+    log_to_stdout = os.getenv('IS_DEV', "false") != "false"
     log = setup_main_logger_with_file_logging("__main__",
-                                              log_level=general_config.get("logging", "level", default="DEBUG"),
+                                              log_level=general_config.get("logging", "level", default=default_log_level),
                                               log_file_base_name=Path(__file__).resolve().parent.stem,
                                               path=Path(__file__).resolve(),
                                               extra_logger=_extra_logger,
                                               log_folder=META_PATHS.log_dir,
                                               max_func_name_length=general_config.get("logging", "max_function_name_length", default=None),
                                               max_module_name_length=general_config.get("logging", "max_module_name_length", default=None),
-                                              stream=stream)
+                                              log_to_stdout=log_to_stdout)
 
-    ERROR_CONSOLE = RichConsole(soft_wrap=True, record=False, width=150)
-    # rich.traceback.install(console=ERROR_CONSOLE, width=150)
+    # ERROR_CONSOLE = RichConsole(soft_wrap=True, record=False, width=150)
+    # rich_traceback_install(console=ERROR_CONSOLE, width=150)
+
+    def sqlite_log_handler(errcode, message):
+        errors_to_ignore = {28}
+        errstr = apsw.mapping_result_codes[errcode & 255]
+        if errcode in errors_to_ignore:
+            return
+        extended_errstr = apsw.mapping_extended_result_codes.get(errcode, None)
+        if extended_errstr is not None:
+            extended_errstr = f" -{extended_errstr!r}-"
+        else:
+            extended_errstr = ""
+
+        logging.getLogger("sqlite").critical("<<SQLITE_LOG>> %r -%r(%r)-%s", message, errstr, errcode, extended_errstr)
+    apsw.config(apsw.SQLITE_CONFIG_LOG, sqlite_log_handler)
     IS_SETUP = True
 
 
-setup()
-
-que_handlers = get_main_logger().all_handlers["que_handlers"]
-storage_handler = [i for i in que_handlers if i.__class__.__name__ == "GidStoringHandler"][0]
+import antistasi_logbook.errors

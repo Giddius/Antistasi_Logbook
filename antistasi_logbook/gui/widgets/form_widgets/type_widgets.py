@@ -8,7 +8,7 @@ Soon.
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import re
-from typing import Any, Union, Iterable, Optional, Protocol, runtime_checkable
+from typing import Any, Union, Optional, Protocol, runtime_checkable
 from pathlib import Path
 from datetime import timedelta
 
@@ -16,8 +16,8 @@ from datetime import timedelta
 import PySide6
 from PySide6.QtGui import QFont
 from PySide6.QtCore import Qt, Slot, Signal
-from PySide6.QtWidgets import (QWidget, QSpinBox, QCheckBox, QComboBox, QLineEdit, QTextEdit, QFileDialog, QGridLayout, QHBoxLayout,
-                               QListWidget, QPushButton, QSizePolicy, QSpacerItem, QApplication, QButtonGroup, QRadioButton, QDoubleSpinBox)
+from PySide6.QtWidgets import (QWidget, QSpinBox, QCheckBox, QComboBox, QLineEdit, QTextEdit, QFileDialog, QGridLayout, QHBoxLayout, QListWidget,
+                               QMessageBox, QPushButton, QSizePolicy, QSpacerItem, QApplication, QButtonGroup, QRadioButton, QDoubleSpinBox)
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 import qt_material
@@ -25,8 +25,6 @@ import qt_material
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.conversion import FILE_SIZE_REFERENCE, TimeUnit, TimeUnits, bytes2human, human2bytes, seconds2human
-from gidapptools.general_helper.typing_helper import implements_protocol
-from gidapptools.gid_config.conversion.extra_base_typus import NonTypeBaseTypus
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.models.style_sheets_model import StyleSheetsModel
@@ -67,16 +65,21 @@ class TypeWidgetProtocol(Protocol):
         ...
 
 
-ALL_VALUE_FIELDS: dict[type, type[TypeWidgetProtocol]] = {}
+ALL_VALUE_FIELDS: dict[str, type[TypeWidgetProtocol]] = {}
 
 
 def _add_value_field(value_field: type[TypeWidgetProtocol]):
     ALL_VALUE_FIELDS[value_field.___for_type___] = value_field
+    try:
+
+        for alias in value_field.___for_type_aliases___:
+            ALL_VALUE_FIELDS[alias] = value_field
+    except AttributeError:
+        pass
 
 
-@implements_protocol(TypeWidgetProtocol)
 class BoolValueField(QWidget):
-    ___for_type___ = bool
+    ___for_type___ = "boolean"
 
     def __init__(self, true_text: str = "Yes", false_text: str = "No", parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
         super().__init__(parent=parent)
@@ -157,9 +160,8 @@ class TimeSpinBox(QSpinBox):
         self.layout.setAlignment(value)
 
 
-@implements_protocol(TypeWidgetProtocol)
 class TimeDeltaValueField(QWidget):
-    ___for_type___ = timedelta
+    ___for_type___ = "timedelta"
     all_units = tuple(unit for unit in TimeUnits(False) if unit.factor >= TimeUnits(False)["second"].factor)
 
     def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
@@ -193,7 +195,8 @@ class TimeDeltaValueField(QWidget):
         return self.get_value() != self.start_value
 
     def set_value(self, value: timedelta, is_start: bool = False):
-        parts = seconds2human(value, as_dict_result=True)
+        parts = seconds2human(value, as_dict_result=True, with_year=False)
+        log.debug("seconds2human-parts: %r", parts)
         for _unit, _value in parts.items():
             self.inputs[_unit].setValue(_value)
         if is_start:
@@ -220,7 +223,6 @@ class TimeDeltaValueField(QWidget):
 _add_value_field(TimeDeltaValueField)
 
 
-@implements_protocol(TypeWidgetProtocol)
 class UpdateTimeFrameValueField(TimeDeltaValueField):
 
     def setup_inputs(self):
@@ -228,12 +230,14 @@ class UpdateTimeFrameValueField(TimeDeltaValueField):
         self.all_check_box.setLayoutDirection(Qt.RightToLeft)
         self.layout.addWidget(self.all_check_box)
         super().setup_inputs()
-        self.all_check_box.stateChanged.connect(self.all_pressed)
         self.all_check_box.setChecked(True)
-        self.all_pressed(True)
+        self.all_check_box.clicked.connect(self.all_pressed)
+
+        self._handle_all_value(True)
 
     def set_value(self, value: timedelta, is_start: bool = False):
         self.all_check_box.setChecked(False)
+        self._handle_all_value(False)
         return super().set_value(value, is_start=is_start)
 
     def get_value(self) -> timedelta:
@@ -242,20 +246,30 @@ class UpdateTimeFrameValueField(TimeDeltaValueField):
         return super().get_value()
 
     def all_pressed(self, active: bool):
+        log.debug("all_pressed triggered with active: %r", active)
+        if active is True or active == 2:
+            value = QMessageBox.warning(self,
+                                        "All Log-Files",
+                                        '\n'.join(i.strip() for i in """Updating all Log-Files at once can take a lot of time (up to 30 min) and a lot of disk space (5+Gb).
+
+                                        Do you really want to set it to update all Log-Files?""".splitlines()),
+                                        QMessageBox.StandardButton.Yes,
+                                        QMessageBox.StandardButton.Cancel)
+            if value == QMessageBox.StandardButton.Cancel.value:
+                self.all_check_box.setChecked(False)
+                return
+        self._handle_all_value(active=active)
+
+    def _handle_all_value(self, active: bool):
 
         for input_field in self.inputs.values():
             input_field.setEnabled(not active)
             if active == 2 or active is True:
                 input_field.setValue(0)
-        if active == 0 or active is False:
-
-            if self.get_value().total_seconds() == 0:
-                self.inputs[TimeUnits(False)["days"]].setValue(1)
 
 
-@implements_protocol(TypeWidgetProtocol)
 class FileSizeValueField(QWidget):
-    ___for_type___ = NonTypeBaseTypus.FILE_SIZE
+    ___for_type___ = "file_size"
     all_symbols = tuple(["b"] + list(FILE_SIZE_REFERENCE.symbols))
     extraction_regex = re.compile(r"(?P<number_value>[\d\.\,]+)\s*(?P<unit_value>" + r'|'.join(all_symbols) + r")", re.IGNORECASE)
 
@@ -341,9 +355,9 @@ class FileSizeValueField(QWidget):
 _add_value_field(FileSizeValueField)
 
 
-@implements_protocol(TypeWidgetProtocol)
 class IntegerValueField(QWidget):
-    ___for_type___ = int
+    ___for_type___ = "integer"
+    ___for_type_aliases___ = ("int",)
 
     def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None, maximum: int = 100000) -> None:
         super().__init__(parent=parent)
@@ -375,9 +389,8 @@ class IntegerValueField(QWidget):
 _add_value_field(IntegerValueField)
 
 
-@implements_protocol(TypeWidgetProtocol)
 class FloatValueField(QWidget):
-    ___for_type___ = float
+    ___for_type___ = "float"
 
     def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None, maximum: int = 100000, decimals: int = 2) -> None:
         super().__init__(parent=parent)
@@ -410,9 +423,8 @@ class FloatValueField(QWidget):
 _add_value_field(FloatValueField)
 
 
-@implements_protocol(TypeWidgetProtocol)
 class StringValueField(QWidget):
-    ___for_type___ = str
+    ___for_type___ = "string"
 
     def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None, multiline: bool = False) -> None:
         super().__init__(parent=parent)
@@ -433,8 +445,11 @@ class StringValueField(QWidget):
         return self.get_value() != self.start_value
 
     def set_value(self, value: str, is_start: bool = False):
+
         self.text_part.setText(value)
+
         if is_start:
+
             self.start_value = value
 
     def get_value(self) -> str:
@@ -444,9 +459,8 @@ class StringValueField(QWidget):
 _add_value_field(StringValueField)
 
 
-@implements_protocol(TypeWidgetProtocol)
 class PathValueField(QWidget):
-    ___for_type___ = Path
+    ___for_type___ = "path"
 
     def __init__(self, base_dir: Path = Path.cwd(),
                  parent: Optional[PySide6.QtWidgets.QWidget] = None,
@@ -459,7 +473,7 @@ class PathValueField(QWidget):
         self.base_dir = base_dir
         self.for_file = for_file
         self.default_file_name = default_file_name
-        self.file_extension = file_extension
+        self.file_extension = file_extension or ".*"
         self.path_part: QLineEdit = None
         self.button: QPushButton = None
         self.setup_parts()
@@ -510,9 +524,8 @@ class PathValueField(QWidget):
 _add_value_field(PathValueField)
 
 
-@implements_protocol(TypeWidgetProtocol)
 class ListValueField(QWidget):
-    ___for_type___ = list
+    ___for_type___ = "list"
 
     def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
         super().__init__(parent=parent)
@@ -544,46 +557,6 @@ class ListValueField(QWidget):
 _add_value_field(ListValueField)
 
 
-@implements_protocol(TypeWidgetProtocol)
-class StringChoicesValueField(QWidget):
-    ___for_type___ = NonTypeBaseTypus.STRING_CHOICE
-
-    def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None, choices: Iterable[str] = tuple()) -> None:
-        super().__init__(parent=parent)
-        self.setLayout(QGridLayout(self))
-        self.start_value: str = None
-        self.choices = [""] + list(choices)
-        self.text_part = QComboBox(self)
-
-        self.text_part.addItems(self.choices)
-        self.layout.addWidget(self.text_part)
-
-    def set_value(self, value: str, is_start: bool = False):
-        self.text_part.setCurrentIndex(self.choices.index(value))
-        if is_start is True:
-            self.start_value = value
-
-    def get_value(self) -> str:
-        text = self.text_part.currentText()
-        if text == "":
-            return None
-        return text
-
-    def value_is_changed(self) -> bool:
-        return self.get_value() != self.start_value
-
-    def set_alignment(self, alignment: Qt.Alignment):
-        self.layout.setAlignment(alignment)
-
-    @property
-    def layout(self):
-        return super().layout()
-
-
-_add_value_field(ListValueField)
-
-
-@implements_protocol(TypeWidgetProtocol)
 class StyleValueField(QComboBox):
     ''' This QComboBox will allow the user to change the application
         style sheet on demand '''

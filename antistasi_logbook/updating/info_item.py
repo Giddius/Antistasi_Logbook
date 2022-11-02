@@ -16,7 +16,6 @@ import attr
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 from gidapptools.general_helper.dict_helper import replace_dict_keys
 
 # * Local Imports --------------------------------------------------------------------------------------->
@@ -40,7 +39,7 @@ from antistasi_logbook.utilities.path_utilities import RemotePath
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
-get_dummy_profile_decorator_in_globals()
+
 log = get_logger(__name__)
 # endregion[Constants]
 
@@ -56,7 +55,7 @@ log = get_logger(__name__)
 # 'type': 'directory'}
 
 
-@attr.s(slots=True, auto_attribs=True, auto_detect=True, kw_only=True, frozen=True)
+@attr.s(slots=True, weakref_slot=True, auto_attribs=True, auto_detect=True, kw_only=True, frozen=True)
 class InfoItem:
     """
     Class to convert the received Json to and item and also change some names to abstract the remote-storage implementation.

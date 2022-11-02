@@ -1,10 +1,11 @@
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import re
 from json import JSONEncoder
-from typing import Any, Union, Literal, Callable, ClassVar, Optional, Generator
+from typing import TYPE_CHECKING, Any, Union, Literal, Callable, ClassVar, Optional, Generator
 from pathlib import Path
 from datetime import datetime, timedelta
 from functools import total_ordering
+from collections import ChainMap
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
@@ -23,7 +24,12 @@ from gidapptools.general_helper.conversion import str_to_bool
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.utilities.path_utilities import RemotePath
 
+if TYPE_CHECKING:
+    from antistasi_logbook.storage.models.models import BaseModel
+
+
 get_dummy_profile_decorator_in_globals()
+
 log = get_logger(__name__)
 
 
@@ -47,11 +53,33 @@ def get_subclasses_recursive(klass: type, predicate: Callable[[type, int], bool]
 
 
 class NoFuture:
+    __slots__ = ("__weakref__", "_id", "_result", "_exception", "_func", "_args", "_kwargs")
     id_counter = 0
 
-    def __init__(self) -> None:
+    def __init__(self, func: Callable, *args, **kwargs) -> None:
         self.__class__.id_counter += 1
         self._id = self.__class__.id_counter
+        self._func = func
+        self._args = args
+        self._kwargs = kwargs
+        self._result = None
+        self._exception = None
+        self._run_func()
+
+    def _run_func(self):
+        try:
+            self._result = self._func(*self._args, **self._kwargs)
+        except Exception as e:
+            self._exception = e
+
+    def result(self):
+        return self._result
+
+    def exception(self):
+        return self._exception
+
+    def done(self):
+        return True
 
     def add_done_callback(self, func):
         func(self)
@@ -79,8 +107,8 @@ class NoThreadPoolExecutor:
         return
 
     def submit(self, func, *args, **kwargs) -> None:
-        func(*args, **kwargs)
-        return NoFuture()
+
+        return NoFuture(func=func, *args, **kwargs)
 
 
 def try_convert_int(data: Union[str, int, None]) -> Union[str, int, None]:
@@ -162,6 +190,9 @@ class VersionItem:
             return False
         return NotImplemented
 
+    def __hash__(self) -> int:
+        return hash(self.as_tuple())
+
 
 def strip_converter(data: Optional[str] = None, extra_strip_chars: str = None) -> Optional[str]:
     if data is None:
@@ -177,6 +208,17 @@ def strip_to_path(data):
     if data is None:
         return data
     return Path(data)
+
+
+_STANDARD_MOD_NAMES = {"utility",
+                       "members",
+                       "taskforceenforcer",
+                       "antistasidevbuild",
+                       "enhancedmovement",
+                       "tfar",
+                       "cbaa3",
+                       "ace",
+                       "zeusenhanced"}
 
 
 @ attr.s(slots=True, auto_attribs=True, auto_detect=True, frozen=True)
@@ -198,9 +240,11 @@ class ModItem:
             optional_kwargs['mod_hash'] = parts[5]
             optional_kwargs["mod_hash_short"] = parts[6]
             optional_kwargs["full_path"] = parts[7]
+
         return cls(name=name, mod_dir=mod_dir, default=default, official=official, **optional_kwargs)
 
     def as_dict(self) -> dict[str, Any]:
+
         _out = attr.asdict(self)
         return _out
 
@@ -257,8 +301,42 @@ def column_sort_default_factory(in_colum: "Field"):
         return URL("")
 
 
+class EnumLikeModelCache:
+
+    def __init__(self, model: type["BaseModel"]) -> None:
+        self.model = model
+        self.unique_field_names: tuple[str] = tuple(col.name for col in self.model.get_meta().sorted_fields if col.unique is True)
+        log.debug("indexes for %r -> %r", self.model, self.model.get_meta().indexes)
+        self.unique_indexes: tuple[tuple[str]] = tuple(idx[0] for idx in self.model.get_meta().indexes if idx[1] is True)
+        self._id_map: dict[int, "BaseModel"] = {}
+        self._unique_value_maps: dict[str, dict[object, "BaseModel"]] = {col: {} for col in self.unique_field_names}
+        self._unique_index_maps: dict[tuple[str], dict[frozenset, "BaseModel"]] = {i: {} for i in self.unique_indexes}
+        self._full_map: ChainMap = ChainMap(self._id_map, self._unique_value_maps, self._unique_index_maps)
+
+    def add(self, instance: "BaseModel") -> None:
+        if instance.id is None:
+            return
+        self._id_map[instance.id] = instance
+        for name in self.unique_field_names:
+            value = getattr(instance, name, None)
+            if value is not None:
+                self._unique_value_maps[name][value] = instance
+
+        for idx_names in self.unique_indexes:
+            value = frozenset([getattr(instance, i) for i in idx_names])
+            self._unique_index_maps[idx_names][value] = instance
+
+    def get_by_id(self, value: int) -> Optional["BaseModel"]:
+        return self._id_map.get(value, None)
+
+    def clear(self):
+        self._id_map.clear()
+        self._unique_value_maps.clear()
+
+
+def all_subclasses_recursively(klass: type) -> set[type]:
+    return set(klass.__subclasses__()).union([s for c in klass.__subclasses__() for s in all_subclasses_recursively(c)])
+
+
 if __name__ == '__main__':
-    def get_all_sub_classes(sub_cl):
-        for sub_sub_cl in sub_cl.__subclasses__():
-            yield sub_sub_cl
-            yield from get_all_sub_classes(sub_sub_cl)
+    pass

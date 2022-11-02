@@ -15,7 +15,6 @@ from threading import Thread
 
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
-from PySide6 import QtCore
 from PySide6.QtCore import Qt, Slot, Signal, QObject
 from PySide6.QtWidgets import QLabel, QStatusBar, QApplication, QProgressBar
 
@@ -44,8 +43,7 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
-get_dummy_profile_decorator_in_globals()
+
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
@@ -93,7 +91,7 @@ class LastUpdatedLabel(QLabel):
         super().__init__(parent=parent)
         self.status_bar = status_bar
         self.timer_id: int = None
-        self.refresh_interval: int = 1000 * 30
+        self.refresh_interval: int = 1000 * 1
         self.min_unit = "second"
         self.last_triggered: datetime = None
         self.label_text: str = None
@@ -122,13 +120,13 @@ class LastUpdatedLabel(QLabel):
         self.update()
 
     def _refresh_text_helper(self):
-        log.debug("refreshing %s text", self)
         if self.last_update_finished_at is None:
             self.label_text = "Never Updated"
         else:
             delta = self._time_since_last_update_finished()
             try:
-                delta_text = seconds2human(round(delta.total_seconds(), -1), min_unit=[v for k, v in self.min_unit_progression_table.items() if k <= delta][-1])
+                min_unit = [v for k, v in self.min_unit_progression_table.items() if k <= delta][-1]
+                delta_text = seconds2human(delta.total_seconds(), min_unit=min_unit)
                 self.label_text = f"Last update finished {delta_text} ago"
             except IndexError:
                 log.error("indexerror with self.last_update_finished_at = %r, now = %r, now-self.last_update_finished_at = %r", self.last_update_finished_at.isoformat(sep=" "), datetime.now(tz=UTC).isoformat(sep=" "), delta)
@@ -137,11 +135,6 @@ class LastUpdatedLabel(QLabel):
     def refresh_text(self) -> None:
         self._refresh_text_helper()
         self._thread_finished()
-        # if self.running_thread is not None:
-        #     return
-        # self.running_thread = FuncRunner(self)
-        # self.running_thread.signaler.finished.connect(self._thread_finished)
-        # self.running_thread.start()
 
     def start_timer(self) -> None:
         log.debug("Starting timer for %r", self)
@@ -161,18 +154,21 @@ class LastUpdatedLabel(QLabel):
     def shutdown(self):
         if self.timer_id is not None:
             self.killTimer(self.timer_id)
+            self.timer_id = None
         self.is_running = False
+        self.status_bar.backend.database.close()
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(status_bar={self.status_bar!r})"
 
     def __str__(self) -> str:
         last_triggered = f"last_triggered={self.last_triggered.strftime('%Y-%m-%d %H:%M:%S UTC')!r}" if self.last_triggered is not None else f"last_triggered={self.last_triggered!r}"
-        return f"{self.__class__.__name__}(interval={seconds2human(self.refresh_interval/1000)!r}, {last_triggered})"
+        return f"{self.__class__.__name__}(interval={self.refresh_interval/1000}s, {last_triggered})"
 
 
 class LogbookStatusBar(QStatusBar):
     change_status_bar_color = Signal(bool)
+    request_clear_error = Signal()
 
     def __init__(self, main_window: "AntistasiLogbookMainWindow") -> None:
         super().__init__(parent=main_window)
@@ -181,6 +177,8 @@ class LogbookStatusBar(QStatusBar):
         self.update_running_label: QLabel = None
         self.update_progress: QProgressBar = None
         self.timer: int = None
+        self._current_log_file_amount: int = 0
+        self._max_log_file_amount: int = 0
 
     @property
     def app(self) -> "AntistasiLogbookApplication":
@@ -197,6 +195,7 @@ class LogbookStatusBar(QStatusBar):
         self.insertWidget(2, self.update_progress, 2)
         self.update_progress.hide()
         self.change_status_bar_color.connect(self.set_showing_error)
+        self.request_clear_error.connect(self.clearMessage)
 
     def setup_labels(self) -> None:
         if self.last_updated_label is None:
@@ -204,6 +203,7 @@ class LogbookStatusBar(QStatusBar):
             self.insertWidget(0, self.last_updated_label, 1)
         if self.update_running_label is None:
             self.update_running_label = QLabel()
+            self.update_running_label.setTextFormat(Qt.TextFormat.RichText)
             self.update_running_label.setText("Updating...")
             self.update_running_label.hide()
             self.insertWidget(1, self.update_running_label, 1)
@@ -212,13 +212,16 @@ class LogbookStatusBar(QStatusBar):
         self.current_label = self.last_updated_label
 
     def switch_labels(self, update_start: bool) -> None:
+        self.update_running_label.setText("")
         if update_start is True:
             self.last_updated_label.hide()
+            self.last_updated_label.shutdown()
             self.update_running_label.show()
             self.update_progress.show()
         else:
             self.update_running_label.hide()
             self.update_progress.hide()
+            self.last_updated_label.start()
             self.last_updated_label.show()
 
     @Slot(int, str)
@@ -226,6 +229,9 @@ class LogbookStatusBar(QStatusBar):
         self.update_progress.reset()
         self.update_progress.setMaximum(max_amount)
         self.update_running_label.setText(f"Updating Server {server_name.title()}")
+        self._current_log_file_amount = 0
+        self._max_log_file_amount = max_amount // 2
+        self.update_progress.setToolTip(f"{self._current_log_file_amount}/{self._max_log_file_amount} Log-Files")
 
     def set_showing_error(self, value: bool = False):
 
@@ -236,7 +242,7 @@ class LogbookStatusBar(QStatusBar):
 
     def clear_error(self, future):
         self.change_status_bar_color.emit(False)
-        self.clearMessage()
+        self.request_clear_error.emit()
 
     @Slot(str, BaseException)
     def show_error(self, message: str, exception: BaseException):
@@ -252,11 +258,27 @@ class LogbookStatusBar(QStatusBar):
         else:
             self.clearMessage()
 
-    def increment_progress_bar(self):
-        self.update_progress.setValue(self.update_progress.value() + 1)
+    def increment_progress_bar(self, amount: int):
+        self.update_progress.setValue(self.update_progress.value() + amount)
+
+    def increment_log_file_finished(self):
+        self._current_log_file_amount += 1
+        self.update_progress.setToolTip(f"{self._current_log_file_amount}/{self._max_log_file_amount} Log-Files")
+
+    def finish_progress_bar(self, *args) -> None:
+        self.update_progress.setValue(self.update_progress.maximum())
+        self.update_running_label.setText("")
+        self.update_progress.reset()
 
     def shutdown(self):
         self.last_updated_label.shutdown()
+        self.backend.database.close()
+        self.deleteLater()
+
+        self.close()
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(main_window={self.main_window!r})"
 
 
 # region[Main_Exec]

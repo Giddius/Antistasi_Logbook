@@ -40,21 +40,48 @@ if TYPE_CHECKING:
 
 # region [Constants]
 
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
-get_dummy_profile_decorator_in_globals()
+
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 
 # endregion[Constants]
 
 
-class MarkedImageDelegate(QStyledItemDelegate):
-    @profile
+class BaseItemDelegate(QStyledItemDelegate):
+    def handle_background(self, painter: QPainter, option, index: QModelIndex):
+
+        item_background = index.model().data(index, Qt.BackgroundRole)
+        if item_background:
+            painter.fillRect(option.rect, item_background)
+        if option.state & QStyle.State_Selected:
+            color = option.widget.palette().highlight().color()
+            color.setAlpha(50)
+            painter.fillRect(option.rect, color)
+        elif option.state & QStyle.State_MouseOver:
+            color = option.widget.palette().highlight().color()
+            color.setAlpha(25)
+            painter.fillRect(option.rect, color)
+
+    def sizeHint(self, option, index):
+        """ Returns the size needed to display the item in a QSize object. """
+        return QSize(20, 20)
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
+
+class MarkedImageDelegate(BaseItemDelegate):
+    pixmaps = None
+
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.pixmaps = {True: AllResourceItems.mark_image.get_as_pixmap(25, 25), False: AllResourceItems.unmark_image.get_as_pixmap(25, 25)}
+        if self.__class__.pixmaps is None:
+            self.__class__.pixmaps = {True: AllResourceItems.mark_image.get_as_pixmap(25, 25), False: AllResourceItems.unmark_image.get_as_pixmap(25, 25)}
 
-    @profile
     def paint(self, painter: QPainter, option, index: QModelIndex):
         self.handle_background(painter, option, index)
         raw_data = index.model().data(index, CustomRole.RAW_DATA)
@@ -65,33 +92,15 @@ class MarkedImageDelegate(QStyledItemDelegate):
         target_rect.moveCenter(option.rect.center())
         painter.drawPixmap(target_rect, self.pixmaps[raw_data])
 
-    @profile
-    def handle_background(self, painter: QPainter, option, index: QModelIndex):
 
-        item_background = index.model().data(index, Qt.BackgroundRole)
-        if item_background:
-            painter.fillRect(option.rect, item_background)
-        if option.state & QStyle.State_Selected:
-            color = option.palette.highlight().color()
-            color.setAlpha(50)
-            painter.fillRect(option.rect, color)
-        elif option.state & QStyle.State_MouseOver:
-            color = option.palette.highlight().color()
-            color.setAlpha(25)
-            painter.fillRect(option.rect, color)
+class BoolImageDelegate(BaseItemDelegate):
+    pixmaps = None
 
-    def sizeHint(self, option, index):
-        """ Returns the size needed to display the item in a QSize object. """
-        return QSize(20, 20)
-
-
-class BoolImageDelegate(QStyledItemDelegate):
-    @profile
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.pixmaps = {True: AllResourceItems.check_mark_green_image.get_as_pixmap(25, 25), False: AllResourceItems.close_cancel_image.get_as_pixmap(25, 25)}
+        if self.__class__.pixmaps is None:
+            self.__class__.pixmaps = {True: AllResourceItems.check_mark_green_image.get_as_pixmap(25, 25), False: AllResourceItems.close_cancel_image.get_as_pixmap(25, 25)}
 
-    @profile
     def paint(self, painter: QPainter, option, index: QModelIndex):
         self.handle_background(painter, option, index)
 
@@ -104,28 +113,10 @@ class BoolImageDelegate(QStyledItemDelegate):
             target_rect.moveCenter(option.rect.center())
             painter.drawPixmap(target_rect, self.pixmaps[raw_data])
 
-    @profile
-    def handle_background(self, painter: QPainter, option, index: QModelIndex):
-
-        item_background = index.model().data(index, Qt.BackgroundRole)
-        if item_background:
-            painter.fillRect(option.rect, item_background)
-        if option.state & QStyle.State_Selected:
-            color = option.palette.highlight().color()
-            color.setAlpha(50)
-            painter.fillRect(option.rect, color)
-        elif option.state & QStyle.State_MouseOver:
-            color = option.palette.highlight().color()
-            color.setAlpha(25)
-            painter.fillRect(option.rect, color)
-
-    @profile
-    def sizeHint(self, option, index):
-        """ Returns the size needed to display the item in a QSize object. """
-        return QSize(20, 20)
-
+        return f'{self.__class__.__name__}'
 
 # region[Main_Exec]
+
 
 if __name__ == '__main__':
     pass

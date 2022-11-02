@@ -20,7 +20,8 @@ from PySide6.QtWidgets import (QFrame, QLabel, QWidget, QSpinBox, QCheckBox, QCo
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
-from gidapptools.errors import EntryMissingError
+from gidapptools.general_helper.enums import MiscEnum
+from gidapptools.gid_config.interface import GidIniConfig, ResolvedSection
 from gidapptools.general_helper.string_helper import StringCase, StringCaseConverter
 
 # * Local Imports --------------------------------------------------------------------------------------->
@@ -85,6 +86,13 @@ class CategorySelectionWidget(QListWidget):
         item.page_number = category_page_number
         self.addItem(item)
 
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
 
 class CategoryPicture(QFrame):
     clicked = Signal(int)
@@ -134,6 +142,13 @@ class CategoryPicture(QFrame):
     def layout(self) -> QVBoxLayout:
         return super().layout()
 
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
 
 class PictureCategorySelector(QGroupBox):
 
@@ -172,13 +187,20 @@ class PictureCategorySelector(QGroupBox):
         for category in self.categories.values():
             category.resize(max_width, max_heights)
 
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
 
 SETTINGS_VALUE_FIELD_TYPE = Union[QTextEdit, QComboBox, QFontComboBox, QSpinBox, QCheckBox, QDoubleSpinBox, QDateTimeEdit, QTimeEdit]
 
 
 class SettingsField:
 
-    def __init__(self, name: str, value: Union[Callable, Any], value_typus, verbose_name: str = None) -> None:
+    def __init__(self, name: str, value: Union[Callable, Any], value_typus, value_typus_aliases=None, verbose_name: str = None) -> None:
 
         self.key_field: QLabel = None
         self.value_field: SETTINGS_VALUE_FIELD_TYPE = None
@@ -186,6 +208,7 @@ class SettingsField:
         self.verbose_name = verbose_name or name_to_title(self.name)
         self.start_value = value() if callable(value) else value
         self.value_typus = value_typus
+        self.value_typus_aliases = value_typus_aliases or []
         self.setup()
 
     def setup(self):
@@ -194,6 +217,8 @@ class SettingsField:
         self.value_field = self.determine_value_field()
 
     def determine_value_field(self) -> SETTINGS_VALUE_FIELD_TYPE:
+        log.debug("determining value field for %r(%r), start_value=%r, value_typus=%r", self.name, self.verbose_name, self.start_value, self.value_typus)
+
         if self.name == "style":
 
             field = StyleValueField()
@@ -202,7 +227,15 @@ class SettingsField:
             field = UpdateTimeFrameValueField()
 
         else:
-            field_class = ALL_VALUE_FIELDS.get(self.value_typus.base_typus, StringValueField)
+            field_class = ALL_VALUE_FIELDS.get(self.value_typus, None)
+            all_aliases_iter = iter(self.value_typus_aliases)
+            while field_class is None:
+                alias = next(all_aliases_iter, None)
+                if alias is None:
+                    break
+                field_class = ALL_VALUE_FIELDS.get(alias, None)
+            if field_class is None:
+                field_class = StringValueField
             field = field_class()
 
         if self.start_value is not None:
@@ -220,6 +253,13 @@ class SettingsField:
     def setToolTip(self, tool_tip: str):
         self.key_field.setToolTip(tool_tip)
         self.value_field.setToolTip(tool_tip)
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 
 class SettingsForm(QFrame):
@@ -241,6 +281,25 @@ class SettingsForm(QFrame):
         self.fields[field.name] = field
 
     @classmethod
+    def from_resolve_section_item(cls, resolve_section: ResolvedSection, parent: QStackedWidget = None) -> "SettingsForm":
+        instance: "SettingsForm" = cls(resolve_section.name, parent)
+        instance.setWindowTitle(resolve_section.verbose_name)
+        for resolve_entry in resolve_section.entries:
+            if resolve_entry.gui_visible is False:
+                continue
+
+            field = SettingsField(resolve_entry.entry_name, resolve_entry.value, value_typus=resolve_entry.value_typus, verbose_name=resolve_entry.verbose_name)
+            if resolve_entry.description:
+                field.setToolTip(resolve_entry.description)
+            if resolve_entry.implemented is False:
+                field.setEnabled(False)
+                field.setToolTip("NOT IMPLEMENTED")
+
+            instance.add_field(field)
+
+        return instance
+
+    @classmethod
     def from_dict(cls, section_name: str, data_dict: Mapping[str, tuple[Any, Any]], parent: QStackedWidget = None) -> "SettingsForm":
         instance: "SettingsForm" = cls(section_name, parent)
 
@@ -252,7 +311,8 @@ class SettingsForm(QFrame):
             try:
 
                 field = SettingsField(key, attributes["value"], value_typus=attributes["converter"], verbose_name=attributes.get("verbose_name", None))
-                field.setToolTip(attributes.get("short_description", ""))
+                if attributes.get("short_description", "") is not MiscEnum.NOTHING:
+                    field.setToolTip(attributes.get("short_description", ""))
                 if attributes.get("implemented", True) is False:
                     field.setEnabled(False)
                     field.setToolTip("NOT IMPLEMENTED")
@@ -262,6 +322,13 @@ class SettingsForm(QFrame):
                 log.warning("KeyError for %r and attributes %r", key, attributes)
 
         return instance
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 
 class ContentStackedwidget(QStackedWidget):
@@ -278,10 +345,17 @@ class ContentStackedwidget(QStackedWidget):
         self.pages[w.section_name] = w
         return super().addWidget(w)
 
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
 
 class SettingsWindow(QWidget):
     window_title: str = "Settings"
-    exclude_categories: set[str] = {"logging"}
+    exclude_categories: set[str] = {"logging", "mod_handling"}
 
     def __init__(self, general_config: "GidIniConfig", main_window: "AntistasiLogbookMainWindow", parent=None) -> None:
         super().__init__(parent=parent, f=Qt.Dialog)
@@ -303,20 +377,11 @@ class SettingsWindow(QWidget):
         self.setup_content_widget()
         self.setup_selection_box()
 
-        for section, entries in self.general_config.spec.data.items():
-            if section in self.exclude_categories:
+        for section in self.general_config.sections:
+            if section.name in self.exclude_categories:
                 continue
-            for entry_name, entry_attributes in entries.items():
-                try:
-                    entry_attributes["value"] = self.general_config.get(section, entry_name)
-                except EntryMissingError:
-                    entry_attributes["value"] = None
-            self.add_category(section, entries, getattr(AllResourceItems, f"{section}_settings_image").get_as_pixmap(), self.general_config.spec.get_verbose_name(section))
 
-        # for cat, sub_data in self.general_config.as_dict(with_typus=True, only_gui_visible=True).items():
-        #     if cat in self.exclude_categories:
-        #         continue
-        #     self.add_category(cat, sub_data, getattr(AllResourceItems, f"{cat}_settings_image").get_as_pixmap())
+            self.add_category(section, getattr(AllResourceItems, f"{section.name}_settings_image").get_as_pixmap())
 
         self.selection_box.resize_categories()
         return self
@@ -342,9 +407,12 @@ class SettingsWindow(QWidget):
 
         self.main_layout.addWidget(self.selection_box, 0, 0, 1, 1, Qt.AlignTop)
 
-    def add_category(self, text: str, data_dict: Mapping[str, Any], picture: QPixmap, verbose_name: str = None):
-        page_number = self.content_widget.addWidget(SettingsForm.from_dict(section_name=text, data_dict=data_dict, parent=self.content_widget))
-        self.selection_box.add_category(text, picture, page_number)
+    def add_category(self, section_item: ResolvedSection, picture: QPixmap):
+        form = SettingsForm.from_resolve_section_item(resolve_section=section_item, parent=self.content_widget)
+        if section_item.description:
+            form.setToolTip(section_item.description)
+        page_number = self.content_widget.addWidget(form)
+        self.selection_box.add_category(section_item.verbose_name, picture, page_number)
 
     def change_page(self, current_item, previous_item):
         self.content_widget.setCurrentIndex(current_item.page_number)
@@ -370,15 +438,23 @@ class SettingsWindow(QWidget):
             sect_name = page.section_name
             for field in page.fields.values():
                 if field.value_field.value_is_changed():
-                    log.debug("sect_name=%r, field.name=%r, field.value_field.get_value()=%r", sect_name, field.name, field.value_field.get_value())
                     self.general_config.set(sect_name, field.name, field.value_field.get_value())
-
+                    if sect_name == "updating" and field.name == "update_interval":
+                        if self.main_window.cyclic_update_running is True:
+                            self.main_window.start_update_timer()
         # self.general_config.config.save()
         self.general_config.config.auto_write = old_auto_write
 
     def show(self) -> None:
 
         return super().show()
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 
 class CredentialsBox(QGroupBox):
@@ -394,8 +470,6 @@ class CredentialsBox(QGroupBox):
         self.password_input_widget.setEchoMode(QLineEdit.Password)
         self.password_input_widget.setClearButtonEnabled(True)
 
-        self.store_in_db_checkbox = QCheckBox(self)
-
         self.show_password_checkbox = QCheckBox(self)
 
         self.submit_button = QPushButton("Submit")
@@ -403,7 +477,6 @@ class CredentialsBox(QGroupBox):
         self.layout.addRow("Login", self.login_input_widget)
         self.layout.addRow("Password", self.password_input_widget)
         self.layout.addRow("Show Password", self.show_password_checkbox)
-        self.layout.addRow("Store Credentials in Database", self.store_in_db_checkbox)
         self.layout.addWidget(self.submit_button)
 
         self.submit_button.pressed.connect(self.submit_credentials)
@@ -448,7 +521,6 @@ class CredentialsBox(QGroupBox):
     def submit_credentials(self):
         login = self.login_input_widget.text()
         password = self.password_input_widget.text()
-        store_in_db = self.store_in_db_checkbox.isChecked()
 
         if not login:
             self.login_input_widget.setStyleSheet("background-color: red")
@@ -461,8 +533,15 @@ class CredentialsBox(QGroupBox):
 
         self.login_input_widget.setStyleSheet("")
         self.password_input_widget.setStyleSheet("")
-        self.remote_storage.set_login_and_password(login=login, password=password, store_in_db=store_in_db)
+        self.remote_storage.set_login_and_password(login=login, password=password)
         self.indicate_success()
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 
 class CredentialsManagmentWindow(QWidget):
@@ -484,6 +563,13 @@ class CredentialsManagmentWindow(QWidget):
     @property
     def layout(self) -> QVBoxLayout:
         return super().layout()
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 # region[Main_Exec]
 

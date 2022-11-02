@@ -7,34 +7,38 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from time import sleep
+import sys
 from typing import TYPE_CHECKING, Any
 from pathlib import Path
-from functools import partial
+from concurrent.futures import Future
 
 # * Qt Imports --------------------------------------------------------------------------------------->
-from PySide6.QtGui import QFont, QAction, QFontMetrics
-from PySide6.QtCore import Qt, Slot, QSize, Signal, QModelIndex
+from PySide6.QtGui import QFont, QColor, QAction, QFontMetrics
+from PySide6.QtCore import Qt, Slot, QSize, Signal, QSettings, QModelIndex
+from PySide6.QtWidgets import QApplication
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
 from peewee import Field, Query
+from frozendict import frozendict
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 from gidapptools.general_helper.color.color_item import Color
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.misc import CustomRole
 from antistasi_logbook.records.enums import MessageFormat
-from antistasi_logbook.storage.models.models import LogRecord, RecordClass
+from antistasi_logbook.records.base_record import BaseRecord
+from antistasi_logbook.storage.models.models import LogFile, Message, LogRecord, RecordClass
+from antistasi_logbook.storage.models.custom_fields import FakeField
 from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE, BaseQueryDataModel
 from antistasi_logbook.gui.models.proxy_models.base_proxy_model import BaseProxyModel
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-    from antistasi_logbook.records.base_record import BaseRecord
     from antistasi_logbook.records.abstract_record import AbstractRecord
     from antistasi_logbook.gui.views.base_query_tree_view import CustomContextMenu
     from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE
@@ -52,7 +56,6 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
@@ -73,10 +76,11 @@ class RefreshItem:
 class LogRecordsModel(BaseQueryDataModel):
     request_view_change_visibility = Signal(bool)
 
-    extra_columns = set()
-    strict_exclude_columns = {"record_class"}
-    bool_images = {True: AllResourceItems.check_mark_green_image.get_as_icon(),
-                   False: AllResourceItems.close_black_image.get_as_icon()}
+    extra_columns = {FakeField(name="message", verbose_name="Message"),
+                     FakeField(name="server", verbose_name="Server")}
+    strict_exclude_columns = {"record_class", "message_item"}
+    bool_images = frozendict({True: AllResourceItems.check_mark_green_image.get_as_icon(),
+                              False: AllResourceItems.close_black_image.get_as_icon()})
 
     def __init__(self, parent=None) -> None:
         super().__init__(LogRecord, parent=parent)
@@ -86,24 +90,45 @@ class LogRecordsModel(BaseQueryDataModel):
         self.message_font = self._create_message_font()
         self.proxy_model = BaseProxyModel()
         self.proxy_model.setSourceModel(self)
+        self._refresh_task: Future = None
+        self.collecting_records = False
+        self.error_color: QColor = Color(value=(225, 25, 23, 0.5), typus=Color.color_typus.RGB, name="error_red").qcolor
+        self.warning_color: QColor = Color(value=(255, 103, 0, 0.5), typus=Color.color_typus.RGB, name="warning_orange").qcolor
 
-    def _create_message_font(self) -> QFont:
-        font: QFont = self.app.font()
-        font.setFamily("Lucida Console")
+    def set_message_font(self, font):
+        self.layoutAboutToBeChanged.emit()
+        self.message_font = font
+        settings = QSettings()
+        settings.setValue(f"{self.name}_message_font", font)
+        self.layoutChanged.emit()
 
-        font.setWeight(QFont.Light)
-        font.setStyleHint(QFont.Monospace)
-        font.setStyleStrategy(QFont.PreferQuality)
+    @classmethod
+    def _create_message_font(cls, reset: bool = False) -> QFont:
+        settings = QSettings()
+        font = settings.value(f"{cls.__name__}_message_font", None)
+        if font is None or reset is True:
+            font: QFont = QApplication.instance().font()
+            font.setFamily("Lucida Console")
+
+            font.setWeight(QFont.Light)
+            font.setStyleHint(QFont.Monospace)
+            font.setStyleStrategy(QFont.PreferQuality)
 
         return font
 
     def on_query_filter_changed(self, query_filter):
         self.filter_item = query_filter
-        self.app.backend.thread_pool.submit(self.refresh)
+        try:
+            self.last_selection_ids = [i.id for i in self.parent().current_selected_items]
+
+        except AttributeError:
+            log.warning("AttributeError in on_query_filter_changed for %r", self)
+            self.last_selection_ids = None
+        self.refresh()
 
     def get_query(self) -> "Query":
 
-        query = LogRecord.select()
+        query = LogRecord.select(LogRecord, Message).join_from(LogRecord, Message, on=(LogRecord.message_item == Message.md5_hash))
         if self._base_filter_item is not None:
             query = query.where(self._base_filter_item)
         if self.filter_item is not None:
@@ -150,15 +175,17 @@ class LogRecordsModel(BaseQueryDataModel):
         column = self.columns[index.column()]
 
         if item.log_level.name == "ERROR":
-            return Color(225, 25, 23, 0.5, "error_red").qcolor
+            return self.error_color
         elif item.log_level.name == "WARNING":
-            return Color(255, 103, 0, 0.5, "warning_orange").qcolor
+            return self.warning_color
 
         if column.name == "log_level":
             return getattr(item, column.name).background_color
 
-        if hasattr(item, "background_color"):
+        try:
             return item.background_color
+        except AttributeError:
+            pass
         return super()._get_background_data(index)
 
     def _get_text_alignment_data(self, index: INDEX_TYPE) -> Any:
@@ -166,50 +193,59 @@ class LogRecordsModel(BaseQueryDataModel):
             return None
         return super()._get_text_alignment_data(index)
 
+    def _get_size_hint_data(self, index: INDEX_TYPE) -> Any:
+        return QSize(0, self.message_font.pointSize() * 2)
+
     def _get_font_data(self, index: "INDEX_TYPE") -> Any:
         if index.column_item.name in {"message"}:
             return self.message_font
+        return self.message_font
 
-    def _get_record(self, _item_data, _all_log_files):
+    def _get_record(self, **_item_data):
+        _item_data["text"] = sys.intern(Message.get_by_id_cached(_item_data["message_item"]).text)
         record_class = self.backend.record_class_manager.get_by_id(_item_data.get('record_class'))
-        log_file = _all_log_files[_item_data.get('log_file')]
-        record_item = record_class.from_model_dict(_item_data, log_file=log_file)
+        log_file = LogFile.get_by_id_cached(_item_data["log_file"])
+        record_item = record_class.from_model_dict(_item_data, foreign_key_cache=self.backend.foreign_key_cache, log_file=log_file)
 
         return record_item
 
     def get_content(self) -> "LogRecordsModel":
 
         log.debug("starting getting content for %r", self)
-        all_log_files = {log_file.id: log_file for log_file in self.backend.database.get_log_files()}
+        self.backend.foreign_key_cache.preload_all()
+        self.collecting_records = True
+        # all_records = tuple(self.get_query().dicts().iterator())
+        # all_log_files = {log_file.id: log_file for log_file in self.backend.database.get_log_files() if log_file.id in {i.get('log_file') for i in all_records}}
+
+        # self.content_items = tuple(self.app.backend.thread_pool.map(partial(self._get_record, _all_log_files=all_log_files), all_records))
 
         self.content_items = []
-        records_getter = partial(self._get_record, _all_log_files=all_log_files)
-        num_collected = 0
-        for record_item in self.app.backend.thread_pool.map(records_getter, self.get_query().dicts().iterator()):
 
-            self.content_items.append(record_item)
-            num_collected += 1
-            if num_collected % 10_000 == 0:
-                sleep(0.0)
+        with self.database.atomic():
+            self.content_items = tuple(self.get_query().objects(self._get_record).iterator())
+
         log.debug("finished getting content for %r", self)
+        self.collecting_records = False
 
         return self
 
     def refresh(self) -> "BaseQueryDataModel":
-        self.request_view_change_visibility.emit(False)
+        # self.request_view_change_visibility.emit(False)
 
         self.beginResetModel()
-        with self.database:
-            self.get_columns().get_content()
+        self.get_columns()
+
+        self.get_content()
+
         self.endResetModel()
-        self.request_view_change_visibility.emit(True)
+        # self.request_view_change_visibility.emit(True)
 
         return self
 
     def refresh_item(self, index: "INDEX_TYPE"):
         item, column = self.get(index)
-        with self.database:
-            setattr(item, column.name, getattr(self.db_model.get_by_id(item.id), column.name))
+
+        setattr(item, column.name, getattr(self.db_model.get_by_id(item.id), column.name))
 
 
 # region[Main_Exec]

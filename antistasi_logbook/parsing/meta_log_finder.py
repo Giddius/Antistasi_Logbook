@@ -18,14 +18,15 @@ from dateutil.tz import UTC
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.enums import MiscEnum
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.utilities.misc import ModItem, VersionItem
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-    from antistasi_logbook.regex.regex_keeper import SimpleRegexKeeper
     from antistasi_logbook.parsing.parsing_context import ParsingContext
+    from antistasi_logbook.regex_store.regex_keeper import SimpleRegexKeeper
 
 # endregion[Imports]
 
@@ -40,7 +41,7 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
@@ -51,10 +52,11 @@ FullDateTimes = namedtuple("FullDateTimes", ["local_datetime", "utc_datetime"])
 
 class MetaFinder:
 
-    __slots__ = ("game_map", "full_datetime", "version", "mods", "campaign_id", "is_new_campaign", "regex_keeper")
+    __slots__ = ("game_map", "full_datetime", "version", "mods", "campaign_id", "is_new_campaign", "regex_keeper", "context")
 
     def __init__(self, regex_keeper: "SimpleRegexKeeper", context: "ParsingContext", force: bool = False) -> None:
         self.regex_keeper = regex_keeper
+        self.context = context
         if force is True:
             self.game_map: str = MiscEnum.NOT_FOUND
             self.full_datetime: FullDateTimes = MiscEnum.NOT_FOUND
@@ -66,13 +68,12 @@ class MetaFinder:
             self.game_map: str = MiscEnum.NOT_FOUND if not context._log_file.has_game_map() else MiscEnum.DEFAULT
             self.full_datetime: FullDateTimes = MiscEnum.NOT_FOUND if not context._log_file.utc_offset else MiscEnum.DEFAULT
             self.version: VersionItem = MiscEnum.NOT_FOUND if not context._log_file.version else MiscEnum.DEFAULT
-            self.mods: list[ModItem] = MiscEnum.NOT_FOUND if not context._log_file.has_mods() else MiscEnum.DEFAULT
+            self.mods: list[ModItem] = MiscEnum.NOT_FOUND if not context._log_file.has_mods else MiscEnum.DEFAULT
             self.campaign_id: int = MiscEnum.NOT_FOUND if context._log_file.campaign_id is None else MiscEnum.DEFAULT
             self.is_new_campaign: bool = MiscEnum.NOT_FOUND if context._log_file.is_new_campaign is None else MiscEnum.DEFAULT
 
     def all_found(self) -> bool:
-        # takes about 0.000742 s
-        return all(i is not MiscEnum.NOT_FOUND for i in [self.game_map, self.full_datetime, self.version, self.campaign_id, self.is_new_campaign])
+        return all(i is not MiscEnum.NOT_FOUND for i in [self.game_map, self.full_datetime, self.version, self.campaign_id, self.is_new_campaign, self.mods])
 
     def _resolve_full_datetime(self, text: str) -> None:
         if match := self.regex_keeper.first_full_datetime.search(text):
@@ -91,9 +92,12 @@ class MetaFinder:
             if version_args:
                 while len(version_args) < 3:
                     version_args.append('MISSING')
-                version = VersionItem(*version_args)
+                try:
+                    version = VersionItem(*version_args)
 
-                self.version = version
+                    self.version = version
+                except ValueError:
+                    pass
 
     def _resolve_game_map(self, text: str) -> None:
         # takes about 0.170319 s
@@ -102,12 +106,14 @@ class MetaFinder:
 
     def _resolve_mods(self, text: str) -> None:
         # takes about 0.263012 s
-        if match := self.regex_keeper.mods.search(text):
+        match = self.regex_keeper.mods.search(text)
+        if match:
             mod_lines = match.group('mod_lines').splitlines()
 
-            cleaned_mod_lines = [self.regex_keeper.mod_time_strip.sub("", line) for line in mod_lines if '|' in line and 'modDir' not in line]
+            cleaned_mod_lines = [self.regex_keeper.mod_time_strip.sub("", line, 1) for line in mod_lines if '|' in line and 'modDir' not in line]
+            mod_future = self.context.inserter.many_mods_from_mod_lines(mod_lines=cleaned_mod_lines)
 
-            self.mods = [ModItem.from_text_line(line) for line in cleaned_mod_lines]
+            self.mods = mod_future
 
     def _resolve_campaign_id(self, text: str) -> None:
         if match := self.regex_keeper.campaign_id.search(text):

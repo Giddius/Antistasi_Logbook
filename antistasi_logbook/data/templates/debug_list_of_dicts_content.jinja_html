@@ -1,0 +1,40 @@
+<p>
+    <dl>
+        {% for key, value in data.items() %}
+            <dt>
+                <b><u>{{ key }}:</u></b>
+            </dt>
+            <dd>
+                {% if value is mapping %}
+                    <dl>
+                        {% for sub_key, sub_value in value.items() %}
+                            <dt>
+                                {{ sub_key }}:
+                            </dt>
+                            <dd>
+                                {% if sub_value is mapping %}
+                                    <dl>
+                                        {% for sub_sub_key, sub_sub_value in sub_value.items() %}
+                                            <dt>
+                                                {{ sub_sub_key }}:
+                                            </dt>
+                                            <dd>
+                                                {{ sub_sub_value }}
+                                            </dd>
+                                        {% endfor %}
+                                    </dl>
+                                {% else %}
+                                    {{ sub_value }}
+                                {% endif %}
+                            </dd>
+                        {% endfor %}
+                    </dl>
+                {% else %}
+                    {{ value }}
+                {% endif %}
+            </dd>
+        {% endfor %}
+    </dl>
+</p>
+<br>
+<hr>

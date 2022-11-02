@@ -20,6 +20,7 @@ import tzlocal
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
+from gidapptools.general_helper.conversion import seconds2human
 from gidapptools.general_helper.string_helper import extract_by_map, replace_by_dict
 
 # * Local Imports --------------------------------------------------------------------------------------->
@@ -34,8 +35,7 @@ from antistasi_logbook.errors import DurationTimezoneError
 
 # region [Logging]
 
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
-get_dummy_profile_decorator_in_globals()
+
 log = get_logger(__name__)
 
 # endregion[Logging]
@@ -113,22 +113,53 @@ def _validate_date_time_frame_tzinfo(instance: "DateTimeFrame"):
         raise DurationTimezoneError(instance, instance.start.tzinfo, instance.end.tzinfo, 'start time and end time do not have the same timezone')
 
 
-@attr.s(auto_attribs=True, auto_detect=True, frozen=True)
+@attr.s(auto_attribs=True, auto_detect=True, frozen=True, slots=True, weakref_slot=True)
 @total_ordering
 class DateTimeFrame:
     start: datetime = attr.ib()
     end: datetime = attr.ib()
+    delta: timedelta = attr.ib(init=False)
 
     def __attrs_post_init__(self):
         _validate_date_time_frame_tzinfo(self)
 
-    @property
-    def delta(self) -> timedelta:
+    @delta.default
+    def get_delta(self) -> timedelta:
         return self.end - self.start
 
     @property
     def tzinfo(self) -> timezone:
         return self.start.tzinfo
+
+    @property
+    def seconds(self) -> int:
+        return int(self.delta.total_seconds())
+
+    @property
+    def minutes(self) -> int:
+        minutes = self.delta.total_seconds() / 60
+        return int(minutes)
+
+    @property
+    def hours(self) -> int:
+        minutes = self.delta.total_seconds() / 60
+        hours = minutes / 60
+        return int(hours)
+
+    @property
+    def days(self) -> int:
+        minutes = self.delta.total_seconds() / 60
+        hours = minutes / 60
+        days = hours / 24
+        return int(days)
+
+    @property
+    def weeks(self) -> int:
+        minutes = self.delta.total_seconds() / 60
+        hours = minutes / 60
+        days = hours / 24
+        weeks = days / 7
+        return int(weeks)
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, datetime):
@@ -153,15 +184,25 @@ class DateTimeFrame:
             return self.start <= other <= self.end
         return NotImplemented
 
+    def __add__(self, other: object) -> "DateTimeFrame":
+        if isinstance(other, DateTimeFrame):
+            new_start = min(self.start, other.start)
+            new_end = max(self.end, other.end)
+            return self.__class__(start=new_start, end=new_end)
+        return NotImplemented
+
+    def delta_to_string(self) -> str:
+        return seconds2human(self.delta, with_year=False, min_unit="millisecond")
+
     def to_pretty_string(self, fmt=None, multiline: bool = False):
-        fmt = "%Y-%m-%d %H:%M:%S" if fmt is None else fmt
+        fmt = "%Y-%m-%d %H:%M:%S %Z" if fmt is None else fmt
         if multiline is False:
             return f"{self.start.strftime(fmt)} until {self.end.strftime(fmt)}"
         else:
             return f"{self.start.strftime(fmt)}\nuntil\n{self.end.strftime(fmt)}"
 
     def __str__(self) -> str:
-        return f"{self.start.isoformat()} until {self.end.isoformat()}"
+        return f"{self.to_pretty_string()} ({self.delta_to_string()})"
 
     def __hash__(self) -> int:
         return hash(self.start) + hash(self.end) + hash(self.delta)

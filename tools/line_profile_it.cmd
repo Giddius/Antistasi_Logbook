@@ -20,6 +20,8 @@ set _minutes=%_time:~2,2%
 set _seconds=%_time:~4,2%
 rem ---------------------------------------------------
 
+SET IS_DEV=true
+SET PYTHONDEVMODE=1
 
 SET FULLINPATH=%~1
 set INPATH=%~dp1
@@ -42,7 +44,7 @@ SET TEMP_PROFILE_FILE_PATH=%SUB_OUTPUT_FOLDER%\[%_years%-%_months%-%_days%_%_hou
 SET LINE_PROFILE_RUNNING=1
 call kernprof -l --outfile %TEMP_PROFILE_FILE_PATH% %FULLINPATH%
 
-call python -m line_profiler %TEMP_PROFILE_FILE_PATH%>%FINAL_OUTPUT_FILE_PATH%
+call python -m line_profiler -u 1e-6 %TEMP_PROFILE_FILE_PATH%>%FINAL_OUTPUT_FILE_PATH%
 
 DEL %TEMP_PROFILE_FILE_PATH%
 pushd %OLDHOME_FOLDER%

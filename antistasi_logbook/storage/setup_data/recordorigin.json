@@ -1,0 +1,14 @@
+[
+    {
+        "id": 0,
+        "name": "Generic",
+        "identifier": "generic",
+        "is_default": true
+    },
+    {
+        "id": 1,
+        "name": "Antistasi",
+        "identifier": "| antistasi |",
+        "is_default": false
+    }
+]

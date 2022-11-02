@@ -1,3 +1,2 @@
 create_venv_extra_envvars.py,%WORKSPACE_FOLDER% %PROJECT_NAME% %PROJECT_AUTHOR%
 pipdeptree,-a>dep_tree.json
-pyside6-genpyi.exe,--check all

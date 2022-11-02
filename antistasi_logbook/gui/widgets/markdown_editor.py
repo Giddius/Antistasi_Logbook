@@ -38,8 +38,7 @@ if TYPE_CHECKING:
 
 # region [Constants]
 
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
-get_dummy_profile_decorator_in_globals()
+
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 
@@ -119,6 +118,13 @@ class AddListDialog(QDialog):
     def layout(self) -> QFormLayout:
         return super().layout()
 
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
 
 class AddTitleDialog(QDialog):
     title_accepted = Signal(str)
@@ -161,6 +167,13 @@ class AddTitleDialog(QDialog):
     @property
     def layout(self) -> QFormLayout:
         return super().layout()
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 
 class AddLinkDialog(QDialog):
@@ -210,6 +223,13 @@ class AddLinkDialog(QDialog):
         link_text = f"[{self.link_text_input.text()}]({self.link_url_input.text()})"
         self.link_accepted.emit(link_text)
         self.close()
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 
 class MarkdownEditor(QWidget):
@@ -333,6 +353,13 @@ class MarkdownEditor(QWidget):
     def layout(self) -> QHBoxLayout:
         return super().layout()
 
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
 
 class MarkdownEditorDialog(QDialog):
     dialog_accepted = Signal(str)
@@ -369,6 +396,13 @@ class MarkdownEditorDialog(QDialog):
             return True, dialog.markdown_editor.input_widget.toMarkdown(QTextDocument.MarkdownDialectGitHub).strip()
 
         return False, None
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
 
 # region[Main_Exec]

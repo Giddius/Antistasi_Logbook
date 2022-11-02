@@ -11,35 +11,21 @@ from typing import TYPE_CHECKING, Optional
 from pathlib import Path
 
 # * Qt Imports --------------------------------------------------------------------------------------->
-import PySide6
-from PySide6 import (QtCore, QtGui, QtWidgets, Qt3DAnimation, Qt3DCore, Qt3DExtras, Qt3DInput, Qt3DLogic, Qt3DRender, QtAxContainer, QtBluetooth,
-                     QtCharts, QtConcurrent, QtDataVisualization, QtDesigner, QtHelp, QtMultimedia, QtMultimediaWidgets, QtNetwork, QtNetworkAuth,
-                     QtOpenGL, QtOpenGLWidgets, QtPositioning, QtPrintSupport, QtQml, QtQuick, QtQuickControls2, QtQuickWidgets, QtRemoteObjects,
-                     QtScxml, QtSensors, QtSerialPort, QtSql, QtStateMachine, QtSvg, QtSvgWidgets, QtTest, QtUiTools, QtWebChannel, QtWebEngineCore,
-                     QtWebEngineQuick, QtWebEngineWidgets, QtWebSockets, QtXml)
+from PySide6 import QtCore
+from PySide6.QtGui import QColor
+from PySide6.QtCore import Slot, QModelIndex
+from PySide6.QtWidgets import QColorDialog
 
-from PySide6.QtCore import (QByteArray, QCoreApplication, QDate, QDateTime, QEvent, QLocale, QMetaObject, QModelIndex, QModelRoleData, QMutex,
-                            QMutexLocker, QObject, QPoint, QRect, QRecursiveMutex, QRunnable, QSettings, QSize, QThread, QThreadPool, QTime, QUrl,
-                            QWaitCondition, Qt, QAbstractItemModel, QAbstractListModel, QAbstractTableModel, Signal, Slot)
-
-from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
-                           QKeySequence, QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform)
-
-from PySide6.QtWidgets import (QApplication, QBoxLayout, QCheckBox, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QDialogButtonBox,
-                               QDockWidget, QDoubleSpinBox, QFontComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
-                               QLCDNumber, QLabel, QLayout, QLineEdit, QListView, QListWidget, QMainWindow, QMenu, QMenuBar, QMessageBox,
-                               QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
-                               QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
-                               QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
-
+# * Third Party Imports --------------------------------------------------------------------------------->
+from peewee import Field
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
-from antistasi_logbook.gui.widgets.better_color_dialog import BetterColorDialog
-from peewee import Field, Query, IntegerField
+
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.storage.models.models import RecordClass, BaseModel
+from antistasi_logbook.storage.models.models import BaseModel, RecordClass
 from antistasi_logbook.storage.models.custom_fields import FakeField
+from antistasi_logbook.gui.widgets.better_color_dialog import BetterColorDialog
 from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
@@ -60,8 +46,7 @@ if TYPE_CHECKING:
 
 # region [Constants]
 
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
-get_dummy_profile_decorator_in_globals()
+
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 
@@ -69,7 +54,9 @@ log = get_logger(__name__)
 
 
 class RecordClassesModel(BaseQueryDataModel):
-    extra_columns = {FakeField(name="record_family", verbose_name="Record Family"), FakeField(name="specificity", verbose_name="Specificity")}
+    extra_columns = {FakeField(name="record_family", verbose_name="Record Family"),
+                     FakeField(name="specificity", verbose_name="Specificity"),
+                     FakeField(name="amount_stored", verbose_name="Amount")}
     color_config_name = "record"
     _item_size_by_column_name: dict[str, int] = {"id": 30, "marked": 60, "record_family": 200, "specificity": 100, "name": 250}
 

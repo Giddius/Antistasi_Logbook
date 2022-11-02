@@ -172,3 +172,11 @@ antistasi_logbook/raised_errors.txt
 /tools/quick_scripts
 /antistasi_logbook/storage/backups
 /pyinstaller_output_Antistasi_Logbook
+antistasi_logbook/storage/storage.7z
+/antistasi_logbook/storage/storage.logbook_db
+/antistasi_logbook/storage/storage.logbook_db-shm
+/antistasi_logbook/storage/storage.logbook_db-wal
+/antistasi_logbook/storage/original_log_files
+/antistasi_logbook/debug_dump
+
+!/docs/build

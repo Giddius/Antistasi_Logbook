@@ -1,0 +1,145 @@
+/* Applies to the entire body of the HTML document (except where overridden by more specific
+selectors). */
+body {
+    margin-left: 160px;
+    padding: 0px 10px;
+    font-family: arial, sans-serif;
+    font-size: 16px;
+}
+
+/* Applies to all <h1>...</h1> elements. */
+h1 {
+    font-size: 35px;
+    font-weight: normal;
+    margin-top: 5px;
+}
+
+dl {
+    border: 3px double rgb(0, 0, 0);
+    padding: 0.5em;
+}
+
+dt {
+    float: left;
+    clear: left;
+    width: 100px;
+    text-align: right;
+    font-weight: bold;
+    color: green;
+}
+
+dt::after {
+    content: ":";
+}
+
+dd {
+    margin: 0 0 0 110px;
+    padding: 0 0 0.5em 0;
+}
+
+
+.description {
+
+    font-family: monospace;
+    font-size: 14px;
+    font-weight: bolder;
+    background-color: rgba(200, 200, 200, 100);
+    border: 3px double black;
+    text-align: center;
+    padding-top: 14px;
+    padding-bottom: 14px;
+
+}
+
+*.app_name {
+
+    font-family: Arial, Helvetica, sans-serif;
+    font-weight: 900;
+    text-decoration: underline;
+    display: inline-block;
+    white-space: nowrap;
+
+
+}
+
+/* The sidebar menu */
+.toc {
+    height: 100%;
+    /* Full-height: remove this if you want "auto" height */
+    width: 160px;
+    /* Set the width of the sidebar */
+    position: fixed;
+    /* Fixed Sidebar (stay in place on scroll) */
+    z-index: 1;
+    /* Stay on top */
+    top: 0;
+    /* Stay at the top */
+    left: 0;
+    background: rgb(0, 0, 0);
+
+    /* Black */
+    overflow-x: hidden;
+    /* Disable horizontal scroll */
+    padding-top: 20px;
+}
+
+/* The navigation menu links */
+.toc a {
+    padding: 6px 8px 6px 16px;
+    text-decoration: none;
+    text-shadow: -1px -1px 1px gray,
+        1px -1px 1px gray,
+        -1px 1px 1px gray,
+        1px 1px 1px gray;
+    font-size: 16px;
+    font-weight: bolder;
+    color: darkblue;
+    display: block;
+}
+
+/* When you mouse over the navigation links, change their color */
+.toc a:hover {
+    color: white;
+}
+
+
+
+.usage {
+    background-color: lightgrey;
+    text-align: center;
+    padding-bottom: 32px;
+    border: 2px dotted black;
+
+}
+
+code {
+    height: 100%;
+    width: 100%;
+    background-color: #070d02;
+    color: #00FF41;
+    text-shadow: 0 0 4px #00FF41;
+    margin: 0;
+    padding: 7px;
+    cursor: default;
+    font-smooth: never;
+    text-align: center;
+
+}
+
+
+
+@media screen and (max-height: 450px) {
+    .toc {
+        padding-top: 15px;
+    }
+
+    .toc a {
+        font-size: 18px;
+    }
+}
+
+hr {
+    border: 0;
+    height: 4px;
+    background-image: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0));
+}

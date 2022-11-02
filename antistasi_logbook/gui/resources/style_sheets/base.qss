@@ -8,13 +8,21 @@ __TAGS__: DEFAULT, BASIC
     color: white;
     background-color: red;
     text-decoration: underline;
-    font_size: 15px}
+    font-size: 15px}
 
 
 
-QLCDNumber{
+QLCDNumber {
   background-color: rgba(200, 200, 200,150);
   border: 2px solid rgb(0,0,0);
   color: blue;
 
+}
+QSystemTrayIcon {
+    border: 1px solid black;
+    background-color: white;
+    margin: 4px}
+
+QSystemTrayIcon:hover {
+    color: black;
 }

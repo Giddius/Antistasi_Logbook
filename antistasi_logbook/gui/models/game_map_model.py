@@ -7,11 +7,15 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 from pathlib import Path
 
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6 import QtCore
+from PySide6.QtCore import Signal
+
+# * Third Party Imports --------------------------------------------------------------------------------->
+from peewee import Field
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -38,8 +42,7 @@ if TYPE_CHECKING:
 
 # region [Constants]
 
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
-get_dummy_profile_decorator_in_globals()
+
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 
@@ -47,12 +50,19 @@ log = get_logger(__name__)
 
 
 class GameMapModel(BaseQueryDataModel):
+
     strict_exclude_columns = {"map_image_low_resolution", "map_image_high_resolution", "coordinates"}
+    avg_player_calculation_finished = Signal(float, object)
 
     def __init__(self, parent: Optional[QtCore.QObject] = None) -> None:
 
         super().__init__(GameMap, parent=parent)
         self.filter_item = None
+
+    def _modify_display_data(self, data: Any, item: GameMap, column: "Field") -> str:
+        if column.verbose_name == "Internal Name":
+            return getattr(item, column.name)
+        return super()._modify_display_data(data, item, column)
 
 
 # region[Main_Exec]

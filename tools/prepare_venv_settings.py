@@ -11,7 +11,6 @@ REQUIRED_FILES = ["post_setup_scripts.txt",
                   "required_from_github.txt",
                   "required_misc.txt",
                   "required_personal_packages.txt",
-                  "required_gui.txt",
                   "required_test.txt", ]
 
 SETTINGS_FOLDER = Path(os.path.abspath(os.path.dirname(__file__))).joinpath('venv_setup_settings')

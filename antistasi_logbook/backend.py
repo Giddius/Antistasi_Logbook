@@ -7,11 +7,12 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from time import sleep
+import gc
+import shutil
+from time import time, sleep
 from typing import TYPE_CHECKING, Iterable, Optional
 from pathlib import Path
 from weakref import WeakSet
-from datetime import datetime
 from itertools import chain
 from threading import Lock, Event
 from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor, wait
@@ -23,23 +24,21 @@ from PySide6.QtWidgets import QApplication
 import attr
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
-from gidapptools import get_logger, get_meta_info, get_meta_paths, get_meta_config
+from gidapptools import get_logger, get_meta_info, get_meta_paths
 from gidapptools.gid_signal.interface import get_signal
-from gidapptools.general_helper.compress import compress_file
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.records import ALL_GENERIC_RECORD_CLASSES, ALL_ANTISTASI_RECORD_CLASSES
 from antistasi_logbook.parsing.parser import Parser
-from antistasi_logbook.utilities.locks import FILE_LOCKS
-from antistasi_logbook.storage.database import GidSqliteApswDatabase
+from antistasi_logbook.storage.database import GidSqliteApswDatabase, make_db_path
 from antistasi_logbook.updating.updater import Updater
-from antistasi_logbook.regex.regex_keeper import SimpleRegexKeeper
 from antistasi_logbook.storage.models.models import LogFile, RecordClass, DatabaseMetaData
 from antistasi_logbook.updating.time_handling import TimeClock
 from antistasi_logbook.parsing.parsing_context import LogParsingContext
 from antistasi_logbook.updating.update_manager import UpdateManager
 from antistasi_logbook.parsing.record_processor import RecordInserter, RecordProcessor
-from antistasi_logbook.updating.remote_managers import remote_manager_registry
+from antistasi_logbook.regex_store.regex_keeper import SimpleRegexKeeper
+from antistasi_logbook.updating.remote_managers import AbstractRemoteStorageManager, remote_manager_registry
 from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 from antistasi_logbook.records.record_class_manager import RECORD_CLASS_TYPE, RecordClassManager
 
@@ -68,7 +67,7 @@ if TYPE_CHECKING:
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 META_INFO = get_meta_info()
 META_PATHS = get_meta_paths()
-CONFIG = get_meta_config().get_config("general")
+
 
 log = get_logger(__name__)
 # endregion[Constants]
@@ -134,6 +133,8 @@ class Backend:
 
     """
     all_parsing_context: WeakSet["LogParsingContext"] = WeakSet()
+    minimum_thread_amount = 10
+    average_seconds_per_log_file: float = 12.5
 
     def __init__(self, database: "GidSqliteApswDatabase", config: "GidIniConfig", update_signaler: "UpdaterSignaler" = NoneSignaler()) -> None:
         self._thread_pool: ThreadPoolExecutor = None
@@ -142,16 +143,17 @@ class Backend:
         self.locks = Locks()
         self.signals = Signals()
         self.config = config
+        self.color_config: "GidIniConfig" = None
         self.database = database
+        self.database.backend = self
         self.update_signaler = update_signaler
-        self.foreign_key_cache = ForeignKeyCache(self)
 
-        self.record_class_manager = RecordClassManager(foreign_key_cache=self.foreign_key_cache)
+        self.record_class_manager = RecordClassManager(backend=self, foreign_key_cache=self.foreign_key_cache)
 
         self.time_clock = TimeClock(config=self.config, stop_event=self.events.stop)
         self.remote_manager_registry = remote_manager_registry
-        self.record_processor = RecordProcessor(backend=self, regex_keeper=SimpleRegexKeeper())
-        self.parser = Parser(backend=self, regex_keeper=SimpleRegexKeeper(), stop_event=self.events.stop)
+        AbstractRemoteStorageManager.config = self.config
+        self.record_processor = RecordProcessor(backend=self, regex_keeper=SimpleRegexKeeper(), foreign_key_cache=self.foreign_key_cache)
         self.updater = Updater(stop_event=self.events.stop, pause_event=self.events.pause, backend=self, signaler=self.update_signaler)
         self.records_inserter = RecordInserter(config=self.config, backend=self)
 
@@ -160,6 +162,10 @@ class Backend:
 
         # thread
         self.update_manager: UpdateManager = None
+
+    @property
+    def foreign_key_cache(self) -> ForeignKeyCache:
+        return self.database.foreign_key_cache
 
     @property
     def app(self) -> Optional["AntistasiLogbookApplication"]:
@@ -176,6 +182,11 @@ class Backend:
         return QApplication.instance()
 
     @property
+    def max_threads(self) -> int:
+        max_threads = self.config.get("general", "max_threads")
+        return max(self.minimum_thread_amount, max_threads)
+
+    @property
     def thread_pool(self) -> ThreadPoolExecutor:
         """
         Provides the shared thread-pool each part of the Backend(except the `RecordInserter`) uses.
@@ -190,7 +201,7 @@ class Backend:
             ThreadPoolExecutor: [description]
         """
         if self._thread_pool is None:
-            self._thread_pool = ThreadPoolExecutor(max_workers=max(1, int(self.config.get("general", "max_threads") * 0.34)), thread_name_prefix="backend")
+            self._thread_pool = ThreadPoolExecutor(max_workers=max(2, self.max_threads - 3), thread_name_prefix="backend")
         return self._thread_pool
 
     @property
@@ -208,7 +219,7 @@ class Backend:
             ThreadPoolExecutor: [description]
         """
         if self._inserting_thread_pool is None:
-            self._inserting_thread_pool = ThreadPoolExecutor(max_workers=max(1, int(self.config.get("general", "max_threads") * 0.67)), thread_name_prefix="backend_inserting")
+            self._inserting_thread_pool = ThreadPoolExecutor(max_workers=3, thread_name_prefix="backend_inserting")
         return self._inserting_thread_pool
 
     @property
@@ -240,16 +251,25 @@ class Backend:
         """
         context = LogParsingContext(log_file=log_file, inserter=self.records_inserter, foreign_key_cache=self.foreign_key_cache, config=self.config)
         self.all_parsing_context.add(context)
+        log.debug("Created Parsing Context %r for log-file %r", context, log_file)
         return context
+
+    def get_parser(self) -> Parser:
+        parser = Parser(self, record_processor=RecordProcessor(backend=self, regex_keeper=SimpleRegexKeeper(), foreign_key_cache=self.foreign_key_cache), stop_event=self.events.stop)
+        parser.record_processor.foreign_key_cache.preload_all()
+        log.debug("Created Parser %r", parser)
+        return parser
 
     def register_record_classes(self, record_classes: Iterable[RECORD_CLASS_TYPE]) -> "Backend":
         for record_class in record_classes:
-            self.record_class_manager.register_record_class(record_class=record_class)
+            self.record_class_manager.register_record_class(record_class=record_class, database=self.database)
+
         return self
 
     def fill_record_class_manager(self) -> None:
         for record_class in chain(ALL_ANTISTASI_RECORD_CLASSES, ALL_GENERIC_RECORD_CLASSES):
-            self.record_class_manager.register_record_class(record_class=record_class)
+            self.record_class_manager.register_record_class(record_class=record_class, database=self.database)
+        self.record_class_manager._is_set_up = True
         RecordClass.record_class_manager = self.record_class_manager
 
     def start_up(self, overwrite: bool = False) -> "Backend":
@@ -257,6 +277,7 @@ class Backend:
         Start up the database, populates the database with all necessary tables and default entries ("or_ignore"), registers all record_classes and connects basic signals.
 
         """
+
         self.events.stop.clear()
         self.events.pause.clear()
         self.database.record_inserter = self.records_inserter
@@ -264,15 +285,9 @@ class Backend:
         self.database.start_up(overwrite=overwrite)
 
         self.database.connect(True)
+        self.record_class_manager = RecordClassManager(backend=self, foreign_key_cache=ForeignKeyCache(self.database))
         self.fill_record_class_manager()
-        _ = self.foreign_key_cache.all_arma_file_objects
-        _ = self.foreign_key_cache.all_arma_file_objects_by_id
-        _ = self.foreign_key_cache.all_game_map_objects
-        _ = self.foreign_key_cache.all_game_map_objects_by_id
-        _ = self.foreign_key_cache.all_log_levels
-        _ = self.foreign_key_cache.all_log_levels_by_id
-        _ = self.foreign_key_cache.all_origin_objects
-        _ = self.foreign_key_cache.all_origin_objects_by_id
+        self.record_class_manager.create_record_checker()
 
         self.signals.new_log_record.connect(self.database.session_meta_data.increment_added_log_records)
         self.signals.new_log_file.connect(self.database.session_meta_data.increment_new_log_file)
@@ -285,65 +300,47 @@ class Backend:
         """
         Signals the shutdown to all Backend sub_objects via the `stop`-event. Waits for a limited time on all parsing_context futures and then ensures thes shutdown of all sub_objects
         that can be shut down.
-
-
         """
-        for obj in self.dependent_objects:
-            obj.shutdown()
-        self.events.stop.set()
-        all_futures = []
-        log.debug("checking if all ctx are closed")
-        for ctx in self.all_parsing_context:
-            log.debug("checking ctx %r", ctx)
-            while ctx.is_open is True:
-                sleep(0.0001)
-            all_futures += ctx.futures
-        log.debug("waiting for all futures to finish")
-        wait(all_futures, return_when=ALL_COMPLETED, timeout=3.0)
         try:
+            for obj in self.dependent_objects:
+                obj.shutdown()
+            self.events.stop.set()
+            all_futures = []
+            log.debug("checking if all ctx are closed")
+            while len(self.all_parsing_context) > 0:
+                ctx = self.all_parsing_context.pop()
+                log.debug("checking ctx %r", ctx)
+                open_wait_start_time = time()
+                while ctx.is_open is True:
+                    sleep(0.1)
+                    if int(time() - open_wait_start_time) >= 5:
+                        log.critical("timed out waiting for context %r to finish", ctx)
+                        break
+                all_futures += ctx.futures
+            log.debug("waiting for all futures to finish")
+            wait(all_futures, return_when=ALL_COMPLETED, timeout=3.0)
+            all_futures.clear()
             if self.update_manager is not None and self.update_manager.is_alive() is True:
                 self.update_manager.shutdown()
             self.remote_manager_registry.close()
             self.updater.shutdown()
             self.records_inserter.shutdown()
             self.database.shutdown()
-            self.thread_pool.shutdown(cancel_futures=True, wait=True)
-            self.inserting_thread_pool.shutdown(cancel_futures=True, wait=True)
-            self._thread_pool = None
-            self._inserting_thread_pool = None
+            self.thread_pool.shutdown(cancel_futures=True)
+            self.inserting_thread_pool.shutdown(cancel_futures=True)
+
+            gc.collect()
         except Exception as e:
-            log.debug(e, exc_info=True)
+            log.error(e, exc_info=True)
 
-    def remove_and_reset_database(self) -> None:
+    def move_db(self, new_path: Path):
+        # TODO: make this work consistently and not with prayers, also make one general function for moving, backup and backup-compress
         self.shutdown()
-        self.events.stop.clear()
-        FILE_LOCKS.reset()
-
-        self.parser = Parser(backend=self, regex_keeper=SimpleRegexKeeper(), stop_event=self.events.stop)
-        self.updater = Updater(config=self.config, parsing_context_factory=self.get_parsing_context, parser=self.parser, stop_event=self.events.stop, pause_event=self.events.pause, database=self.database, signaler=self.update_signaler)
-        self.records_inserter = RecordInserter(config=self.config, backend=self)
-        self.update_manager: UpdateManager = None
-        self.foreign_key_cache.reset_all()
-
-        self.start_up(True)
-        self.record_class_manager.reset()
-
-    def backup_db(self, backup_folder: Path = None):
-
-        def limit_backups(_folder: Path):
-            limit_amount = self.config.get("database", "backup_limit")
-            backups = [p for p in _folder.iterdir() if p.is_file() and f"{self.database.database_path.stem}_backup" in p.stem]
-            backups = sorted(backups, key=lambda x: x.stat().st_ctime)
-            while len(backups) > limit_amount:
-                to_delete = backups.pop(0)
-                to_delete.unlink(missing_ok=True)
-
-        if backup_folder is None:
-            backup_folder = self.database.backup_folder
-        backup_folder.mkdir(parents=True, exist_ok=True)
-        backup_path = backup_folder.joinpath(f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{self.database.database_path.stem}_backup{self.database.database_path.suffix}")
-        compress_file(source=self.database.database_path, target=backup_path)
-        limit_backups(backup_folder)
+        path = self.database.database_path
+        self.database.shutdown()
+        shutil.move(src=path, dst=new_path)
+        self.database.database = make_db_path(new_path)
+        self.start_up()
 
     def start_update_loop(self) -> "Backend":
         if self.update_manager is None:

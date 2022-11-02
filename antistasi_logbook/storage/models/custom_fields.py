@@ -10,7 +10,7 @@ Soon.
 import os
 import base64
 from io import BytesIO
-from typing import Union, Literal, Optional
+from typing import Any, Union, Literal, Optional, TypeAlias
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
@@ -18,19 +18,35 @@ from datetime import datetime, timezone, timedelta
 import yarl
 import httpx
 from PIL import Image
+from peewee import BigIntegerField
 from dateutil.tz import UTC, tzoffset
 from playhouse.fields import CompressedField
-from playhouse.apsw_ext import Field, BlobField, TextField, BooleanField, BigIntegerField
+from playhouse.apsw_ext import Field, BlobField, CharField, TextField, BooleanField, BigIntegerField
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.utilities.misc import VersionItem
+from antistasi_logbook.utilities.local_image import LocalImage
 from antistasi_logbook.utilities.path_utilities import RemotePath
+
+try:
+    import bz2
+except ImportError:
+    bz2 = None
+try:
+    import zlib
+except ImportError:
+    zlib = None
+try:
+    import lzma
+except ImportError:
+    lzma = None
 
 # endregion[Imports]
 
@@ -45,10 +61,18 @@ from antistasi_logbook.utilities.path_utilities import RemotePath
 # endregion[Logging]
 
 # region [Constants]
-
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
+PATH_TYPE: TypeAlias = Union[os.PathLike, str]
 # endregion[Constants]
+
+
+class AntistasiLogbookBaseField:
+
+    def __init__(self, **kwargs) -> None:
+        self.show_as_column = kwargs.pop("show_as_column", True)
+        super().__init__(**kwargs)
 
 
 class FakeField:
@@ -73,36 +97,56 @@ class CaselessTextField(TextField):
         return super().python_value(value)
 
 
-class RemotePathField(Field):
-    field_type = "REMOTEPATH"
+class RemotePathField(TextField):
 
     def db_value(self, value: RemotePath) -> Optional[str]:
         if value is not None:
-            if isinstance(value, str):
-                value = RemotePath(value)
-            return value._path.as_posix()
+            return RemotePath(value)._path.as_posix()
 
     def python_value(self, value) -> Optional[RemotePath]:
         if value is not None:
             return RemotePath(value)
 
 
-class PathField(Field):
-    field_type = "PATH"
+class PathField(TextField):
 
-    def db_value(self, value: Path) -> Optional[str]:
-        if value is not None:
-            if isinstance(value, str):
-                value = Path(value)
-            return value.as_posix()
+    def db_value(self, value: PATH_TYPE) -> Optional[str]:
+        if value is None:
+            return
 
-    def python_value(self, value) -> Optional[Path]:
-        if value is not None:
-            return Path(value)
+        return Path(value).as_posix().casefold()
+
+    def python_value(self, value: Optional[str]) -> Optional[Path]:
+        if value is None:
+            return
+        return Path(value)
+
+
+class LocalImageField(PathField):
+
+    def db_value(self, value: Union[PATH_TYPE, LocalImage]) -> Optional[str]:
+        if value is None:
+            return
+        if isinstance(value, LocalImage):
+            value = value.image_path
+
+        return super().db_value(value)
+
+    def python_value(self, value: Optional[str]) -> Optional[LocalImage]:
+        if value is None:
+            return
+        image_path = super().python_value(value)
+        return LocalImage(image_path)
 
 
 class VersionField(TextField):
-    field_type = "VERSION"
+    """
+    Field to store a version.
+
+    Version has to be in the format `MAJOR.MINOR.PATCH.EXTRA` where `EXTRA` is optional.
+
+    """
+    field_type = "TEXT"
 
     def db_value(self, value: VersionItem):
         if value is not None:
@@ -113,8 +157,7 @@ class VersionField(TextField):
             return VersionItem.from_string(str(value))
 
 
-class URLField(Field):
-    field_type = "URL"
+class URLField(CharField):
 
     def db_value(self, value: Union[str, yarl.URL, httpx.URL, Path]):
         if value is None:
@@ -131,12 +174,12 @@ class URLField(Field):
 
 
 class AwareTimeStampField(BigIntegerField):
-    field_type = 'TIMESTAMP'
+    field_type = 'BIGINT'
     mult_factor = 1000000
 
     def __init__(self, *args, **kwargs):
 
-        self.utc = kwargs.pop('utc', False) or False
+        self.utc = kwargs.pop('utc', True) or True
         if kwargs.get("null", False) is False:
 
             kwargs.setdefault('default', self._get_default)
@@ -144,35 +187,38 @@ class AwareTimeStampField(BigIntegerField):
 
     def _get_default(self):
         if self.utc is True:
-            return datetime.now(tz=UTC)
+            return datetime.now(tz=timezone.utc)
         return datetime.now()
+
+    def check_is_utc(self, in_value: Optional[datetime]):
+        if in_value is None:
+            return
+        if in_value.tzname() != "UTC":
+            tz_item = in_value.tzinfo
+
+            if tz_item is None:
+                raise ValueError(f"tzinfo of {in_value} can not be none!")
+
+            if tz_item is not UTC and tz_item is not timezone.utc:
+                raise TypeError(f"tzinfo needs to be utc not {in_value.tzinfo!r}")
 
     def db_value(self, value: datetime):
         if value is None:
-            return
-        if value.tzinfo is None:
-            raise ValueError(f"tzinfo of {value} can not be non!")
-        if value.tzinfo is not UTC and value.tzinfo is not timezone.utc:
-            # value = value.astimezone(UTC)
-            raise TypeError(f"tzinfo needs to be utc not {value.tzinfo!r}")
-        raw_value = value.timestamp()
-        return int(raw_value * self.mult_factor)
+            return None
+        if self.utc is True:
+            self.check_is_utc(value)
+        return int(value.timestamp() * self.mult_factor)
 
     def python_value(self, value):
-
         if value is None:
             return
 
-        reduced_value = value / self.mult_factor
-        dt = datetime.fromtimestamp(reduced_value)
-        if self.utc and dt.tzinfo is None:
-            dt = dt.astimezone(tz=UTC)
-
-        return dt
+        tz = timezone.utc if self.utc is True else None
+        return datetime.fromtimestamp((value / self.mult_factor), tz=tz)
 
 
 class TzOffsetField(Field):
-    field_type = "TZOFFSET"
+    field_type = "FLOAT"
 
     def db_value(self, value: Optional[tzoffset]) -> Optional[str]:
         if value is not None:
@@ -185,12 +231,25 @@ class TzOffsetField(Field):
             return tzoffset(f"+{str(timedelta)}", delta)
 
 
-class CompressedTextField(CompressedField):
+class LZMACompressedTextField(CompressedField):
+    LZMA = "lzma"
+    algorithm_to_import = {
+        LZMA: lzma,
+
+    }
+
+    def __init__(self, *args, **kwargs):
+        self.algorithm = self.LZMA
+        self.compress = lzma.compress
+        self.decompress = lzma.decompress
+        super(CompressedField, self).__init__(*args, **kwargs)
 
     def db_value(self, value: str):
         if value is not None:
-            value = value.encode(encoding='utf-8', errors='ignore')
-            return super().db_value(value)
+            if isinstance(value, str):
+                value = value.encode(encoding='utf-8', errors='ignore')
+
+            return self._constructor(self.compress(value))
 
     def python_value(self, value):
         if value is not None:
@@ -198,19 +257,32 @@ class CompressedTextField(CompressedField):
             return value.decode(encoding='utf-8', errors='ignore')
 
 
+class TextBlobField(BlobField):
+
+    def python_value(self, value):
+        if value is not None:
+            if isinstance(value, bytes):
+                return value.decode(encoding='utf-8', errors='ignore')
+            if isinstance(value, str):
+                return value
+
+
 class MarkedField(BooleanField):
+    _default_kwarg_dict: dict[str, Any] = {"index": True,
+                                           "default": False,
+                                           "help_text": "Mark items to find them easier",
+                                           "verbose_name": "Marked",
+                                           "constraints": []}
 
     def __init__(self, **kwargs):
-        super().__init__(index=True, default=False, help_text="Mark items to find them easier", verbose_name="Marked", **kwargs)
+        extra_constraints = kwargs.pop("constraints", [])
+        actual_kwargs = self._default_kwarg_dict | kwargs
+        actual_kwargs["constraints"] += extra_constraints
+        super().__init__(**actual_kwargs)
 
 
-class CommentsField(CompressedTextField):
-
-    def __init__(self, compression_level=6, algorithm=CompressedField.ZLIB, **kwargs):
-        kwargs.pop("verbose_name", None)
-        kwargs.pop("help_text", None)
-        kwargs.pop("null", None)
-        super().__init__(compression_level=compression_level, algorithm=algorithm, verbose_name="Comments", help_text="Stored Comments", null=True, **kwargs)
+class CommentsField(TextField):
+    ...
 
 
 class CompressedImageField(CompressedField):
@@ -310,6 +382,5 @@ class PasswordField(BlobField):
 
 # region[Main_Exec]
 if __name__ == '__main__':
-
     pass
 # endregion[Main_Exec]

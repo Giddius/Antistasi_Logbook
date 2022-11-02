@@ -6,81 +6,35 @@ Soon.
 
 # region [Imports]
 
-import os
-import re
-import sys
-import json
-import queue
-import math
-import base64
-import pickle
-import random
-import shelve
-import dataclasses
-import shutil
-import asyncio
-import logging
-import sqlite3
-import platform
-import importlib
-import subprocess
-import inspect
-
-from time import sleep, process_time, process_time_ns, perf_counter, perf_counter_ns
-from io import BytesIO, StringIO
-from abc import ABC, ABCMeta, abstractmethod
-from copy import copy, deepcopy
-from enum import Enum, Flag, auto, unique
-from time import time, sleep
-from pprint import pprint, pformat
+# * Standard Library Imports ---------------------------------------------------------------------------->
+from typing import TYPE_CHECKING, Union, Iterable
 from pathlib import Path
-from string import Formatter, digits, printable, whitespace, punctuation, ascii_letters, ascii_lowercase, ascii_uppercase
-from timeit import Timer
-from typing import TYPE_CHECKING, Union, Callable, Iterable, Optional, Mapping, Any, IO, TextIO, BinaryIO, Hashable, Generator, Literal, TypeVar, TypedDict, AnyStr
-from zipfile import ZipFile, ZIP_LZMA
-from datetime import datetime, timezone, timedelta
-from tempfile import TemporaryDirectory
-from textwrap import TextWrapper, fill, wrap, dedent, indent, shorten
-from functools import wraps, partial, lru_cache, singledispatch, total_ordering, cached_property
-from importlib import import_module, invalidate_caches
-from contextlib import contextmanager, asynccontextmanager, nullcontext, closing, ExitStack, suppress
-from statistics import mean, mode, stdev, median, variance, pvariance, harmonic_mean, median_grouped
-from collections import Counter, ChainMap, deque, namedtuple, defaultdict
-from urllib.parse import urlparse
-from importlib.util import find_spec, module_from_spec, spec_from_file_location
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
-from importlib.machinery import SourceFileLoader
+from operator import and_
+from functools import reduce
 
+# * Qt Imports --------------------------------------------------------------------------------------->
+from PySide6.QtGui import QDrag, QAction, QPixmap, QMouseEvent, QDesktopServices
+from PySide6.QtCore import Qt, QUrl, Signal, QMimeData
+from PySide6.QtWidgets import QLabel, QWidget, QComboBox, QLineEdit, QFileDialog, QFormLayout, QMainWindow, QVBoxLayout, QApplication
 
-import PySide6
-from PySide6 import (QtCore, QtGui, QtWidgets, Qt3DAnimation, Qt3DCore, Qt3DExtras, Qt3DInput, Qt3DLogic, Qt3DRender, QtAxContainer, QtBluetooth,
-                     QtCharts, QtConcurrent, QtDataVisualization, QtDesigner, QtHelp, QtMultimedia, QtMultimediaWidgets, QtNetwork, QtNetworkAuth,
-                     QtOpenGL, QtOpenGLWidgets, QtPositioning, QtPrintSupport, QtQml, QtQuick, QtQuickControls2, QtQuickWidgets, QtRemoteObjects,
-                     QtScxml, QtSensors, QtSerialPort, QtSql, QtStateMachine, QtSvg, QtSvgWidgets, QtTest, QtUiTools, QtWebChannel, QtWebEngineCore,
-                     QtWebEngineQuick, QtWebEngineWidgets, QtWebSockets, QtXml)
-
-from PySide6.QtCore import (QByteArray, QMimeData, QCoreApplication, QDate, QDateTime, QEvent, QLocale, QMetaObject, QModelIndex, QModelRoleData, QMutex,
-                            QMutexLocker, QObject, QPoint, QRect, QRecursiveMutex, QRunnable, QSettings, QSize, QThread, QThreadPool, QTime, QUrl,
-                            QWaitCondition, Qt, QAbstractItemModel, QAbstractListModel, QAbstractTableModel, Signal, Slot)
-
-from PySide6.QtGui import (QAction, QDrag, QBrush, QMouseEvent, QDesktopServices, QColor, QConicalGradient, QCursor, QFont, QFontDatabase, QFontMetrics, QGradient, QIcon, QImage,
-                           QKeySequence, QLinearGradient, QPainter, QPalette, QPixmap, QRadialGradient, QTransform)
-
-from PySide6.QtWidgets import (QApplication, QStyleOptionToolBar, QToolBar, QBoxLayout, QCheckBox, QColorDialog, QColumnView, QComboBox, QDateTimeEdit, QDialogButtonBox,
-                               QDockWidget, QDoubleSpinBox, QFontComboBox, QFormLayout, QFrame, QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
-                               QLCDNumber, QLabel, QLayout, QLineEdit, QListView, QListWidget, QMainWindow, QMenu, QMenuBar, QMessageBox,
-                               QProgressBar, QProgressDialog, QPushButton, QSizePolicy, QSpacerItem, QSpinBox, QStackedLayout, QStackedWidget,
-                               QStatusBar, QStyledItemDelegate, QSystemTrayIcon, QTabWidget, QTableView, QTextEdit, QTimeEdit, QToolBox, QTreeView,
-                               QVBoxLayout, QWidget, QAbstractItemDelegate, QAbstractItemView, QAbstractScrollArea, QRadioButton, QFileDialog, QButtonGroup)
-
-from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
+# * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
+from gidapptools.gidapptools_qt.widgets.spinner_widget import BusyPushButton
 
+# * Local Imports --------------------------------------------------------------------------------------->
+from antistasi_logbook.storage.models.models import Message, LogRecord
+from antistasi_logbook.gui.widgets.base_tool_bar import BaseToolBar
+from antistasi_logbook.gui.models.log_records_model import LogRecordsModel
+from antistasi_logbook.gui.views.log_records_query_view import LogRecordsQueryView
+from antistasi_logbook.gui.widgets.form_widgets.type_widgets import PathValueField
+from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
+
+# * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-    from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
     from antistasi_logbook.storage.models.models import LogFile
     from antistasi_logbook.gui.views.log_files_query_view import LogFilesQueryTreeView
+
 # endregion[Imports]
 
 # region [TODO]
@@ -95,8 +49,7 @@ if TYPE_CHECKING:
 
 # region [Constants]
 
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
-get_dummy_profile_decorator_in_globals()
+
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 
@@ -148,13 +101,13 @@ class DragIconLabel(QWidget):
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.LeftButton:
-            self.drag_start_pos = event.pos()
+            self.drag_start_pos = event.position().toPoint()
 
         else:
             super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        if event.buttons() & Qt.LeftButton and (event.pos() - self.drag_start_pos).manhattanLength() >= QApplication.startDragDistance():
+        if event.buttons() & Qt.LeftButton and (event.position().toPoint() - self.drag_start_pos).manhattanLength() >= QApplication.startDragDistance():
 
             if self.items:
                 try:
@@ -177,22 +130,85 @@ class DragIconLabel(QWidget):
         else:
             super().mouseMoveEvent(event)
 
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
 
-class BaseToolBar(QToolBar):
 
-    def __init__(self, parent: Union[QMainWindow, QWidget] = None, title: str = None) -> None:
-        super().__init__(*[i for i in (parent, title) if i])
-        self.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
-        self.setOrientation(Qt.Horizontal)
-        self.setMovable(False)
-        self.setFloatable(False)
-        self.setAllowedAreas(Qt.TopToolBarArea)
-        self.setIconSize(QSize(35, 35))
-        self.setMinimumHeight(85)
-        self.setup_actions()
+class FindLogRecordsForm(QWidget):
+    search_done = Signal()
 
-    def setup_actions(self):
-        self.addSeparator()
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
+        self.setLayout(QFormLayout())
+        self.setup_fields()
+
+        self.start_search_button = BusyPushButton(text="Search", disable_while_spinning=True, spinner_size=None)
+        self.start_search_button.pressed.connect(self.search)
+        self.layout.addWidget(self.start_search_button)
+        self.setObjectName(self.__class__.__name__)
+        self._tab_id: int = None
+        self._model: LogRecordsModel = None
+        self.search_done.connect(self.show_result)
+
+    def setup_fields(self) -> None:
+        self.search_text_field = QLineEdit()
+        self.layout.addRow("Search for:", self.search_text_field)
+
+        self.filter_by_server_field = QComboBox()
+
+    def _set_query(self):
+        query_filter = []
+        text = rf"%{self.search_text_field.text()}%"
+        query_filter.append((Message.text ** text))
+        self._model.filter_item = reduce(and_, query_filter)
+        self._model.ordered_by = (LogRecord.log_file, LogRecord.recorded_at)
+        log.info("amount to query: %r", self._model.amount_items_to_query())
+        self._model.refresh()
+
+    def search(self):
+        self.search_text_field.setEnabled(False)
+        self._model = LogRecordsModel()
+        future = self.app.gui_thread_pool.submit(self._set_query)
+        future.add_done_callback(lambda x: self.search_done.emit())
+        self.start_search_button.start_spinner_while_future(future)
+
+    def show_result(self):
+        view = LogRecordsQueryView(parent=None)
+        view.setModel(self._model)
+        _id = self.app.main_window.main_widget.main_tabs_widget.add_normal_tab(view, icon=AllResourceItems.zoom_in_cursor_image.get_as_icon(), label=f"SEARCH {self.search_text_field.text()!r}")
+        self.app.main_window.main_widget.main_tabs_widget.setCurrentIndex(_id)
+        self.search_text_field.setEnabled(True)
+
+    def _close_tab(self, index: int):
+        if index == self._tab_id:
+            self.app.main_window.main_widget.main_tabs_widget.removeTab(self._tab_id)
+
+    @property
+    def layout(self) -> QFormLayout:
+        return super().layout()
+
+    @property
+    def app(self) -> "AntistasiLogbookApplication":
+        return QApplication.instance()
+
+    def show(self) -> None:
+        self.app.extra_windows.add_window(self)
+
+        return super().show()
+
+
+class PathSelectValueField(PathValueField):
+
+    def open_path_browser(self, checked: bool = False):
+        file_name, _ = QFileDialog.getOpenFileName(caption="Select File", dir=str(self.base_dir), filter=f"*{self.file_extension}")
+        if file_name:
+            file_name = Path(file_name)
+            self.path_part.setText(file_name.as_posix())
+            self.base_dir = file_name.parent if file_name.is_file() else file_name
 
 
 class LogFileToolBar(BaseToolBar):
@@ -206,6 +222,14 @@ class LogFileToolBar(BaseToolBar):
         self.addWidget(self.export_action_widget)
         self.show_records_action = QAction(AllResourceItems.log_records_tab_icon_image.get_as_icon(), "Show Records", self)
         self.addAction(self.show_records_action)
+        self.find_log_records_action = QAction(AllResourceItems.search_page_symbol_image.get_as_icon(), "Find Log-records", self)
+        self.addAction(self.find_log_records_action)
+
+        self.find_log_records_action.triggered.connect(self.on_find_log_records)
+
+    def on_find_log_records(self):
+        form = FindLogRecordsForm(parent=None)
+        form.show()
 
 
 # region[Main_Exec]

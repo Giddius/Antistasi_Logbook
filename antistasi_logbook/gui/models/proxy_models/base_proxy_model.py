@@ -7,11 +7,12 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Union, Optional
 from pathlib import Path
 
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtCore import Qt, QModelIndex, QSortFilterProxyModel
+from PySide6.QtWidgets import QAbstractItemView
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -40,8 +41,7 @@ if TYPE_CHECKING:
 
 # region [Constants]
 
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
-get_dummy_profile_decorator_in_globals()
+
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 
@@ -49,7 +49,7 @@ log = get_logger(__name__)
 
 
 class BaseProxyModel(QSortFilterProxyModel):
-    @profile
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setRecursiveFilteringEnabled(False)
@@ -60,14 +60,35 @@ class BaseProxyModel(QSortFilterProxyModel):
     def source(self) -> "BaseQueryDataModel":
         return super().sourceModel()
 
-    @profile
+    def setFilterRegularExpression(self, pattern: str):
+        super().setFilterRegularExpression(pattern)
+        try:
+            current_index = self.parent().currentIndex()
+            if current_index and current_index.isValid():
+                self.parent().scrollTo(current_index, QAbstractItemView.ScrollHint.PositionAtCenter)
+        except Exception as e:
+            log.error(e, exc_info=True)
+
+    def setFilterFixedString(self, pattern: str) -> None:
+        super().setFilterFixedString(pattern)
+        try:
+            current_index = self.parent().currentIndex()
+            if current_index and current_index.isValid():
+                self.parent().scrollTo(current_index, QAbstractItemView.ScrollHint.PositionAtCenter)
+        except Exception as e:
+            log.error(e, exc_info=True)
+
     def add_context_menu_actions(self, menu: "CustomContextMenu", index: QModelIndex):
         self.source.add_context_menu_actions(menu=menu, index=self.mapToSource(index))
 
-    def get(self, index: QModelIndex) -> Optional[tuple["Field", "BaseModel"]]:
-        return self.source.get(self.mapToSource(index))
+    def get(self, index: Union[QModelIndex, int]) -> Optional[tuple["Field", "BaseModel"]]:
+        if isinstance(index, int):
+            actual_index = self.index(index, 0, QModelIndex())
+            actual_index = self.mapToSource(actual_index).row()
+        else:
+            actual_index = self.mapToSource(index)
+        return self.source.get(actual_index)
 
-    @profile
     def __getattr__(self, name: str):
         return getattr(self.sourceModel(), name)
 

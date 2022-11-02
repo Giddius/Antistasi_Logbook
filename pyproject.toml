@@ -7,74 +7,91 @@ name = "antistasi_logbook"
 authors = [{ name = "antistasi_tools" }]
 classifiers = ["License :: OSI Approved :: MIT License"]
 license = { file = "LICENSE" }
-readme = "README.md"
-dynamic = ['version', 'description']
+readme = { file = "README.rst", content-type = "text/x-rst" }
+description = "WiP"
+dynamic = ['version']
 requires-python = ">=3.9"
 dependencies = [
-    "pyside6>=6.2.3",
-    "anyio==3.5.0",
+    "apsw==3.39.4.0",
+    "anyio==3.6.1",
     "appdirs==1.4.4",
-    "attrs<=21.4.0",
-    "certifi==2021.10.8",
+    "attrs==22.1.0",
+    "certifi==2022.5.18.1",
     "cffi==1.15.0",
-    "charset-normalizer==2.0.10",
-    "colorama==0.4.4",
+    "charset-normalizer==2.0.12",
+    "click==8.1.3",
     "colorhash==1.0.4",
     "commonmark==0.9.1",
-    "cryptography==36.0.1",
+    "cryptography==37.0.2",
     "cycler==0.11.0",
-    "filelock==3.4.2",
-    "fonttools==4.28.5",
-    "gidapptools>=0.1.20",
+    "cython==0.29.32",
+    "deprecated==1.2.13",
+    "filelock==3.7.1",
+    "fonttools==4.33.3",
+    "frozendict==2.3.4",
+    "gidapptools==0.4.1",
     "h11==0.12.0",
-    "httpcore==0.13.7",
-    "httpx==0.20.0",
+    "httpcore==0.15.0",
+    "httpx==0.23.0",
     "idna==3.3",
-    "inflect==5.3.0",
-    "jinja2==2.11.3",
-    "kiwisolver==1.3.2",
-    "markupsafe==2.0.1",
-    "matplotlib==3.5.1",
-    "multidict==5.2.0",
-    "natsort==8.0.2",
-    "numpy==1.22.0",
-    "orjson==3.6.5",
+    "importlib-metadata==4.11.4",
+    "inflect==5.6.0",
+    "jinja2==3.1.2",
+    "keyring==23.9.3",
+    "kiwisolver==1.4.2",
+    "markupsafe==2.1.1",
+    "matplotlib==3.5.2",
+    "multidict==6.0.2",
+    "natsort==8.2.0",
+    "numpy==1.23.4",
     "packaging==21.3",
-    "peewee==3.14.8",
-    "pillow~=8.4.0",
-    "platformdirs==2.4.1",
+    "peewee==3.15.3",
+    "pillow==9.3.0",
+    "platformdirs==2.5.2",
     "pp-ez==0.2.0",
     "pprintpp==0.4.0",
-    "psutil==5.9.0",
+    "psutil==5.9.2",
     "py-notifier==0.3.2",
     "pycparser==2.21",
-    "pygments==2.11.2",
-    "pyparsing==3.0.6",
+    "pygithub==1.55",
+    "pygments==2.13.0",
+    "pyjwt==2.4.0",
+    "pynacl==1.5.0",
+    "pyparsing==3.0.9",
     "pypiwin32==223",
-    "pyqtgraph>=0.12.3",
+    "pyqtgraph==0.13.1",
+    "pyside6==6.4.0.1",
     "python-dateutil==2.8.2",
-    "python-dotenv==0.19.2",
-    "pytz==2021.3",
+    "python-dotenv==0.20.0",
+    "pytz==2022.1",
     "pytz-deprecation-shim==0.1.0.post0",
-    "pywin32==303",
-    "qdarkstyle==3.0.3",
-    "qt-material==2.8.19",
-    "qtawesome==1.1.1",
+    "pywin32==304",
+    "pywin32-ctypes==0.2.0",
+    "qdarkstyle==3.1",
+    "qt-material==2.12",
+    "qtawesome==1.2.1",
+    "qtpy==2.2.1",
+    "requests==2.27.1",
     "rfc3986[idna2008]==1.5.0",
-    "rich==11.0.0",
+    "rich==12.5.0",
     "six==1.16.0",
     "sniffio==1.2.0",
     "sortedcontainers==2.4.0",
-    "tzdata==2021.5",
-    "tzlocal==4.1",
+    "tzdata==2022.1",
+    "tzlocal==4.2",
     "uritools==4.0.0",
-    "urlextract==1.5.0",
-    "webdav4==0.9.3",
-    "yarl==1.7.2",
+    "urlextract==1.6.0",
+    "urllib3==1.26.9",
+    "webdav4==0.9.7",
+    "win10toast==0.9",
+    "wrapt==1.14.1",
+    "yarl==1.8.1",
+    "zipp==3.8.0",
 ]
 
 [project.urls]
 Source = "https://github.com/Giddius/Antistasi_Logbook"
+homepage = "https://github.com/Giddius/Antistasi_Logbook"
 
 [project.scripts]
 antistasi-logbook = "antistasi_logbook.__main__:main"
@@ -99,7 +116,7 @@ exclude = [
     ".favorites.json",
     ".venv",
     ".pytest_cache",
-    "__pycache__"
+    "__pycache__",
 ]
 
 [tool.autopep8]
@@ -133,6 +150,7 @@ indented_import_headings = false
 
 [tool.pytest.ini_options]
 addopts = "-rA -vv --durations=0 --capture=tee-sys --show-capture=all --color=auto --code-highlight=yes"
+testpaths = ["tests"]
 
 [tool.autoflake]
 # additional_imports=None
@@ -146,7 +164,16 @@ ignore_init_module_imports = false
 exclude_globs = [
     "**/sqf_syntax_data.py",
     "**/antistasi_logbook_resources.py",
-    "**/antistasi_logbook_resources_accessor.py"
+    "**/antistasi_logbook_resources_accessor.py",
 ]
 exclude_init_files = true
 ignore_missing_import_section = true
+
+[tool.setuptools]
+packages = ["antistasi_logbook"]
+
+[tool.setuptools.dynamic]
+version = { attr = "antistasi_logbook.__version__" }
+
+
+[tool.pyright]

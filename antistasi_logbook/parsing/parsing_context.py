@@ -8,13 +8,16 @@ Soon.
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import re
+import random
+from time import sleep
 from typing import TYPE_CHECKING, Any, TextIO, Callable, Iterable, Generator
 from pathlib import Path
 from datetime import timedelta
 from threading import Lock, RLock
+from traceback import format_tb
 from contextlib import contextmanager
 from collections import deque
-from concurrent.futures import FIRST_EXCEPTION, Future, wait
+from concurrent.futures import ALL_COMPLETED, Future, wait
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
@@ -25,15 +28,17 @@ from playhouse.shortcuts import model_to_dict
 from gidapptools import get_logger
 from gidapptools.general_helper.enums import MiscEnum
 from gidapptools.gid_signal.interface import get_signal
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.storage.models.models import GameMap, LogFile, Version, LogRecord
+from antistasi_logbook.parsing.py_raw_record import RawRecord
+from antistasi_logbook.storage.models.models import GameMap, LogFile, Version
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
 
-    from antistasi_logbook.parsing.parser import RawRecord, MetaFinder, ForeignKeyCache
+    from antistasi_logbook.parsing.parser import MetaFinder, ForeignKeyCache
     from antistasi_logbook.parsing.record_processor import RecordInserter, ManyRecordsInsertResult
     from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 
@@ -50,27 +55,30 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+
 get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
 
+try:
+    from antistasi_logbook.parsing.record_line import RecordLine
+except ImportError:
+    @attr.s(slots=True, weakref_slot=False, frozen=True)
+    class RecordLine:
+        content: str = attr.ib()
+        start: int = attr.ib()
 
-@attr.s(auto_detect=True, auto_attribs=True, slots=True, frozen=True)
-class RecordLine:
-    content: str = attr.ib()
-    start: int = attr.ib()
+        def __repr__(self) -> str:
+            return self.content
 
-    def __repr__(self) -> str:
-        return self.content
+        def __str__(self) -> str:
+            return self.content
 
-    def __str__(self) -> str:
-        return self.content
-
-    def __eq__(self, o: object) -> bool:
-        if isinstance(o, self.__class__):
-            return self.content == o.content and self.start == o.start
+        def __eq__(self, o: object) -> bool:
+            if isinstance(o, self.__class__):
+                return self.content == o.content and self.start == o.start
+            return NotImplemented
 
 
 LINE_ITERATOR_TYPE = Generator[RecordLine, None, None]
@@ -99,7 +107,8 @@ class LineCache(deque):
             super().append(x)
 
     def appendleft(self, x: "RecordLine") -> None:
-        return super().appendleft(x)
+        with self.lock:
+            return super().appendleft(x)
 
     def pop(self) -> "RecordLine":
         with self.lock:
@@ -149,13 +158,14 @@ class LogParsingContext:
     new_log_record_signal = get_signal("new_log_record")
     mem_cache_regex = re.compile(r"-MaxMem\=(?P<max_mem>\d+)")
     __slots__ = ("__weakref__", "_log_file", "record_lock", "log_file_data", "data_lock", "foreign_key_cache", "line_cache", "_line_iterator",
-                 "_current_line", "_current_line_number", "futures", "record_storage", "inserter", "_bulk_create_batch_size", "database", "config", "is_open", "done_signal", "force")
+                 "_current_line", "_current_line_number", "futures", "record_storage", "inserter", "_bulk_create_batch_size", "database", "config", "is_open", "done_signal", "force", "log_file_done_signal")
 
     def __init__(self, log_file: "LogFile", inserter: "RecordInserter", config: "GidIniConfig", foreign_key_cache: "ForeignKeyCache") -> None:
         self._log_file = log_file
         self.database = self._log_file.get_meta().database
         self.inserter = inserter
-        self.log_file_data = model_to_dict(self._log_file, exclude=[LogFile.log_records, LogFile.mods, LogFile.comments, LogFile.marked])
+        self.log_file_data = model_to_dict(self._log_file, exclude=[LogFile.log_records, LogFile.mods, LogFile.comments, LogFile.marked], extra_attrs=["is_downloaded"])
+        self.log_file_data["unparsable"] = False
         self.data_lock = RLock()
         self.foreign_key_cache = foreign_key_cache
         self.config = config
@@ -166,16 +176,18 @@ class LogParsingContext:
         self._current_line_number = 0
         self.futures: list[Future] = []
         self._bulk_create_batch_size: int = None
-        self.record_lock = Lock()
+        self.record_lock = RLock()
         self.is_open: bool = False
         self.done_signal: Callable[[], None] = None
+        self.log_file_done_signal: Callable[[], None] = None
         self.force: bool = False
 
     @property
     def _log_record_batch_size(self) -> int:
 
         if self._bulk_create_batch_size is None:
-            self._bulk_create_batch_size = min(self.config.get("parsing", "record_insert_batch_size", default=99999), (32767 // (len(LogRecord.get_meta().columns) * 1)))
+            # self._bulk_create_batch_size = RawRecord.insert_sql_phrase.batch_size
+            self._bulk_create_batch_size = 10_000
 
         return self._bulk_create_batch_size
 
@@ -187,17 +199,18 @@ class LogParsingContext:
         self.log_file_data["unparsable"] = True
 
     def set_found_meta_data(self, finder: "MetaFinder") -> None:
-
+        log.debug("starting to set meta-data for %r", self._log_file)
         # TODO: Refractor this Monster!
-        LogFile.get_meta().database.connect(True)
-        if finder is None or finder.full_datetime is None or finder.campaign_id is None:
+
+        if finder is None or finder.full_datetime is None:
+            log.debug("setting to unparsable, because either finder(%r) is None or finder.full_datetime(%r) is None or finder.campaign_id(%r) is None", finder, finder.full_datetime, finder.campaign_id)
             self.set_unparsable()
             if self.done_signal:
-                self.done_signal()
+                self._log_file._cleanup()
             return
 
         if self.log_file_data.get("game_map") is None:
-            game_map_item = self.foreign_key_cache.all_game_map_objects.get(finder.game_map)
+            game_map_item = self.foreign_key_cache.get_game_map_case_insensitive(finder.game_map)
             if game_map_item is None:
                 game_map_item = GameMap(name=finder.game_map, full_name=f"PLACE_HOLDER {finder.game_map}")
                 self.futures.append(self.inserter.insert_game_map(game_map=game_map_item))
@@ -205,13 +218,17 @@ class LogParsingContext:
             self.log_file_data["game_map"] = game_map_item
 
         if self.log_file_data.get("version") is None:
-            version = Version.add_or_get_version(finder.version)
+            try:
+                version = self.foreign_key_cache.all_version_objects[str(finder.version)]
+            except KeyError:
+                version = self.inserter.thread_pool.submit(Version.add_or_get_version, finder.version)
+                self.inserter.thread_pool.submit(self.foreign_key_cache.reset_sender_for_all_instances, sender=Version, created=True, isinstance=finder.version)
             self.log_file_data["version"] = version
 
         if self.log_file_data.get("is_new_campaign") is None:
             self.log_file_data["is_new_campaign"] = finder.is_new_campaign
 
-        if self.log_file_data.get("campaign_id") is None:
+        if self.log_file_data.get("campaign_id") is None and finder.campaign_id is not None:
             self.log_file_data["campaign_id"] = finder.campaign_id
 
         if self.log_file_data.get("utc_offset") is None:
@@ -223,13 +240,13 @@ class LogParsingContext:
             self.log_file_data["utc_offset"] = offset
 
             with self.database.write_lock:
-                with self.database:
-                    self._log_file.update(utc_offset=offset)
+                self.inserter.thread_pool.submit(self._log_file.update, utc_offset=offset)
+
             self.log_file_data["created_at"] = self._log_file.name_datetime.replace(tzinfo=offset).astimezone(UTC)
 
         if finder.mods is not None and finder.mods is not MiscEnum.DEFAULT:
 
-            self.futures.append(self.inserter.insert_mods(mod_items=tuple(finder.mods), log_file=self._log_file))
+            self.futures.append(self.inserter.insert_mods(mod_items=finder.mods, log_file=self._log_file))
         if self.done_signal:
             self.done_signal()
 
@@ -281,24 +298,37 @@ class LogParsingContext:
 
     def close(self) -> None:
 
-        log.debug("waiting on futures")
         self.wait_on_futures()
         with self.data_lock:
             log.debug("updating log-file %r", self._log_file)
             self.log_file_data.pop("original_file")
-            task = self.inserter.update_log_file_from_dict(log_file=self._log_file, in_dict=self.log_file_data)
+            self.log_file_data.pop("is_downloaded")
+            data_dict = {}
+            for k, v in self.log_file_data.items():
+                if isinstance(v, Future):
+                    v = v.result()
+                data_dict[k] = v
+            task = self.inserter.update_log_file_from_dict(log_file=self._log_file, in_dict=data_dict)
             log.debug("waiting for result of 'updating log-file %r'", self._log_file)
-            task.result()
+            maybe_error = task.exception()
+            if maybe_error:
+                log.error(maybe_error, exc_info=True)
+                raise maybe_error
+            _ = task.result()
 
-        log.debug("closing line iterator")
         if self._line_iterator is not None:
             self._line_iterator.close()
-        log.debug("cleaning up log-file %r", self._log_file)
-        self._log_file._cleanup()
+
+        # self._log_file._cleanup()
         self.is_open = False
 
         if self.done_signal:
             self.done_signal()
+        if self.log_file_done_signal:
+            self.log_file_done_signal()
+        self.foreign_key_cache = None
+        self.inserter = None
+        log.debug("finished closing %r", self)
 
     def _future_callback(self, result: "ManyRecordsInsertResult") -> None:
         max_line_number = result.max_line_number
@@ -324,33 +354,43 @@ class LogParsingContext:
                 log.debug(max_recorded_at)
 
     def insert_record(self, record: "RawRecord") -> None:
+        if record is None:
+            return
         with self.record_lock:
+            # record.record_class = self.database.backend.record_class_manager.determine_record_class(record)[0]
             self.record_storage.append(record)
-            if len(self.record_storage) == self._log_record_batch_size:
 
-                self.futures.append(self.inserter(records=tuple(self.record_storage), context=self))
-                self.record_storage.clear()
+            if len(self.record_storage) == self._log_record_batch_size:
+                while len([i for i in self.futures if i.done() is False]) > 5:
+                    sleep(random.randint(1, 3))
+                self.futures.append(self.inserter.insert_and_assign_messages(records=list(self.record_storage)))
+                self.futures.append(self.inserter.insert(records=list(self.record_storage), context=self))
+                self.record_storage = []
 
     def _dump_rest(self) -> None:
-        if len(self.record_storage) > 0:
-            self.futures.append(self.inserter(records=tuple(self.record_storage), context=self))
-            self.record_storage.clear()
+        with self.record_lock:
+            if len(self.record_storage) > 0:
+                self.futures.append(self.inserter.insert_and_assign_messages(records=list(self.record_storage)))
+                self.futures.append(self.inserter.insert(records=list(self.record_storage), context=self))
+                self.record_storage = []
 
     def wait_on_futures(self, timeout: float = None) -> None:
-        done, not_done = wait(self.futures, return_when=FIRST_EXCEPTION, timeout=timeout)
+        with self.record_lock:
+            log.debug("Waiting for futures of %r (amount: %r)", self, len(self.futures))
+            done, not_done = wait(self.futures, return_when=ALL_COMPLETED, timeout=timeout)
+            log.debug("finished waiting for futures")
 
-        if len(not_done) != 0:
             try:
                 for t in list(done) + list(not_done):
-                    if t.exception():
-                        raise t.exception()
+                    exception = t.exception()
+                    if exception is not None:
+                        log.error(exception, exc_info=True)
+                        raise exception
             except Exception as e:
                 log.error(e, exc_info=True)
                 log.critical("error %r encountered with log-file %r", e, self._log_file)
-        else:
-            with self.data_lock:
-                log.debug("setting log-file-data last_parsed_time to max (%r) for %r", self.log_file_data.get("modified_at"), self._log_file)
-                self.log_file_data["last_parsed_datetime"] = self.log_file_data.get("modified_at")
+
+            self.log_file_data["last_parsed_datetime"] = self.log_file_data.get("modified_at")
 
     def __enter__(self) -> "LogParsingContext":
         self._log_file.download()
@@ -358,10 +398,15 @@ class LogParsingContext:
         return self
 
     def __exit__(self, exception_type: type = None, exception_value: BaseException = None, traceback: Any = None) -> None:
-        if exception_value is not None:
-            log.error("%s, %s", exception_type, exception_value, exc_info=True)
-
-        self.close()
+        try:
+            self.close()
+        except Exception as e:
+            log.error(e, exc_info=True)
+        finally:
+            if exception_value is not None:
+                log.error("%s, %s", exception_type, exception_value)
+                log.error(''.join(format_tb(traceback)))
+                raise exception_value
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(log_file={self._log_file!r})"
