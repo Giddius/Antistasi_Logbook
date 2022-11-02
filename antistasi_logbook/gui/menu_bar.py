@@ -23,7 +23,7 @@ from gidapptools.general_helper.string_helper import StringCase, StringCaseConve
 from gidapptools.gidapptools_qt.basics.menu_bar import BaseMenuBar
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.storage.models.models import Mod, GameMap, Version, LogLevel, BaseModel, RecordClass, ArmaFunction, RecordOrigin, RemoteStorage, ArmaFunctionAuthorPrefix, ModSet
+from antistasi_logbook.storage.models.models import Mod, ModSet, GameMap, Version, LogLevel, BaseModel, RecordClass, ArmaFunction, RecordOrigin, RemoteStorage, ArmaFunctionAuthorPrefix
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->

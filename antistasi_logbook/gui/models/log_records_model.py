@@ -7,38 +7,38 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from time import sleep
-from typing import TYPE_CHECKING, Any, Optional
-from pathlib import Path
-from functools import partial
 import sys
-import json
+from typing import TYPE_CHECKING, Any
+from pathlib import Path
+from concurrent.futures import Future
+
 # * Qt Imports --------------------------------------------------------------------------------------->
-from PySide6.QtGui import QFont, QAction, QFontMetrics, QColor
-from PySide6.QtCore import Qt, Slot, QSize, Signal, QModelIndex, QSettings
+from PySide6.QtGui import QFont, QColor, QAction, QFontMetrics
+from PySide6.QtCore import Qt, Slot, QSize, Signal, QSettings, QModelIndex
 from PySide6.QtWidgets import QApplication
-from frozendict import frozendict
+
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
 from peewee import Field, Query
-from concurrent.futures import Future
+from frozendict import frozendict
+
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 from gidapptools.general_helper.color.color_item import Color
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.misc import CustomRole
-from antistasi_logbook.storage.models.custom_fields import FakeField
 from antistasi_logbook.records.enums import MessageFormat
-from antistasi_logbook.storage.models.models import LogRecord, RecordClass, LogFile, Message
+from antistasi_logbook.records.base_record import BaseRecord
+from antistasi_logbook.storage.models.models import LogFile, Message, LogRecord, RecordClass
+from antistasi_logbook.storage.models.custom_fields import FakeField
 from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE, BaseQueryDataModel
 from antistasi_logbook.gui.models.proxy_models.base_proxy_model import BaseProxyModel
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
-from antistasi_logbook.records.base_record import BaseRecord
+
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-
     from antistasi_logbook.records.abstract_record import AbstractRecord
     from antistasi_logbook.gui.views.base_query_tree_view import CustomContextMenu
     from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE

@@ -6,25 +6,22 @@ Soon.
 
 # region [Imports]
 
-
-from time import time, sleep
-
+# * Standard Library Imports ---------------------------------------------------------------------------->
+from typing import TYPE_CHECKING, Union
 from pathlib import Path
 
-from typing import TYPE_CHECKING, Union, Callable, Iterable, Optional, Mapping, Any, IO, TextIO, BinaryIO, Hashable, Generator, Literal, TypeVar, TypedDict, AnyStr
-
-
+# * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QAction
+from PySide6.QtWidgets import QWidget, QMainWindow
 
-from PySide6.QtWidgets import (QMainWindow, QWidget)
-
+# * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.widgets.base_tool_bar import BaseToolBar
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
+
+# * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.storage.models.models import LogFile
-    from antistasi_logbook.gui.views.log_files_query_view import LogFilesQueryTreeView
-    from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel
-    from antistasi_logbook.gui.application import AntistasiLogbookApplication
+
 # endregion[Imports]
 
 # region [TODO]

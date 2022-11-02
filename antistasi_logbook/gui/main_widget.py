@@ -15,7 +15,7 @@ from threading import Event
 import PySide6
 from PySide6.QtGui import QMovie
 from PySide6.QtCore import Qt, QSize, Signal, QThread, QByteArray, QModelIndex
-from PySide6.QtWidgets import QLabel, QDialog, QWidget, QTabWidget, QGridLayout, QSizePolicy, QVBoxLayout, QApplication, QTabBar
+from PySide6.QtWidgets import QLabel, QDialog, QWidget, QGridLayout, QSizePolicy, QVBoxLayout, QApplication
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -31,8 +31,9 @@ from antistasi_logbook.gui.widgets.data_tool_widget import ServerDataToolWidget,
 from antistasi_logbook.gui.views.log_files_query_view import LogFilesQueryTreeView
 from antistasi_logbook.gui.widgets.detail_view_widget import ServerDetailWidget, LogFileDetailWidget, LogRecordDetailView
 from antistasi_logbook.gui.views.log_records_query_view import LogRecordsQueryView
-from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 from antistasi_logbook.gui.main_tab_display.main_tab_widget import MainTabWidget
+from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
+
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.gui.application import AntistasiLogbookApplication

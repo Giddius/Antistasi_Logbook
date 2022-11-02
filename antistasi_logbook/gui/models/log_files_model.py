@@ -9,21 +9,20 @@ Soon.
 # * Standard Library Imports ---------------------------------------------------------------------------->
 from typing import TYPE_CHECKING, Any, Optional
 from pathlib import Path
+from concurrent.futures import Future
 
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6 import QtCore
-from PySide6.QtGui import QPixmap
-from PySide6.QtCore import Qt, Slot, QModelIndex, QUrl, QMimeData
-from PySide6.QtWidgets import QLabel
+from PySide6.QtCore import Qt, QUrl, Slot, QMimeData, QModelIndex
 
 # * Third Party Imports --------------------------------------------------------------------------------->
-from peewee import JOIN, Field, Query
+from peewee import Field, Query
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
-from concurrent.futures import Future
+
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.storage.models.models import Server, GameMap, LogFile, Version, ModSet
+from antistasi_logbook.storage.models.models import ModSet, Server, LogFile, Version
 from antistasi_logbook.storage.models.custom_fields import FakeField
 from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE, BaseQueryDataModel, ModelContextMenuAction
 
@@ -31,7 +30,7 @@ from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE, BaseQ
 if TYPE_CHECKING:
     from antistasi_logbook.storage.models.models import BaseModel
     from antistasi_logbook.gui.views.base_query_tree_view import CustomContextMenu
-    from antistasi_logbook.storage.database import GidSqliteApswDatabase
+
 # endregion[Imports]
 
 # region [TODO]

@@ -20,15 +20,16 @@ from PySide6.QtWidgets import (QFrame, QLabel, QWidget, QSpinBox, QCheckBox, QCo
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
-from gidapptools.errors import EntryMissingError
+from gidapptools.general_helper.enums import MiscEnum
+from gidapptools.gid_config.interface import GidIniConfig, ResolvedSection
 from gidapptools.general_helper.string_helper import StringCase, StringCaseConverter
-from gidapptools.gid_config.interface import GidIniConfig, ResolvedEntry, ResolvedSection
+
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.application import AntistasiLogbookApplication
 from antistasi_logbook.storage.models.models import RemoteStorage
 from antistasi_logbook.gui.widgets.form_widgets.type_widgets import ALL_VALUE_FIELDS, StyleValueField, StringValueField, UpdateTimeFrameValueField
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-from gidapptools.general_helper.enums import MiscEnum
+
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig

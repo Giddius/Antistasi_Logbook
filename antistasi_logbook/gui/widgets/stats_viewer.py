@@ -8,28 +8,27 @@ Soon.
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import random
-from gidapptools.general_helper.enums import MiscEnum
-from math import ceil, log as math_log, sqrt, exp
+from enum import Enum
+from math import ceil
 from typing import TYPE_CHECKING, Any, Union, Iterable, Optional
 from pathlib import Path
 from datetime import datetime
-from statistics import mean, median
 from functools import cached_property
 from threading import RLock
-from enum import Enum, auto, unique, Flag
+
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
 import pyqtgraph as pg
-from types import MethodType
 from PySide6 import QtCore
-from PySide6.QtGui import QPen, QFont, QColor, QAction
+from PySide6.QtGui import QPen, QFont, QColor
 from PySide6.QtCore import Qt, Slot, QSize, Signal
-from PySide6.QtWidgets import QLabel, QWidget, QSpinBox, QMenu, QSizePolicy, QGroupBox, QStatusBar, QFormLayout, QScrollArea, QGridLayout, QHBoxLayout, QMainWindow, QPushButton, QVBoxLayout, QApplication, QDoubleSpinBox
-from PySide6.QtSvg import QSvgRenderer
+from PySide6.QtWidgets import (QLabel, QWidget, QSpinBox, QGroupBox, QStatusBar, QFormLayout, QGridLayout, QHBoxLayout,
+                               QMainWindow, QPushButton, QScrollArea, QSizePolicy, QVBoxLayout, QApplication, QDoubleSpinBox)
+
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
-from antistasi_logbook.gui.diagram.abstract_stats_model import PerformanceStatsModel
 from gidapptools.gidapptools_qt.helper.misc import center_window
+
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.records.enums import MessageFormat
 

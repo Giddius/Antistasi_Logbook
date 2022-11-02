@@ -177,3 +177,4 @@ antistasi_logbook/storage/storage.7z
 /antistasi_logbook/storage/storage.logbook_db-shm
 /antistasi_logbook/storage/storage.logbook_db-wal
 /antistasi_logbook/storage/original_log_files
+/antistasi_logbook/debug_dump

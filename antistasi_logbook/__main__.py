@@ -6,29 +6,25 @@ Soon.
 
 # region [Imports]
 
+# * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook import setup
+
 setup()
-
 # * Standard Library Imports ---------------------------------------------------------------------------->
-
-from typing import TYPE_CHECKING, TypeVar, Generic
-from pathlib import Path
 import sys
+from pathlib import Path
 
-# * Gid Imports ----------------------------------------------------------------------------------------->
+# * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.errors import setup_exception_handler
+
 setup_exception_handler()
+# * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.meta_data import get_meta_info, get_meta_paths
-
 from gidapptools.general_helper.meta_helper.single_running_instance import SingleRunningInstanceRestrictor
 
 # * Local Imports --------------------------------------------------------------------------------------->
-
 from antistasi_logbook.gui.main_window import start_gui
-
-# * Type-Checking Imports --------------------------------------------------------------------------------->
-
 
 # endregion[Imports]
 

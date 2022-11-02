@@ -6,28 +6,26 @@ Soon.
 
 # region [Imports]
 
-
+# * Standard Library Imports ---------------------------------------------------------------------------->
 import sys
-
-
+from typing import TYPE_CHECKING, Union, Optional
 from pathlib import Path
 
-from typing import (TYPE_CHECKING, TypeVar, TypeGuard, TypeAlias, Final, TypedDict, Generic, Union, Optional, ForwardRef, final,
-                    no_type_check, no_type_check_decorator, overload, get_type_hints, cast, Protocol, runtime_checkable, NoReturn, NewType, Literal, AnyStr, IO, BinaryIO, TextIO, Any)
+# * Qt Imports --------------------------------------------------------------------------------------->
+from PySide6.QtGui import QPixmap, QIcon
+from PySide6.QtWidgets import QTabBar, QWidget, QTabWidget
 
-
-from PySide6.QtGui import QPixmap
-
-from PySide6.QtWidgets import (QTabBar, QTabWidget, QWidget, )
+# * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools.gid_logger.logger import get_logger
 from gidapptools.general_helper.enums import MiscEnum
-if sys.version_info >= (3, 11):
-    from typing import Self
-else:
-    from typing_extensions import Self
 
+if sys.version_info >= (3, 11):
+    pass
+else:
+    pass
+# * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-    from antistasi_logbook.gui.application import AntistasiLogbookApplication
+    pass
 
 # endregion[Imports]
 

@@ -8,7 +8,7 @@ Soon.
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import re
-from typing import Any, Union, Iterable, Optional, Protocol, runtime_checkable
+from typing import Any, Union, Optional, Protocol, runtime_checkable
 from pathlib import Path
 from datetime import timedelta
 
@@ -16,8 +16,8 @@ from datetime import timedelta
 import PySide6
 from PySide6.QtGui import QFont
 from PySide6.QtCore import Qt, Slot, Signal
-from PySide6.QtWidgets import (QWidget, QSpinBox, QCheckBox, QComboBox, QLineEdit, QTextEdit, QFileDialog, QGridLayout, QHBoxLayout,
-                               QListWidget, QPushButton, QSizePolicy, QSpacerItem, QApplication, QButtonGroup, QRadioButton, QDoubleSpinBox, QMessageBox)
+from PySide6.QtWidgets import (QWidget, QSpinBox, QCheckBox, QComboBox, QLineEdit, QTextEdit, QFileDialog, QGridLayout, QHBoxLayout, QListWidget,
+                               QMessageBox, QPushButton, QSizePolicy, QSpacerItem, QApplication, QButtonGroup, QRadioButton, QDoubleSpinBox)
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 import qt_material
@@ -25,8 +25,6 @@ import qt_material
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.conversion import FILE_SIZE_REFERENCE, TimeUnit, TimeUnits, bytes2human, human2bytes, seconds2human
-from gidapptools.general_helper.typing_helper import implements_protocol
-from gidapptools.gid_config.conversion.extra_base_typus import NonTypeBaseTypus
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.models.style_sheets_model import StyleSheetsModel
@@ -239,6 +237,7 @@ class UpdateTimeFrameValueField(TimeDeltaValueField):
 
     def set_value(self, value: timedelta, is_start: bool = False):
         self.all_check_box.setChecked(False)
+        self._handle_all_value(False)
         return super().set_value(value, is_start=is_start)
 
     def get_value(self) -> timedelta:

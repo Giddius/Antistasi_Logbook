@@ -13,6 +13,7 @@ from pathlib import Path
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtCore import Qt, QModelIndex, QSortFilterProxyModel
 from PySide6.QtWidgets import QAbstractItemView
+
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 

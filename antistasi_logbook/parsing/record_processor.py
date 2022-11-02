@@ -7,46 +7,44 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from time import sleep, perf_counter, thread_time
-from queue import Queue
-import sys
-
 import re
-from typing import TYPE_CHECKING, Any, Iterable, Optional, Generator, Union
+import sys
+from time import perf_counter
+from queue import Queue
+from typing import TYPE_CHECKING, Any, Union, Iterable, Optional
 from pathlib import Path
 from datetime import datetime, timezone
 from threading import Lock, RLock
 from concurrent.futures import Future, ThreadPoolExecutor
-from hashlib import md5, blake2b, blake2s
-from functools import partial, reduce
-from operator import add
+
 # * Third Party Imports --------------------------------------------------------------------------------->
-import attr
 import apsw
-from peewee import DoesNotExist, chunked, IntegrityError, fn
+import attr
+from peewee import DoesNotExist, IntegrityError
 from dateutil.tz import UTC, tzoffset
-from playhouse.shortcuts import update_model_from_dict, chunked
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals, time_execution, time_func
-from gidapptools.general_helper.general import split_iter
+from playhouse.signals import post_save
+
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
+from gidapptools.general_helper.timing import time_func, get_dummy_profile_decorator_in_globals
 from gidapptools.general_helper.conversion import number_to_pretty
-from functools import lru_cache
+
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.parsing.py_raw_record import RawRecord
-from antistasi_logbook.storage.models.models import Mod, GameMap, LogFile, LogRecord, Message, RecordClass, ArmaFunction, RecordOrigin, LogFileAndModJoin, ArmaFunctionAuthorPrefix, OriginalLogFile
+from antistasi_logbook.storage.models.models import Mod, GameMap, LogFile, Message, RecordClass, ArmaFunction, RecordOrigin, OriginalLogFile, LogFileAndModJoin, ArmaFunctionAuthorPrefix
 from antistasi_logbook.parsing.parsing_context import LogParsingContext
 from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
-from antistasi_logbook.utilities.misc import ModItem
-from playhouse.signals import post_save
+
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-    from gidapptools.gid_config.interface import GidIniConfig
     import apsw
+
+    from gidapptools.gid_config.interface import GidIniConfig
+
     from antistasi_logbook.backend import Backend
     from antistasi_logbook.parsing.parser import SimpleRegexKeeper, RecordClassManager
-    from antistasi_logbook.records.record_class_manager import RecordClassChecker
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
+    from antistasi_logbook.records.record_class_manager import RecordClassChecker
 
 # endregion[Imports]
 

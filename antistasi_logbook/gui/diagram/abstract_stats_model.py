@@ -6,33 +6,32 @@ Soon.
 
 # region [Imports]
 
-
-from abc import ABC, ABCMeta, abstractmethod
-
-from enum import Enum, Flag, auto, unique
-from time import time, sleep
-
+# * Standard Library Imports ---------------------------------------------------------------------------->
+from abc import ABC, abstractmethod
+from enum import Enum, auto, unique
+from typing import TYPE_CHECKING, Any, Union
 from pathlib import Path
-
-from typing import TYPE_CHECKING, Union, Callable, Iterable, Optional, Mapping, Any, IO, TextIO, BinaryIO, Hashable, Generator, Literal, TypeVar, TypedDict, AnyStr
-
-from datetime import datetime, timezone, timedelta
-
-from functools import wraps, partial, lru_cache, singledispatch, total_ordering, cached_property, reduce
+from datetime import datetime
 from operator import add
+from functools import reduce
 
-from PySide6.QtGui import (QPen, QColor)
-
-from PySide6.QtWidgets import QApplication
+# * Qt Imports --------------------------------------------------------------------------------------->
 import pyqtgraph as pg
+from PySide6.QtGui import QPen, QColor
+from PySide6.QtWidgets import QApplication
+
+# * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
+
+# * Local Imports --------------------------------------------------------------------------------------->
+from antistasi_logbook.storage.models.models import LogFile, LogRecord, RecordClass
 from antistasi_logbook.utilities.date_time_utilities import DateTimeFrame
-from antistasi_logbook.storage.models.models import LogFile, RecordClass, LogRecord
+
+# * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend
-    from antistasi_logbook.storage.database import GidSqliteApswDatabase
-    from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
+    from antistasi_logbook.storage.database import GidSqliteApswDatabase
 
 # endregion[Imports]
 

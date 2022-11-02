@@ -10,29 +10,33 @@ Soon.
 import os
 import sys
 import subprocess
-from typing import Any, Union, Iterable, Optional, Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Union, Callable, Iterable, Optional
 from pathlib import Path
+from functools import cached_property
 from collections import defaultdict
 from collections.abc import Mapping
-from functools import cached_property
+
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
-from PySide6.QtGui import QFont, QPixmap, QPalette, QColor, QFontInfo, QCloseEvent
-from PySide6.QtCore import Qt, QSize, QSizeF, QRect
-from PySide6.QtWidgets import QMenu, QAbstractScrollArea, QFrame, QLabel, QLayout, QWidget, QStyle, QTreeWidget, QTreeWidgetItem, QGroupBox, QTextEdit, QFormLayout, QScrollArea, QHBoxLayout, QListWidget, QMainWindow, QPushButton, QSizePolicy, QVBoxLayout, QApplication
-from gidapptools.general_helper.string_helper import shorten_string
+from PySide6.QtGui import QFont, QColor, QPixmap, QPalette, QFontInfo, QCloseEvent
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (QMenu, QFrame, QLabel, QStyle, QLayout, QWidget, QGroupBox, QTextEdit, QFormLayout, QHBoxLayout, QListWidget, QMainWindow,
+                               QPushButton, QScrollArea, QSizePolicy, QTreeWidget, QVBoxLayout, QApplication, QTreeWidgetItem, QAbstractScrollArea)
+
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.conversion import number_to_pretty
+from gidapptools.general_helper.string_helper import shorten_string
 from gidapptools.gidapptools_qt.helper.window_geometry_helper import move_to_center_of_screen
+
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.widgets.dock_widget import BaseDockWidget
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-import jinja2
-from antistasi_logbook.data.templates import DEBUG_LIST_OF_DICTS_CONTENT_TEMPLATE_FILE
-from antistasi_logbook.gui.widgets.data_view_widget.type_fields import DictTypeField
+
+# * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
+
 # endregion[Imports]
 
 # region [TODO]

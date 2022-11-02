@@ -7,55 +7,53 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-import os
-import sys
-from typing import TYPE_CHECKING, Union, Protocol, Generator
-import random
 import gc
+import os
 import re
+import sys
+import random
+from time import sleep, perf_counter
+from pprint import pformat
+from typing import TYPE_CHECKING, Union, Protocol, Generator
 from pathlib import Path
-import peewee
-import atexit
 from weakref import WeakSet
-import apsw
+from datetime import datetime
 from functools import cached_property
-from time import perf_counter
-from threading import Lock, current_thread, RLock
-from time import sleep
-from pprint import pformat, pprint
-from concurrent.futures import Future, ThreadPoolExecutor, wait, FIRST_COMPLETED
-# from more_itertools import chunked
-# * Third Party Imports --------------------------------------------------------------------------------->
+from threading import Lock, RLock, current_thread
+from collections import defaultdict
+from concurrent.futures import Future, ThreadPoolExecutor
 
-from apsw import SQLITE_OK, SQLITE_CHECKPOINT_TRUNCATE, Connection, SQLITE_CHECKPOINT_FULL, ConnectionClosedError, SQLITE_CHECKPOINT_PASSIVE, SQLITE_CHECKPOINT_RESTART, SQLITE_OPEN_READWRITE, SQLITE_OPEN_CREATE, SQLITE_OPEN_NOMUTEX
-from peewee import JOIN, DatabaseProxy, chunked, Model
+# * Third Party Imports --------------------------------------------------------------------------------->
+import apsw
+from apsw import SQLITE_OK, SQLITE_OPEN_CREATE, SQLITE_OPEN_NOMUTEX, SQLITE_OPEN_READWRITE, SQLITE_CHECKPOINT_TRUNCATE, ConnectionClosedError, ThreadingViolationError
+from peewee import JOIN, Model, DatabaseProxy, chunked
+from playhouse.apsw_ext import APSWDatabase
 from playhouse.sqlite_ext import CYTHON_SQLITE_EXTENSIONS
 
-from playhouse.apsw_ext import APSWDatabase
-from apsw import ThreadingViolationError
-import apsw
-from collections import defaultdict
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.meta_data.interface import MetaPaths, get_meta_info, get_meta_paths
-from gidapptools.gid_config.interface import GidIniConfig, get_config
-from gidapptools.general_helper.conversion import ns_to_s, human2bytes, number_to_pretty, bytes2human
-from datetime import datetime, timezone
+from gidapptools.gid_config.interface import GidIniConfig
+from gidapptools.general_helper.conversion import ns_to_s, bytes2human, human2bytes
+
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook import setup
-from antistasi_logbook.storage.models.models import (Server, GameMap, LogFile, Version, LogLevel, LogRecord, RecordClass, ArmaFunction,
-                                                     RecordOrigin, RemoteStorage, DatabaseMetaData, ArmaFunctionAuthorPrefix, setup_db, Message)
-from antistasi_logbook.storage.models.migration import run_migration
 from antistasi_logbook.utilities.locks import FakeLock
-import inspect
-import pp
-from PySide6.QtWidgets import QApplication
+from antistasi_logbook.storage.models.models import (Server, GameMap, LogFile, Message, Version, LogLevel, LogRecord, RecordClass, ArmaFunction,
+                                                     RecordOrigin, RemoteStorage, DatabaseMetaData, ArmaFunctionAuthorPrefix, setup_db)
+from antistasi_logbook.storage.models.migration import run_migration
+
 setup()
-# * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
-from antistasi_logbook.storage.setup_data import setup_from_data
+# * Third Party Imports --------------------------------------------------------------------------------->
 from frozendict import frozendict
+
+# * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools.gid_database.orm_peewee.sqlite.pragma_info import PragmaInfo
+
+# * Local Imports --------------------------------------------------------------------------------------->
+from antistasi_logbook.storage.setup_data import setup_from_data
+from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
+
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
@@ -387,6 +385,7 @@ class GidSqliteApswDatabase(APSWDatabase):
         return RecordClass.select().where(RecordClass.name == "BaseRecord").scalar()
 
     def _add_conn_hooks(self, conn: "apsw.Connection"):
+        self.all_connections.update([])
         self.all_connections.add(conn)
         conn.setbusyhandler(self._busy_handling)
         conn.setwalhook(self.wal_hook)
@@ -413,7 +412,7 @@ class GidSqliteApswDatabase(APSWDatabase):
     def _busy_handling(self, prior_calls: int) -> bool:
         # if prior_calls > 0 and prior_calls % 5 == 0:
 
-        sleep(random.random() / 3)
+        sleep(random.random())
         #     if META_INFO.is_dev is True:
         #         log.debug("%r busy sleeping for %r prior-calls", round(sleep_time, 4), prior_calls)
         return True

@@ -715,7 +715,6 @@ def remove_reports(c):
     send2trash(reports_folder)
 
 
-from gid_tasks import task
 from gid_tasks.hackler.imports_cleaner import import_clean_project
 
 

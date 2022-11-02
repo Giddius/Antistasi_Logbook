@@ -27,9 +27,12 @@ cd %THIS_FILE_FOLDER%
 call ..\.venv\Scripts\activate.bat
 cd %INPATH%
 call nuitka --standalone ^
---windows-dependency-tool=pefile ^
+--force-dll-dependency-cache-update ^
+--follow-imports ^
+--include-package-data=antistasi_logbook ^
 --experimental=use_pefile_recurse ^
 --experimental=use_pefile_fullrecurse ^
---plugin-enable=qt-plugins ^
 --plugin-enable=numpy ^
+--enable-plugin=pyside6 ^
+--noinclude-IPython-mode=nofollow ^
 %INPATH%%INFILE%

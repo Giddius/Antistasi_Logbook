@@ -1,28 +1,28 @@
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import re
 from json import JSONEncoder
-from typing import Any, Union, Literal, Callable, ClassVar, Optional, Generator, TypeVar, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Union, Literal, Callable, ClassVar, Optional, Generator
 from pathlib import Path
 from datetime import datetime, timedelta
 from functools import total_ordering
+from collections import ChainMap
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
-from collections.abc import Iterator
 from rich import inspect as rinspect
 from yarl import URL
 from peewee import Field
 from dateutil.tz import UTC
 from rich.console import Console as RichConsole
 from dateutil.parser import parse as dateutil_parse
-from collections import ChainMap
+
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 from gidapptools.general_helper.conversion import str_to_bool
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.utilities.path_utilities import RemotePath
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 
 if TYPE_CHECKING:
     from antistasi_logbook.storage.models.models import BaseModel

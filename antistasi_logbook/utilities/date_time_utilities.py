@@ -12,15 +12,15 @@ import re
 from typing import Union
 from pathlib import Path
 from datetime import tzinfo, datetime, timezone, timedelta
-from functools import total_ordering, cached_property, reduce
-from operator import add
-from gidapptools.general_helper.conversion import seconds2human
+from functools import total_ordering
+
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
 import tzlocal
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
+from gidapptools.general_helper.conversion import seconds2human
 from gidapptools.general_helper.string_helper import extract_by_map, replace_by_dict
 
 # * Local Imports --------------------------------------------------------------------------------------->

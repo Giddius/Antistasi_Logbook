@@ -17,18 +17,16 @@ import pp
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.enums import MiscEnum
+from gidapptools.general_helper.general_classes import DecorateAbleList
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.records.base_record import BaseRecord
 from antistasi_logbook.records.enums import RecordFamily, MessageFormat
-
+from antistasi_logbook.records.base_record import BaseRecord
 from antistasi_logbook.utilities.parsing_misc import parse_text_array
-from gidapptools.general_helper.general_classes import DecorateAbleList
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-    from PySide6.QtGui import QColor
-
+    pass
     from antistasi_logbook.storage.models.models import LogRecord
 
 # endregion[Imports]

@@ -17,8 +17,8 @@ from functools import reduce, cached_property
 import PySide6
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import Qt, QSize, QTimer, Signal, QLocale, QDateTime, QRegularExpression, QSortFilterProxyModel
-from PySide6.QtWidgets import QWidget, QToolBox, QCheckBox, QComboBox, QGroupBox, QLineEdit, QCompleter, QFormLayout, QGridLayout, QHBoxLayout, QApplication, QRadioButton, QDateTimeEdit, QWidgetItem
-from peewee import JOIN
+from PySide6.QtWidgets import QWidget, QToolBox, QCheckBox, QComboBox, QGroupBox, QLineEdit, QCompleter, QFormLayout, QGridLayout, QHBoxLayout, QApplication, QRadioButton, QDateTimeEdit
+
 # * Third Party Imports --------------------------------------------------------------------------------->
 from tzlocal import get_localzone
 from dateutil.tz import UTC
@@ -28,11 +28,11 @@ from gidapptools import get_logger
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.models import LogLevelsModel, ArmaFunctionModel, RecordClassesModel, RecordOriginsModel
-from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord, ArmaFunction, LogLevel, RecordClass
+from antistasi_logbook.storage.models.models import Server, LogFile, LogLevel, LogRecord, RecordClass, ArmaFunction
 from antistasi_logbook.gui.models.server_model import ServerModel
-from antistasi_logbook.gui.models.log_records_model import LogRecordsModel
 from antistasi_logbook.gui.models.version_model import VersionModel
 from antistasi_logbook.gui.models.game_map_model import GameMapModel
+from antistasi_logbook.gui.models.log_records_model import LogRecordsModel
 from antistasi_logbook.gui.models.base_query_data_model import EmptyContentItem
 from antistasi_logbook.gui.models.remote_storages_model import RemoteStoragesModel
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems

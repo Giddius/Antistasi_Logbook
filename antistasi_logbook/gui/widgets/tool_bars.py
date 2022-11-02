@@ -9,32 +9,31 @@ Soon.
 # * Standard Library Imports ---------------------------------------------------------------------------->
 from typing import TYPE_CHECKING, Union, Iterable
 from pathlib import Path
+from operator import and_
+from functools import reduce
 
 # * Qt Imports --------------------------------------------------------------------------------------->
-from PySide6.QtGui import QDrag, QAction, QPixmap, QMouseEvent, QDesktopServices, QContextMenuEvent, QIcon
-from PySide6.QtCore import Qt, QUrl, QSize, QMimeData, QPoint, Signal
-from PySide6.QtWidgets import QLabel, QWidget, QToolBar, QMainWindow, QVBoxLayout, QApplication, QPushButton, QMenu, QFormLayout, QLineEdit, QComboBox, QDateTimeEdit, QFileDialog
-from functools import reduce
-from concurrent.futures import wait, ALL_COMPLETED
-from time import sleep
+from PySide6.QtGui import QDrag, QAction, QPixmap, QMouseEvent, QDesktopServices
+from PySide6.QtCore import Qt, QUrl, Signal, QMimeData
+from PySide6.QtWidgets import QLabel, QWidget, QComboBox, QLineEdit, QFileDialog, QFormLayout, QMainWindow, QVBoxLayout, QApplication
+
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
+from gidapptools.gidapptools_qt.widgets.spinner_widget import BusyPushButton
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-from antistasi_logbook.storage.models.models import LogRecord, Message
+from antistasi_logbook.storage.models.models import Message, LogRecord
+from antistasi_logbook.gui.widgets.base_tool_bar import BaseToolBar
 from antistasi_logbook.gui.models.log_records_model import LogRecordsModel
 from antistasi_logbook.gui.views.log_records_query_view import LogRecordsQueryView
-from antistasi_logbook.gui.widgets.base_tool_bar import BaseToolBar
-from gidapptools.gidapptools_qt.widgets.spinner_widget import BusyPushButton
 from antistasi_logbook.gui.widgets.form_widgets.type_widgets import PathValueField
-from operator import and_
+from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
+
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
+    from antistasi_logbook.gui.application import AntistasiLogbookApplication
     from antistasi_logbook.storage.models.models import LogFile
     from antistasi_logbook.gui.views.log_files_query_view import LogFilesQueryTreeView
-    from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataModel
-    from antistasi_logbook.gui.application import AntistasiLogbookApplication
 
 # endregion[Imports]
 

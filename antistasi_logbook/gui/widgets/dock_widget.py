@@ -12,7 +12,7 @@ from pathlib import Path
 
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtCore import Qt, QSize
-from PySide6.QtWidgets import QMenu, QWidget, QDockWidget, QMainWindow, QApplication, QStackedWidget, QScrollArea
+from PySide6.QtWidgets import QMenu, QWidget, QDockWidget, QMainWindow, QApplication, QStackedWidget
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger

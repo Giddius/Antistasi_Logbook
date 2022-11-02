@@ -25,7 +25,7 @@ from gidapptools import get_logger
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.storage.models.models import Server, RemoteStorage
-from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE, Field, BaseModel, BaseQueryDataModel, ModelContextMenuAction, EmptyContentItem
+from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE, Field, BaseModel, EmptyContentItem, BaseQueryDataModel, ModelContextMenuAction
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:

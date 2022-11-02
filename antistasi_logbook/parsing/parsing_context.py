@@ -8,16 +8,16 @@ Soon.
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import re
+import random
+from time import sleep
 from typing import TYPE_CHECKING, Any, TextIO, Callable, Iterable, Generator
 from pathlib import Path
-import random
 from datetime import timedelta
-from time import sleep
 from threading import Lock, RLock
+from traceback import format_tb
 from contextlib import contextmanager
 from collections import deque
-from concurrent.futures import FIRST_EXCEPTION, Future, wait, ALL_COMPLETED
-from traceback import format_exc, format_tb
+from concurrent.futures import ALL_COMPLETED, Future, wait
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
@@ -28,11 +28,12 @@ from playhouse.shortcuts import model_to_dict
 from gidapptools import get_logger
 from gidapptools.general_helper.enums import MiscEnum
 from gidapptools.gid_signal.interface import get_signal
-from collections import namedtuple
-# * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.storage.models.models import GameMap, LogFile, Version, LogRecord
-from antistasi_logbook.parsing.py_raw_record import RawRecord
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+
+# * Local Imports --------------------------------------------------------------------------------------->
+from antistasi_logbook.parsing.py_raw_record import RawRecord
+from antistasi_logbook.storage.models.models import GameMap, LogFile, Version
+
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig

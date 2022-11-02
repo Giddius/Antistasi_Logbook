@@ -7,13 +7,13 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from time import sleep
 from typing import TYPE_CHECKING, Any
 from pathlib import Path
 from threading import Event
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.parsing.py_raw_record import RawRecord
@@ -21,7 +21,7 @@ from antistasi_logbook.parsing.meta_log_finder import MetaFinder
 from antistasi_logbook.parsing.parsing_context import RecordLine, LogParsingContext
 from antistasi_logbook.parsing.record_processor import RecordProcessor
 from antistasi_logbook.regex_store.regex_keeper import SimpleRegexKeeper
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend

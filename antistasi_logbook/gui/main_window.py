@@ -9,42 +9,42 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-import sys
 import os
-from time import sleep
+import sys
 from typing import TYPE_CHECKING, Union, Optional
 from pathlib import Path
-from datetime import timedelta, datetime
+from datetime import datetime, timedelta
+from tempfile import TemporaryDirectory
 from threading import Thread
 from concurrent.futures import Future
-from antistasi_logbook.utilities.date_time_utilities import DateTimeFrame
-from antistasi_logbook.data import DATA_DIR
-# * Qt Imports --------------------------------------------------------------------------------------->
-from PySide6.QtGui import QColor, QCloseEvent, QScreen, QDesktopServices
-from PySide6.QtHelp import QHelpEngineCore, QHelpContentWidget, QHelpEngine
-from PySide6.QtCore import Qt, Slot, QSize, QPoint, QTimer, Signal, QObject, QSysInfo, QSettings, QByteArray, QTimerEvent, QRect
-from PySide6.QtWidgets import (QLabel, QWidget, QPushButton, QMenuBar, QToolBar, QDockWidget, QGridLayout, QHBoxLayout, QMainWindow,
-                               QMessageBox, QSizePolicy, QVBoxLayout, QTableWidget, QSplashScreen, QTableWidgetItem)
 
+# * Qt Imports --------------------------------------------------------------------------------------->
+from PySide6.QtGui import QColor, QCloseEvent, QDesktopServices
+from PySide6.QtCore import Qt, QSize, QTimer, Signal, QSettings, QByteArray, QTimerEvent
+from PySide6.QtWidgets import (QLabel, QWidget, QMenuBar, QToolBar, QDockWidget, QGridLayout, QHBoxLayout, QMainWindow,
+                               QMessageBox, QSizePolicy, QVBoxLayout, QTableWidget, QSplashScreen, QTableWidgetItem)
 from PySide6.QtWebEngineWidgets import QWebEngineView
-from tempfile import TemporaryDirectory
+
 # * Third Party Imports --------------------------------------------------------------------------------->
 import qt_material
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger, get_meta_info, get_meta_paths
 from gidapptools.gid_logger.misc import QtMessageHandler
-
+from gidapptools.gid_config.interface import GidIniConfig, get_config
+from gidapptools.general_helper.conversion import bytes2human
+from gidapptools.gidapptools_qt.helper.misc import center_window
 from gidapptools.general_helper.string_helper import StringCaseConverter
 from gidapptools.gidapptools_qt.widgets.app_log_viewer import StoredAppLogViewer
-from gidapptools.gidapptools_qt.widgets.spinner_widget import BusyPushButton
-from gidapptools.gidapptools_qt.widgets.std_stream_widget import StdStreamWidget
+from gidapptools.gidapptools_qt.widgets.spinner_widget import BusyPushButton, BusySpinnerWidget
+from gidapptools.gidapptools_qt.helper.window_geometry_helper import move_to_center_of_screen
 
 # * Local Imports --------------------------------------------------------------------------------------->
-# from antistasi_logbook import stream_capturer
+from antistasi_logbook.data import DATA_DIR
 from antistasi_logbook.errors import ExceptionHandlerManager, MissingLoginAndPasswordError
 from antistasi_logbook.backend import Backend, GidSqliteApswDatabase
 from antistasi_logbook.gui.misc import UpdaterSignaler
+from antistasi_logbook.gui.debug import setup_debug_widget
 from antistasi_logbook.gui.models import LogLevelsModel, RecordOriginsModel
 from antistasi_logbook.gui.menu_bar import LogbookMenuBar
 from antistasi_logbook.gui.sys_tray import LogbookSystemTray
@@ -54,12 +54,13 @@ from antistasi_logbook.gui.main_widget import MainWidget
 from antistasi_logbook.gui.settings_window import SettingsWindow, CredentialsManagmentWindow
 from antistasi_logbook.gui.models.mods_model import ModsModel
 from antistasi_logbook.gui.widgets.tool_bars import BaseToolBar
-from antistasi_logbook.storage.models.models import GameMap, LogRecord, DatabaseMetaData
+from antistasi_logbook.storage.models.models import GameMap
 from antistasi_logbook.gui.models.version_model import VersionModel
 from antistasi_logbook.gui.widgets.stats_viewer import AvgMapPlayersPlotWidget
 from antistasi_logbook.gui.models.game_map_model import GameMapModel
 from antistasi_logbook.gui.widgets.debug_widgets import DebugDockWidget
 from antistasi_logbook.gui.resources.style_sheets import get_style_sheet_data
+from antistasi_logbook.utilities.date_time_utilities import DateTimeFrame
 from antistasi_logbook.gui.models.arma_function_model import ArmaFunctionModel
 from antistasi_logbook.gui.views.base_query_tree_view import BaseQueryTreeView
 from antistasi_logbook.gui.models.record_classes_model import RecordClassesModel
@@ -67,13 +68,7 @@ from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataMode
 from antistasi_logbook.gui.models.remote_storages_model import RemoteStoragesModel
 from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-from antistasi_logbook.gui.debug import setup_debug_widget
-from gidapptools.gidapptools_qt.helper.misc import center_window
-from gidapptools.gidapptools_qt.helper.window_geometry_helper import move_to_center_of_screen
-from gidapptools.general_helper.conversion import bytes2human
-from gidapptools.gidapptools_qt.widgets.spinner_widget import BusySpinnerWidget
-import pp
-from gidapptools.gid_config.interface import GidIniConfig, get_config
+
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig

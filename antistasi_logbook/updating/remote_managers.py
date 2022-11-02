@@ -24,10 +24,9 @@ from httpx import Limits
 from dateutil.tz import UTC
 from webdav4.client import Client as WebdavClient
 
-from gidapptools.general_helper.conversion import human2bytes
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger, get_meta_paths
-
+from gidapptools.general_helper.conversion import human2bytes
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook import setup
@@ -36,7 +35,7 @@ from antistasi_logbook.utilities.enums import RemoteItemType
 from antistasi_logbook.utilities.locks import MinDurationSemaphore
 from antistasi_logbook.updating.info_item import InfoItem
 from antistasi_logbook.utilities.nextcloud import Retrier, exponential_timeout
-from antistasi_logbook.utilities.path_utilities import RemotePath, url_to_path
+from antistasi_logbook.utilities.path_utilities import RemotePath
 
 setup()
 # * Type-Checking Imports --------------------------------------------------------------------------------->

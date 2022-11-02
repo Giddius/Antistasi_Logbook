@@ -7,41 +7,40 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from typing import TYPE_CHECKING, Any, Union, Optional, Generator, Iterable, List, Set, Dict
+from typing import TYPE_CHECKING, Any, Optional
 from pathlib import Path
 from datetime import datetime
-from threading import Lock, RLock, Condition, Event, Semaphore, Thread
-import sys
-# * Third Party Imports --------------------------------------------------------------------------------->
-import attr
+from threading import Lock
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
-from gidapptools.general_helper.color.color_item import Color
-from gidapptools.gid_config.interface import get_config, GidIniConfig
+from gidapptools.gid_config.interface import GidIniConfig
+
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.records.enums import RecordFamily, MessageFormat
 
 try:
-    from PySide6.QtWidgets import QApplication
     from PySide6.QtGui import QColor
-    from PySide6.QtCore import QSize
+    from PySide6.QtWidgets import QApplication
     PYSIDE6_AVAILABLE = True
 except ImportError:
     PYSIDE6_AVAILABLE = False
-# * Gid Imports ----------------------------------------------------------------------------------------->
-from gidapptools.general_helper.enums import MiscEnum
-from gidapptools.general_helper.string_helper import shorten_string
-from antistasi_logbook.records.special_message_formats import discord_format
-
+# * Third Party Imports --------------------------------------------------------------------------------->
 from frozendict import frozendict
-from antistasi_logbook.storage.models.models import LogFile, LogLevel, LogRecord, ArmaFunction, RecordOrigin, Server
+
+# * Gid Imports ----------------------------------------------------------------------------------------->
+from gidapptools.general_helper.string_helper import shorten_string
+
+# * Local Imports --------------------------------------------------------------------------------------->
+from antistasi_logbook.storage.models.models import Server, LogFile, LogLevel, LogRecord, ArmaFunction, RecordOrigin
+from antistasi_logbook.records.special_message_formats import discord_format
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
+    from PySide6.QtGui import QColor
+
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
     from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
-    from PySide6.QtGui import QColor
 
 # endregion[Imports]
 

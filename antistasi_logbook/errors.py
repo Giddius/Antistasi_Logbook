@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Callable, Optional
 from pathlib import Path
 from datetime import timezone
 from traceback import format_tb
-import os
+
 # * Third Party Imports --------------------------------------------------------------------------------->
 from webdav4.client import HTTPError, ResourceNotFound
 

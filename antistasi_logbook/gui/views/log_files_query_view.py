@@ -11,15 +11,15 @@ from typing import TYPE_CHECKING
 from pathlib import Path
 
 # * Qt Imports --------------------------------------------------------------------------------------->
-from PySide6.QtWidgets import QToolBar
-from PySide6.QtGui import QAction, QFont
 from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QToolBar
+
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.widgets.tool_bars import LogFileToolBar
-from antistasi_logbook.gui.views.base_query_tree_view import BaseQueryTreeView, CustomContextMenu
+from antistasi_logbook.gui.views.base_query_tree_view import BaseQueryTreeView
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:

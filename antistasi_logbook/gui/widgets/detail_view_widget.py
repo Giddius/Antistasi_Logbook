@@ -8,43 +8,42 @@ Soon.
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import re
-from abc import ABC
 import random
-from typing import TYPE_CHECKING, Any, Union, Optional, Generator, Literal, Sequence
+from abc import ABC
+from typing import TYPE_CHECKING, Any, Union, Literal, Optional, Sequence, Generator
 from pathlib import Path
 from functools import partial
 from collections.abc import Iterable
+
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
-from PySide6.QtGui import QFont, QColor, QPalette, QAction, QPixmap, QTextFormat, QTextOption, QFontMetrics, QTextDocument, QTextCharFormat, QDesktopServices, QSyntaxHighlighter, QScreen, QMouseEvent
-from PySide6.QtCore import Qt, QUrl, QAbstractTableModel, QEvent, QSize, QRect, QRectF, QPoint, QPointF, QAbstractItemModel
-from PySide6.QtWidgets import (QMenu, QLabel, QWidget, QSizePolicy, QGroupBox, QLineEdit, QListView, QTextEdit, QLCDNumber, QFormLayout,
-                               QHBoxLayout, QPushButton, QVBoxLayout, QApplication, QProgressBar, QInputDialog, QTextBrowser, QDialog, QMessageBox, QGraphicsGridLayout)
-from gidapptools.general_helper.enums import MiscEnum
+import pyqtgraph as pg
+from PySide6.QtGui import QFont, QColor, QAction, QPixmap, QTextFormat, QTextOption, QFontMetrics, QTextDocument, QTextCharFormat, QDesktopServices, QSyntaxHighlighter
+from PySide6.QtCore import Qt, QUrl, QAbstractTableModel
+from PySide6.QtWidgets import (QMenu, QLabel, QWidget, QGroupBox, QLineEdit, QListView, QTextEdit, QLCDNumber, QFormLayout, QHBoxLayout,
+                               QMessageBox, QPushButton, QVBoxLayout, QApplication, QInputDialog, QProgressBar, QTextBrowser)
+
 # * Third Party Imports --------------------------------------------------------------------------------->
 from peewee import Field, DoesNotExist, IntegrityError
-import pyqtgraph as pg
+
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.conversion import seconds2human
 from gidapptools.general_helper.string_helper import StringCase, StringCaseConverter
 from gidapptools.general_helper.color.color_item import Color
-import numpy as np
-from PIL import Image
+
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.errors import InsufficientDataPointsError
 from antistasi_logbook.data.sqf_syntax_data import SQF_BUILTINS_REGEX
 from antistasi_logbook.storage.models.models import Mod, Server, GameMap, LogFile, ModLink, LogRecord, RecordClass
-from antistasi_logbook.gui.widgets.stats_viewer import StatsWindow, StatType
+from antistasi_logbook.utilities.gui_utilities import make_line
+from antistasi_logbook.gui.widgets.image_viewer import (ArmaSide, HighResMapImageWidget, TownMapSymbolImageItem, AirportMapSymbolImageItem,
+                                                        FactoryMapSymbolImageItem, OutpostMapSymbolImageItem, SeaportMapSymbolImageItem, ResourceMapSymbolImageItem)
+from antistasi_logbook.gui.widgets.stats_viewer import StatType, StatsWindow
 from antistasi_logbook.gui.widgets.collapsible_widget import CollapsibleGroupBox
 from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-from antistasi_logbook.gui.diagram.abstract_stats_model import PerformanceStatsModel, StatScope
-import pp
-from antistasi_logbook.utilities.gui_utilities import make_line
 
-from antistasi_logbook.storage.models.custom_fields import CompressedImageField
-from antistasi_logbook.gui.widgets.image_viewer import HighResMapImageWidget, BaseMapSymbolImageItem, AirportMapSymbolImageItem, TownMapSymbolImageItem, SeaportMapSymbolImageItem, ArmaSide, ResourceMapSymbolImageItem, FactoryMapSymbolImageItem, OutpostMapSymbolImageItem
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
@@ -52,7 +51,6 @@ if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
     from antistasi_logbook.records.base_record import BaseRecord
-
 
 # endregion[Imports]
 

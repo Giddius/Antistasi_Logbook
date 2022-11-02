@@ -7,47 +7,46 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
+import os
 import shutil
 import argparse
-import sys
-import os
-from time import sleep
-from typing import TYPE_CHECKING, Any, Optional, TypedDict, Union
+from typing import TYPE_CHECKING, Any, Union, Optional
 from pathlib import Path
 from datetime import datetime
 from functools import cached_property
+from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
-from collections.abc import Iterable, Mapping
+
 # * Qt Imports --------------------------------------------------------------------------------------->
-from PySide6.QtGui import QFont, QIcon, QColor, QScreen, QGuiApplication
-from PySide6.QtCore import Qt, QRect, QSettings, QObject, Signal
-from PySide6.QtWidgets import QMainWindow, QMessageBox, QApplication, QSplashScreen, QStyle
-from antistasi_logbook.data import DATA_DIR
+from PySide6.QtGui import QFont, QIcon, QScreen
+from PySide6.QtCore import Qt, QRect, Signal, QObject, QSettings
+from PySide6.QtWidgets import QStyle, QMainWindow, QMessageBox, QApplication, QSplashScreen
+
 # * Third Party Imports --------------------------------------------------------------------------------->
-from jinja2 import BaseLoader, Environment, Template
+from jinja2 import Template, BaseLoader, Environment
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger, get_meta_info, get_meta_paths
-from gidapptools.gid_config.interface import get_config, ConfigValueConverter
-
-from gidapptools.gidapptools_qt.basics.application import WindowHolder
+from gidapptools.gid_config.interface import get_config
 from gidapptools.general_helper.string_helper import StringCase, StringCaseConverter
+from gidapptools.gidapptools_qt.basics.application import WindowHolder
+
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-from antistasi_logbook.errors import ExceptionHandlerManager, MissingLoginAndPasswordError
+from antistasi_logbook.data import DATA_DIR
+from antistasi_logbook.errors import ExceptionHandlerManager
+from antistasi_logbook.data.templates import ABOUT_TEMPLATE_FILE, ABOUT_STYLESHEET_FILE
 from antistasi_logbook.records.base_record import BaseRecord, RecordColorCache
-import psutil
-from antistasi_logbook.data.templates import ABOUT_STYLESHEET_FILE, ABOUT_TEMPLATE_FILE
 from antistasi_logbook.data.templates.cli_argument_templates import ARG_DOC_HTML_TEMPLATE, ARG_DOC_MARKDOWN_TEMPLATE
+from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
+
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
+    from gidapptools.meta_data.meta_info import MetaInfo
     from gidapptools.gid_config.interface import GidIniConfig
     from gidapptools.gidapptools_qt.resources.resources_helper import PixmapResourceItem
+
     from antistasi_logbook.backend import Backend
     from antistasi_logbook.gui.main_window import LogbookSystemTray, AntistasiLogbookMainWindow
-    from gidapptools.meta_data.meta_info import MetaInfo
-# * Third Party Imports --------------------------------------------------------------------------------->
-
 
 # endregion[Imports]
 

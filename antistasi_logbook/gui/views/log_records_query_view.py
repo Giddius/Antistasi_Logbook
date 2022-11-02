@@ -11,23 +11,25 @@ from typing import TYPE_CHECKING
 from pathlib import Path
 
 # * Qt Imports --------------------------------------------------------------------------------------->
-from PySide6.QtGui import QAction, QFont
+from PySide6.QtGui import QFont, QAction
+from PySide6.QtCore import Qt, Signal, QMargins, QStandardPaths, QItemSelectionModel
+from PySide6.QtWidgets import QToolBar, QFontDialog, QGridLayout, QHeaderView, QPushButton
 
-from PySide6.QtCore import Signal, QMargins, QItemSelection, QStandardPaths, QItemSelectionModel, Qt, QModelIndex
-from PySide6.QtWidgets import QHeaderView, QToolBar, QFontDialog, QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QFormLayout, QPushButton
-from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
-from antistasi_logbook.gui.widgets.log_records_tool_bar import LogRecordToolBar
+
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.gui.misc import CustomRole
 from antistasi_logbook.gui.views.base_query_tree_view import BaseQueryTreeView, CustomContextMenu
 from antistasi_logbook.records.special_message_formats import DiscordText
+from antistasi_logbook.gui.widgets.log_records_tool_bar import LogRecordToolBar
+from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
+
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
+    from antistasi_logbook.records.base_record import BaseRecord
     from antistasi_logbook.gui.models.log_records_model import LogRecordsModel
     from antistasi_logbook.gui.models.proxy_models.base_proxy_model import BaseProxyModel
-    from antistasi_logbook.records.base_record import BaseRecord
+
 # endregion[Imports]
 
 # region [TODO]
