@@ -12,7 +12,7 @@ from pathlib import Path
 
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtCore import Qt, QSize
-from PySide6.QtWidgets import QMenu, QWidget, QDockWidget, QMainWindow, QApplication, QStackedWidget
+from PySide6.QtWidgets import QMenu, QWidget, QDockWidget, QMainWindow, QApplication, QStackedWidget, QScrollArea
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -63,6 +63,7 @@ class BaseDockWidget(QDockWidget):
         allowed_areas = Qt.DockWidgetAreas() | allowed_areas
         self.setAllowedAreas(allowed_areas)
         self.setFeatures(features)
+
         if add_to_menu is not None:
             self._add_to_menu_bar(add_to_menu)
 

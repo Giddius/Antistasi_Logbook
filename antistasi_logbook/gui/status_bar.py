@@ -177,6 +177,8 @@ class LogbookStatusBar(QStatusBar):
         self.update_running_label: QLabel = None
         self.update_progress: QProgressBar = None
         self.timer: int = None
+        self._current_log_file_amount: int = 0
+        self._max_log_file_amount: int = 0
 
     @property
     def app(self) -> "AntistasiLogbookApplication":
@@ -201,6 +203,7 @@ class LogbookStatusBar(QStatusBar):
             self.insertWidget(0, self.last_updated_label, 1)
         if self.update_running_label is None:
             self.update_running_label = QLabel()
+            self.update_running_label.setTextFormat(Qt.TextFormat.RichText)
             self.update_running_label.setText("Updating...")
             self.update_running_label.hide()
             self.insertWidget(1, self.update_running_label, 1)
@@ -209,6 +212,7 @@ class LogbookStatusBar(QStatusBar):
         self.current_label = self.last_updated_label
 
     def switch_labels(self, update_start: bool) -> None:
+        self.update_running_label.setText("")
         if update_start is True:
             self.last_updated_label.hide()
             self.last_updated_label.shutdown()
@@ -225,7 +229,9 @@ class LogbookStatusBar(QStatusBar):
         self.update_progress.reset()
         self.update_progress.setMaximum(max_amount)
         self.update_running_label.setText(f"Updating Server {server_name.title()}")
-        self.update_progress.setToolTip(f"0/{max_amount}")
+        self._current_log_file_amount = 0
+        self._max_log_file_amount = max_amount // 2
+        self.update_progress.setToolTip(f"{self._current_log_file_amount}/{self._max_log_file_amount} Log-Files")
 
     def set_showing_error(self, value: bool = False):
 
@@ -254,11 +260,22 @@ class LogbookStatusBar(QStatusBar):
 
     def increment_progress_bar(self, amount: int):
         self.update_progress.setValue(self.update_progress.value() + amount)
-        self.update_progress.setToolTip(f"{self.update_progress.value()//2}/{self.update_progress.maximum()//2} Log-Files")
+
+    def increment_log_file_finished(self):
+        self._current_log_file_amount += 1
+        self.update_progress.setToolTip(f"{self._current_log_file_amount}/{self._max_log_file_amount} Log-Files")
+
+    def finish_progress_bar(self, *args) -> None:
+        self.update_progress.setValue(self.update_progress.maximum())
+        self.update_running_label.setText("")
+        self.update_progress.reset()
 
     def shutdown(self):
         self.last_updated_label.shutdown()
         self.backend.database.close()
+        self.deleteLater()
+
+        self.close()
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(main_window={self.main_window!r})"

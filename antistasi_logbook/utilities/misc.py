@@ -1,7 +1,7 @@
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import re
 from json import JSONEncoder
-from typing import Any, Union, Literal, Callable, ClassVar, Optional, Generator, TypeVar
+from typing import Any, Union, Literal, Callable, ClassVar, Optional, Generator, TypeVar, TYPE_CHECKING
 from pathlib import Path
 from datetime import datetime, timedelta
 from functools import total_ordering
@@ -15,7 +15,7 @@ from peewee import Field
 from dateutil.tz import UTC
 from rich.console import Console as RichConsole
 from dateutil.parser import parse as dateutil_parse
-
+from collections import ChainMap
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.conversion import str_to_bool
@@ -23,6 +23,9 @@ from gidapptools.general_helper.conversion import str_to_bool
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.utilities.path_utilities import RemotePath
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+
+if TYPE_CHECKING:
+    from antistasi_logbook.storage.models.models import BaseModel
 
 
 get_dummy_profile_decorator_in_globals()
@@ -298,5 +301,42 @@ def column_sort_default_factory(in_colum: "Field"):
         return URL("")
 
 
+class EnumLikeModelCache:
+
+    def __init__(self, model: type["BaseModel"]) -> None:
+        self.model = model
+        self.unique_field_names: tuple[str] = tuple(col.name for col in self.model.get_meta().sorted_fields if col.unique is True)
+        log.debug("indexes for %r -> %r", self.model, self.model.get_meta().indexes)
+        self.unique_indexes: tuple[tuple[str]] = tuple(idx[0] for idx in self.model.get_meta().indexes if idx[1] is True)
+        self._id_map: dict[int, "BaseModel"] = {}
+        self._unique_value_maps: dict[str, dict[object, "BaseModel"]] = {col: {} for col in self.unique_field_names}
+        self._unique_index_maps: dict[tuple[str], dict[frozenset, "BaseModel"]] = {i: {} for i in self.unique_indexes}
+        self._full_map: ChainMap = ChainMap(self._id_map, self._unique_value_maps, self._unique_index_maps)
+
+    def add(self, instance: "BaseModel") -> None:
+        if instance.id is None:
+            return
+        self._id_map[instance.id] = instance
+        for name in self.unique_field_names:
+            value = getattr(instance, name, None)
+            if value is not None:
+                self._unique_value_maps[name][value] = instance
+
+        for idx_names in self.unique_indexes:
+            value = frozenset([getattr(instance, i) for i in idx_names])
+            self._unique_index_maps[idx_names][value] = instance
+
+    def get_by_id(self, value: int) -> Optional["BaseModel"]:
+        return self._id_map.get(value, None)
+
+    def clear(self):
+        self._id_map.clear()
+        self._unique_value_maps.clear()
+
+
+def all_subclasses_recursively(klass: type) -> set[type]:
+    return set(klass.__subclasses__()).union([s for c in klass.__subclasses__() for s in all_subclasses_recursively(c)])
+
+
 if __name__ == '__main__':
-    pas
+    pass

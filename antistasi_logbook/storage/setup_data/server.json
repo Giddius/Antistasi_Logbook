@@ -1,0 +1,50 @@
+[
+    {
+        "name": "NO_SERVER",
+        "remote_path": null,
+        "remote_storage_name": "local_files",
+        "update_enabled": false,
+        "ip": null,
+        "port": null
+    },
+    {
+        "name": "Mainserver_1",
+        "remote_path": "Antistasi_Community_Logs/Mainserver_1/Server/",
+        "remote_storage_name": "community_webdav",
+        "update_enabled": true,
+        "ip": "38.133.154.60",
+        "port": 2312
+    },
+    {
+        "name": "Mainserver_2",
+        "remote_path": "Antistasi_Community_Logs/Mainserver_2/Server/",
+        "remote_storage_name": "community_webdav",
+        "update_enabled": true,
+        "ip": "38.133.154.60",
+        "port": 2322
+    },
+    {
+        "name": "Testserver_1",
+        "remote_path": "Antistasi_Community_Logs/Testserver_1/Server/",
+        "remote_storage_name": "community_webdav",
+        "update_enabled": true,
+        "ip": "38.133.154.60",
+        "port": 2342
+    },
+    {
+        "name": "Testserver_2",
+        "remote_path": "Antistasi_Community_Logs/Testserver_2/Server/",
+        "remote_storage_name": "community_webdav",
+        "update_enabled": true,
+        "ip": "38.133.154.60",
+        "port": 2352
+    },
+    {
+        "name": "Testserver_3",
+        "remote_path": "Antistasi_Community_Logs/Testserver_3/Server/",
+        "remote_storage_name": "community_webdav",
+        "update_enabled": true,
+        "ip": null,
+        "port": null
+    }
+]

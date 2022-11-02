@@ -12,16 +12,18 @@ from pathlib import Path
 
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6 import QtCore
+from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Qt, Slot, QModelIndex, QUrl, QMimeData
+from PySide6.QtWidgets import QLabel
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 from peewee import JOIN, Field, Query
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
-
+from concurrent.futures import Future
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.storage.models.models import Server, GameMap, LogFile, Version
+from antistasi_logbook.storage.models.models import Server, GameMap, LogFile, Version, ModSet
 from antistasi_logbook.storage.models.custom_fields import FakeField
 from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE, BaseQueryDataModel, ModelContextMenuAction
 
@@ -29,7 +31,7 @@ from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE, BaseQ
 if TYPE_CHECKING:
     from antistasi_logbook.storage.models.models import BaseModel
     from antistasi_logbook.gui.views.base_query_tree_view import CustomContextMenu
-
+    from antistasi_logbook.storage.database import GidSqliteApswDatabase
 # endregion[Imports]
 
 # region [TODO]
@@ -50,19 +52,18 @@ log = get_logger(__name__)
 
 
 class LogFilesModel(BaseQueryDataModel):
-    extra_columns = {FakeField(name="amount_log_records", verbose_name="Records"),
-                     FakeField("time_frame", "Time Frame"),
-                     FakeField(name="amount_errors", verbose_name="Errors"),
-                     FakeField(name="amount_warnings", verbose_name="Warnings"),
-                     FakeField(name="mod_set", verbose_name="Mod Set")}
+    extra_columns = {
+        FakeField("time_frame", "Time Frame")
+    }
     strict_exclude_columns = {"startup_text", "remote_path", "header_text", "original_file"}
 
     def __init__(self, parent: Optional[QtCore.QObject] = None) -> None:
         self.show_unparsable = False
         super().__init__(LogFile, parent=parent)
-        self.ordered_by = (-LogFile.modified_at, LogFile.server)
+        self.ordered_by = (-LogFile.modified_at,)
         self.filter_item = None
         self.currently_reparsing: bool = False
+        self.refresh_future: Future = None
 
     def add_context_menu_actions(self, menu: "CustomContextMenu", index: QModelIndex):
         super().add_context_menu_actions(menu, index)
@@ -128,7 +129,7 @@ class LogFilesModel(BaseQueryDataModel):
             return super().on_display_data_bool(role=role, item=item, column=column, value=value)
 
     def get_query(self) -> "Query":
-        query = LogFile.select(LogFile, GameMap, Server, Version).join(GameMap, join_type=JOIN.LEFT_OUTER).switch(LogFile).join(Server).switch(LogFile).join(Version).switch(LogFile)
+        query = LogFile.select(LogFile)
         if self.show_unparsable is False:
             query = query.where(LogFile.unparsable == False)
         if self.filter_item is not None:
@@ -136,22 +137,42 @@ class LogFilesModel(BaseQueryDataModel):
         return query.order_by(*self.ordered_by)
 
     def get_content(self) -> "BaseQueryDataModel":
+        def load_up_log_file(in_log_file: LogFile):
+            in_log_file.server = Server.get_by_id_cached(in_log_file.server_id)
+            in_log_file.game_map = self.backend.database.foreign_key_cache.get_game_map_by_id(in_log_file.game_map_id)
+            if in_log_file.version_id is not None:
+                in_log_file.version = Version.get_by_id_cached(in_log_file.version_id)
+            if in_log_file.mod_set_id is not None:
+                in_log_file.mod_set = ModSet.get_by_id_cached(in_log_file.mod_set_id)
+            in_log_file.ensure_dynamic_columns()
 
-        with self.backend.database.connection_context() as ctx:
-            self.content_items = []
-            for log_file in self.get_query().iterator():
-                self.content_items.append(log_file)
+            return in_log_file
 
+        # self.database.foreign_key_cache.reset_all()
+        self.database.foreign_key_cache.preload_all()
+
+        self.content_items = []
+        self.database.connect(True)
+        for log_file in self.backend.thread_pool.map(load_up_log_file, self.get_query().iterator()):
+
+            self.content_items.append(log_file)
+        self.content_items = tuple(self.content_items)
         return self
 
     def _get_tool_tip_data(self, index: INDEX_TYPE) -> Any:
         item = self.content_items[index.row()]
         column = self.columns[index.column()]
+
         if column.name == "marked":
             if item.marked is True:
                 return "This Log-File is marked"
             else:
                 return "This Log-File is not marked"
+
+        elif column.name == "amount_headless_clients":
+            return f"connected: {item.amount_headless_clients_connected}\ndisconnected: {item.amount_headless_clients_disconnected}"
+        elif column.name == "game_map" and item.game_map.has_low_res_image() is True:
+            return f'<b>{item.game_map.pretty_name!s}</b><br><img src="{item.game_map.map_image_low_resolution.image_path!s}">'
 
         return super()._get_tool_tip_data(index)
 # region[Main_Exec]

@@ -16,7 +16,7 @@ from threading import Event
 from gidapptools import get_logger
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.parsing.raw_record import RawRecord
+from antistasi_logbook.parsing.py_raw_record import RawRecord
 from antistasi_logbook.parsing.meta_log_finder import MetaFinder
 from antistasi_logbook.parsing.parsing_context import RecordLine, LogParsingContext
 from antistasi_logbook.parsing.record_processor import RecordProcessor
@@ -54,16 +54,13 @@ class Parser:
     log_file_data_scan_chunk_increase = 27239
     log_file_data_scan_chunk_initial = (104997 // 2)
 
-    __slots__ = ("backend", "regex_keeper", "stop_event")
+    __slots__ = ("backend", "regex_keeper", "stop_event", "record_processor")
 
-    def __init__(self, backend: "Backend", stop_event: Event) -> None:
+    def __init__(self, backend: "Backend", record_processor: "RecordProcessor", stop_event: Event) -> None:
         self.backend = backend
         self.regex_keeper = SimpleRegexKeeper()
         self.stop_event = stop_event
-
-    @property
-    def record_processor(self) -> "RecordProcessor":
-        return self.backend.record_processor
+        self.record_processor = record_processor
 
     def _get_log_file_meta_data(self, context: LogParsingContext) -> "MetaFinder":
         with context.open(cleanup=False) as file:
@@ -78,9 +75,12 @@ class Parser:
                 if finder.all_found() is True:
                     break
                 idx += 1
-                new_text = file.read(self.log_file_data_scan_chunk_increase)
+                if idx > 100:
+                    break
+                # new_text = file.read(self.log_file_data_scan_chunk_increase)
+                new_text = file.read(104997)
 
-                if new_text == '':
+                if new_text == '' or new_text is None:
                     break
                 text += new_text
 

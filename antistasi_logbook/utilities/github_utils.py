@@ -73,7 +73,7 @@ def get_repo_file_list(url: str, branch_name: str = None):
     return file_items
 
 
-fi = get_repo_file_list("https://github.com/official-antistasi-community/A3-Antistasi")
+# fi = get_repo_file_list("https://github.com/official-antistasi-community/A3-Antistasi")
 
 
 # region[Main_Exec]

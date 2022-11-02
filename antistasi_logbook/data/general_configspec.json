@@ -69,11 +69,12 @@
                 "max_update_time_frame": {
                     "converter": "timedelta",
                     "default": null,
+                    "initial_value": "2 weeks",
                     "description": "Logs that were modified in this Timeframe will get updated in the App."
                 },
                 "remove_items_older_than_max_update_time_frame": {
                     "converter": "boolean",
-                    "default": "True",
+                    "default": "False",
                     "description": "If set to 'Yes' will remove entries for items older than the max update time frame from the db (helps keep DB size small)"
                 }
             }
@@ -98,7 +99,8 @@
                 },
                 "chunk_size": {
                     "converter": "file_size",
-                    "default": null
+                    "default": null,
+                    "initial_value": "5mb"
                 }
             }
         },
@@ -118,7 +120,7 @@
                 },
                 "time_format": {
                     "converter": "string",
-                    "default": "%Y-%m-%d %H:%M:%S.f"
+                    "default": "%Y-%m-%d %H:%M:%S.%f"
                 }
             }
         },
@@ -164,7 +166,8 @@
             "entries": {
                 "max_concurrent_connections": {
                     "converter": "integer(minimum=1)",
-                    "default": "1"
+                    "default": "1",
+                    "initial_value": "5"
                 }
             }
         },

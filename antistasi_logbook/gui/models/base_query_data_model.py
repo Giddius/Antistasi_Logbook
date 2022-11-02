@@ -25,7 +25,7 @@ from natsort import natsorted
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.gid_config.interface import GidIniConfig
-
+from frozendict import frozendict
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.misc import CustomRole
 from antistasi_logbook.storage.models.models import GameMap, Version, BaseModel, ArmaFunctionAuthorPrefix
@@ -120,53 +120,52 @@ class BaseQueryDataModel(QAbstractTableModel):
         self.bool_images = {True: AllResourceItems.check_mark_green_image.get_as_icon(),
                             False: AllResourceItems.close_black_image.get_as_icon()}
 
-        self.mark_images = {"marked": AllResourceItems.mark_image.get_as_icon(),
-                            "unmark": AllResourceItems.unmark_image.get_as_icon()}
-        self.data_role_table: DATA_ROLE_MAP_TYPE = {Qt.DisplayRole: self._get_display_data,
-                                                    Qt.ToolTipRole: self._get_tool_tip_data,
-                                                    Qt.TextAlignmentRole: self._get_text_alignment_data,
-                                                    Qt.DecorationRole: self._get_decoration_data,
-                                                    # Qt.ForegroundRole: self._get_foreground_data,
-                                                    Qt.BackgroundRole: self._get_background_data,
-                                                    Qt.SizeHintRole: self._get_size_hint_data,
-                                                    # Qt.FontRole: self._get_font_data,
-                                                    # Qt.EditRole: self._get_edit_data,
-                                                    # Qt.InitialSortOrderRole: self._get_initial_sort_order_data,
-                                                    # Qt.StatusTipRole: self._get_status_tip_data,
-                                                    # Qt.WhatsThisRole: self._get_whats_this_data,
-                                                    # Qt.CheckStateRole: self._get_check_state_data,
-                                                    # Qt.AccessibleTextRole: self._get_accessible_text_data,
-                                                    # Qt.DisplayPropertyRole: self._get_display_property_data,
-                                                    # Qt.ToolTipPropertyRole: self._get_tool_tip_property_data,
-                                                    # Qt.StatusTipPropertyRole: self._get_status_tip_property_data,
-                                                    # Qt.WhatsThisPropertyRole: self._get_whats_this_property_data,
-                                                    # Qt.DecorationPropertyRole: self._get_decoration_property_data,
-                                                    # Qt.AccessibleDescriptionRole: self._get_accessible_description_data,
-                                                    CustomRole.RAW_DATA: self._get_raw_data
-                                                    }
+        self.mark_images = frozendict({"marked": AllResourceItems.mark_image.get_as_icon(),
+                                       "unmark": AllResourceItems.unmark_image.get_as_icon()})
+        self.data_role_table: DATA_ROLE_MAP_TYPE = frozendict({Qt.DisplayRole: self._get_display_data,
+                                                               Qt.ToolTipRole: self._get_tool_tip_data,
+                                                               Qt.TextAlignmentRole: self._get_text_alignment_data,
+                                                               Qt.DecorationRole: self._get_decoration_data,
+                                                               # Qt.ForegroundRole: self._get_foreground_data,
+                                                               Qt.BackgroundRole: self._get_background_data,
+                                                               Qt.SizeHintRole: self._get_size_hint_data,
+                                                               # Qt.FontRole: self._get_font_data,
+                                                               # Qt.EditRole: self._get_edit_data,
+                                                               # Qt.InitialSortOrderRole: self._get_initial_sort_order_data,
+                                                               # Qt.StatusTipRole: self._get_status_tip_data,
+                                                               # Qt.WhatsThisRole: self._get_whats_this_data,
+                                                               # Qt.CheckStateRole: self._get_check_state_data,
+                                                               # Qt.AccessibleTextRole: self._get_accessible_text_data,
+                                                               # Qt.DisplayPropertyRole: self._get_display_property_data,
+                                                               # Qt.ToolTipPropertyRole: self._get_tool_tip_property_data,
+                                                               # Qt.StatusTipPropertyRole: self._get_status_tip_property_data,
+                                                               # Qt.WhatsThisPropertyRole: self._get_whats_this_property_data,
+                                                               # Qt.DecorationPropertyRole: self._get_decoration_property_data,
+                                                               # Qt.AccessibleDescriptionRole: self._get_accessible_description_data,
+                                                               CustomRole.RAW_DATA: self._get_raw_data})
 
-        self.header_data_role_table: HEADER_DATA_ROLE_MAP_TYPE = {Qt.DisplayRole: self._get_display_header_data,
-                                                                  #   Qt.ToolTipRole: self._get_tool_tip_header_data,
-                                                                  #   Qt.ForegroundRole: self._get_foreground_header_data,
-                                                                  #   Qt.BackgroundRole: self._get_background_header_data,
-                                                                  #   Qt.FontRole: self._get_font_header_data,
-                                                                  #   Qt.EditRole: self._get_edit_header_data,
-                                                                  #   Qt.InitialSortOrderRole: self._get_initial_sort_order_header_data,
-                                                                  #   Qt.UserRole: self._get_user_header_data,
-                                                                  #   Qt.SizeHintRole: self._get_size_hint_header_data,
-                                                                  #   Qt.StatusTipRole: self._get_status_tip_header_data,
-                                                                  #   Qt.WhatsThisRole: self._get_whats_this_header_data,
-                                                                  #   Qt.DecorationRole: self._get_decoration_header_data,
-                                                                  #   Qt.CheckStateRole: self._get_check_state_header_data,
-                                                                  Qt.TextAlignmentRole: self._get_text_alignment_header_data,
-                                                                  #   Qt.AccessibleTextRole: self._get_accessible_text_header_data,
-                                                                  #   Qt.DisplayPropertyRole: self._get_display_property_header_data,
-                                                                  #   Qt.ToolTipPropertyRole: self._get_tool_tip_property_header_data,
-                                                                  #   Qt.StatusTipPropertyRole: self._get_status_tip_property_header_data,
-                                                                  #   Qt.WhatsThisPropertyRole: self._get_whats_this_property_header_data,
-                                                                  #   Qt.DecorationPropertyRole: self._get_decoration_property_header_data,
-                                                                  #   Qt.AccessibleDescriptionRole: self._get_accessible_description_header_data
-                                                                  }
+        self.header_data_role_table: HEADER_DATA_ROLE_MAP_TYPE = frozendict({Qt.DisplayRole: self._get_display_header_data,
+                                                                             #   Qt.ToolTipRole: self._get_tool_tip_header_data,
+                                                                             #   Qt.ForegroundRole: self._get_foreground_header_data,
+                                                                             #   Qt.BackgroundRole: self._get_background_header_data,
+                                                                             #   Qt.FontRole: self._get_font_header_data,
+                                                                             #   Qt.EditRole: self._get_edit_header_data,
+                                                                             #   Qt.InitialSortOrderRole: self._get_initial_sort_order_header_data,
+                                                                             #   Qt.UserRole: self._get_user_header_data,
+                                                                             #   Qt.SizeHintRole: self._get_size_hint_header_data,
+                                                                             #   Qt.StatusTipRole: self._get_status_tip_header_data,
+                                                                             #   Qt.WhatsThisRole: self._get_whats_this_header_data,
+                                                                             #   Qt.DecorationRole: self._get_decoration_header_data,
+                                                                             #   Qt.CheckStateRole: self._get_check_state_header_data,
+                                                                             Qt.TextAlignmentRole: self._get_text_alignment_header_data,
+                                                                             #   Qt.AccessibleTextRole: self._get_accessible_text_header_data,
+                                                                             #   Qt.DisplayPropertyRole: self._get_display_property_header_data,
+                                                                             #   Qt.ToolTipPropertyRole: self._get_tool_tip_property_header_data,
+                                                                             #   Qt.StatusTipPropertyRole: self._get_status_tip_property_header_data,
+                                                                             #   Qt.WhatsThisPropertyRole: self._get_whats_this_property_header_data,
+                                                                             #   Qt.DecorationPropertyRole: self._get_decoration_property_header_data,
+                                                                             #   Qt.AccessibleDescriptionRole: self._get_accessible_description_header_data
+                                                                             })
 
         self.db_model = db_model
         self.name = name or self.__class__.__name__
@@ -245,20 +244,20 @@ class BaseQueryDataModel(QAbstractTableModel):
         if item is None or column is None:
             return
         if self.db_model.has_column_named("marked"):
-            mark_text = f"Mark {item.pretty_name}" if item.marked is False else f"Unmark {item.pretty_name}"
+            mark_text = f"Mark {item.get_data('name')}" if item.marked is False else f"Unmark {item.get_data('name')}"
             mark_action = ModelContextMenuAction(item, column, index, text=mark_text)
             mark_action.clicked.connect(self.mark_item)
 
             menu.add_action(mark_action, "edit")
 
         if self.db_model.has_column_named("comments"):
-            edit_comments_action = ModelContextMenuAction(item, column, index, text=f"Edit Comments for {item.pretty_name}")
+            edit_comments_action = ModelContextMenuAction(item, column, index, text=f"Edit Comments for {item.get_data('name')}")
             edit_comments_action.clicked.connect(self.edit_comments)
 
             menu.add_action(edit_comments_action, "edit")
         try:
             background_color = self.db_model.background_color
-            change_color_action = ModelContextMenuAction(item, column, index, text=f"Change Color of {item.pretty_name}", icon=AllResourceItems.coloring_icon_1_image.get_as_icon(), parent=menu)
+            change_color_action = ModelContextMenuAction(item, column, index, text=f"Change Color of {item.get_data('name')}", icon=AllResourceItems.coloring_icon_1_image.get_as_icon(), parent=menu)
             change_color_action.clicked.connect(self.change_color)
             menu.add_action(change_color_action, "Edit")
         except AttributeError:
@@ -293,7 +292,7 @@ class BaseQueryDataModel(QAbstractTableModel):
         return query.order_by(*self.ordered_by)
 
     def amount_items_to_query(self) -> int:
-        with self.backend.database:
+        with self.backend.database.connection_context():
             return self.get_query().count()
 
     def get_content(self) -> "BaseQueryDataModel":
@@ -367,6 +366,9 @@ class BaseQueryDataModel(QAbstractTableModel):
             return 0
         return len(self.content_items)
 
+    def hasChildren(self, parent: Union[PySide6.QtCore.QModelIndex, PySide6.QtCore.QPersistentModelIndex]) -> bool:
+        return False
+
     def data(self, index: INDEX_TYPE, role: int = None) -> Any:
         if not index.isValid():
             return
@@ -376,6 +378,7 @@ class BaseQueryDataModel(QAbstractTableModel):
         if role is not None:
 
             try:
+                mod_index = self.modify_index(index)
                 return self.data_role_table.get(role, None)(index=self.modify_index(index))
             except TypeError:
                 return None
@@ -393,16 +396,21 @@ class BaseQueryDataModel(QAbstractTableModel):
 
     def _get_background_data(self, index: INDEX_TYPE) -> Any:
         item, column = self.get(index)
-        value = getattr(item, column.name)
+        if isinstance(item, EmptyContentItem):
+            return
         try:
-            return value.background_color
-        except AttributeError:
-            pass
+            value = getattr(item, column.name)
+            try:
+                return value.background_color
+            except AttributeError:
+                pass
 
-        try:
-            return item.background_color
-        except AttributeError:
-            pass
+            try:
+                return item.background_color
+            except AttributeError:
+                pass
+        except:
+            log.debug("%r, %r", index.row_item, index.column_item.name)
 
     def _get_font_data(self, index: INDEX_TYPE) -> Any:
         pass
@@ -420,12 +428,14 @@ class BaseQueryDataModel(QAbstractTableModel):
         return QSize(0, 35)
 
     def _get_decoration_data(self, index: INDEX_TYPE) -> Any:
-
-        data = getattr(index.row_item, index.column_item.name)
-        if data is None:
-            return self.on_display_data_none(role=Qt.DecorationRole, item=index.row_item, column=index.column_item)
-        if isinstance(data, bool):
-            return self.on_display_data_bool(role=Qt.DecorationRole, item=index.row_item, column=index.column_item, value=data)
+        try:
+            data = getattr(index.row_item, index.column_item.name)
+            if data is None:
+                return self.on_display_data_none(role=Qt.DecorationRole, item=index.row_item, column=index.column_item)
+            if isinstance(data, bool):
+                return self.on_display_data_bool(role=Qt.DecorationRole, item=index.row_item, column=index.column_item, value=data)
+        except:
+            log.debug("%r, %r", index.row_item, index.column_item.name)
 
     def _get_status_tip_data(self, index: INDEX_TYPE) -> Any:
         pass

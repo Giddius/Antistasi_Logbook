@@ -51,10 +51,11 @@ FullDateTimes = namedtuple("FullDateTimes", ["local_datetime", "utc_datetime"])
 
 class MetaFinder:
 
-    __slots__ = ("game_map", "full_datetime", "version", "mods", "campaign_id", "is_new_campaign", "regex_keeper")
+    __slots__ = ("game_map", "full_datetime", "version", "mods", "campaign_id", "is_new_campaign", "regex_keeper", "context")
 
     def __init__(self, regex_keeper: "SimpleRegexKeeper", context: "ParsingContext", force: bool = False) -> None:
         self.regex_keeper = regex_keeper
+        self.context = context
         if force is True:
             self.game_map: str = MiscEnum.NOT_FOUND
             self.full_datetime: FullDateTimes = MiscEnum.NOT_FOUND
@@ -109,12 +110,9 @@ class MetaFinder:
             mod_lines = match.group('mod_lines').splitlines()
 
             cleaned_mod_lines = [self.regex_keeper.mod_time_strip.sub("", line, 1) for line in mod_lines if '|' in line and 'modDir' not in line]
-            self.mods = []
-            for line in cleaned_mod_lines:
-                try:
-                    self.mods.append(ModItem.from_text_line(line))
-                except (ValueError, IndexError) as e:
-                    log.critical("%r errored mod line: %r", e, line)
+            mod_future = self.context.inserter.many_mods_from_mod_lines(mod_lines=cleaned_mod_lines)
+
+            self.mods = mod_future
 
     def _resolve_campaign_id(self, text: str) -> None:
         if match := self.regex_keeper.campaign_id.search(text):

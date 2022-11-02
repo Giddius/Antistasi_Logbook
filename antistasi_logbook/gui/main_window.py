@@ -11,16 +11,18 @@ Soon.
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import sys
 import os
+from time import sleep
 from typing import TYPE_CHECKING, Union, Optional
 from pathlib import Path
 from datetime import timedelta, datetime
 from threading import Thread
+from concurrent.futures import Future
 from antistasi_logbook.utilities.date_time_utilities import DateTimeFrame
 from antistasi_logbook.data import DATA_DIR
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QColor, QCloseEvent, QScreen, QDesktopServices
 from PySide6.QtHelp import QHelpEngineCore, QHelpContentWidget, QHelpEngine
-from PySide6.QtCore import Qt, Slot, QSize, QPoint, QTimer, Signal, QObject, QSysInfo, QSettings, QByteArray, QTimerEvent
+from PySide6.QtCore import Qt, Slot, QSize, QPoint, QTimer, Signal, QObject, QSysInfo, QSettings, QByteArray, QTimerEvent, QRect
 from PySide6.QtWidgets import (QLabel, QWidget, QPushButton, QMenuBar, QToolBar, QDockWidget, QGridLayout, QHBoxLayout, QMainWindow,
                                QMessageBox, QSizePolicy, QVBoxLayout, QTableWidget, QSplashScreen, QTableWidgetItem)
 
@@ -67,6 +69,9 @@ from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 from antistasi_logbook.gui.debug import setup_debug_widget
 from gidapptools.gidapptools_qt.helper.misc import center_window
+from gidapptools.gidapptools_qt.helper.window_geometry_helper import move_to_center_of_screen
+from gidapptools.general_helper.conversion import bytes2human
+from gidapptools.gidapptools_qt.widgets.spinner_widget import BusySpinnerWidget
 import pp
 from gidapptools.gid_config.interface import GidIniConfig, get_config
 # * Type-Checking Imports --------------------------------------------------------------------------------->
@@ -214,6 +219,8 @@ class AntistasiLogbookMainWindow(QMainWindow):
             self.restoreGeometry(geometry)
         else:
             self.resize(*self.initial_size)
+
+        move_to_center_of_screen(self)
         self.tool_bar = BaseToolBar(self)
         self.addToolBar(Qt.TopToolBarArea, self.tool_bar)
         log.debug("starting to set main widget")
@@ -232,12 +239,14 @@ class AntistasiLogbookMainWindow(QMainWindow):
         ExceptionHandlerManager.signaler.show_error_signal.connect(self.show_error_dialog)
         self.backend.updater.signaler.update_started.connect(self.statusbar.switch_labels)
         self.backend.updater.signaler.update_record_classes_started.connect(self.statusbar.switch_labels)
+        self.backend.updater.signaler.update_finished.connect(self.statusbar.finish_progress_bar)
         self.backend.updater.signaler.update_finished.connect(self.statusbar.switch_labels)
         self.backend.updater.signaler.update_record_classes_finished.connect(self.statusbar.switch_labels)
         self.backend.update_signaler.change_update_text.connect(self.statusbar.set_update_text)
 
         self.backend.updater.signaler.update_info.connect(self.statusbar.start_progress_bar)
         self.backend.updater.signaler.update_increment.connect(self.statusbar.increment_progress_bar)
+        self.backend.updater.signaler.update_log_file_finished.connect(self.statusbar.increment_log_file_finished)
         self.main_widget.setup_views()
         self.backend.updater.signaler.update_finished.connect(self.main_widget.server_tab.model.refresh)
 
@@ -251,7 +260,79 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.menubar.cyclic_update_action.triggered.connect(self.start_update_timer)
         self.menubar.show_cli_arguments.triggered.connect(self.show_cli_arguments_page)
         self.menubar.show_help.setEnabled(False)
+        self.menubar.run_full_vaccum_action.triggered.connect(self.run_full_vacuum)
         self.development_setup()
+        self.ensure_fully_visible()
+        self.raise_()
+
+    def run_full_vacuum(self):
+
+        def _do_full_vacuum():
+            self.backend.database.checkpoint()
+            self.backend.database.connection().execute("VACUUM").fetchall()
+            self.backend.database.checkpoint()
+
+        value = QMessageBox.warning(self,
+                                    "Full Vacuum",
+                                    '\n'.join(i.strip() for i in f"""Running a full Database Vacuum can take some time.
+                                     It will also require at least {bytes2human(self.backend.database.database_file_size)} of extra Disk Space!
+
+                                     The Application will shut down after it is done vacuuming!
+
+                                     Do you really want to do a Full Vacuum?""".splitlines()),
+                                    QMessageBox.StandardButton.Yes,
+                                    QMessageBox.StandardButton.Cancel)
+
+        if value == QMessageBox.StandardButton.Yes.value:
+            log.info("starting full_vaccum")
+            s = min([self.size().width() // 2, self.size().height() // 2])
+            self._vacuum_spinner_widget = BusySpinnerWidget(spinner_gif="busy_spinner_cat.gif", spinner_size=QSize(s, s))
+            self._vacuum_spinner_widget.setWindowModality(Qt.WindowModality.ApplicationModal)
+            self._vacuum_spinner_widget.setWindowFlags(Qt.FramelessWindowHint)
+            self._vacuum_spinner_widget.setStyleSheet("""background-color: rgba(200, 200, 200,0); """)
+            self._vacuum_spinner_widget.setAttribute(Qt.WA_TranslucentBackground)
+            center_window(self._vacuum_spinner_widget, allow_window_resize=False)
+            self._vacuum_spinner_widget._stop_signal.connect(lambda x: self._vacuum_spinner_widget.close())
+            self._vacuum_spinner_widget._stop_signal.connect(lambda x: self.app.exit())
+            future: Future = self.backend.thread_pool.submit(_do_full_vacuum)
+            future.add_done_callback(self._vacuum_spinner_widget._stop_signal.emit)
+
+            self._vacuum_spinner_widget.start()
+            self._vacuum_spinner_widget.show()
+
+    def ensure_fully_visible(self) -> None:
+        screen_geometry = self.app.screens()[0].availableGeometry()
+        window_geometry = self.geometry()
+
+        if window_geometry.height() > int(screen_geometry.height() * 0.8):
+            window_geometry.setHeight(int(screen_geometry.height() * 0.8))
+        if window_geometry.width() > int(screen_geometry.width() * 0.8):
+            window_geometry.setHeight(int(screen_geometry.width() * 0.8))
+
+        if screen_geometry.contains(window_geometry) is False:
+            new_size_height = min(window_geometry.height(), int(screen_geometry.height() * 0.8))
+            new_size_width = min(window_geometry.width(), int(screen_geometry.width() * 0.8))
+
+            window_geometry.setSize(QSize(new_size_width, new_size_height))
+            window_geometry.moveCenter(screen_geometry.center())
+        if screen_geometry.contains(window_geometry) is False:
+            move_x = 0
+            move_y = 0
+
+            if window_geometry.bottom() > screen_geometry.bottom():
+                move_y = min(screen_geometry.bottom(), window_geometry.bottom()) - max(screen_geometry.bottom(), window_geometry.bottom())
+                move_y = int(move_y * 0.8)
+            elif window_geometry.top() < screen_geometry.top():
+                move_y = max(screen_geometry.top(), window_geometry.top()) - min(screen_geometry.top(), window_geometry.top())
+                move_y = int(move_y * 1.2)
+            if window_geometry.right() > screen_geometry.right():
+                move_x = min(screen_geometry.right(), window_geometry.right()) - max(screen_geometry.right(), window_geometry.right())
+                move_x = int(move_x * 0.8)
+            elif window_geometry.left() < screen_geometry.left():
+                move_x = max(screen_geometry.left(), window_geometry.left()) - min(screen_geometry.left(), window_geometry.left())
+                move_x = int(move_x * 1.2)
+            window_geometry.translate(move_x, move_y)
+        self.setGeometry(window_geometry)
 
     def show_cli_arguments_page(self):
         css_file = DATA_DIR.joinpath("cli_help_view.css")
@@ -465,12 +546,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
         def _get_item_data(in_game_map: "GameMap") -> Optional[dict[str, Union[float, int, datetime]]]:
             try:
-                try:
-                    import pp
 
-                    pp({in_game_map.name: in_game_map.get_avg_players_per_hour_per_mod_set()})
-                except Exception as e:
-                    log.error(e, exc_info=True)
                 data = in_game_map.get_avg_players_per_hour()
 
                 return data | {"game_map": in_game_map.full_name}
@@ -559,10 +635,10 @@ class AntistasiLogbookMainWindow(QMainWindow):
         data_widget.horizontalHeader().setDefaultAlignment(Qt.AlignCenter)
         data_widget.horizontalHeader().setStretchLastSection(True)
 
-        data_widget.horizontalHeader().setSectionResizeMode(data_widget.horizontalHeader().Interactive)
-        data_widget.horizontalHeader().setSectionResizeMode(0, data_widget.horizontalHeader().Fixed)
+        data_widget.horizontalHeader().setSectionResizeMode(data_widget.horizontalHeader().ResizeMode.Interactive)
+        data_widget.horizontalHeader().setSectionResizeMode(0, data_widget.horizontalHeader().ResizeMode.Fixed)
 
-        data_widget.horizontalHeader().resizeSections(data_widget.horizontalHeader().ResizeToContents)
+        data_widget.horizontalHeader().resizeSections(data_widget.horizontalHeader().ResizeMode.ResizeToContents)
         data_widget.horizontalHeader().setStretchLastSection(True)
         data_widget.setAlternatingRowColors(True)
         data_widget.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -584,7 +660,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
         sub_sub_sub_layout.addWidget(overall_days)
         sub_sub_sub_layout.addWidget(overall_time_frame)
         sub_sub_layout.addLayout(sub_sub_sub_layout)
-        window = center_window(window)
+        move_to_center_of_screen(self, self.app.screens()[0])
 
         window.show()
 
@@ -671,9 +747,11 @@ class AntistasiLogbookMainWindow(QMainWindow):
                     widget.hide()
             if self.update_thread is not None:
                 self.backend.events.stop.set()
-                self.update_thread.join(5)
+                self.update_thread.join(5.0)
             log.info("shutting down %r", self.statusbar)
             self.statusbar.shutdown()
+            self.menubar.close()
+            self.menubar.destroy(True, True)
             log.info("Starting shutting down %r", self.backend)
             self.backend.shutdown()
 
@@ -682,20 +760,26 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
             log.info("closing all windows of %r", self.app)
             self.app.closeAllWindows()
+            for widget in self.app.allWidgets():
+                try:
+                    widget.close()
+                    widget.destroy(True, True)
+                except RuntimeError:
+                    continue
             log.info("Quiting %r", self.app)
 
             self.app.quit()
             if self.temp_help_dir is not None:
                 self.temp_help_dir.cleanup()
             log.info('%r accepting event %r', self, event.type().name)
+            self.deleteLater()
             event.accept()
-
         else:
             event.ignore()
 
-    @ Slot()
     def open_settings_window(self):
-        self._temp_settings_window = SettingsWindow(general_config=self.config, main_window=self).setup()
+        x = self.config
+        self._temp_settings_window = SettingsWindow(general_config=x, main_window=self).setup()
         self._temp_settings_window.show()
 
     def show_credentials_managment_window(self):
@@ -714,7 +798,7 @@ def start_gui() -> int:
 
     # TODO: Rewrite so everything starts through the app
 
-    app = AntistasiLogbookApplication.with_high_dpi_scaling(argvs=sys.argv)
+    app = AntistasiLogbookApplication(sys.argv)
     app.message_handler = QtMessageHandler().install()
 
     if app.is_full_gui is False:
@@ -730,8 +814,8 @@ def start_gui() -> int:
         config.set("general", "is_first_start", False, create_missing_section=True)
     start_splash = app.show_splash_screen("start_up")
     db_path = config.get('database', "database_path", default=None)
-    database = GidSqliteApswDatabase(db_path, config=config, thread_safe=True, autoconnect=True)
-
+    database = GidSqliteApswDatabase(db_path, config=config, thread_safe=True, autoconnect=True, autorollback=not META_INFO.is_dev)
+    config.set('database', "database_path", Path(database.database_path))
     backend = Backend(database=database, config=config, update_signaler=UpdaterSignaler())
 
     app.setup(backend=backend, icon=AllResourceItems.app_icon_image)
@@ -739,7 +823,6 @@ def start_gui() -> int:
     _main_window = app.create_main_window(AntistasiLogbookMainWindow)
 
     _main_window.show()
-
     return app.exec()
 
 

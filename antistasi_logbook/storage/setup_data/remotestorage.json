@@ -1,0 +1,14 @@
+[
+    {
+        "name": "local_files",
+        "base_url": "--LOCAL--",
+        "manager_type": "LocalManager",
+        "credentials_required": false
+    },
+    {
+        "name": "community_webdav",
+        "base_url": "https://antistasi.de",
+        "manager_type": "WebdavManager",
+        "credentials_required": true
+    }
+]

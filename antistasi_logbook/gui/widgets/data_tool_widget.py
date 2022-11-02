@@ -17,7 +17,7 @@ from functools import reduce, cached_property
 import PySide6
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import Qt, QSize, QTimer, Signal, QLocale, QDateTime, QRegularExpression, QSortFilterProxyModel
-from PySide6.QtWidgets import QWidget, QToolBox, QCheckBox, QComboBox, QGroupBox, QLineEdit, QCompleter, QFormLayout, QGridLayout, QHBoxLayout, QApplication, QRadioButton, QDateTimeEdit
+from PySide6.QtWidgets import QWidget, QToolBox, QCheckBox, QComboBox, QGroupBox, QLineEdit, QCompleter, QFormLayout, QGridLayout, QHBoxLayout, QApplication, QRadioButton, QDateTimeEdit, QWidgetItem
 from peewee import JOIN
 # * Third Party Imports --------------------------------------------------------------------------------->
 from tzlocal import get_localzone
@@ -79,6 +79,9 @@ class BaseDataToolPage(QWidget):
         super().__init__(parent=parent)
         self.setLayout(QFormLayout(self))
         self.layout.setLabelAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        font = self.font()
+        font.setPointSizeF(font.pointSizeF() * 0.8)
+        self.setFont(font)
 
     @property
     def app(self) -> "AntistasiLogbookApplication":
@@ -112,6 +115,11 @@ class BaseDataToolWidget(QWidget):
         self.tool_box = QToolBox()
         self.layout.addWidget(self.tool_box)
 
+        font = self.font()
+        font.setPointSizeF(font.pointSizeF() * 0.8)
+        self.setFont(font)
+        self.tool_box.setFont(font)
+
     def add_page(self, page: BaseDataToolPage):
         if page.name is None or page.icon is None:
 
@@ -119,6 +127,14 @@ class BaseDataToolWidget(QWidget):
 
         self.tool_box.addItem(page, page.icon, page.name)
         self.pages[page.name.casefold()] = page
+        for idx in range(page.layout.rowCount()):
+            child = page.layout.itemAt(idx).widget()
+            try:
+
+                child.setFont(self.font())
+            except Exception as e:
+                log.critical("encountered error %r while setting font for child %r", e, child)
+        page.repaint()
 
     def get_page_by_name(self, name: str) -> BaseDataToolPage:
         return self.pages[name.casefold()]

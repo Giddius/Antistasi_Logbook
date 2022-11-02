@@ -199,7 +199,7 @@ SETTINGS_VALUE_FIELD_TYPE = Union[QTextEdit, QComboBox, QFontComboBox, QSpinBox,
 
 class SettingsField:
 
-    def __init__(self, name: str, value: Union[Callable, Any], value_typus, verbose_name: str = None) -> None:
+    def __init__(self, name: str, value: Union[Callable, Any], value_typus, value_typus_aliases=None, verbose_name: str = None) -> None:
 
         self.key_field: QLabel = None
         self.value_field: SETTINGS_VALUE_FIELD_TYPE = None
@@ -207,6 +207,7 @@ class SettingsField:
         self.verbose_name = verbose_name or name_to_title(self.name)
         self.start_value = value() if callable(value) else value
         self.value_typus = value_typus
+        self.value_typus_aliases = value_typus_aliases or []
         self.setup()
 
     def setup(self):
@@ -215,6 +216,8 @@ class SettingsField:
         self.value_field = self.determine_value_field()
 
     def determine_value_field(self) -> SETTINGS_VALUE_FIELD_TYPE:
+        log.debug("determining value field for %r(%r), start_value=%r, value_typus=%r", self.name, self.verbose_name, self.start_value, self.value_typus)
+
         if self.name == "style":
 
             field = StyleValueField()
@@ -223,7 +226,15 @@ class SettingsField:
             field = UpdateTimeFrameValueField()
 
         else:
-            field_class = ALL_VALUE_FIELDS.get(self.value_typus, StringValueField)
+            field_class = ALL_VALUE_FIELDS.get(self.value_typus, None)
+            all_aliases_iter = iter(self.value_typus_aliases)
+            while field_class is None:
+                alias = next(all_aliases_iter, None)
+                if alias is None:
+                    break
+                field_class = ALL_VALUE_FIELDS.get(alias, None)
+            if field_class is None:
+                field_class = StringValueField
             field = field_class()
 
         if self.start_value is not None:

@@ -391,7 +391,7 @@ class BaseQueryTreeView(QTreeView):
         except AttributeError:
             pass
         log.debug("scrolling to %r", scroll_to_index)
-        self.scrollTo(scroll_to_index, self.PositionAtCenter)
+        self.scrollTo(scroll_to_index, self.ScrollHint.PositionAtCenter)
 
     def set_delegates(self):
         marked_col_index = self.model.get_column_index("marked")
@@ -418,8 +418,8 @@ class BaseQueryTreeView(QTreeView):
             self.set_delegates()
             self.setup_headers()
             self.resize_header_sections()
-
-            self.model.refresh()
+            if not self.model.content_items:
+                self.model.refresh()
             # self.reset()
             # task = self.app.gui_thread_pool.submit(self.model.refresh)
             # task.add_done_callback(_callback)

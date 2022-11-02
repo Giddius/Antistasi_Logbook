@@ -20,7 +20,9 @@ from gidapptools.general_helper.enums import MiscEnum
 from gidapptools.general_helper.string_helper import fix_multiple_quotes, escape_doubled_quotes
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.records.base_record import BaseRecord, RecordFamily, MessageFormat
+from antistasi_logbook.records.base_record import BaseRecord
+from antistasi_logbook.records.enums import RecordFamily, MessageFormat
+
 from antistasi_logbook.utilities.parsing_misc import parse_text_array
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 from gidapptools.general_helper.general_classes import DecorateAbleList
@@ -197,10 +199,102 @@ class PlayerDisconnected(BaseRecord):
 
 
 @ALL_GENERIC_RECORD_CLASSES
+class GenericHeadlessClientDisconnected(BaseRecord):
+    ___record_family___ = RecordFamily.GENERIC
+    ___specificity___ = 30
+    check_regex = re.compile(r"\[(TFE|ASMS)\] Info\: Player (disconnected|disconnecting)\:")
+    hc_check_regex = re.compile(r'HC\_?\d+')
+
+    __slots__ = ("_array_data",
+                 "_client_name",
+                 "_client_number",
+                 "_client_id")
+    extra_detail_views: Iterable[str] = ("client_name", "client_number", "client_id", "array_data")
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._array_data: list = None
+        self._client_name: str = None
+        self._client_id: str = None
+        self._client_number: int = None
+
+    @property
+    def array_data(self) -> list:
+        if self._array_data is None:
+            self._collect_values()
+        return self._array_data
+
+    @property
+    def client_name(self) -> str:
+        if self._client_name is None:
+            self._collect_values()
+        return self._client_name
+
+    @property
+    def client_number(self) -> str:
+        if self._client_number is None:
+            self._collect_values()
+        return self._client_number
+
+    @property
+    def client_id(self) -> str:
+        if self._client_id is None:
+            self._collect_values()
+        return self._client_id
+
+    def _collect_values(self) -> None:
+        data = self.parse(self.message)
+        self._array_data = data["array_data"]
+        self._client_name = data["client_name"]
+        self._client_number = data["client_number"]
+        self._client_id = data["client_id"]
+
+    @classmethod
+    def parse(cls, message: str) -> dict[str, Any]:
+        _out = {"client_id": None,
+                "client_name": None,
+                "client_number": None,
+                "array_data": None}
+
+        data_array_text = cls.check_regex.sub("", message, 1).strip()
+        _, client_id, client_name, *rest = data_array_text.strip("[]").split(",")
+        _out["client_name"] = client_name.strip('" ')
+
+        _out["client_id"] = client_id.strip('" ')
+        raw_client_number = ''.join(c for c in client_id.strip('" ') if c.isnumeric())
+
+        try:
+            _out["client_number"] = int(raw_client_number)
+        except ValueError:
+            log.error("unable to parse 'client_number'(%r) to int for message %r", raw_client_number, message)
+        array_data = parse_text_array(escape_doubled_quotes(fix_multiple_quotes(data_array_text, 2)))
+        if array_data is MiscEnum.ERROR:
+            array_data = ["PARSING ERROR"]
+        _out["array_data"] = array_data
+        return _out
+
+    def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
+        if msg_format is MessageFormat.PRETTY:
+            text = "[TFE] Info: Player disconnected: "
+            text += pp.fmt(self.array_data).replace("'", '"')
+            return text
+
+        return super().get_formated_message(msg_format=msg_format)
+
+    @classmethod
+    def check(cls, log_record: "LogRecord") -> bool:
+        if cls.check_regex.match(log_record.message.strip()) and cls.hc_check_regex.search(log_record.message.strip()):
+
+            return True
+
+        return False
+
+
+@ALL_GENERIC_RECORD_CLASSES
 class PlayerConnected(BaseRecord):
     ___record_family___ = RecordFamily.GENERIC
     ___specificity___ = 10
-    check_regex = re.compile(r"\[TFE\] Info\: Player connected\:")
+    check_regex = re.compile(r"\[(TFE|ASMS)\] Info\: Player (connected|connecting)\:")
     __slots__ = ("_array_data",
                  "_player_name",
                  "_player_id")
@@ -242,7 +336,7 @@ class PlayerConnected(BaseRecord):
                 "player_id": None,
                 "array_data": None}
 
-        data_array_text = message.removeprefix("[TFE] Info: Player connected:").strip()
+        data_array_text = cls.check_regex.sub("", message, 1).strip()
         _, player_id, player_name, *rest = data_array_text.strip("[]").split(",")
         _out["player_name"] = player_name.strip('" ')
         _out["player_id"] = player_id.strip('" ')
@@ -264,6 +358,94 @@ class PlayerConnected(BaseRecord):
     @classmethod
     def check(cls, log_record: "LogRecord") -> bool:
         if cls.check_regex.match(log_record.message.strip()):
+            return True
+
+        return False
+
+
+@ALL_GENERIC_RECORD_CLASSES
+class GenericHeadlessClientConnected(BaseRecord):
+    ___record_family___ = RecordFamily.GENERIC
+    ___specificity___ = 30
+    check_regex = re.compile(r"\[(TFE|ASMS)\] Info\: Player (connected|connecting)\:")
+    hc_check_regex = re.compile(r'HC\_?\d+')
+    __slots__ = ("_array_data",
+                 "_client_name",
+                 "_client_number",
+                 "_client_id")
+    extra_detail_views: Iterable[str] = ("client_name", "client_number", "client_id", "array_data")
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._array_data: list = None
+        self._client_name: str = None
+        self._client_number: int = None
+        self._client_id: str = None
+
+    @property
+    def array_data(self) -> list:
+        if self._array_data is None:
+            self._collect_values()
+        return self._array_data
+
+    @property
+    def client_name(self) -> str:
+        if self._client_name is None:
+            self._collect_values()
+        return self._client_name
+
+    @property
+    def client_number(self) -> str:
+        if self._client_number is None:
+            self._collect_values()
+        return self._client_number
+
+    @property
+    def client_id(self) -> str:
+        if self._client_id is None:
+            self._collect_values()
+        return self._client_id
+
+    def _collect_values(self) -> None:
+        data = self.parse(self.message)
+        self._array_data = data["array_data"]
+        self._client_name = data["client_name"]
+        self._client_number = data["client_number"]
+        self._client_id = data["client_id"]
+
+    @classmethod
+    def parse(cls, message: str) -> dict[str, Any]:
+        _out = {"client_name": None,
+                "client_id": None,
+                "array_data": None,
+                "client_number": None}
+
+        data_array_text = cls.check_regex.sub("", message, 1).strip()
+        _, client_id, client_name, *rest = data_array_text.strip("[]").split(",")
+        _out["client_name"] = client_name.strip('" ')
+
+        _out["client_id"] = client_id.strip('" ')
+        try:
+            _out["client_number"] = int(''.join(c for c in client_id if c.isnumeric()))
+        except ValueError:
+            pass
+        array_data = parse_text_array(escape_doubled_quotes(fix_multiple_quotes(data_array_text, 2)))
+        if array_data is MiscEnum.ERROR:
+            array_data = ["PARSING ERROR"]
+        _out["array_data"] = array_data
+        return _out
+
+    def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
+        if msg_format is MessageFormat.PRETTY:
+            text = "[TFE] Info: Player connected: "
+            text += pp.fmt(self.array_data).replace("'", '"')
+            return text
+
+        return super().get_formated_message(msg_format=msg_format)
+
+    @classmethod
+    def check(cls, log_record: "LogRecord") -> bool:
+        if cls.check_regex.match(log_record.message.strip()) and cls.hc_check_regex.search(log_record.message.strip()):
             return True
 
         return False

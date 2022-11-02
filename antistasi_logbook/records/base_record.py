@@ -7,7 +7,7 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from typing import TYPE_CHECKING, Any, Union, Optional, Generator, Iterable
+from typing import TYPE_CHECKING, Any, Union, Optional, Generator, Iterable, List, Set, Dict
 from pathlib import Path
 from datetime import datetime
 from threading import Lock, RLock, Condition, Event, Semaphore, Thread
@@ -23,6 +23,7 @@ from gidapptools.gid_config.interface import get_config, GidIniConfig
 from antistasi_logbook.records.enums import RecordFamily, MessageFormat
 
 try:
+    from PySide6.QtWidgets import QApplication
     from PySide6.QtGui import QColor
     from PySide6.QtCore import QSize
     PYSIDE6_AVAILABLE = True
@@ -32,12 +33,13 @@ except ImportError:
 from gidapptools.general_helper.enums import MiscEnum
 from gidapptools.general_helper.string_helper import shorten_string
 from antistasi_logbook.records.special_message_formats import discord_format
-from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+
 from frozendict import frozendict
+from antistasi_logbook.storage.models.models import LogFile, LogLevel, LogRecord, ArmaFunction, RecordOrigin, Server
+
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
-    from antistasi_logbook.storage.models.models import LogFile, LogLevel, LogRecord, ArmaFunction, RecordOrigin, Server
     from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
     from PySide6.QtGui import QColor
 
@@ -54,27 +56,20 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-get_dummy_profile_decorator_in_globals()
+
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
 
 
-class QtAttributes:
-    __slots__ = ("message_size_hint",)
+# class PrettyAttributeCache:
+#     __slots__ = ("pretty_recorded_at", "pretty_log_level", "pretty_message", "pretty_log_file")
 
-    def __init__(self, message_size_hint: "QSize" = None) -> None:
-        self.message_size_hint = message_size_hint
-
-
-class PrettyAttributeCache:
-    __slots__ = ("pretty_recorded_at", "pretty_log_level", "pretty_message", "pretty_log_file")
-
-    def __init__(self, pretty_recorded_at: str = None, pretty_log_level: str = None, pretty_message: str = None, pretty_log_file: str = None) -> None:
-        self.pretty_recorded_at: str = pretty_recorded_at or MiscEnum.NOTHING
-        self.pretty_log_level: str = pretty_log_level or MiscEnum.NOTHING
-        self.pretty_message: str = pretty_message or MiscEnum.NOTHING
-        self.pretty_log_file: str = pretty_log_file or MiscEnum.NOTHING
+#     def __init__(self, pretty_recorded_at: str = None, pretty_log_level: str = None, pretty_message: str = None, pretty_log_file: str = None) -> None:
+#         self.pretty_recorded_at: str = pretty_recorded_at or MiscEnum.NOTHING
+#         self.pretty_log_level: str = pretty_log_level or MiscEnum.NOTHING
+#         self.pretty_message: str = pretty_message or MiscEnum.NOTHING
+#         self.pretty_log_file: str = pretty_log_file or MiscEnum.NOTHING
 
 
 class RecordColorCache:
@@ -82,7 +77,7 @@ class RecordColorCache:
     default_color_values = frozendict(**{"r": 255, "g": 255, "b": 255, "a": 150})
 
     def __init__(self, config: GidIniConfig = None) -> None:
-        self._config = config or qApp.color_config
+        self._config = config or QApplication.instance().color_config
         self._cache: dict[str, "QColor"] = {}
         self._access_lock = Lock()
 
@@ -95,7 +90,7 @@ class RecordColorCache:
         self._cache[name] = color
         return color
 
-    def get(self, record_class: type) -> Optional["QColor"]:
+    def get(self, record_class: "BaseRecord") -> Optional["QColor"]:
         name = record_class.__name__
         with self._access_lock:
             try:
@@ -106,23 +101,8 @@ class RecordColorCache:
     def set(self, record_class: type, color: QColor) -> None:
         name = record_class.__name__
         with self._access_lock:
-            self._config.set("record", name, color, create_missing_section=True)
+            self._config.set("record", name, color)
             self._cache[name] = color
-
-
-BASE_SLOTS: list[str] = ("record_id",
-                         "log_file",
-                         "origin",
-                         "start",
-                         "end",
-                         "message",
-                         "recorded_at",
-                         "log_level",
-                         "marked",
-                         "called_by",
-                         "logged_from",
-                         "qt_attributes",
-                         "pretty_attribute_cache")
 
 
 class BaseRecord:
@@ -142,12 +122,11 @@ class BaseRecord:
                  "marked",
                  "called_by",
                  "logged_from",
-                 "qt_attributes",
-                 "pretty_attribute_cache")
+                 "has_multiline_message")
 
     def __init__(self,
                  record_id: int,
-                 log_file: "LogFile",
+                 log_file: LogFile,
                  origin: "RecordOrigin",
                  start: int,
                  end: int,
@@ -169,8 +148,7 @@ class BaseRecord:
         self.marked = marked
         self.called_by = called_by
         self.logged_from = logged_from
-        self.qt_attributes: QtAttributes = QtAttributes()
-        self.pretty_attribute_cache: PrettyAttributeCache = PrettyAttributeCache()
+        self.has_multiline_message: bool = (self.end - self.start) > 0
 
     def get_data(self, name: str):
         try:
@@ -184,32 +162,20 @@ class BaseRecord:
         return self.log_file.server
 
     @property
-    def has_multiline_message(self) -> bool:
-        return (self.end - self.start) > 0
-
-    @property
     def pretty_log_file(self) -> str:
-        if self.pretty_attribute_cache.pretty_log_file is MiscEnum.NOTHING:
-            self.pretty_attribute_cache.pretty_log_file = str(self.log_file.name)
-        return self.pretty_attribute_cache.pretty_log_file
+        return str(self.log_file.name)
 
     @property
     def pretty_message(self) -> str:
-        if self.pretty_attribute_cache.pretty_message is MiscEnum.NOTHING:
-            self.pretty_attribute_cache.pretty_message = self.get_formated_message(MessageFormat.PRETTY)
-        return self.pretty_attribute_cache.pretty_message
+        return self.get_formated_message(MessageFormat.PRETTY)
 
     @property
     def pretty_log_level(self) -> Optional[str]:
-        if self.pretty_attribute_cache.pretty_log_level is MiscEnum.NOTHING:
-            self.pretty_attribute_cache.pretty_log_level = str(self.log_level) if self.log_level.id != 0 else None
-        return self.pretty_attribute_cache.pretty_log_level
+        return str(self.log_level) if self.log_level.id != 0 else None
 
     @property
     def pretty_recorded_at(self) -> str:
-        if self.pretty_attribute_cache.pretty_recorded_at is MiscEnum.NOTHING:
-            self.pretty_attribute_cache.pretty_recorded_at = self.log_file.format_datetime(self.recorded_at)
-        return self.pretty_attribute_cache.pretty_recorded_at
+        return self.log_file.format_datetime(self.recorded_at)
 
     @classmethod
     @property
@@ -242,7 +208,6 @@ class BaseRecord:
         return text
 
     def get_db_item(self, database: "GidSqliteApswDatabase") -> "LogRecord":
-        from antistasi_logbook.storage.models.models import LogRecord
         with database.connection_context() as ctx:
             return LogRecord.get_by_id(self.record_id)
 
@@ -281,7 +246,7 @@ class BaseRecord:
                    end=model_dict["end"],
                    message=model_dict["text"],
                    recorded_at=model_dict["recorded_at"],
-                   log_level=foreign_key_cache.get_log_level_by_id(model_dict['log_level']),
+                   log_level=foreign_key_cache.get_log_level_by_id(model_dict["log_level"]),
                    marked=model_dict["marked"],
                    called_by=foreign_key_cache.get_arma_file_by_id(model_dict["called_by"]),
                    logged_from=foreign_key_cache.get_arma_file_by_id(model_dict["logged_from"]))
@@ -291,7 +256,8 @@ class BaseRecord:
             return self.record_id
         if name == "record_class":
             return self.__class__
-
+        if name == "server":
+            return Server.get_by_id_cached(self.log_file.server_id)
         try:
             return super().__getattr__(name)
         except AttributeError:
@@ -313,9 +279,10 @@ class BaseRecord:
     def single_line_message(self) -> str:
         pretty_message_lines = self.get_formated_message(MessageFormat.PRETTY).splitlines()
         if len(pretty_message_lines) > 1:
-            return pretty_message_lines[0] + '...'
+            msg = pretty_message_lines[0] + '...'
         else:
-            return pretty_message_lines[0]
+            msg = pretty_message_lines[0]
+        return msg
 
     def __repr__(self) -> str:
         """

@@ -19,7 +19,9 @@ from gidapptools import get_logger
 from gidapptools.general_helper.enums import MiscEnum
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.records.base_record import BaseRecord, RecordFamily, MessageFormat
+from antistasi_logbook.records.base_record import BaseRecord
+from antistasi_logbook.records.enums import RecordFamily, MessageFormat
+
 from antistasi_logbook.utilities.parsing_misc import parse_text_array
 from gidapptools.general_helper.general_classes import DecorateAbleList
 
@@ -430,7 +432,8 @@ class SelectReinfUnitsRecord(BaseAntistasiRecord):
     ___function___ = "A3A_fnc_selectReinfUnits"
     parse_regex = re.compile(r"units selected vehicle is (?P<unit>\w+) crew is (?P<crew>.*(?= cargo is)) cargo is (?P<cargo>.*)", re.IGNORECASE)
 
-    extra_detail_views = ("crew_array_data", "cargo_array_data", "unit")
+    extra_detail_views = ("crew_array_data",
+                          "cargo_array_data", "unit")
     __slots__ = ("_crew_array_data",
                  "_cargo_array_data",
                  "_unit")
@@ -734,6 +737,38 @@ class HeadlessClientConnected(BaseAntistasiRecord):
     @classmethod
     def check(cls, log_record: "LogRecord") -> bool:
         if log_record.message.strip().startswith("Headless Client Connected"):
+            return True
+
+        return False
+
+
+@ALL_ANTISTASI_RECORD_CLASSES
+class HeadlessClientDisconnected(BaseAntistasiRecord):
+    ___specificity___ = 20
+    ___function___ = "A3A_fnc_onPlayerDisconnect"
+    __slots__ = ("_number",)
+
+    parse_regex = re.compile(r"Player disconnected with id HC(?P<number>\d+) and unit hc[\w\d\_]* on side LOGIC")
+    extra_detail_views: tuple[str] = ("number",)
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self._number: int = None
+
+    @property
+    def number(self) -> int:
+        if self._number is None:
+            self._number = self.parse(self.message)
+        return self._number
+
+    @classmethod
+    def parse(cls, message: str) -> dict[str, Any]:
+        _number = cls.parse_regex.match(message.strip()).group("number")
+        return int(_number)
+
+    @classmethod
+    def check(cls, log_record: "LogRecord") -> bool:
+        if cls.parse_regex.match(log_record.message.strip()):
             return True
 
         return False

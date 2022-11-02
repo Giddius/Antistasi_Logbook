@@ -8,16 +8,10 @@ __description_for_setup_tools__ = "this"
 import os
 
 
-from rich.console import Console as RichConsole
-from rich.table import Table
-from rich.panel import Panel
-from rich.containers import Renderables
-from rich.align import Align
-from rich.box import DOUBLE_EDGE
 from rich.traceback import install as rich_traceback_install
 
 from pathlib import Path
-from gidapptools import setup_main_logger_with_file_logging, get_meta_paths
+from gidapptools import setup_main_logger_with_file_logging, get_meta_paths, get_logger
 from gidapptools.meta_data import setup_meta_data
 from gidapptools.gid_config.interface import get_config
 
@@ -43,6 +37,13 @@ def on_init_error():
 
 
 def print_apsw_import_error_msg():
+    from rich.console import Console as RichConsole
+
+    from rich.table import Table
+    from rich.panel import Panel
+    from rich.containers import Renderables
+    from rich.align import Align
+    from rich.box import DOUBLE_EDGE
     # TODO: Create general functions/classes for something like that in 'gidapptools'
     info_console = RichConsole(soft_wrap=False, markup=True)
     info_console.bell()
@@ -104,7 +105,7 @@ def set_env():
     os.environ["PYQTGRAPH_QT_LIB"] = "PySide6"
 
 
-_extra_logger = ["py.warnings"]
+_extra_logger = ["py.warnings", "sqlite"]
 
 IS_SETUP: bool = False
 original_stderr = sys.stderr
@@ -117,7 +118,9 @@ def setup():
 
     set_env()
     check_apsw()
-
+    import apsw
+    import logging
+    apsw.config(apsw.SQLITE_CONFIG_MULTITHREAD)
     os.environ["_MAIN_DIR"] = str(Path(__file__).resolve().parent)
     from antistasi_logbook.data import DATA_DIR
     setup_meta_data(__file__,
@@ -143,8 +146,22 @@ def setup():
                                               max_module_name_length=general_config.get("logging", "max_module_name_length", default=None),
                                               log_to_stdout=log_to_stdout)
 
-    ERROR_CONSOLE = RichConsole(soft_wrap=True, record=False, width=150)
+    # ERROR_CONSOLE = RichConsole(soft_wrap=True, record=False, width=150)
     # rich_traceback_install(console=ERROR_CONSOLE, width=150)
+
+    def sqlite_log_handler(errcode, message):
+        errors_to_ignore = {28}
+        errstr = apsw.mapping_result_codes[errcode & 255]
+        if errcode in errors_to_ignore:
+            return
+        extended_errstr = apsw.mapping_extended_result_codes.get(errcode, None)
+        if extended_errstr is not None:
+            extended_errstr = f" -{extended_errstr!r}-"
+        else:
+            extended_errstr = ""
+
+        logging.getLogger("sqlite").critical("<<SQLITE_LOG>> %r -%r(%r)-%s", message, errstr, errcode, extended_errstr)
+    apsw.config(apsw.SQLITE_CONFIG_LOG, sqlite_log_handler)
     IS_SETUP = True
 
 

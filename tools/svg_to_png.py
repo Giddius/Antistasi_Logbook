@@ -16,7 +16,8 @@ def make_output_path(in_path: Path, overwrite: bool = True) -> Path:
 def convert(in_path: Path, out_path: Path, **kwargs) -> None:
     default_kwargs = {"dpi": 600, "scale": 1}
     kwargs = default_kwargs | kwargs
-    cairosvg.svg2png(url=in_path.as_posix(), write_to=out_path.as_posix(), **kwargs)
+    with in_path.open("rb") as f:
+        cairosvg.svg2png(file_obj=f, write_to=out_path.as_posix(), **kwargs)
 
 
 def main():

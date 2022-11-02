@@ -12,7 +12,7 @@ from pathlib import Path
 
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtCore import Qt, QModelIndex, QSortFilterProxyModel
-
+from PySide6.QtWidgets import QAbstractItemView
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 
@@ -64,7 +64,7 @@ class BaseProxyModel(QSortFilterProxyModel):
         try:
             current_index = self.parent().currentIndex()
             if current_index and current_index.isValid():
-                self.parent().scrollTo(current_index, self.parent().PositionAtCenter)
+                self.parent().scrollTo(current_index, QAbstractItemView.ScrollHint.PositionAtCenter)
         except Exception as e:
             log.error(e, exc_info=True)
 
@@ -73,7 +73,7 @@ class BaseProxyModel(QSortFilterProxyModel):
         try:
             current_index = self.parent().currentIndex()
             if current_index and current_index.isValid():
-                self.parent().scrollTo(current_index, self.parent().PositionAtCenter)
+                self.parent().scrollTo(current_index, QAbstractItemView.ScrollHint.PositionAtCenter)
         except Exception as e:
             log.error(e, exc_info=True)
 

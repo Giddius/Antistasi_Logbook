@@ -20,6 +20,8 @@ set _minutes=%_time:~2,2%
 set _seconds=%_time:~4,2%
 rem ---------------------------------------------------
 
+SET IS_DEV=true
+SET PYTHONDEVMODE=1
 
 SET FULLINPATH=%~1
 set INPATH=%~dp1

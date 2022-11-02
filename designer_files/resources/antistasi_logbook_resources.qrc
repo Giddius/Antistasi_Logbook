@@ -3,7 +3,9 @@
 		<file>antistasi_logbook_splash_backup.png</file>
 		<file>antistasi_logbook_splash_preparing_backend.png</file>
 		<file>antistasi_logbook_splash_preparing_database.png</file>
+		<file>antistasi_logbook_splash_shutdown.png</file>
 		<file>antistasi_logbook_splash_shutdown_backend.png</file>
+		<file>antistasi_logbook_splash_starting.png</file>
 		<file>antistasi_logbook_splash_starting_backend.png</file>
 		<file>antstasifunction_tab_icon.png</file>
 		<file>app_icon.png</file>
@@ -16,6 +18,8 @@
 		<file>txt_file.png</file>
 		<file>unmark.png</file>
 		<file>warning_sign_triangle_red.png</file>
+		<file>zoom_in_cursor.png</file>
+		<file>zoom_out_cursor.png</file>
 		<file>armafunctionauthorprefix_tab_icon.svg</file>
 		<file>check_mark_black.svg</file>
 		<file>check_mark_green.svg</file>

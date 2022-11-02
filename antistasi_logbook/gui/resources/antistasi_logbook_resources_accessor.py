@@ -27,6 +27,8 @@ ANTISTASI_LOGBOOK_SPLASH_PREPARING_DATABASE_IMAGE = ressource_item_factory(file_
 
 FILTER_PAGE_SYMBOL_IMAGE = ressource_item_factory(file_path='filter_page_symbol.svg', qt_path=':/images/filter_page_symbol.svg')
 
+ZOOM_OUT_CURSOR_IMAGE = ressource_item_factory(file_path='zoom_out_cursor.png', qt_path=':/images/zoom_out_cursor.png')
+
 ARMAFUNCTION_TAB_ICON_IMAGE = ressource_item_factory(file_path='armafunction_tab_icon.png', qt_path=':/images/armafunction_tab_icon.png')
 
 OPEN_EYE_IMAGE = ressource_item_factory(file_path='open_eye.svg', qt_path=':/images/open_eye.svg')
@@ -85,6 +87,8 @@ DATABASE_SETTINGS_IMAGE = ressource_item_factory(file_path='database_settings.sv
 
 SPINNER_GIF = ressource_item_factory(file_path='spinner.gif', qt_path=':/gifs/spinner.gif')
 
+ZOOM_IN_CURSOR_IMAGE = ressource_item_factory(file_path='zoom_in_cursor.png', qt_path=':/images/zoom_in_cursor.png')
+
 STATS_ICON_2_IMAGE = ressource_item_factory(file_path='stats_icon_2.svg', qt_path=':/images/stats_icon_2.svg')
 
 HIDDEN_ICON_IMAGE = ressource_item_factory(file_path='hidden_icon.svg', qt_path=':/images/hidden_icon.svg')
@@ -104,6 +108,10 @@ LOGLEVEL_TAB_ICON_IMAGE = ressource_item_factory(file_path='loglevel_tab_icon.pn
 AVERAGE_PLAYERS_ICON_IMAGE = ressource_item_factory(file_path='average_players_icon.png', qt_path=':/images/average_players_icon.png')
 
 VISIBLE_ICON_IMAGE = ressource_item_factory(file_path='visible_icon.svg', qt_path=':/images/visible_icon.svg')
+
+ANTISTASI_LOGBOOK_SPLASH_STARTING_IMAGE = ressource_item_factory(file_path='antistasi_logbook_splash_starting.png', qt_path=':/images/antistasi_logbook_splash_starting.png')
+
+ANTISTASI_LOGBOOK_SPLASH_SHUTDOWN_IMAGE = ressource_item_factory(file_path='antistasi_logbook_splash_shutdown.png', qt_path=':/images/antistasi_logbook_splash_shutdown.png')
 
 GENERAL_SETTINGS_IMAGE = ressource_item_factory(file_path='general_settings.svg', qt_path=':/images/general_settings.svg')
 
@@ -140,6 +148,7 @@ class AllResourceItems(metaclass=AllResourceItemsMeta):
 
     antistasi_logbook_splash_preparing_database_image = ANTISTASI_LOGBOOK_SPLASH_PREPARING_DATABASE_IMAGE
     filter_page_symbol_image = FILTER_PAGE_SYMBOL_IMAGE
+    zoom_out_cursor_image = ZOOM_OUT_CURSOR_IMAGE
     armafunction_tab_icon_image = ARMAFUNCTION_TAB_ICON_IMAGE
     open_eye_image = OPEN_EYE_IMAGE
     mark_image = MARK_IMAGE
@@ -168,6 +177,7 @@ class AllResourceItems(metaclass=AllResourceItemsMeta):
     closed_eye_image = CLOSED_EYE_IMAGE
     antistasi_logbook_splash_shutdown_backend_image = ANTISTASI_LOGBOOK_SPLASH_SHUTDOWN_BACKEND_IMAGE
     database_settings_image = DATABASE_SETTINGS_IMAGE
+    zoom_in_cursor_image = ZOOM_IN_CURSOR_IMAGE
     stats_icon_2_image = STATS_ICON_2_IMAGE
     hidden_icon_image = HIDDEN_ICON_IMAGE
     coloring_icon_3_image = COLORING_ICON_3_IMAGE
@@ -178,6 +188,8 @@ class AllResourceItems(metaclass=AllResourceItemsMeta):
     loglevel_tab_icon_image = LOGLEVEL_TAB_ICON_IMAGE
     average_players_icon_image = AVERAGE_PLAYERS_ICON_IMAGE
     visible_icon_image = VISIBLE_ICON_IMAGE
+    antistasi_logbook_splash_starting_image = ANTISTASI_LOGBOOK_SPLASH_STARTING_IMAGE
+    antistasi_logbook_splash_shutdown_image = ANTISTASI_LOGBOOK_SPLASH_SHUTDOWN_IMAGE
     general_settings_image = GENERAL_SETTINGS_IMAGE
     webdav_settings_image = WEBDAV_SETTINGS_IMAGE
     debug_settings_image = DEBUG_SETTINGS_IMAGE
@@ -196,11 +208,10 @@ class AllResourceItems(metaclass=AllResourceItemsMeta):
 
     @classmethod
     def dump_missing(cls):
-        if os.getenv("FATAL_ERROR_RAISED", "0") == "0":
-            missing_items = {k: [i.rsplit('_', 1)[0] for i in v] for k, v in cls.missing_items.items()}
+        missing_items = {k: [i.rsplit('_', 1)[0] for i in v] for k, v in cls.missing_items.items()}
 
-            log.info("Missing Ressource Items:\n%s", pp.fmt(missing_items).replace("'", '"'))
+        log.info("Missing Ressource Items:\n%s", pp.fmt(missing_items).replace("'", '"'))
 
 
-if __debug__ is True:
-    atexit.register(AllResourceItems.dump_missing)
+# if __debug__ is True:
+#     atexit.register(AllResourceItems.dump_missing)

@@ -4,19 +4,25 @@ import json
 import os
 from io import TextIOWrapper
 from time import sleep
-from typing import TYPE_CHECKING, Any, Union, Literal, Optional, Generator, Callable
+from concurrent.futures import ThreadPoolExecutor
+from typing import TYPE_CHECKING, Any, Union, Literal, Optional, Generator, Callable, Iterable
 from pathlib import Path
 from zipfile import ZIP_LZMA, ZipFile
 from datetime import datetime, timezone, timedelta
-from functools import cached_property, cache
+from functools import cached_property, cache, lru_cache
 from threading import Lock, RLock
 import sys
 from operator import add
 import hashlib
+import peewee
+import zlib
+import shutil
 from contextlib import contextmanager
-from statistics import StatisticsError, mean
+from statistics import StatisticsError, mean, median
+from playhouse.sqlite_ext import Blob, ZeroBlob
 from functools import reduce
-from collections import defaultdict
+from collections import defaultdict, namedtuple
+from gidapptools.general_helper.conversion import human2bytes
 from statistics import stdev, variance, quantiles, correlation, covariance, pstdev
 from threading import Event
 from concurrent.futures import Future, wait, ALL_COMPLETED
@@ -28,11 +34,11 @@ from PySide6.QtGui import QColor
 # * Third Party Imports --------------------------------------------------------------------------------->
 import keyring
 from yarl import URL
-from peewee import DatabaseProxy, IntegrityError, fn
+from peewee import DatabaseProxy, IntegrityError, fn, SQL, JOIN, ModelBase
 from tzlocal import get_localzone
 from dateutil.tz import UTC
-from playhouse.signals import Model as SignalsModel
-from playhouse.apsw_ext import TextField, BooleanField, IntegerField, ForeignKeyField, ManyToManyField
+from playhouse.signals import Model as SignalsModel, post_delete, post_save, pre_init, pre_delete, pre_save
+from playhouse.apsw_ext import TextField, BooleanField, IntegerField, ForeignKeyField, ManyToManyField, FixedCharField, CharField, DeferredForeignKey, FloatField
 from playhouse.sqlite_ext import JSONField
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
@@ -41,7 +47,7 @@ from gidapptools.gid_config.interface import GidIniConfig, get_config
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 from gidapptools.general_helper.enums import MiscEnum
 
-from gidapptools.general_helper.conversion import bytes2human
+from gidapptools.general_helper.conversion import bytes2human, str_to_bool
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook import setup
@@ -53,20 +59,24 @@ from antistasi_logbook.utilities.locks import FILE_LOCKS
 from antistasi_logbook.records.base_record import MessageFormat
 from antistasi_logbook.updating.remote_managers import remote_manager_registry
 from antistasi_logbook.storage.models.custom_fields import (URLField, PathField, LoginField, MarkedField, VersionField, CommentsField, TzOffsetField,
-                                                            RemotePathField, CaselessTextField, AwareTimeStampField, CompressedTextField, CompressedImageField)
-
-
+                                                            RemotePathField, CaselessTextField, AwareTimeStampField, LZMACompressedTextField, CompressedImageField, TextBlobField, LocalImageField)
+from antistasi_logbook.utilities.row_instance_cache import RowInstanceCache
+import lzma
+from antistasi_logbook.utilities.misc import EnumLikeModelCache, all_subclasses_recursively
 setup()
 # * Standard Library Imports ---------------------------------------------------------------------------->
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
-
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 if TYPE_CHECKING:
 
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
-    from antistasi_logbook.parsing.raw_record import RawRecord
+    from antistasi_logbook.parsing.py_raw_record import RawRecord
     from antistasi_logbook.updating.remote_managers import InfoItem, AbstractRemoteStorageManager
     from antistasi_logbook.records.record_class_manager import RECORD_CLASS_TYPE, RecordClassManager
 
@@ -113,7 +123,7 @@ class BaseModel(SignalsModel):
     def config(self) -> "GidIniConfig":
         return self._meta.database.backend.config
 
-    @cached_property
+    @property
     def color_config(self) -> "GidIniConfig":
         return self._meta.database.backend.color_config
 
@@ -157,14 +167,62 @@ class BaseModel(SignalsModel):
 
         return super().__str__()
 
+    def __len__(self):
+        return self.__class__.select().count()
+
+    @classmethod
+    def get_all_models(cls, include_view_models: bool = True) -> tuple["BaseModel"]:
+        if include_view_models is False:
+            return tuple(m for m in all_subclasses_recursively(cls) if m.is_view is False)
+        elif include_view_models is True:
+            return tuple(m for m in all_subclasses_recursively(cls))
+
+    @classmethod
+    def get_all_view_models(cls) -> tuple["ViewBaseModel"]:
+        return tuple(m for m in all_subclasses_recursively(cls) if m.is_view is True)
+
+
+database_proxy.attach_callback(lambda _db: setattr(_db, "_base_model", BaseModel))
+
 
 class ViewBaseModel(BaseModel):
     is_view: bool = True
 
 
-class ArmaFunctionAuthorPrefix(BaseModel):
-    name = TextField(unique=True)
-    full_name = TextField(unique=True, null=True)
+database_proxy.attach_callback(lambda _db: setattr(_db, "_view_base_model", ViewBaseModel))
+
+
+class EnumLikeBaseModel(BaseModel):
+    _instance_cache: EnumLikeModelCache = None
+
+    def __new__(cls: type[Self], *args, **kwargs) -> Self:
+
+        cls._ensure_instance_cache()
+        _id = kwargs.get("id", None)
+        instance = cls._instance_cache.get_by_id(_id)
+
+        if instance is None:
+            instance = super(EnumLikeBaseModel, cls).__new__(cls)
+
+        return instance
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._instance_cache.add(self)
+
+    @classmethod
+    def clear_instance_cache(cls) -> None:
+        cls._instance_cache.clear()
+
+    @classmethod
+    def _ensure_instance_cache(cls):
+        if cls._instance_cache is None:
+            cls._instance_cache = EnumLikeModelCache(cls)
+
+
+class ArmaFunctionAuthorPrefix(EnumLikeBaseModel):
+    name = TextField(unique=True, index=True)
+    full_name = TextField(unique=True, null=True, index=True)
     local_folder_path = PathField(null=True)
     github_link = URLField(null=True)
     comments = CommentsField(null=True)
@@ -181,6 +239,11 @@ class ArmaFunctionAuthorPrefix(BaseModel):
         if self.full_name is not None:
             return self.full_name
         return super().pretty_name
+
+    @classmethod
+    def get_by_id_cached(cls, pk):
+
+        return super().get_by_id(pk)
 
 
 class ArmaFunction(BaseModel):
@@ -203,6 +266,13 @@ class ArmaFunction(BaseModel):
             (('name', 'author_prefix'), True),
             (("file_name", "author_prefix"), True),
         )
+
+    @classmethod
+    @lru_cache(None)
+    def get_by_id_cached(cls, pk):
+        if pk is None:
+            return None
+        return super().get_by_id(pk)
 
     def load_extras(self) -> None:
         if self.file_name is None:
@@ -276,8 +346,8 @@ class GameMap(BaseModel):
     name = TextField(unique=True, index=True, verbose_name="Internal Name")
     official = BooleanField(default=False, index=True, verbose_name="Official")
     dlc = TextField(null=True, index=True, verbose_name="DLC")
-    map_image_high_resolution = CompressedImageField(null=True, verbose_name="High Resolution Image")
-    map_image_low_resolution = CompressedImageField(null=True, verbose_name="Low Resolution Image")
+    map_image_high_resolution = LocalImageField(null=True, verbose_name="High Resolution Image")
+    map_image_low_resolution = LocalImageField(null=True, verbose_name="Low Resolution Image")
     coordinates = JSONField(null=True, verbose_name="Coordinates-JSON")
     workshop_link = URLField(null=True, verbose_name="Workshop Link")
     comments = CommentsField(null=True)
@@ -289,6 +359,18 @@ class GameMap(BaseModel):
             (('name', 'full_name', 'workshop_link'), True),
 
         )
+
+    @classmethod
+    @lru_cache(None)
+    def get_by_id_cached(cls, pk):
+
+        return super().get_by_id(pk)
+
+    def has_low_res_image(self) -> bool:
+        return self.map_image_low_resolution is not None
+
+    def has_high_res_image(self) -> bool:
+        return self.map_image_high_resolution is not None
 
     def get_avg_players_per_hour(self) -> dict[str, Union[float, int, datetime]]:
         log_files_query = LogFile.select().where((LogFile.game_map_id == self.id) & (LogFile.unparsable == False))
@@ -399,6 +481,12 @@ class RemoteStorage(BaseModel):
             (('base_url', 'login', 'manager_type'), True),
         )
 
+    @classmethod
+    @lru_cache(None)
+    def get_by_id_cached(cls, pk):
+
+        return super().get_by_id(pk)
+
     def get_password(self) -> Optional[str]:
         return keyring.get_password(self.name, self.login)
 
@@ -406,10 +494,10 @@ class RemoteStorage(BaseModel):
         return self.login
 
     def set_login_and_password(self, login: str, password: str) -> None:
-        self.login = login
-        self.save()
+        self.__class__.update(login=login).where(self.__class__.id == self.id).execute()
 
-        keyring.set_password(self.name, self.login, password)
+        keyring.set_password(self.name, login, password)
+        self.login = list(self.__class__.select(self.__class__.login).where(self.__class__.id == self.id).tuples().iterator())[0]
 
     def as_remote_manager(self) -> "AbstractRemoteStorageManager":
         manager = remote_manager_registry.get_remote_manager(self)
@@ -438,15 +526,21 @@ class Server(BaseModel):
             (('ip', 'port'), True),
         )
 
-    @cached_property
+    @classmethod
+    @lru_cache(None)
+    def get_by_id_cached(cls, pk):
+
+        return super().get_by_id(pk)
+
+    @property
     def background_color(self):
         return self.color_config.get("server", self.name, default=None)
 
-    @cached_property
+    @property
     def pretty_name(self) -> str:
         return self.name.replace('_', ' ').title()
 
-    @cached_property
+    @property
     def pretty_remote_path(self) -> str:
         return self.remote_path.as_posix()
 
@@ -467,7 +561,7 @@ class Server(BaseModel):
     def get_amount_log_files(self) -> int:
         return LogFile.select().where(LogFile.server_id == self.id).count(self.database)
 
-    @cached_property
+    @property
     def full_local_path(self) -> Path:
 
         local_path = META_PATHS.get_new_temp_dir(name=self.name, exists_ok=True)
@@ -475,7 +569,7 @@ class Server(BaseModel):
         local_path.mkdir(exist_ok=True, parents=True)
         return local_path
 
-    @cached_property
+    @property
     def archive_path(self) -> Path:
         archive_path = META_PATHS.cache_dir.joinpath(self.name + '.zip')
         archive_path.parent.mkdir(parents=True, exist_ok=True)
@@ -519,6 +613,12 @@ class Version(BaseModel):
         )
 
     @classmethod
+    @lru_cache(None)
+    def get_by_id_cached(cls, pk):
+
+        return super().get_by_id(pk)
+
+    @classmethod
     def add_or_get_version(cls, version: "VersionItem") -> "Version":
         if version is None:
             return
@@ -530,53 +630,102 @@ class Version(BaseModel):
 
         return tuple(Version.select().where(Version.full == version))[0]
 
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(full={self.full!r}, major={self.major!r}, minor={self.minor!r}, patch={self.patch!r}, extra={self.extra!r}, marked={self.marked!r})"
+
     def __str__(self) -> str:
         return str(self.full)
 
 
 class OriginalLogFile(BaseModel):
-    text = CompressedTextField(compression_level=6, unique=True)
-    text_hash = TextField(index=True, unique=True)
+    name = TextField(unique=False, null=False, index=True)
+    server = ForeignKeyField(model=Server, backref=False, field="id", lazy_load=True, verbose_name="Server")
+    text_hash = FixedCharField(max_length=32, unique=True, null=False, index=True)
 
     # non-db attributes
-    hash_algorithm = hashlib.blake2b
+    hash_algorithm = hashlib.md5
+    compress_algorithm = lzma
 
     class Meta:
         table_name = 'OriginalLogFile'
+        indexes = (
+            (("name", "server"), True),
+        )
 
-    @cached_property
-    def temp_path(self) -> Path:
-        temp_path = META_PATHS.temp_dir.joinpath(self.log_file[0].server.name, f'{self.log_file[0].name}.txt')
+    @classmethod
+    @lru_cache(None)
+    def get_by_id_cached(cls, pk):
 
-        temp_path.parent.mkdir(parents=True, exist_ok=True)
-        return temp_path
+        return super().get_by_id(pk)
 
-    @cached_property
+    def unpack_to_temp_file(self) -> Path:
+        temp_folder = META_PATHS.get_new_temp_dir(name=self.server.name)
+        full_temp_path = temp_folder.joinpath(f"{self.name}.txt")
+        decompressed_data = self.compress_algorithm.decompress(self.file_path.read_bytes())
+        full_temp_path.write_text(decompressed_data.decode(encoding='utf-8', errors='ignore'))
+        return full_temp_path
+
+    @classmethod
+    def get_save_folder(cls) -> Path:
+        _out: Path = cls._meta.database.database_path.parent.joinpath("original_log_files")
+        _out.mkdir(exist_ok=True, parents=True)
+        return _out
+
+    @classmethod
+    def make_file_path(cls, server_name: str, file_name: str) -> Path:
+        file_name = file_name.rsplit(".", 1)[0]
+        file_path = cls.get_save_folder().joinpath(server_name, file_name).with_suffix(".compressed")
+
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        return file_path
+
+    @property
+    def text(self) -> str:
+        temp_file_path = self.unpack_to_temp_file()
+        return temp_file_path.read_text(encoding='utf-8', errors='ignore')
+
+    @property
+    def file_path(self) -> Path:
+        file_path = self.make_file_path(server_name=self.server.name, file_name=self.name)
+
+        return file_path
+
+    @property
     def lines(self) -> tuple[int, str]:
         return tuple(enumerate(self.text.splitlines()))
 
+    def compress_and_store_file(self, in_file_path: Path) -> Path:
+        new_file_path = self.make_file_path(server_name=self.server.name, file_name=self.name)
+        with new_file_path.open("wb") as f:
+            f.write(self.compress_algorithm.compress(in_file_path.read_bytes()))
+        return new_file_path
+
     @classmethod
-    def init_from_file(cls, file_path: os.PathLike) -> "OriginalLogFile":
+    def init_from_file(cls, file_path: os.PathLike, server: Server) -> "OriginalLogFile":
         file_path = Path(file_path)
-        text_hash = cls.create_text_hash(file_path.read_bytes())
-        text = file_path.read_text(encoding='utf-8', errors='ignore')
-        return cls(text=text, text_hash=text_hash)
+        text_bytes = file_path.read_bytes()
+
+        instance = cls(text_hash=cls.create_text_hash(text_bytes), name=file_path.stem, server=server)
+        # cls._meta.database.backend.inserting_thread_pool.submit(instance.compress_and_store_file,in_file_path=file_path)
+        instance.compress_and_store_file(in_file_path=file_path)
+        return instance
 
     @classmethod
     def create_text_hash(cls, text_or_bytes: Union[str, bytes]) -> str:
         if isinstance(text_or_bytes, str):
-            text_or_bytes = text_or_bytes.encode()
+            text_or_bytes = text_or_bytes.encode(encoding='utf-8', errors='ignore')
         return cls.hash_algorithm(text_or_bytes).hexdigest()
 
     def modify_update_from_file(self, file_path: os.PathLike) -> "OriginalLogFile":
         file_path = Path(file_path)
         self.text_hash = self.create_text_hash(file_path.read_bytes())
-        self.text = file_path.read_text(encoding='utf-8', errors='ignore')
+        # self._meta.database.backend.inserting_thread_pool.submit(self.compress_and_store_file,in_file_path=file_path)
+        self.compress_and_store_file(in_file_path=file_path)
         return self
 
     def to_file(self) -> Path:
-        path = self.temp_path
-        path.write_text(self.text, encoding='utf-8', errors='ignore')
+        path = self.unpack_to_temp_file()
+
         return path
 
     def __iter__(self):
@@ -599,15 +748,44 @@ class OriginalLogFile(BaseModel):
 
         return tuple(self.lines[corrected_start:corrected_end])
 
+    def delete_instance(self, *args, **kwargs):
+        self.get_meta().database.backend.inserting_thread_pool.submit(self.file_path.unlink, missing_ok=True)
+        return super().delete_instance(*args, **kwargs)
+
+
+class ModSet(BaseModel):
+    name = TextField(unique=True, verbose_name="Mod-Set Name")
+    mod_names = JSONField(unique=True, verbose_name="Mod names")
+
+    class Meta:
+        table_name = 'ModSet'
+
+    @classmethod
+    @lru_cache(None)
+    def get_by_id_cached(cls, pk):
+
+        return super().get_by_id(pk)
+
+    @property
+    def background_color(self) -> QColor:
+        if "vanilla" in self.name.casefold():
+            return QColor(243, 229, 171, 155)
+
+        if "rhs" in self.name.casefold():
+            return QColor(220, 50, 50, 155)
+
+        if "3cb" in self.name.casefold():
+            return QColor(50, 50, 235, 155)
+
 
 class LogFile(BaseModel):
     name = TextField(index=True, verbose_name="Name")
     remote_path = RemotePathField(unique=True, verbose_name="Remote Path")
-    modified_at = AwareTimeStampField(index=True, utc=True, verbose_name="Modified at")
+    modified_at = AwareTimeStampField(index=True, verbose_name="Modified at")
     size = IntegerField(verbose_name="Size")
-    created_at = AwareTimeStampField(null=True, utc=True, index=True, verbose_name="Created at")
-    header_text = CompressedTextField(null=True, verbose_name="Header Text")
-    startup_text = CompressedTextField(null=True, verbose_name="Startup Text")
+    created_at = AwareTimeStampField(null=True, index=True, verbose_name="Created at")
+    header_text = LZMACompressedTextField(null=True, verbose_name="Header Text")
+    startup_text = LZMACompressedTextField(null=True, verbose_name="Startup Text")
     last_parsed_line_number = IntegerField(default=0, null=True, verbose_name="Last Parsed Line Number")
     utc_offset = TzOffsetField(null=True, verbose_name="UTC Offset")
     version = ForeignKeyField(null=True, model=Version, field="id", column_name="version", lazy_load=True, index=True, verbose_name="Version")
@@ -616,49 +794,138 @@ class LogFile(BaseModel):
     campaign_id = IntegerField(null=True, index=True, verbose_name="Campaign Id")
     server = ForeignKeyField(column_name='server', field='id', model=Server, lazy_load=True, backref="log_files", index=True, verbose_name="Server")
     unparsable = BooleanField(default=False, index=True, verbose_name="Unparsable")
-    last_parsed_datetime = AwareTimeStampField(null=True, utc=True, verbose_name="Last Parsed Datetime")
+    last_parsed_datetime = AwareTimeStampField(null=True, verbose_name="Last Parsed Datetime")
     max_mem = IntegerField(verbose_name="Max Memory", null=True)
     original_file = ForeignKeyField(model=OriginalLogFile, field="id", column_name="original_file", lazy_load=True, backref="log_file", null=True, on_delete="CASCADE", index=True)
     manually_added = BooleanField(null=False, default=False, verbose_name="Manually added", index=True)
+    mod_set = ForeignKeyField(null=True, model=ModSet, field="id", column_name="mod_set", lazy_load=True, index=True, verbose_name="Mod-Set")
+    amount_headless_clients = IntegerField(null=True, unique=False, index=False, verbose_name="Headless Clients")
+    amount_log_records = IntegerField(null=True, index=False, unique=False, verbose_name="Log-Records")
+    amount_errors = IntegerField(null=True, index=False, unique=False, verbose_name="Errors")
+    amount_warnings = IntegerField(null=True, index=False, unique=False, verbose_name="Warnings")
     comments = CommentsField(null=True)
     marked = MarkedField()
 
     class Meta:
         table_name = 'LogFile'
-        indexes = (
-            (('name', 'server', 'remote_path'), True),
-            (("name", "server", "created_at"), True),
-            (("server", "modified_at"), False)
 
+        indexes = (
+            (("name", "server", "created_at"), True),
+            (("name", "server", "remote_path"), True),
+            (("unparsable", "modified_at", "server", "version", "game_map", "original_file"), False)
         )
+
+    @classmethod
+    @lru_cache(None)
+    def get_by_id_cached(cls, pk):
+
+        return super().get_by_id(pk)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.is_downloaded: bool = False
 
+    def ensure_dynamic_columns(self, force: bool = False, update_db: bool = True) -> dict[str, Union[int, ModSet]]:
+
+        update_data = {}
+
+        if self.mod_set is None or force is True:
+            self.mod_set = self.determine_mod_set()
+            update_data["mod_set"] = self.mod_set
+
+        if self.amount_headless_clients is None or force is True:
+            self.amount_headless_clients = self.determine_amount_headless_clients()
+            update_data["amount_headless_clients"] = self.amount_headless_clients
+
+        if self.amount_log_records is None or force is True:
+            self.amount_log_records = self.determine_amount_log_records()
+            update_data["amount_log_records"] = self.amount_log_records
+
+        if self.amount_errors is None or force is True:
+            self.amount_errors = self.determine_amount_errors()
+            update_data["amount_errors"] = self.amount_errors
+
+        if self.amount_warnings is None or force is True:
+            self.amount_warnings = self.determine_amount_warnings()
+            update_data["amount_warnings"] = self.amount_warnings
+
+        if update_data and update_db is True:
+            with self.database.connection_context():
+                LogFile.update(**update_data).where((LogFile.id == self.id)).execute()
+
+        update_data["id"] = self.id
+        return update_data
+
+    @classmethod
+    def refresh_dynamic_for_all_log_files(cls, log_files: Iterable["LogFile"] = None):
+        while RecordClass.record_class_manager is None:
+            sleep(1)
+        if log_files is None:
+            log_files = LogFile.select().iterator()
+
+        all_update_data = list(cls._meta.database.backend.inserting_thread_pool.map(lambda x: x.ensure_dynamic_columns(force=True, update_db=False), log_files))
+        # all_update_data = [l.ensure_dynamic_columns(force=True, update_db=True) for l in log_files]
+
     def determine_mod_set(self) -> Optional["ModSet"]:
-        own_mod_names = frozenset([m.cleaned_name for m in Mod.select().join(LogFileAndModJoin).join(LogFile).where(LogFile.id == self.id)])
+        own_mod_names = frozenset([m.cleaned_name for m in Mod.select().join(LogFileAndModJoin).join(LogFile).where(LogFile.id == self.id).iterator()])
         mod_set_value = None
-        for mod_set in sorted(ModSet.select(), key=lambda x: len(x.mod_names), reverse=True):
+        for mod_set in sorted(ModSet.select().iterator(), key=lambda x: len(x.mod_names), reverse=True):
+            if len(mod_set.mod_names) > len(own_mod_names):
+                continue
             if all(mod_name in own_mod_names for mod_name in mod_set.mod_names):
                 mod_set_value = mod_set
                 break
         return mod_set_value
 
     @cached_property
-    def mod_set(self) -> Optional["ModSet"]:
-        return self.determine_mod_set()
+    def amount_headless_clients_disconnected(self) -> int:
+        record_class_disconnected = RecordClass.get(name="GenericHeadlessClientDisconnected")
+
+        # disconnected = LogRecord.select().where((LogRecord.log_file_id == self.id) & (LogRecord.record_class_id == record_class_disconnected.id)).count()
+        disconnected = set()
+        for message in LogRecord.select(Message.text).join_from(LogRecord, Message, on=(LogRecord.message_item == Message.md5_hash), join_type=JOIN.LEFT_OUTER).where((LogRecord.log_file_id == self.id) & (LogRecord.record_class_id == record_class_disconnected.id)).tuples().iterator():
+            message = Message.text.python_value(message[0])
+            disconnected.add(record_class_disconnected.record_class.parse(message)["client_number"])
+
+        return len(disconnected)
 
     @cached_property
-    def amount_headless_clients(self) -> int:
-        record_class = RecordClass.get(name="HeadlessClientConnected")
-        return LogRecord.select().where(LogRecord.log_file_id == self.id).where(LogRecord.record_class_id == record_class.id).count()
+    def amount_headless_clients_connected(self) -> int:
+        record_class_connected = RecordClass.get(name="GenericHeadlessClientConnected")
+
+        connected = set()
+        for message in LogRecord.select(Message.text).join_from(LogRecord, Message, on=(LogRecord.message_item == Message.md5_hash), join_type=JOIN.LEFT_OUTER).where((LogRecord.log_file_id == self.id) & (LogRecord.record_class_id == record_class_connected.id)).tuples().iterator():
+            message = Message.text.python_value(message[0])
+
+            connected.add(record_class_connected.record_class.parse(message)["client_number"])
+        return len(connected)
+
+    def determine_amount_headless_clients(self) -> int:
+
+        record_class_connected = RecordClass.get(name="GenericHeadlessClientConnected")
+        # connected = LogRecord.select().where((LogRecord.log_file_id == self.id) & (LogRecord.record_class_id == record_class_connected.id)).count()
+        connected = set()
+        for message in LogRecord.select(Message.text).join_from(LogRecord, Message, on=(LogRecord.message_item == Message.md5_hash), join_type=JOIN.LEFT_OUTER).where((LogRecord.log_file_id == self.id) & (LogRecord.record_class_id == record_class_connected.id)).tuples().iterator():
+
+            message = Message.text.python_value(message[0])
+            connected.add(record_class_connected.record_class.parse(message)["client_number"])
+
+        record_class_disconnected = RecordClass.get(name="GenericHeadlessClientDisconnected")
+
+        # disconnected = LogRecord.select().where((LogRecord.log_file_id == self.id) & (LogRecord.record_class_id == record_class_disconnected.id)).count()
+        disconnected = set()
+        for message in LogRecord.select(Message.text).join_from(LogRecord, Message, on=(LogRecord.message_item == Message.md5_hash), join_type=JOIN.LEFT_OUTER).where((LogRecord.log_file_id == self.id) & (LogRecord.record_class_id == record_class_disconnected.id)).tuples().iterator():
+            message = Message.text.python_value(message[0])
+            disconnected.add(record_class_disconnected.record_class.parse(message)["client_number"])
+        difference = connected.difference(disconnected)
+
+        return len(difference)
 
     @cached_property
     def time_frame(self) -> DateTimeFrame:
         # query = LogRecord.select(fn.Min(LogRecord.recorded_at), fn.Max(LogRecord.recorded_at)).where((LogRecord.log_file_id == self.id))
-        query_string = """SELECT Min("t1"."recorded_at"), Max("t1"."recorded_at") FROM "LogRecord" AS "t1" WHERE ("t1"."log_file" = ?)"""
-        cursor = self.database.execute_sql(query_string, (self.id,))
+        query_string = """SELECT Min("recorded_at"), Max("recorded_at") FROM "LogRecord" WHERE ("log_file" = ?)"""
+        cursor = self.database.connection().execute(query_string, (self.id,))
         min_date_time, max_date_time = cursor.fetchone()
         min_date_time = LogRecord.recorded_at.python_value(min_date_time)
         max_date_time = LogRecord.recorded_at.python_value(max_date_time)
@@ -682,39 +949,18 @@ class LogFile(BaseModel):
 
         return f"UTC{offset_hours:+}"
 
-    @cached_property
-    def amount_log_records(self) -> int:
-        self.database.connect(reuse_if_open=True)
-        # query = LogRecord.select(fn.count(LogRecord.id)).where(LogRecord.log_file_id == self.id)
-        query_string = """SELECT count("t1"."id") FROM "LogRecord" AS "t1" WHERE ("t1"."log_file" = ?)"""
+    def determine_amount_log_records(self) -> int:
+        query_string = """SELECT COUNT(*) FROM "LogRecord" WHERE ("log_file" = ?)"""
+        return self.database.connection().execute(query_string, (self.id,)).fetchone()[0]
 
-        cursor = self.database.execute_sql(query_string, (self.id,))
-        result = cursor.fetchone()[0]
+    def determine_amount_errors(self) -> int:
+        query_string = """SELECT COUNT(*) FROM "LogRecord" WHERE (("log_file" = ?) AND ("log_level" = ?))"""
+        return self.database.connection().execute(query_string, (self.id, 5)).fetchone()[0]
 
-        return result
+    def determine_amount_warnings(self) -> int:
+        query_string = """SELECT count(*) FROM "LogRecord" WHERE (("log_file" = ?) AND ("log_level" = ?))"""
 
-    @cached_property
-    def amount_errors(self) -> int:
-        self.database.connect(reuse_if_open=True)
-        error_log_level = self.database.foreign_key_cache.all_log_levels.get("ERROR")
-        # query = LogRecord.select(fn.count(LogRecord.id)).where((LogRecord.log_file_id == self.id) & (LogRecord.log_level_id == error_log_level.id))
-        query_string = """SELECT count("t1"."id") FROM "LogRecord" AS "t1" WHERE (("t1"."log_file" = ?) AND ("t1"."log_level" = ?))"""
-        cursor = self.database.execute_sql(query_string, (self.id, error_log_level.id))
-        result = cursor.fetchone()[0]
-
-        return result
-
-    @cached_property
-    def amount_warnings(self) -> int:
-        self.database.connect(reuse_if_open=True)
-        warning_log_level = self.database.foreign_key_cache.all_log_levels.get("WARNING")
-        # query = LogRecord.select(fn.count(LogRecord.id)).where((LogRecord.log_file_id == self.id) & (LogRecord.log_level_id == warning_log_level.id))
-        query_string = """SELECT count("t1"."id") FROM "LogRecord" AS "t1" WHERE (("t1"."log_file" = ?) AND ("t1"."log_level" = ?))"""
-
-        cursor = self.database.execute_sql(query_string, (self.id, warning_log_level.id))
-        result = cursor.fetchone()[0]
-
-        return result
+        return self.database.connection().execute(query_string, (self.id, 3)).fetchone()[0]
 
     @cached_property
     def pretty_size(self) -> str:
@@ -737,6 +983,7 @@ class LogFile(BaseModel):
 
     @cached_property
     def average_players_per_hour(self) -> int:
+
         self.database.connect(reuse_if_open=True)
         performance_record_class = RecordClass.get(name="PerformanceRecord")
         generic_performance_record_class = RecordClass.get(name="PerfProfilingRecord")
@@ -745,9 +992,11 @@ class LogFile(BaseModel):
         def _handle_record(in_message, in_recorded_at, in_record_class_id) -> tuple[datetime, int]:
             in_message = Message.text.python_value(in_message)
             _timestamp: datetime = LogRecord.recorded_at.python_value(in_recorded_at).replace(microsecond=0, second=0, minute=0)
+            # _timestamp: datetime = in_recorded_at.replace(microsecond=0, second=0, minute=0)
+
             if in_record_class_id == performance_record_class.id:
                 stats = performance_record_class.record_class.parse(in_message)
-                _players: int = stats["Players"] - self.amount_headless_clients
+                _players: int = stats["Players"]
 
             elif in_record_class_id == generic_performance_record_class.id:
                 stats = generic_performance_record_class.record_class.parse(in_message)
@@ -778,9 +1027,10 @@ class LogFile(BaseModel):
                 all_values += v
             return all_values
 
-        query = LogRecord.select(Message.text, LogRecord.recorded_at, LogRecord.record_class_id).join_from(LogRecord, Message).where((LogRecord.log_file_id == self.id)).where((LogRecord.record_class_id == performance_record_class.id) | (LogRecord.record_class_id == generic_performance_record_class.id)).order_by(-LogRecord.recorded_at)
+        query = LogRecord.select(Message.text, LogRecord.recorded_at, LogRecord.record_class_id).join_from(LogRecord, Message, on=(LogRecord.message_item == Message.md5_hash)).where((LogRecord.log_file_id == self.id) & ((LogRecord.record_class_id == performance_record_class.id) | (LogRecord.record_class_id == generic_performance_record_class.id))).order_by(-LogRecord.recorded_at)
         hour_data = defaultdict(list)
-        for message, raw_recorded_at, record_class_id in list(self.database.execute(query)):
+
+        for message, raw_recorded_at, record_class_id in list(self.database.connection().execute(*query.sql()).fetchall()):
             timestamp, players = _handle_record(message, raw_recorded_at, record_class_id)
             hour_data[timestamp].append(players)
         if len(hour_data) <= 0:
@@ -826,12 +1076,12 @@ class LogFile(BaseModel):
 
     def get_marked_records(self) -> list["LogRecord"]:
         self.database.connect(reuse_if_open=True)
-        return [i.to_record_class() for i in LogRecord.select().where((LogRecord.log_file_id == self.id) & (LogRecord.marked == True))]
+        return [i.to_record_class() for i in LogRecord.select().where((LogRecord.log_file_id == self.id) & (LogRecord.marked == True)).iterator()]
 
     def get_campaign_stats(self) -> tuple[list[dict[str, Any]], tuple["LogFile"]]:
         self.database.connect(True)
         all_stats: list[dict[str, Any]] = []
-        log_files_query = LogFile.select().where(LogFile.campaign_id == self.campaign_id)
+        log_files_query = LogFile.select().where(LogFile.campaign_id == self.campaign_id).iterator()
         all_log_files = tuple(log_files_query)
         for log_file in all_log_files:
             all_stats += log_file.get_stats()
@@ -843,7 +1093,7 @@ class LogFile(BaseModel):
         self.database.connect(True)
         record_class = RecordClass.get(name="PerformanceRecord")
         record_class_2 = RecordClass.get(name="PerfProfilingRecord")
-        query = LogRecord.select(Message.text, LogRecord.recorded_at, LogRecord.record_class_id).join_from(LogRecord, Message).where(LogRecord.log_file_id == self.id).where((LogRecord.record_class_id == record_class.id) | (LogRecord.record_class_id == record_class_2.id)).order_by(-LogRecord.recorded_at)
+        query = LogRecord.select(Message.text, LogRecord.recorded_at, LogRecord.record_class_id).join_from(LogRecord, Message, on=(LogRecord.message_item == Message.md5_hash)).where(LogRecord.log_file_id == self.id).where((LogRecord.record_class_id == record_class.id) | (LogRecord.record_class_id == record_class_2.id)).order_by(-LogRecord.recorded_at)
 
         for (message, recorded_at, _record_class_id) in self.database.execute(query):
             recorded_at = LogRecord.recorded_at.python_value(recorded_at)
@@ -860,23 +1110,7 @@ class LogFile(BaseModel):
 
         return all_stats
 
-    def get_resource_check_stats(self):
-        all_stats: list[dict[str, Any]] = []
-        self.database.connect(True)
-        record_class = RecordClass.get(name="ResourceCheckRecord")
-        query = LogRecord.select(Message.text, LogRecord.recorded_at).join_from(LogRecord, Message).where(LogRecord.log_file_id == self.id).where(LogRecord.record_class_id == record_class.id).order_by(-LogRecord.recorded_at)
-        conc_record_class = record_class.record_class
-        for (message, recorded_at) in self.database.execute(query):
-            recorded_at = LogRecord.recorded_at.python_value(recorded_at)
-            message = Message.text.python_value(message)
-            item_stats = conc_record_class.parse(message) | {"timestamp": recorded_at}
-
-            if "PARSING ERROR" not in item_stats.keys():
-                all_stats.append(item_stats)
-
-        return all_stats
-
-    @property
+    @cached_property
     def name_datetime(self) -> Optional[datetime]:
         if match := LOG_FILE_DATE_REGEX.search(self.name):
             datetime_kwargs = {k: int(v) for k, v in match.groupdict().items()}
@@ -886,7 +1120,7 @@ class LogFile(BaseModel):
         if line_number <= self.last_parsed_line_number:
             return
         log.debug("setting 'last_parsed_line_number' for %s to %r", self, line_number)
-        changed = LogFile.update(last_parsed_line_number=line_number).where(LogFile.id == self.id).execute(self.get_meta().database)
+        changed = LogFile.update(last_parsed_line_number=line_number).where(LogFile.id == self.id).iterator().execute(self.get_meta().database)
         log.debug("changed=%r", changed)
         self.last_parsed_line_number = line_number
 
@@ -903,14 +1137,14 @@ class LogFile(BaseModel):
             return Path(self.remote_path)
         return self.server.full_local_path.joinpath(self.remote_path.name)
 
-    def download(self) -> Path:
+    def download(self, fallback_to_stored_file: bool = False) -> Path:
         try:
             path = self.server.remote_manager.download_file(self)
             return path
         except Exception as e:
             log.warning("unable to download log-file %r because of %r", self, e)
             log.error(e, exc_info=True)
-            if self.original_file is not None:
+            if self.original_file is not None and fallback_to_stored_file is True:
                 return self.original_file.to_file()
             else:
                 raise
@@ -923,12 +1157,16 @@ class LogFile(BaseModel):
 
             with self.local_path.open('r', encoding='utf-8', errors='ignore') as f:
                 yield f
+        except Exception as e:
+            log.error(e, exc_info=True)
+            raise e
         finally:
             if cleanup is True:
                 self._cleanup()
 
     def store_original_log_file(self) -> Future:
-
+        if self.is_downloaded is False:
+            self.download()
         if self.original_file is None:
             log.debug("creating new orginal log file for logfile %r, because logfile.original_file=%r", self, self.original_file)
             _future = self.database.backend.records_inserter.insert_original_log_file(self.local_path, log_file=self)
@@ -959,6 +1197,11 @@ class LogFile(BaseModel):
 
         return _out
 
+    def delete_instance(self, *args, **kwargs):
+        _out = super().delete_instance(*args, **kwargs)
+        log.debug("deleted %r", self)
+        return _out
+
     def __rich__(self):
         return f"[u b blue]{self.server.name}/{self.name}[/u b blue]"
 
@@ -970,8 +1213,8 @@ class LogFile(BaseModel):
 
 
 class ModLink(BaseModel):
-    cleaned_mod_name = TextField(unique=True, index=True)
-    link = URLField(unique=True, index=True)
+    cleaned_mod_name = TextField(unique=True)
+    link = URLField(unique=True)
 
     class Meta:
         table_name = 'ModLink'
@@ -979,25 +1222,38 @@ class ModLink(BaseModel):
             (("cleaned_mod_name", "link"), True),
         )
 
+    @classmethod
+    @lru_cache(None)
+    def get_by_id_cached(cls, pk):
+
+        return super().get_by_id(pk)
+
 
 class Mod(BaseModel):
-    full_path = PathField(null=True, index=True)
-    mod_hash = TextField(null=True, index=True)
-    mod_hash_short = TextField(null=True, index=True)
-    mod_dir = TextField()
+    full_path = PathField(null=True)
+    mod_hash = FixedCharField(null=True, max_length=40)
+    mod_hash_short = CharField(null=True, max_length=10)
+    mod_dir = CharField(max_length=100)
     name = TextField(index=True)
-    default = BooleanField(default=False, index=True)
-    official = BooleanField(default=False, index=True)
+    default = BooleanField(default=False)
+    official = BooleanField(default=False)
     comments = CommentsField(null=True)
     marked = MarkedField()
 
     version_regex = re.compile(r"(\s*\-\s*)?v?\s*[\d\.]*$")
+    get_or_create_lock = RLock()
 
     class Meta:
         table_name = 'Mod'
         indexes = (
-            (('name', 'mod_dir', "full_path", "mod_hash", "mod_hash_short"), True),
+            (('name', 'mod_dir', 'mod_hash', 'full_path'), True),
         )
+
+    @classmethod
+    @lru_cache(None)
+    def get_by_id_cached(cls, pk):
+
+        return super().get_by_id(pk)
 
     @property
     def link(self):
@@ -1009,7 +1265,7 @@ class Mod(BaseModel):
         except IndexError:
             return None
 
-    @cached_property
+    @property
     def cleaned_name(self) -> str:
         cleaned_name = str(self.name)
         cleaned_name = cleaned_name.strip().strip('@')
@@ -1031,19 +1287,57 @@ class Mod(BaseModel):
     def __str__(self):
         return self.name
 
-    @cached_property
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(name={self.name!r}, default={self.default!r}, official={self.official!r}, mod_dir={self.mod_dir!r}, mod_hash_short={self.mod_hash_short!r}, mod_hash={self.mod_hash}, full_path={self.full_path.as_posix()!r})"
+
+    @property
     def pretty_name(self) -> str:
         return self.name.removeprefix('@')
 
+    @ classmethod
+    def from_text_line(cls, line: str) -> tuple["Mod", bool]:
+
+        def strip_converter(in_string: Union[str, None]) -> str:
+            if in_string is None:
+                return in_string
+            return in_string.strip()
+
+        def strip_to_path(data):
+            data = strip_converter(data)
+            if data is None:
+                return data
+            return Path(data)
+
+        parts = line.split('|')
+        name, mod_dir, default, official, origin = parts[:5]
+        optional_kwargs = {}
+        if len(parts) > 5:
+            optional_kwargs['mod_hash'] = strip_converter(parts[5])
+            optional_kwargs["mod_hash_short"] = strip_converter(parts[6])
+            optional_kwargs["full_path"] = strip_to_path(parts[7])
+        with cls.get_or_create_lock:
+            try:
+                mod = Mod.get(name=strip_converter(name), mod_dir=strip_converter(mod_dir), default=str_to_bool(default), official=str_to_bool(official), **optional_kwargs)
+                created = False
+                return mod, created
+            except peewee.DoesNotExist:
+                created = True
+                try:
+                    Mod.insert(name=strip_converter(name), mod_dir=strip_converter(mod_dir), default=str_to_bool(default), official=str_to_bool(official), **optional_kwargs).execute()
+                except peewee.IntegrityError:
+                    created = False
+                mod = Mod.get(name=strip_converter(name), mod_dir=strip_converter(mod_dir), default=str_to_bool(default), official=str_to_bool(official), **optional_kwargs)
+        return mod, created
+
 
 class LogFileAndModJoin(BaseModel):
-    log_file = ForeignKeyField(model=LogFile, lazy_load=True, backref="mods", index=True, on_delete="CASCADE")
-    mod = ForeignKeyField(model=Mod, lazy_load=True, backref="log_files", index=True)
+    log_file = ForeignKeyField(model=LogFile, lazy_load=True, backref="mods", index=False, unique=False, on_delete="CASCADE")
+    mod = ForeignKeyField(model=Mod, lazy_load=True, backref="log_files", index=False, unique=False)
 
     class Meta:
         table_name = 'LogFile_and_Mod_join'
-        indexes = (
-            (('log_file', 'mod'), True),
+        index = (
+            (("log_file", "mod"), True)
         )
         primary_key = False
 
@@ -1052,36 +1346,20 @@ class LogFileAndModJoin(BaseModel):
         return self.mod.name
 
 
-class ModSet(BaseModel):
-    name = TextField(index=True, unique=True, verbose_name="Mod-Set Name")
-    mod_names = JSONField(unique=True, verbose_name="Mod names", index=True)
-
-    class Meta:
-        table_name = 'ModSet'
-        indexes = (
-            (('name', 'mod_names'), True),
-
-        )
-
-    @cached_property
-    def background_color(self) -> QColor:
-        if "vanilla" in self.name.casefold():
-            return QColor(243, 229, 171, 155)
-
-        if "rhs" in self.name.casefold():
-            return QColor(220, 50, 50, 155)
-
-        if "3cb" in self.name.casefold():
-            return QColor(50, 50, 235, 155)
-
-
-class LogLevel(BaseModel):
+class LogLevel(EnumLikeBaseModel):
     name = TextField(unique=True, index=True)
     comments = CommentsField(null=True)
 
-    @cached_property
+    @property
     def background_color(self) -> QColor:
         return self.color_config.get("log_level", self.name, default=None)
+
+    @classmethod
+    def get_by_id_cached(cls, pk):
+
+        instance = cls._instance_cache.get_by_id(pk)
+        if instance is None:
+            return super().get_by_id(pk)
 
     class Meta:
         table_name = 'LogLevel'
@@ -1097,39 +1375,46 @@ class RecordClass(BaseModel):
 
     # non-db attributes
     record_class_manager: "RecordClassManager" = None
-    _record_class: "RECORD_CLASS_TYPE" = None
 
     class Meta:
         table_name = 'RecordClass'
+
+    @classmethod
+    @lru_cache(None)
+    def get_by_id_cached(cls, pk):
+
+        return super().get_by_id(pk)
 
     @property
     def background_color(self) -> "QColor":
         return self.record_class.background_color
 
-    @cached_property
+    @property
     def amount_stored(self) -> int:
         return LogRecord.select().where(LogRecord.record_class == self).count()
 
-    @cached_property
+    @property
     def specificity(self) -> int:
         return self.record_class.___specificity___
 
-    @cached_property
+    @property
     def pretty_record_family(self):
         return str(self.record_family).removeprefix("RecordFamily.")
 
-    @cached_property
+    @property
     def record_family(self):
         return self.record_class.___record_family___
 
-    @property
+    @cached_property
     def record_class(self) -> "RECORD_CLASS_TYPE":
-        if self._record_class is None:
-            self._record_class = self.record_class_manager.get_by_name(self.name)
-        return self._record_class
+
+        return self.record_class_manager.get_by_name(self.name)
 
     def __str__(self) -> str:
         return self.name
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(name={self.name!r})"
 
 
 class RecordOrigin(BaseModel):
@@ -1139,30 +1424,72 @@ class RecordOrigin(BaseModel):
     comments = CommentsField(null=True)
     marked = MarkedField()
 
+    origin_instances: dict[Union[str, int], "RecordOrigin"] = {}
+
     class Meta:
         table_name = 'RecordOrigin'
-        indexes = (
-            (('name', 'identifier'), True),
+        constraints = [SQL('UNIQUE(name, identifier)')]
 
-        )
+    def __new__(cls: type[Self], *args, **kwargs) -> Self:
+        name = kwargs.get("name", None)
+        _id = kwargs.get("id", None)
+        key = name if name is not None else _id
+        instance = cls.origin_instances.get(key, None)
+        if instance is None:
+            instance = super(RecordOrigin, cls).__new__(cls)
+        return instance
 
-    @cached_property
+    def _add_to_instances(self) -> None:
+        if self.name is not None and self.name not in self.__class__.origin_instances:
+            self.__class__.origin_instances[self.name] = self
+        if self.id is not None and self.id not in self.__class__.origin_instances:
+            self.__class__.origin_instances[self.id] = self
+
+    @classmethod
+    def clear_instance_cache(cls) -> None:
+        cls.origin_instances.clear()
+
+    @classmethod
+    @lru_cache(None)
+    def get_by_id_cached(cls, pk):
+
+        return super().get_by_id(pk)
+
+    @property
     def pretty_name(self) -> str:
         return sys.inter(self.name)
 
     def check(self, raw_record: "RawRecord") -> bool:
         return self.identifier in raw_record.content.casefold()
 
-    @cached_property
+    @property
     def record_family(self) -> RecordFamily:
         return RecordFamily.from_record_origin(self)
 
 
 class Message(BaseModel):
-    text = TextField(unique=True, null=False, index=True)
+    md5_hash = FixedCharField(max_length=32, unique=True, null=False, index=True)
+    text = TextBlobField(unique=False, null=False, index=False)
 
     class Meta:
         table_name = 'Message'
+        primary_key = False
+
+    @classmethod
+    def get_by_id_cached(cls, pk: str):
+        try:
+            return cls._meta.database.most_common_messages[pk]
+        except KeyError:
+            return cls._get_by_id_cached(pk)
+
+    @classmethod
+    @lru_cache(maxsize=10_000)
+    def _get_by_id_cached(cls, pk: str):
+        return cls.get(md5_hash=pk)
+
+    @classmethod
+    def hash_text(cls, in_text: str) -> str:
+        return hashlib.md5(in_text.encode(encoding='utf-8', errors='ignore')).hexdigest()
 
     def __str__(self) -> str:
         return sys.intern(self.text)
@@ -1171,14 +1498,14 @@ class Message(BaseModel):
 class LogRecord(BaseModel):
     start = IntegerField(help_text="Start Line number of the Record", verbose_name="Start", index=False)
     end = IntegerField(help_text="End Line number of the Record", verbose_name="End", index=False)
-    message_item = ForeignKeyField(help_text="Message part of the Record", verbose_name="Message", column_name="message_item", backref="log_records", field="id", model=Message, lazy_load=True, null=False, _hidden=True, index=True)
-    recorded_at = AwareTimeStampField(utc=True, verbose_name="Recorded at", index=False)
-    called_by = ForeignKeyField(column_name='called_by', field='id', model=ArmaFunction, backref="log_records_called_by", lazy_load=True, null=True, verbose_name="Called by")
-    origin = ForeignKeyField(column_name="origin", field="id", model=RecordOrigin, backref="records", lazy_load=True, verbose_name="Origin", default=0)
-    logged_from = ForeignKeyField(column_name='logged_from', field='id', model=ArmaFunction, backref="log_records_logged_from", lazy_load=True, null=True, verbose_name="Logged from")
-    log_file = ForeignKeyField(column_name='log_file', field='id', model=LogFile, lazy_load=True, backref="log_records", null=False, verbose_name="Log-File", index=False, on_delete="CASCADE")
-    log_level = ForeignKeyField(column_name='log_level', default=0, field='id', model=LogLevel, null=True, lazy_load=True, verbose_name="Log-Level")
-    record_class = ForeignKeyField(column_name='record_class', field='id', model=RecordClass, lazy_load=True, verbose_name="Record Class", null=True)
+    message_item = FixedCharField(max_length=32, help_text="Message part of the Record", verbose_name="Message", null=False, unique=False, _hidden=True, index=False)
+    recorded_at = AwareTimeStampField(verbose_name="Recorded at", index=False)
+    called_by = ForeignKeyField(column_name='called_by', field='id', model=ArmaFunction, backref="log_records_called_by", lazy_load=True, null=True, verbose_name="Called by", index=False)
+    origin = ForeignKeyField(column_name="origin", field="id", model=RecordOrigin, backref="records", lazy_load=True, verbose_name="Origin", default=0, index=False)
+    logged_from = ForeignKeyField(column_name='logged_from', field='id', model=ArmaFunction, backref="log_records_logged_from", lazy_load=True, null=True, verbose_name="Logged from", index=False)
+    log_file = ForeignKeyField(column_name='log_file', field='id', model=LogFile, lazy_load=True, backref="log_records", null=False, verbose_name="Log-File", index=True, on_delete="CASCADE")
+    log_level = ForeignKeyField(column_name='log_level', default=0, field='id', model=LogLevel, null=True, lazy_load=True, verbose_name="Log-Level", index=False)
+    record_class = ForeignKeyField(column_name='record_class', field='id', model=RecordClass, lazy_load=True, verbose_name="Record Class", null=True, index=False)
     marked = MarkedField(index=False)
 
     # non-db attributes
@@ -1187,30 +1514,38 @@ class LogRecord(BaseModel):
     class Meta:
         table_name = 'LogRecord'
         indexes = (
-            # (('start', "log_file"), True),
-            # (('end', 'log_file'), True),
-            (("start", "end", "log_file"), True),
+            (("start", "end", "log_file", "log_level", "record_class"), False),
         )
 
     @classmethod
+    @lru_cache(None)
+    def get_by_id_cached(cls, pk):
+
+        return super().get_by_id(pk)
+
+    @classmethod
     def amount_log_records(cls) -> int:
-        return LogRecord.select(LogRecord.id).count(cls._meta.database, True)
+        return cls._meta.database.connection().execute('SELECT COUNT(*) from "LogRecord"').fetchone()[0]
 
-    @cached_property
+    @property
     def server(self) -> Server:
-        return self.log_file.server
+        return Server.get_by_id_cached(self.log_file.server_id)
 
-    @cached_property
+    @property
     def message(self) -> str:
-        return sys.intern(self.message_item.text)
+        try:
+            message_obj = self._message
+            return message_obj.text
+        except AttributeError:
+            return sys.intern(next((i[0] for i in Message.select(Message.text).where((Message.md5_hash == self.message_item)).tuples().iterator())))
 
-    @cached_property
+    @ property
     def pretty_log_level(self) -> str:
         if self.log_level.name == "NO_LEVEL":
             return None
         return self.log_level
 
-    @cached_property
+    @ property
     def pretty_recorded_at(self) -> str:
         return self.format_datetime(self.recorded_at)
 
@@ -1223,7 +1558,7 @@ class LogRecord(BaseModel):
     def get_formated_message(self, msg_format: "MessageFormat" = MessageFormat.PRETTY) -> str:
         return self.message
 
-    @cached_property
+    @ property
     def pretty_message(self) -> str:
         return self.get_formated_message(MessageFormat.PRETTY)
 
@@ -1231,18 +1566,52 @@ class LogRecord(BaseModel):
         return f"{self.recorded_at.isoformat(sep=' ')} {self.message}"
 
 
+class MeanUpdateTimePerLogFile(BaseModel):
+    recorded_at = AwareTimeStampField(null=False, unique=True)
+    time_taken_per_log_file = FloatField(null=False)
+    amount_updated = IntegerField(null=False)
+
+    row_limit: int = 3
+
+    class Meta:
+        table_name = 'MeanUpdateTimePerLogFile'
+
+    @ classmethod
+    def limit_stored_instances(cls) -> None:
+        if len(cls.select(cls.id)) <= cls.row_limit:
+            return
+
+        for idx, inst_id in enumerate(list(cls.select(cls.id).order_by(cls.recorded_at.desc()))):
+            if idx <= (cls.row_limit - 1):
+                continue
+            cls.delete_by_id(inst_id)
+
+    @classmethod
+    def insert_new_measurement(cls, time_taken_per_log_file: Union[float, timedelta], amount_updated: int):
+        if amount_updated <= 0:
+            return
+
+        now = datetime.now(tz=timezone.utc)
+        if isinstance(time_taken_per_log_file, timedelta):
+            time_taken_per_log_file = time_taken_per_log_file.total_seconds()
+
+        cls.insert(recorded_at=now, time_taken_per_log_file=time_taken_per_log_file, amount_updated=amount_updated).execute()
+        cls.limit_stored_instances()
+
+
 class DatabaseMetaData(BaseModel):
-    started_at = AwareTimeStampField(utc=True, index=True)
+    started_at = AwareTimeStampField(index=True)
     app_version = VersionField(index=True)
     new_log_files = IntegerField(default=0)
     updated_log_files = IntegerField(default=0)
     added_log_records = IntegerField(default=0)
     errored = TextField(null=True)
-    last_update_started_at = AwareTimeStampField(null=True, utc=True, index=True)
-    last_update_finished_at = AwareTimeStampField(null=True, utc=True, index=True)
+    last_update_started_at = AwareTimeStampField(null=True, index=True)
+    last_update_finished_at = AwareTimeStampField(null=True, index=True)
 
     # non-db attributes
     database_meta_lock = RLock()
+    amount_old_meta_data_items: int = 50
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1251,11 +1620,21 @@ class DatabaseMetaData(BaseModel):
     class Meta:
         table_name = 'DatabaseMetaData'
 
-    @classmethod
+    @ classmethod
+    def get_user_version(cls) -> int:
+        return cls._meta.database.user_version
+
+    @ classmethod
+    def increment_user_version(cls):
+        db: "GidSqliteApswDatabase" = cls._meta.database
+        db.pragma("user_version", cls.get_user_version() + 1)
+        log.debug("incremented user_version to %r", cls.get_user_version())
+
+    @ classmethod
     def get_amount_meta_data_items(cls):
         return DatabaseMetaData.select(DatabaseMetaData.id).count(cls._meta.database, True)
 
-    @classmethod
+    @ classmethod
     def new_session(cls, started_at: datetime = None, app_version: Version = None) -> "DatabaseMetaData":
         started_at = datetime.now(tz=UTC) if started_at is None else started_at
         app_version = META_INFO.version if app_version is None else app_version
@@ -1263,17 +1642,49 @@ class DatabaseMetaData(BaseModel):
         with cls._meta.database.write_lock:
             with cls._meta.database:
                 item.save()
+            cls.increment_user_version()
         cls.limit_stored_instances()
         return item
 
-    @classmethod
+    @ classmethod
     def limit_stored_instances(cls) -> None:
-        while cls.get_amount_meta_data_items() > 100:
-            oldest = DatabaseMetaData.select().order_by(DatabaseMetaData.started_at)[0]
-            with cls._meta.database.write_lock:
-                with cls._meta.database:
-                    DatabaseMetaData.delete_by_id(oldest.id)
-                    log.debug("removed DatabaseMetaData started at: %r", oldest.started_at)
+        amount = DatabaseMetaData.select(fn.COUNT(DatabaseMetaData)).scalar()
+        log.debug("amount: %r", amount)
+        while amount > cls.amount_old_meta_data_items:
+            oldest = [i for i in DatabaseMetaData.select().order_by(DatabaseMetaData.started_at).limit(1).execute()]
+            for i in oldest:
+                with cls._meta.database.write_lock:
+                    with cls._meta.database:
+                        DatabaseMetaData.delete_by_id(i.id)
+                        log.debug("removed DatabaseMetaData started at: %r", i.started_at)
+            amount = DatabaseMetaData.select(fn.COUNT(DatabaseMetaData)).scalar()
+
+    @classmethod
+    def get_average_size_per_log_file(cls) -> int:
+        amount_log_files = LogFile.amount_log_files()
+        db_file_size = cls._meta.database.database_file_size
+        try:
+            return db_file_size // amount_log_files
+        except ZeroDivisionError:
+            return 5242880  # 5mb
+
+    @property
+    def mean_update_time_per_log_file(self) -> timedelta:
+        values = []
+        weights = []
+        for time_taken_per_log_file, amount_updated in MeanUpdateTimePerLogFile.select(MeanUpdateTimePerLogFile.time_taken_per_log_file, MeanUpdateTimePerLogFile.amount_updated).tuples().iterator():
+            values.append(time_taken_per_log_file)
+            weights.append(amount_updated)
+
+        if len(values) == 0:
+            values = [15.0]
+
+        if len(weights) == 0:
+            weights = [1]
+
+        raw_update_time = numpy.average(values, weights=weights)
+
+        return timedelta(seconds=round(raw_update_time, ndigits=3))
 
     def get_absolute_last_update_finished_at(self) -> datetime:
         if self.stored_last_update_finished_at is not MiscEnum.NOTHING:
@@ -1333,862 +1744,111 @@ def setup_db(database: "GidSqliteApswDatabase"):
     database_proxy.initialize(database)
 
     all_models = [m for m in BaseModel.__subclasses__() if m.is_view is False]
+    database._models = {m.__name__.casefold(): m for m in all_models}
+    setup_data = {
 
-    setup_data = {RemoteStorage: [{"name": "local_files", "id": 0, "base_url": "--LOCAL--", "manager_type": "LocalManager", "credentials_required": False},
-                                  {"name": "community_webdav", "id": 1, "base_url": "https://antistasi.de", "manager_type": "WebdavManager", "credentials_required": True}],
-                  RecordOrigin: [{"id": 0, "name": "Generic", "identifier": "generic", "is_default": True},
-                  {"id": 1, "name": "Antistasi", "identifier": "| antistasi |", "is_default": False}],
-                  LogLevel: [{"id": 0, "name": "NO_LEVEL"},
-                             {"id": 1, "name": "DEBUG"},
-                             {"id": 2, "name": "INFO"},
-                             {"id": 3, "name": "WARNING"},
-                             {"id": 4, "name": "CRITICAL"},
-                             {"id": 5, "name": "ERROR"}],
 
-                  Server: [{'name': 'NO_SERVER',
-                           'remote_path': None,
-                            'remote_storage': 0,
-                            'update_enabled': 0,
-                            "ip": None,
-                            "port": None},
-                           {'name': 'Mainserver_1',
-                            'remote_path': 'Antistasi_Community_Logs/Mainserver_1/Server/',
-                            'remote_storage': 1,
-                            'update_enabled': 1,
-                            "ip": "38.133.154.60",
-                            "port": 2312},
-                           {'name': 'Mainserver_2',
-                            'remote_path': 'Antistasi_Community_Logs/Mainserver_2/Server/',
-                            'remote_storage': 1,
-                            'update_enabled': 1,
-                            "ip": "38.133.154.60",
-                            "port": 2322},
-                           {'name': 'Testserver_1',
-                            'remote_path': 'Antistasi_Community_Logs/Testserver_1/Server/',
-                            'remote_storage': 1,
-                            'update_enabled': 1,
-                            "ip": "38.133.154.60",
-                            "port": 2342},
-                           {'name': 'Testserver_2',
-                            'remote_path': 'Antistasi_Community_Logs/Testserver_2/Server/',
-                            'remote_storage': 1,
-                            'update_enabled': 1,
-                            "ip": "38.133.154.60",
-                            "port": 2352},
-                           {'name': 'Testserver_3',
-                            'remote_path': 'Antistasi_Community_Logs/Testserver_3/Server/',
-                            'remote_storage': 1,
-                            'update_enabled': 1,
-                            "ip": None,
-                            "port": None}],
 
-                  GameMap: [{'dlc': None,
-                             'full_name': 'Altis',
-                            'name': 'Altis',
-                             'official': 1,
-                             'workshop_link': None,
-                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("altis_thumbnail.png").read_bytes()},
-                            {'dlc': 'Apex',
-                            'full_name': 'Tanoa',
-                             'name': 'Tanoa',
-                             'official': 1,
-                             'workshop_link': None,
-                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("tanoa_thumbnail.png").read_bytes()},
-                            {'dlc': 'Contact',
-                            'full_name': 'Livonia',
-                             'name': 'Enoch',
-                             'official': 1,
-                             'workshop_link': None,
-                             "map_image_low_resolution": None},
-                            {'dlc': 'Malden',
-                            'full_name': 'Malden',
-                             'name': 'Malden',
-                             'official': 1,
-                             'workshop_link': None,
-                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("malden_thumbnail.png").read_bytes()},
-                            {'dlc': None,
-                            'full_name': 'Takistan',
-                             'name': 'takistan',
-                             'official': 0,
-                             'workshop_link': None,
-                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("takistan_thumbnail.png").read_bytes()},
-                            {'dlc': None,
-                            'full_name': 'Virolahti',
-                             'name': 'vt7',
-                             'official': 0,
-                             'workshop_link': 'https://steamcommunity.com/workshop/filedetails/?id=1926513010',
-                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("virolahti_thumbnail.png").read_bytes()},
-                            {'dlc': None,
-                            'full_name': 'Sahrani',
-                             'name': 'sara',
-                             'official': 0,
-                             'workshop_link': 'https://steamcommunity.com/sharedfiles/filedetails/?id=583544987',
-                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("sahrani_thumbnail.png").read_bytes()},
-                            {'dlc': None,
-                            'full_name': 'Chernarus Winter',
-                             'name': 'Chernarus_Winter',
-                             'official': 0,
-                             'workshop_link': 'https://steamcommunity.com/sharedfiles/filedetails/?id=583544987',
-                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("cherno_winter_thumbnail.png").read_bytes(),
-                             "coordinates": json.loads(MAP_COORDS_DIR.joinpath("chernarus_winter_pos.json").read_text(encoding='utf-8', errors='ignore'))},
-                            {'dlc': None,
-                            'full_name': 'Chernarus Summer',
-                             'name': 'chernarus_summer',
-                             'official': 0,
-                             'workshop_link': 'https://steamcommunity.com/sharedfiles/filedetails/?id=583544987',
-                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("cherno_summer_thumbnail.png").read_bytes(),
-                             "coordinates": json.loads(MAP_COORDS_DIR.joinpath("chernarus_winter_pos.json").read_text(encoding='utf-8', errors='ignore'))},
-                            {'dlc': None,
-                            'full_name': 'Anizay',
-                             'name': 'tem_anizay',
-                             'official': 0,
-                             'workshop_link': 'https://steamcommunity.com/workshop/filedetails/?id=1537973181',
-                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("anizay_thumbnail.png").read_bytes()},
-                            {'dlc': None,
-                            'full_name': 'Tembelan',
-                             'name': 'Tembelan',
-                             'official': 0,
-                             'workshop_link': 'https://steamcommunity.com/workshop/filedetails/?id=1252091296',
-                             "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("tembelan_thumbnail.png").read_bytes()},
-                            {'dlc': 'S.O.G. Prairie Fire',
-                            'full_name': 'Cam Lao Nam',
-                             'name': 'cam_lao_nam',
-                             'official': 1,
-                             'workshop_link': None,
-                             "map_image_low_resolution": None},
-                            {'dlc': 'S.O.G. Prairie Fire',
-                            'full_name': 'Khe Sanh',
-                             'name': 'vn_khe_sanh',
-                             'official': 1,
-                             'workshop_link': None,
-                             "map_image_low_resolution": None}],
-                  ModLink: [{"cleaned_mod_name": "vet_unflipping", "link": "https://steamcommunity.com/sharedfiles/filedetails/?id=1703187116"},
-                  {"cleaned_mod_name": "gruppe adler trenches", "link": "https://steamcommunity.com/workshop/filedetails/?id=1224892496"},
-                  {"cleaned_mod_name": "zeus enhanced", "link": "https://steamcommunity.com/sharedfiles/filedetails/?id=1779063631"},
-                  {"cleaned_mod_name": "tfar", "link": "https://steamcommunity.com/sharedfiles/filedetails/?id=894678801"},
-                  {"cleaned_mod_name": "enhanced movement", "link": "https://steamcommunity.com/sharedfiles/filedetails/?l=german&id=333310405"},
-                  {"cleaned_mod_name": "community base addons", "link": "https://steamcommunity.com/workshop/filedetails/?id=450814997"},
-                  {"cleaned_mod_name": "advanced combat environment", "link": "https://steamcommunity.com/workshop/filedetails/?id=463939057"},
-                  {"cleaned_mod_name": "rhs: united states forces", "link": "https://steamcommunity.com/sharedfiles/filedetails/?id=843577117"},
-                  {"cleaned_mod_name": "rhs: gref", "link": "https://steamcommunity.com/workshop/filedetails/?id=843593391"},
-                  {"cleaned_mod_name": "rhs: armed forces of the russian federation", "link": "https://steamcommunity.com/workshop/filedetails/?id=843425103"},
-                  {"cleaned_mod_name": "zeusenhancedace3compatibility", "link": "https://steamcommunity.com/sharedfiles/filedetails/?id=2018593688"},
-                  {"cleaned_mod_name": "acecompatrhsgref", "link": "https://steamcommunity.com/sharedfiles/filedetails/?id=884966711"},
-                  {"cleaned_mod_name": "acecompatrhsarmedforcesoftherussianfederation", "link": "https://steamcommunity.com/sharedfiles/filedetails/?id=773131200"},
-                  {"cleaned_mod_name": "acecompatrhsunitedstatesarmedforces", "link": "https://steamcommunity.com/sharedfiles/filedetails/?id=773125288"},
-                  {"cleaned_mod_name": "taskforceenforcer", "link": "https://github.com/Sparker95/TaskForceEnforcer"},
-                  {"cleaned_mod_name": "rksl attachments pack", "link": "https://steamcommunity.com/workshop/filedetails/?id=1661066023"}],
+        GameMap: [{'dlc': None,
+                   'full_name': 'Altis',
+                   'name': 'Altis',
+                   'official': 1,
+                   'workshop_link': None,
+                   "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("altis_thumbnail.png")},
+                  {'dlc': 'Apex',
+                   'full_name': 'Tanoa',
+                   'name': 'Tanoa',
+                   'official': 1,
+                   'workshop_link': None,
+                   "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("tanoa_thumbnail.png"),
+                   "map_image_high_resolution": MAP_IMAGES_DIR.joinpath("tanoa_huge.png")},
+                  {'dlc': 'Contact',
+                   'full_name': 'Livonia',
+                   'name': 'Enoch',
+                   'official': 1,
+                   'workshop_link': None,
+                   "map_image_low_resolution": None},
+                  {'dlc': 'Malden',
+                   'full_name': 'Malden',
+                   'name': 'Malden',
+                   'official': 1,
+                   'workshop_link': None,
+                   "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("malden_thumbnail.png"),
+                   "map_image_high_resolution": MAP_IMAGES_DIR.joinpath("malden_huge.png")},
+                  {'dlc': None,
+                   'full_name': 'Takistan',
+                   'name': 'takistan',
+                   'official': 0,
+                   'workshop_link': None,
+                   "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("takistan_thumbnail.png"),
+                   "map_image_high_resolution": MAP_IMAGES_DIR.joinpath("takistan_huge.png")},
+                  {'dlc': None,
+                   'full_name': 'Virolahti',
+                   'name': 'vt7',
+                   'official': 0,
+                   'workshop_link': 'https://steamcommunity.com/workshop/filedetails/?id=1926513010',
+                   "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("virolahti_thumbnail.png")},
+                  {'dlc': None,
+                   'full_name': 'Sahrani',
+                   'name': 'sara',
+                   'official': 0,
+                   'workshop_link': 'https://steamcommunity.com/sharedfiles/filedetails/?id=583544987',
+                   "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("sahrani_thumbnail.png"),
+                   "map_image_high_resolution": MAP_IMAGES_DIR.joinpath("sara_huge.png")},
+                  {'dlc': None,
+                   'full_name': 'Chernarus Winter',
+                   'name': 'Chernarus_Winter',
+                   'official': 0,
+                   'workshop_link': 'https://steamcommunity.com/sharedfiles/filedetails/?id=583544987',
+                   "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("cherno_winter_thumbnail.png"),
+                   "map_image_high_resolution": MAP_IMAGES_DIR.joinpath("chernarus_winter_huge.png"),
+                   "coordinates": json.loads(MAP_COORDS_DIR.joinpath("chernarus_winter_pos.json").read_text(encoding='utf-8', errors='ignore'))},
+                  {'dlc': None,
+                   'full_name': 'Chernarus Summer',
+                   'name': 'chernarus_summer',
+                   'official': 0,
+                   'workshop_link': 'https://steamcommunity.com/sharedfiles/filedetails/?id=583544987',
+                   "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("cherno_summer_thumbnail.png"),
+                   "map_image_high_resolution": MAP_IMAGES_DIR.joinpath("chernarus_summer_huge.png"),
+                   "coordinates": json.loads(MAP_COORDS_DIR.joinpath("chernarus_winter_pos.json").read_text(encoding='utf-8', errors='ignore'))},
+                  {'dlc': None,
+                   'full_name': 'Anizay',
+                   'name': 'tem_anizay',
+                   'official': 0,
+                   'workshop_link': 'https://steamcommunity.com/workshop/filedetails/?id=1537973181',
+                   "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("anizay_thumbnail.png")},
+                  {'dlc': None,
+                   'full_name': 'Tembelan',
+                   'name': 'Tembelan',
+                   'official': 0,
+                   'workshop_link': 'https://steamcommunity.com/workshop/filedetails/?id=1252091296',
+                   "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("tembelan_thumbnail.png")},
+                  {'dlc': 'S.O.G. Prairie Fire',
+                   'full_name': 'Cam Lao Nam',
+                   'name': 'cam_lao_nam',
+                   'official': 1,
+                   'workshop_link': None,
+                   "map_image_low_resolution": None},
+                  {'dlc': 'S.O.G. Prairie Fire',
+                   'full_name': 'Khe Sanh',
+                   'name': 'vn_khe_sanh',
+                   'official': 1,
+                   'workshop_link': None,
+                   "map_image_low_resolution": None}],
 
-                  ArmaFunctionAuthorPrefix: [{"id": 1, "name": "UNKNOWN", "full_name": "Unknown", "github_link": None},
-                  {"id": 2, "name": "FSM", "full_name": "Finite State Machine", "github_link": None},
-        {"id": 3, "name": "A3A", "full_name": "Antistasi", "github_link": "https://github.com/official-antistasi-community/A3-Antistasi/tree/unstable"},
-        {"id": 4, "name": "JN", "full_name": "Jeroen Arsenal", "github_link": "https://github.com/official-antistasi-community/A3-Antistasi/tree/unstable"},
-        {"id": 5, "name": "HR_GRG", "full_name": "Hakon Garage", "github_link": "https://github.com/official-antistasi-community/A3-Antistasi/tree/unstable"}],
+    }
 
-        ArmaFunction: [
-        {'author_prefix': 1, 'id': 1, 'link': None, 'name': 'init'},
-        {'author_prefix': 3, 'id': 2, 'link': None, 'name': 'initServer'},
-        {'author_prefix': 3, 'id': 3, 'link': None, 'name': 'initParams'},
-        {'author_prefix': 3, 'id': 4, 'link': None, 'name': 'initFuncs'},
-        {'author_prefix': 4, 'id': 5, 'link': None, 'name': 'arsenal_init'},
-        {'author_prefix': 3, 'id': 6, 'link': None, 'name': 'initVar'},
-        {'author_prefix': 3, 'id': 7, 'link': None, 'name': 'initVarCommon'},
-        {'author_prefix': 3, 'id': 8, 'link': None, 'name': 'initVarServer'},
-        {'author_prefix': 3, 'id': 9, 'link': None, 'name': 'initDisabledMods'},
-        {
-            'author_prefix': 3,
-            'id': 10,
-            'link': None,
-            'name': 'compatibilityLoadFaction',
-        },
-        {'author_prefix': 3, 'id': 11, 'link': None, 'name': 'registerUnitType'},
-        {'author_prefix': 3, 'id': 12, 'link': None, 'name': 'aceModCompat'},
-        {'author_prefix': 3, 'id': 13, 'link': None, 'name': 'initVarClient'},
-        {
-            'author_prefix': 3,
-            'id': 14,
-            'link': None,
-            'name': 'initACEUnconsciousHandler',
-        },
-        {'author_prefix': 3, 'id': 15, 'link': None, 'name': 'loadNavGrid'},
-        {'author_prefix': 3, 'id': 16, 'link': None, 'name': 'initZones'},
-        {'author_prefix': 3, 'id': 17, 'link': None, 'name': 'initSpawnPlaces'},
-        {'author_prefix': 3, 'id': 18, 'link': None, 'name': 'initGarrisons'},
-        {'author_prefix': 3, 'id': 19, 'link': None, 'name': 'addHC'},
-        {'author_prefix': 3, 'id': 20, 'link': None, 'name': 'loadServer'},
-        {'author_prefix': 3, 'id': 21, 'link': None, 'name': 'returnSavedStat'},
-        {'author_prefix': 3, 'id': 22, 'link': None, 'name': 'getStatVariable'},
-        {'author_prefix': 3, 'id': 23, 'link': None, 'name': 'loadStat'},
-        {'author_prefix': 3, 'id': 24, 'link': None, 'name': 'updatePreference'},
-        {'author_prefix': 3, 'id': 25, 'link': None, 'name': 'tierCheck'},
-        {'author_prefix': 3, 'id': 26, 'link': None, 'name': 'initPetros'},
-        {'author_prefix': 3, 'id': 27, 'link': None, 'name': 'createPetros'},
-        {'author_prefix': 1, 'id': 28, 'link': None, 'name': 'advancedTowingInit'},
-        {'author_prefix': 1, 'id': 29, 'link': None, 'name': 'initServer'},
-        {'author_prefix': 3, 'id': 30, 'link': None, 'name': 'assignBossIfNone'},
-        {'author_prefix': 3, 'id': 31, 'link': None, 'name': 'loadPlayer'},
-        {'author_prefix': 3, 'id': 32, 'link': None, 'name': 'logPerformance'},
-        {'author_prefix': 3, 'id': 33, 'link': None, 'name': 'scheduler'},
-        {'author_prefix': 3, 'id': 34, 'link': None, 'name': 'distance'},
-        {'author_prefix': 5, 'id': 35, 'link': None, 'name': 'removeFromPool'},
-        {'author_prefix': 5, 'id': 36, 'link': None, 'name': 'addVehicle'},
-        {'author_prefix': 3, 'id': 37, 'link': None, 'name': 'onPlayerDisconnect'},
-        {'author_prefix': 3, 'id': 38, 'link': None, 'name': 'savePlayer'},
-        {'author_prefix': 3, 'id': 39, 'link': None, 'name': 'theBossTransfer'},
-        {'author_prefix': 3, 'id': 40, 'link': None, 'name': 'punishment_FF'},
-        {'author_prefix': 3, 'id': 41, 'link': None, 'name': 'punishment'},
-        {'author_prefix': 3, 'id': 42, 'link': None, 'name': 'economicsAI'},
-        {'author_prefix': 3, 'id': 43, 'link': None, 'name': 'resourcecheck'},
-        {'author_prefix': 3, 'id': 44, 'link': None, 'name': 'rebelAttack'},
-        {'author_prefix': 3, 'id': 45, 'link': None, 'name': 'promotePlayer'},
-        {'author_prefix': 3, 'id': 46, 'link': None, 'name': 'reinforcementsAI'},
-        {'author_prefix': 3, 'id': 47, 'link': None, 'name': 'AAFroadPatrol'},
-        {'author_prefix': 3, 'id': 48, 'link': None, 'name': 'createAIAction'},
-        {'author_prefix': 3, 'id': 49, 'link': None, 'name': 'wavedCA'},
-        {'author_prefix': 3, 'id': 50, 'link': None, 'name': 'retrievePlayerStat'},
-        {'author_prefix': 3, 'id': 51, 'link': None, 'name': 'resetPlayer'},
-        {'author_prefix': 3, 'id': 52, 'link': None, 'name': 'WPCreate'},
-        {'author_prefix': 3, 'id': 53, 'link': None, 'name': 'findPath'},
-        {'author_prefix': 3, 'id': 54, 'link': None, 'name': 'chooseSupport'},
-        {'author_prefix': 3, 'id': 55, 'link': None, 'name': 'AIreactOnKill'},
-        {'author_prefix': 1, 'id': 56, 'link': None, 'name': 'AIVEHinit'},
-        {
-            'author_prefix': 3,
-            'id': 57,
-            'link': None,
-            'name': 'vehKilledOrCaptured',
-        },
-        {'author_prefix': 3, 'id': 58, 'link': None, 'name': 'postmortem'},
-        {'author_prefix': 3, 'id': 59, 'link': None, 'name': 'AIVEHinit'},
-        {'author_prefix': 3, 'id': 60, 'link': None, 'name': 'supportAvailable'},
-        {'author_prefix': 3, 'id': 61, 'link': None, 'name': 'sendSupport'},
-        {'author_prefix': 3, 'id': 62, 'link': None, 'name': 'createSupport'},
-        {'author_prefix': 3, 'id': 63, 'link': None, 'name': 'SUP_mortar'},
-        {'author_prefix': 3, 'id': 64, 'link': None, 'name': 'saveLoop'},
-        {
-            'author_prefix': 3,
-            'id': 65,
-            'link': None,
-            'name': 'theBossToggleEligibility',
-        },
-        {'author_prefix': 3, 'id': 66, 'link': None, 'name': 'patrolReinf'},
-        {'author_prefix': 3, 'id': 67, 'link': None, 'name': 'selectReinfUnits'},
-        {'author_prefix': 3, 'id': 68, 'link': None, 'name': 'replenishGarrison'},
-        {'author_prefix': 3, 'id': 69, 'link': None, 'name': 'createConvoy'},
-        {'author_prefix': 3, 'id': 70, 'link': None, 'name': 'findSpawnPosition'},
-        {'author_prefix': 3, 'id': 71, 'link': None, 'name': 'milBuildings'},
-        {'author_prefix': 3, 'id': 72, 'link': None, 'name': 'placeIntel'},
-        {
-            'author_prefix': 3,
-            'id': 73,
-            'link': None,
-            'name': 'makePlayerBossIfEligible',
-        },
-        {'author_prefix': 3, 'id': 74, 'link': None, 'name': 'createAIOutposts'},
-        {'author_prefix': 3, 'id': 75, 'link': None, 'name': 'unlockEquipment'},
-        {'author_prefix': 3, 'id': 76, 'link': None, 'name': 'arsenalManage'},
-        {'author_prefix': 3, 'id': 77, 'link': None, 'name': 'attackDrillAI'},
-        {'author_prefix': 3, 'id': 78, 'link': None, 'name': 'callForSupport'},
-        {'author_prefix': 3, 'id': 79, 'link': None, 'name': 'findBaseForQRF'},
-        {'author_prefix': 3, 'id': 80, 'link': None, 'name': 'freeSpawnPositions'},
-        {'author_prefix': 3, 'id': 81, 'link': None, 'name': 'SUP_QRF'},
-        {
-            'author_prefix': 3,
-            'id': 82,
-            'link': None,
-            'name': 'getVehiclePoolForQRFs',
-        },
-        {
-            'author_prefix': 3,
-            'id': 83,
-            'link': None,
-            'name': 'spawnVehicleAtMarker',
-        },
-        {
-            'author_prefix': 3,
-            'id': 84,
-            'link': None,
-            'name': 'createVehicleQRFBehaviour',
-        },
-        {
-            'author_prefix': 3,
-            'id': 85,
-            'link': None,
-            'name': 'createAttackVehicle',
-        },
-        {'author_prefix': 3, 'id': 86, 'link': None, 'name': 'vehiclePrice'},
-        {'author_prefix': 3, 'id': 87, 'link': None, 'name': 'SUP_QRFRoutine'},
-        {'author_prefix': 3, 'id': 88, 'link': None, 'name': 'SUP_mortarRoutine'},
-        {'author_prefix': 3, 'id': 89, 'link': None, 'name': 'endSupport'},
-        {'author_prefix': 3, 'id': 90, 'link': None, 'name': 'spawnConvoy'},
-        {'author_prefix': 3, 'id': 91, 'link': None, 'name': 'convoyMovement'},
-        {'author_prefix': 3, 'id': 92, 'link': None, 'name': 'spawnConvoyLine'},
-        {
-            'author_prefix': 3,
-            'id': 93,
-            'link': None,
-            'name': 'splitVehicleCrewIntoOwnGroups',
-        },
-        {'author_prefix': 3, 'id': 94, 'link': None, 'name': 'garbageCleaner'},
-        {'author_prefix': 3, 'id': 95, 'link': None, 'name': 'convoy'},
-        {'author_prefix': 3, 'id': 96, 'link': None, 'name': 'missionRequest'},
-        {
-            'author_prefix': 3,
-            'id': 97,
-            'link': None,
-            'name': 'findAirportForAirstrike',
-        },
-        {'author_prefix': 3, 'id': 98, 'link': None, 'name': 'SUP_CAS'},
-        {'author_prefix': 3, 'id': 99, 'link': None, 'name': 'despawnConvoy'},
-        {'author_prefix': 3, 'id': 100, 'link': None, 'name': 'zoneCheck'},
-        {'author_prefix': 3, 'id': 101, 'link': None, 'name': 'findPathPrecheck'},
-        {'author_prefix': 3, 'id': 102, 'link': None, 'name': 'SUP_airstrike'},
-        {'author_prefix': 1, 'id': 103, 'link': None, 'name': 'rebelAttack'},
-        {'author_prefix': 3, 'id': 104, 'link': None, 'name': 'markerChange'},
-        {'author_prefix': 3, 'id': 105, 'link': None, 'name': 'setPlaneLoadout'},
-        {'author_prefix': 3, 'id': 106, 'link': None, 'name': 'SUP_CASRoutine'},
-        {'author_prefix': 3, 'id': 107, 'link': None, 'name': 'SUP_CASRun'},
-        {'author_prefix': 5, 'id': 108, 'link': None, 'name': 'toggleLock'},
-        {'author_prefix': 3, 'id': 109, 'link': None, 'name': 'paradrop'},
-        {'author_prefix': 3, 'id': 110, 'link': None, 'name': 'SUP_QRFAvailable'},
-        {
-            'author_prefix': 3,
-            'id': 111,
-            'link': None,
-            'name': 'SUP_airstrikeRoutine',
-        },
-        {'author_prefix': 3, 'id': 112, 'link': None, 'name': 'airbomb'},
-        {'author_prefix': 3, 'id': 113, 'link': None, 'name': 'addSupportTarget'},
-        {'author_prefix': 3, 'id': 114, 'link': None, 'name': 'SUP_ASF'},
-        {
-            'author_prefix': 3,
-            'id': 115,
-            'link': None,
-            'name': 'spawnDebuggingLoop',
-        },
-        {
-            'author_prefix': 3,
-            'id': 116,
-            'link': None,
-            'name': 'punishment_checkStatus',
-        },
-        {
-            'author_prefix': 1,
-            'id': 117,
-            'link': None,
-            'name': 'punishment_sentence_server',
-        },
-        {'author_prefix': 3, 'id': 118, 'link': None, 'name': 'createAIResources'},
-        {
-            'author_prefix': 3,
-            'id': 119,
-            'link': None,
-            'name': 'punishment_release',
-        },
-        {'author_prefix': 3, 'id': 120, 'link': None, 'name': 'mrkWIN'},
-        {'author_prefix': 3, 'id': 121, 'link': None, 'name': 'singleAttack'},
-        {
-            'author_prefix': 3,
-            'id': 122,
-            'link': None,
-            'name': 'vehicleConvoyTravel',
-        },
-        {'author_prefix': 3, 'id': 123, 'link': None, 'name': 'invaderPunish'},
-        {
-            'author_prefix': 3,
-            'id': 124,
-            'link': None,
-            'name': 'occupantInvaderUnitKilledEH',
-        },
-        {'author_prefix': 3, 'id': 125, 'link': None, 'name': 'rebuildRadioTower'},
-        {
-            'author_prefix': 3,
-            'id': 126,
-            'link': None,
-            'name': 'getVehiclePoolForAttacks',
-        },
-        {'author_prefix': 3, 'id': 127, 'link': None, 'name': 'SUP_ASFRoutine'},
-        {'author_prefix': 2, 'id': 128, 'link': None, 'name': 'ConvoyTravel'},
-        {
-            'author_prefix': 3,
-            'id': 129,
-            'link': None,
-            'name': 'startBreachVehicle',
-        },
-        {'author_prefix': 2, 'id': 130, 'link': None, 'name': 'ConvoyTravelAir'},
-        {'author_prefix': 3, 'id': 131, 'link': None, 'name': 'minefieldAAF'},
-        {'author_prefix': 3, 'id': 132, 'link': None, 'name': 'SUP_SAM'},
-        {'author_prefix': 3, 'id': 133, 'link': None, 'name': 'createAICities'},
-        {'author_prefix': 3, 'id': 134, 'link': None, 'name': 'airspaceControl'},
-        {
-            'author_prefix': 3,
-            'id': 135,
-            'link': None,
-            'name': 'getNearestNavPoint',
-        },
-        {
-            'author_prefix': 3,
-            'id': 136,
-            'link': None,
-            'name': 'arePositionsConnected',
-        },
-        {'author_prefix': 3, 'id': 137, 'link': None, 'name': 'createAIcontrols'},
-        {'author_prefix': 3, 'id': 138, 'link': None, 'name': 'DES_Heli'},
-        {'author_prefix': 3, 'id': 139, 'link': None, 'name': 'onConvoyArrival'},
-        {'author_prefix': 3, 'id': 140, 'link': None, 'name': 'LOG_Supplies'},
-        {'author_prefix': 3, 'id': 141, 'link': None, 'name': 'taskUpdate'},
-        {'author_prefix': 1, 'id': 142, 'link': None, 'name': 'CIVinit'},
-        {'author_prefix': 3, 'id': 143, 'link': None, 'name': 'logistics_unload'},
-        {'author_prefix': 3, 'id': 144, 'link': None, 'name': 'HQGameOptions'},
-        {'author_prefix': 3, 'id': 145, 'link': None, 'name': 'fillLootCrate'},
-        {'author_prefix': 3, 'id': 146, 'link': None, 'name': 'SUP_SAMRoutine'},
-        {'author_prefix': 3, 'id': 147, 'link': None, 'name': 'createAIAirplane'},
-        {'author_prefix': 3, 'id': 148, 'link': None, 'name': 'cleanserVeh'},
-        {'author_prefix': 3, 'id': 149, 'link': None, 'name': 'roadblockFight'},
-        {'author_prefix': 3, 'id': 150, 'link': None, 'name': 'NATOinit'},
-        {'author_prefix': 5, 'id': 151, 'link': None, 'name': 'getCatIndex'},
-        {'author_prefix': 3, 'id': 152, 'link': None, 'name': 'LOG_Salvage'},
-        {'author_prefix': 3, 'id': 153, 'link': None, 'name': 'surrenderAction'},
-        {'author_prefix': 3, 'id': 154, 'link': None, 'name': 'citySupportChange'},
-        {'author_prefix': 3, 'id': 155, 'link': None, 'name': 'RES_Refugees'},
-        {
-            'author_prefix': 3,
-            'id': 156,
-            'link': None,
-            'name': 'punishment_FF_addEH',
-        },
-        {'author_prefix': 3, 'id': 157, 'link': None, 'name': 'initPreJIP'},
-        {'author_prefix': 2, 'id': 158, 'link': None, 'name': 'preInit'},
-        {'author_prefix': 3, 'id': 159, 'link': None, 'name': 'init'},
-        {'author_prefix': 3, 'id': 160, 'link': None, 'name': 'detector'},
-        {'author_prefix': 3, 'id': 161, 'link': None, 'name': 'selector'},
-        {
-            'author_prefix': 3,
-            'id': 162,
-            'link': None,
-            'name': 'TV_verifyLoadoutsData',
-        },
-        {'author_prefix': 3, 'id': 163, 'link': None, 'name': 'TV_verifyAssets'},
-        {
-            'author_prefix': 3,
-            'id': 164,
-            'link': None,
-            'name': 'compileMissionAssets',
-        },
-        {'author_prefix': 3, 'id': 165, 'link': None, 'name': 'spawnGroup'},
-        {'author_prefix': 3, 'id': 166, 'link': None, 'name': 'createOutpostsFIA'},
-        {
-            'author_prefix': 3,
-            'id': 167,
-            'link': None,
-            'name': 'punishment_oceanGulag',
-        },
-        {'author_prefix': 3, 'id': 168, 'link': None, 'name': 'LOG_Ammo'},
-        {
-            'author_prefix': 3,
-            'id': 169,
-            'link': None,
-            'name': 'compatabilityLoadFaction',
-        },
-        {'author_prefix': 3, 'id': 170, 'link': None, 'name': 'AS_Traitor'}]}
-    with database:
+    database.create_tables(all_models)
 
-        database.create_tables(all_models)
     for model, data in setup_data.items():
         if model == GameMap:
             base_data = {'dlc': None,
-                         'full_name': 'Altis',
-                         'name': 'Altis',
+                         'full_name': None,
+                         'name': None,
                          'official': 1,
                          'workshop_link': None,
                          "map_image_low_resolution": None,
                          "map_image_high_resolution": None,
                          "coordinates": None}
             data = [base_data.copy() | d for d in data]
-        x = model.insert_many(data).on_conflict_ignore()
-        with database:
-            x.execute()
-    sleep(0.5)
-    mod_set_data = [
-        {
-            'mod_names': [
-                'advanced combat environment',
-                'community base addons',
-                'enhanced movement',
-                'gruppe adler trenches',
-                'rhs: armed forces of the russian federation',
-                'rhs: gref',
-                'rhs: serbian armed forces',
-                'rhs: united states forces',
-                'tfar',
-                'vet_unflipping',
-                'zeus enhanced',
-            ],
-            'name': 'RHS',
-        },
-        {
-            'mod_names': [
-                '3cb: baf equipment',
-                '3cb: baf units',
-                '3cb: baf vehicles',
-                '3cb: baf weapons',
-                'advanced combat environment',
-                'community base addons',
-                'enhanced movement',
-                'gruppe adler trenches',
-                'rhs: armed forces of the russian federation',
-                'rhs: gref',
-                'rhs: serbian armed forces',
-                'rhs: united states forces',
-                'rksl attachments pack',
-                'tfar',
-                'vet_unflipping',
-                'zeus enhanced',
-            ],
-            'name': '3CB BAF',
-        },
-        {
-            'mod_names': [
-                'advanced combat environment',
-                'community base addons',
-                'cup terrains - core',
-                'cup terrains - maps',
-                'enhanced movement',
-                'gruppe adler trenches',
-                'rhs: armed forces of the russian federation',
-                'rhs: gref',
-                'rhs: serbian armed forces',
-                'rhs: united states forces',
-                'tfar',
-                'vet_unflipping',
-                'zeus enhanced',
-            ],
-            'name': 'RHS CUP',
-        },
-        {
-            'mod_names': [
-                'advanced combat environment',
-                'community base addons',
-                'enhanced movement',
-                'gruppe adler trenches',
-                'tfar',
-                'vet_unflipping',
-                'zeus enhanced',
-            ],
-            'name': 'Vanilla',
-        },
-        {
-            'mod_names': [
-                '3cb factions',
-                '3cb: baf equipment',
-                '3cb: baf units',
-                '3cb: baf vehicles',
-                '3cb: baf weapons',
-                'advanced combat environment',
-                'community base addons',
-                'enhanced movement',
-                'gruppe adler trenches',
-                'rhs: armed forces of the russian federation',
-                'rhs: gref',
-                'rhs: serbian armed forces',
-                'rhs: united states forces',
-                'rksl attachments pack',
-                'tfar',
-                'vet_unflipping',
-                'zeus enhanced',
-            ],
-            'name': '3CB Combo',
-        },
-        {
-            'mod_names': [
-                'advanced combat environment',
-                'community base addons',
-                'cup terrains - core',
-                'enhanced movement',
-                'gruppe adler trenches',
-                'rhs: armed forces of the russian federation',
-                'rhs: gref',
-                'rhs: serbian armed forces',
-                'rhs: united states forces',
-                'tfar',
-                'vet_unflipping',
-                'zeus enhanced',
-            ],
-            'name': 'RHS Anizay',
-        },
-        {
-            'mod_names': [
-                '3cb: baf equipment',
-                '3cb: baf units',
-                '3cb: baf vehicles',
-                '3cb: baf weapons',
-                'advanced combat environment',
-                'community base addons',
-                'cup terrains - core',
-                'cup terrains - maps',
-                'enhanced movement',
-                'gruppe adler trenches',
-                'rhs: armed forces of the russian federation',
-                'rhs: gref',
-                'rhs: serbian armed forces',
-                'rhs: united states forces',
-                'rksl attachments pack',
-                'tfar',
-                'vet_unflipping',
-                'zeus enhanced',
-            ],
-            'name': '3CB BAF CUP',
-        },
-        {
-            'mod_names': [
-                'advanced combat environment',
-                'community base addons',
-                'cup terrains - core',
-                'cup terrains - maps',
-                'enhanced movement',
-                'gruppe adler trenches',
-                'tfar',
-                'vet_unflipping',
-                'zeus enhanced',
-            ],
-            'name': 'Vanilla CUP',
-        },
-        {
-            'mod_names': [
-                '3cb factions',
-                'advanced combat environment',
-                'community base addons',
-                'enhanced movement',
-                'gruppe adler trenches',
-                'rhs: armed forces of the russian federation',
-                'rhs: gref',
-                'rhs: serbian armed forces',
-                'rhs: united states forces',
-                'tfar',
-                'vet_unflipping',
-                'zeus enhanced',
-            ],
-            'name': '3CB Factions',
-        },
-        {
-            'mod_names': [
-                '3cb factions',
-                '3cb: baf equipment',
-                '3cb: baf units',
-                '3cb: baf vehicles',
-                '3cb: baf weapons',
-                'advanced combat environment',
-                'community base addons',
-                'cup terrains - core',
-                'cup terrains - maps',
-                'enhanced movement',
-                'gruppe adler trenches',
-                'rhs: armed forces of the russian federation',
-                'rhs: gref',
-                'rhs: serbian armed forces',
-                'rhs: united states forces',
-                'rksl attachments pack',
-                'tfar',
-                'vet_unflipping',
-                'zeus enhanced',
-            ],
-            'name': '3CB Combo CUP',
-        },
-        {
-            'mod_names': [
-                'advanced combat environment',
-                'community base addons',
-                'cup terrains - core',
-                'enhanced movement',
-                'gruppe adler trenches',
-                'rhs: armed forces of the russian federation',
-                'rhs: gref',
-                'rhs: serbian armed forces',
-                'rhs: united states forces',
-                'tfar',
-                'vet_unflipping',
-                'virolahti',
-                'zeus enhanced',
-            ],
-            'name': 'RHS Virolahti',
-        },
-        {
-            'mod_names': [
-                '3cb: baf equipment',
-                '3cb: baf units',
-                '3cb: baf vehicles',
-                '3cb: baf weapons',
-                'advanced combat environment',
-                'community base addons',
-                'cup terrains - core',
-                'enhanced movement',
-                'gruppe adler trenches',
-                'rhs: armed forces of the russian federation',
-                'rhs: gref',
-                'rhs: serbian armed forces',
-                'rhs: united states forces',
-                'rksl attachments pack',
-                'tfar',
-                'vet_unflipping',
-                'zeus enhanced',
-            ],
-            'name': '3CB BAF Anizay',
-        },
-        {
-            'mod_names': [
-                'advanced combat environment',
-                'community base addons',
-                'cup terrains - core',
-                'enhanced movement',
-                'gruppe adler trenches',
-                'tfar',
-                'vet_unflipping',
-                'zeus enhanced',
-            ],
-            'name': 'Vanilla Anizay',
-        },
-        {
-            'mod_names': [
-                '3cb factions',
-                '3cb: baf equipment',
-                '3cb: baf units',
-                '3cb: baf vehicles',
-                '3cb: baf weapons',
-                'advanced combat environment',
-                'community base addons',
-                'cup terrains - core',
-                'enhanced movement',
-                'gruppe adler trenches',
-                'rhs: armed forces of the russian federation',
-                'rhs: gref',
-                'rhs: serbian armed forces',
-                'rhs: united states forces',
-                'rksl attachments pack',
-                'tfar',
-                'vet_unflipping',
-                'zeus enhanced',
-            ],
-            'name': '3CB Combo Anizay',
-        },
-        {
-            'mod_names': [
-                '3cb: baf equipment',
-                '3cb: baf units',
-                '3cb: baf vehicles',
-                '3cb: baf weapons',
-                'advanced combat environment',
-                'community base addons',
-                'cup terrains - core',
-                'enhanced movement',
-                'gruppe adler trenches',
-                'rhs: armed forces of the russian federation',
-                'rhs: gref',
-                'rhs: serbian armed forces',
-                'rhs: united states forces',
-                'rksl attachments pack',
-                'tfar',
-                'vet_unflipping',
-                'virolahti',
-                'zeus enhanced',
-            ],
-            'name': '3CB BAF Virolahti',
-        },
-        {
-            'mod_names': [
-                'advanced combat environment',
-                'community base addons',
-                'cup terrains - core',
-                'enhanced movement',
-                'gruppe adler trenches',
-                'tfar',
-                'vet_unflipping',
-                'virolahti',
-                'zeus enhanced',
-            ],
-            'name': 'Vanilla Virolahti',
-        },
-        {
-            'mod_names': [
-                '3cb factions',
-                'advanced combat environment',
-                'community base addons',
-                'cup terrains - core',
-                'cup terrains - maps',
-                'enhanced movement',
-                'gruppe adler trenches',
-                'rhs: armed forces of the russian federation',
-                'rhs: gref',
-                'rhs: serbian armed forces',
-                'rhs: united states forces',
-                'tfar',
-                'vet_unflipping',
-                'zeus enhanced',
-            ],
-            'name': '3CB Factions + CUP',
-        },
-        {
-            'mod_names': [
-                '3cb factions',
-                '3cb: baf equipment',
-                '3cb: baf units',
-                '3cb: baf vehicles',
-                '3cb: baf weapons',
-                'advanced combat environment',
-                'community base addons',
-                'cup terrains - core',
-                'enhanced movement',
-                'gruppe adler trenches',
-                'rhs: armed forces of the russian federation',
-                'rhs: gref',
-                'rhs: serbian armed forces',
-                'rhs: united states forces',
-                'rksl attachments pack',
-                'tfar',
-                'vet_unflipping',
-                'virolahti',
-                'zeus enhanced',
-            ],
-            'name': '3CB Combo Virolahti',
-        },
-        {
-            'mod_names': [
-                '3cb factions',
-                'advanced combat environment',
-                'community base addons',
-                'cup terrains - core',
-                'cup terrains - maps',
-                'enhanced movement',
-                'gruppe adler trenches',
-                'rhs: armed forces of the russian federation',
-                'rhs: gref',
-                'rhs: serbian armed forces',
-                'rhs: united states forces',
-                'tfar',
-                'vet_unflipping',
-                'zeus enhanced',
-            ],
-            'name': '3CB Factions + Anizay',
-        },
-        {
-            'mod_names': [
-                '3cb factions',
-                'advanced combat environment',
-                'community base addons',
-                'cup terrains - core',
-                'enhanced movement',
-                'gruppe adler trenches',
-                'rhs: armed forces of the russian federation',
-                'rhs: gref',
-                'rhs: serbian armed forces',
-                'rhs: united states forces',
-                'tfar',
-                'vet_unflipping',
-                'virolahti',
-                'zeus enhanced',
-            ],
-            'name': '3CB Factions + Virolahti',
-        },
-    ]
-
-    with database:
-        ModSet.insert_many(mod_set_data).on_conflict_ignore().execute()
+        model.insert_many(data).on_conflict_ignore().execute()

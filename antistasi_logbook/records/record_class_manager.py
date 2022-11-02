@@ -10,9 +10,12 @@ Soon.
 from typing import TYPE_CHECKING, Union
 from pathlib import Path
 from collections import defaultdict
+import peewee
 from functools import lru_cache
+from itertools import chain
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
+from time import sleep
 from sortedcontainers import SortedSet
 from concurrent.futures import Future
 from threading import RLock
@@ -24,7 +27,7 @@ from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_glo
 from antistasi_logbook.records.base_record import BaseRecord, RecordFamily
 from antistasi_logbook.storage.models.models import LogRecord, RecordClass
 from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
-from antistasi_logbook.parsing.raw_record import RawRecord
+from antistasi_logbook.parsing.py_raw_record import RawRecord
 from frozendict import frozendict
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
@@ -119,11 +122,13 @@ class RecordClassChecker:
 
 
 class RecordClassManager:
-    __slots__ = ("backend", "foreign_key_cache", "_default_record_class_lock", "_default_record_concrete_class", "_default_record_class", "family_handler_table", "_record_class_checker")
+    __slots__ = ("backend", "foreign_key_cache", "_default_record_concrete_class", "_default_record_class", "family_handler_table", "_record_class_checker", "_is_set_up")
     record_class_registry: dict[str, StoredRecordClass] = {}
     record_class_registry_by_id: dict[str, StoredRecordClass] = {}
     generic_record_classes: SortedSet[StoredRecordClass] = SortedSet(key=lambda x: -x.concrete_class.___specificity___)
     antistasi_record_classes: dict[str, Union[SortedSet, StoredRecordClass]] = defaultdict(new_sorted_set)
+    _default_record_class_lock = RLock()
+    _register_lock = RLock()
 
     def __init__(self, backend: "Backend", foreign_key_cache: "ForeignKeyCache", default_record_class: RECORD_CLASS_TYPE = None) -> None:
         self.backend = backend
@@ -133,66 +138,76 @@ class RecordClassManager:
         self._default_record_class: "StoredRecordClass" = None
 
         self._record_class_checker: RecordClassChecker = None
-        self._default_record_class_lock = RLock()
+        self._is_set_up: bool = False
 
     @property
     def record_class_checker(self) -> RecordClassChecker:
-        with self._default_record_class_lock:
-            if self._record_class_checker is None:
-                self._create_record_checker()
-            return self._record_class_checker
 
-    def _create_record_checker(self) -> RecordClassChecker:
+        if self._record_class_checker is None:
+            self.create_record_checker()
+        return self._record_class_checker
 
-        self._record_class_checker = RecordClassChecker(default_record_class=self.default_record_class,
-                                                        generic_record_classes=tuple(self.generic_record_classes.copy()),
-                                                        antistasi_record_classes=self.antistasi_record_classes.copy())
+    def create_record_checker(self) -> RecordClassChecker:
+
+        if self._record_class_checker is None:
+            self._record_class_checker = RecordClassChecker(default_record_class=self.default_record_class,
+                                                            generic_record_classes=tuple(self.generic_record_classes.copy()),
+                                                            antistasi_record_classes=self.antistasi_record_classes.copy())
+        return self._record_class_checker
+
+    def get_record_checker(self) -> RecordClassChecker:
+
+        while self._is_set_up is False:
+            log.debug("waiting for %r '_is_set_up' to turn True (now: %r)", self, self._is_set_up)
+            sleep(0.5)
+        checker = RecordClassChecker(default_record_class=self.default_record_class,
+                                     generic_record_classes=tuple(self.generic_record_classes.copy()),
+                                     antistasi_record_classes=self.antistasi_record_classes.copy())
+        return checker
 
     @property
     def default_record_class(self) -> StoredRecordClass:
         with self._default_record_class_lock:
             if self._default_record_class is None:
-                try:
-                    model = RecordClass.select().where(RecordClass.name == self._default_record_concrete_class.__name__)[0]
-                except IndexError:
-                    model = RecordClass(name=self._default_record_concrete_class.__name__)
-                    model.save()
+                model = RecordClass.get_or_create(name=self._default_record_concrete_class.__name__)[0]
+
                 self._default_record_class = StoredRecordClass(self._default_record_concrete_class, model)
-            return self._default_record_class
+        return self._default_record_class
 
     @classmethod
     def register_record_class(cls, record_class: RECORD_CLASS_TYPE, database: "GidSqliteApswDatabase") -> None:
-        name = record_class.__name__
-        if name in cls.record_class_registry:
-            return
-        with database.connection_context():
-            try:
-                model = RecordClass.select().where(RecordClass.name == name)[0]
-            except IndexError:
-                model = RecordClass(name=name)
-                model.save()
-        model._record_class = record_class
-        stored_item = StoredRecordClass(record_class, model)
-        cls.record_class_registry[name] = stored_item
-        cls.record_class_registry_by_id[str(model.id)] = stored_item
-        if RecordFamily.GENERIC in record_class.___record_family___:
-            cls.generic_record_classes.add(stored_item)
-        if RecordFamily.ANTISTASI in record_class.___record_family___:
-            if record_class.___function___ is None:
-                cls.antistasi_record_classes["DEFAULT"] = stored_item
-            elif isinstance(record_class.___function___, tuple):
-                for f in record_class.___function___:
-                    cls.antistasi_record_classes[f].add(stored_item)
-            else:
-                cls.antistasi_record_classes[record_class.___function___].add(stored_item)
+        with cls._register_lock:
+            name = record_class.__name__
+            if name in cls.record_class_registry:
+                return
+
+            model = RecordClass.get_or_create(name=name)[0]
+
+            model._record_class = record_class
+            stored_item = StoredRecordClass(record_class, model)
+            cls.record_class_registry[name] = stored_item
+            cls.record_class_registry_by_id[str(model.id)] = stored_item
+            if RecordFamily.GENERIC in record_class.___record_family___:
+                cls.generic_record_classes.add(stored_item)
+            if RecordFamily.ANTISTASI in record_class.___record_family___:
+                if record_class.___function___ is None:
+                    cls.antistasi_record_classes["DEFAULT"] = stored_item
+                elif isinstance(record_class.___function___, tuple):
+                    for f in record_class.___function___:
+                        cls.antistasi_record_classes[f].add(stored_item)
+                else:
+                    cls.antistasi_record_classes[record_class.___function___].add(stored_item)
 
     def get_by_name(self, name: str) -> RECORD_CLASS_TYPE:
+
         return self.record_class_registry.get(name, self.default_record_class).concrete_class
 
     def get_by_id(self, model_id: int) -> RECORD_CLASS_TYPE:
+
         return self.record_class_registry_by_id.get(str(model_id), self.default_record_class).concrete_class
 
     def get_model_by_id(self, model_id: int) -> RecordClass:
+
         return self.record_class_registry_by_id.get(str(model_id), self.default_record_class).model
 
     def determine_record_class(self, log_record: LogRecord) -> tuple["RECORD_CLASS_TYPE", LogRecord]:
@@ -200,16 +215,8 @@ class RecordClassManager:
         return self.record_class_checker._determine_record_class(log_record), log_record
 
     def reset(self) -> None:
-        all_registered_classes = list(self.record_class_registry.values())
-        self.record_class_registry.clear()
-        self.record_class_registry_by_id.clear()
-        self.antistasi_record_classes.clear()
-        self.generic_record_classes.clear()
         self._default_record_class = None
-        for registered_class in all_registered_classes:
-            self.register_record_class(registered_class.concrete_class, database=self.backend.database)
-
-        _ = self.record_class_checker
+        self._record_class_checker = self.get_record_checker()
 # region[Main_Exec]
 
 

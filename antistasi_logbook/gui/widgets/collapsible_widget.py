@@ -43,9 +43,20 @@ log = get_logger(__name__)
 # endregion[Constants]
 
 
+class EmptyPlaceholderWidget(QWidget):
+
+    @property
+    def has_content(self) -> bool:
+        return False
+
+
 class CollapsibleGroupBox(QGroupBox):
-    expand_prefix = "▼"
-    collapse_prefix = "▲"
+    _expand_prefix = "▼"
+    _collapse_prefix = "▲"
+    _expand_text = "show"
+    _collapse_text = "hide"
+    _no_content_text = ""
+    _no_content_prefix = ""
 
     def __init__(self, text: str = None, content: QWidget = None, start_expanded: bool = True, parent=None):
         super().__init__(parent=parent)
@@ -53,11 +64,15 @@ class CollapsibleGroupBox(QGroupBox):
         self.layout.setAlignment(Qt.AlignCenter)
         self.setFlat(True)
         self.setAlignment(Qt.AlignCenter)
+        self.no_content_prefix = str(self._no_content_prefix)
+        self.no_content_text = str(self._no_content_text)
+        self.expand_prefix = str(self._expand_prefix)
+        self.collapse_prefix = str(self._collapse_prefix)
+        self.expand_text = str(self._expand_text)
+        self.collapse_text = str(self._collapse_text)
         self.text = text
-        self.content = content
-
+        self.content = content or EmptyPlaceholderWidget()
         self.layout.addWidget(self.content)
-
         self.expanded = True
         self.setTitle(self.full_text)
         self.original_cursor = self.cursor()
@@ -66,16 +81,24 @@ class CollapsibleGroupBox(QGroupBox):
             self.set_expanded(False)
 
     @property
+    def has_content(self) -> bool:
+        return getattr(self.content, "has_content", self.content is not None)
+
+    @property
     def full_text(self) -> str:
-        text = self.text
-        if self.expanded is True:
-            if text is None:
-                text = "hide"
-            return f"{self.collapse_prefix} {text}"
+
+        if self.has_content is False:
+            text = self.no_content_text
+            prefix = self.no_content_prefix
+
+        elif self.expanded is True:
+            text = self.text or self.collapse_text
+            prefix = self.collapse_prefix + " "
+
         else:
-            if text is None:
-                text = "show"
-            return f"{self.expand_prefix} {text}"
+            text = self.text or self.expand_prefix
+            prefix = self.expand_prefix + " "
+        return f"{prefix}{text}"
 
     @ property
     def layout(self) -> QGridLayout:
@@ -87,7 +110,7 @@ class CollapsibleGroupBox(QGroupBox):
 
     def event(self, event: PySide6.QtCore.QEvent) -> bool:
         if event.type() == QEvent.HoverMove:
-            if not self.contentsRect().contains(event.position().toPoint()) and self.current_cursor is not Qt.PointingHandCursor:
+            if self.has_content is True and not self.contentsRect().contains(event.position().toPoint()) and self.current_cursor is not Qt.PointingHandCursor:
                 self.setCursor(Qt.PointingHandCursor)
             elif self.contentsRect().contains(event.position().toPoint()) and self.current_cursor is not self.original_cursor:
                 self.setCursor(self.original_cursor)
@@ -99,14 +122,23 @@ class CollapsibleGroupBox(QGroupBox):
         return super().leaveEvent(event)
 
     def on_title_clicked(self):
-        self.expanded = not self.expanded
-        self.content.setVisible(self.expanded)
-        self.setTitle(self.full_text)
+        if self.has_content:
+            self.set_expanded(not self.expanded)
 
     def set_expanded(self, value: bool):
         self.expanded = value
         self.content.setVisible(value)
         self.setTitle(self.full_text)
+
+    def set_content(self, content: QWidget) -> None:
+        if self.has_content is True:
+            self.layout.removeWidget(self.content)
+        self.content = content
+        self.layout.addWidget(self.content)
+        self.setTitle(self.full_text)
+
+        if self.has_content is False and self.expanded is True:
+            self.set_expanded(False)
 # region[Main_Exec]
 
 

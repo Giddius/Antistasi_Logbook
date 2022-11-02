@@ -51,6 +51,7 @@ class UpdaterSignaler(QObject):
     update_info = Signal(int, str)
     update_increment = Signal(int)
     change_update_text = Signal(str)
+    update_log_file_finished = Signal()
 
     def send_update_increment(self, amount: int = 1):
         self.update_increment.emit(amount)
@@ -69,6 +70,9 @@ class UpdaterSignaler(QObject):
 
     def send_update_info(self, amount, name):
         self.update_info.emit(amount, name)
+
+    def send_log_file_finished(self):
+        self.update_log_file_finished.emit()
 
     def __repr__(self) -> str:
         """

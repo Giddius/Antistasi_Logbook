@@ -75,10 +75,12 @@ class BaseItemDelegate(QStyledItemDelegate):
 
 
 class MarkedImageDelegate(BaseItemDelegate):
+    pixmaps = None
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.pixmaps = {True: AllResourceItems.mark_image.get_as_pixmap(25, 25), False: AllResourceItems.unmark_image.get_as_pixmap(25, 25)}
+        if self.__class__.pixmaps is None:
+            self.__class__.pixmaps = {True: AllResourceItems.mark_image.get_as_pixmap(25, 25), False: AllResourceItems.unmark_image.get_as_pixmap(25, 25)}
 
     def paint(self, painter: QPainter, option, index: QModelIndex):
         self.handle_background(painter, option, index)
@@ -92,10 +94,12 @@ class MarkedImageDelegate(BaseItemDelegate):
 
 
 class BoolImageDelegate(BaseItemDelegate):
+    pixmaps = None
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.pixmaps = {True: AllResourceItems.check_mark_green_image.get_as_pixmap(25, 25), False: AllResourceItems.close_cancel_image.get_as_pixmap(25, 25)}
+        if self.__class__.pixmaps is None:
+            self.__class__.pixmaps = {True: AllResourceItems.check_mark_green_image.get_as_pixmap(25, 25), False: AllResourceItems.close_cancel_image.get_as_pixmap(25, 25)}
 
     def paint(self, painter: QPainter, option, index: QModelIndex):
         self.handle_background(painter, option, index)

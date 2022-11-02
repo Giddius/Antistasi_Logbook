@@ -140,6 +140,7 @@ class DragIconLabel(QWidget):
 
 
 class FindLogRecordsForm(QWidget):
+    search_done = Signal()
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -150,6 +151,9 @@ class FindLogRecordsForm(QWidget):
         self.start_search_button.pressed.connect(self.search)
         self.layout.addWidget(self.start_search_button)
         self.setObjectName(self.__class__.__name__)
+        self._tab_id: int = None
+        self._model: LogRecordsModel = None
+        self.search_done.connect(self.show_result)
 
     def setup_fields(self) -> None:
         self.search_text_field = QLineEdit()
@@ -161,21 +165,28 @@ class FindLogRecordsForm(QWidget):
         query_filter = []
         text = rf"%{self.search_text_field.text()}%"
         query_filter.append((Message.text ** text))
-        self.model = LogRecordsModel()
-        self.model.filter_item = reduce(and_, query_filter)
-        self.model.ordered_by = (LogRecord.log_file.modified_at, LogRecord.recorded_at)
-        log.info("amount to query: %r", self.model.amount_items_to_query())
+        self._model.filter_item = reduce(and_, query_filter)
+        self._model.ordered_by = (LogRecord.log_file, LogRecord.recorded_at)
+        log.info("amount to query: %r", self._model.amount_items_to_query())
+        self._model.refresh()
 
     def search(self):
-        self._set_query()
-        self.start_search_button.start_spinner_with_stop_signal(self.model.modelReset)
-        # self.model.modelReset.connect(self.show_result)
-        self.show_result()
+        self.search_text_field.setEnabled(False)
+        self._model = LogRecordsModel()
+        future = self.app.gui_thread_pool.submit(self._set_query)
+        future.add_done_callback(lambda x: self.search_done.emit())
+        self.start_search_button.start_spinner_while_future(future)
 
     def show_result(self):
-        self.view = LogRecordsQueryView(parent=None)
-        self.view.setModel(self.model)
-        self.view.show()
+        view = LogRecordsQueryView(parent=None)
+        view.setModel(self._model)
+        _id = self.app.main_window.main_widget.main_tabs_widget.add_normal_tab(view, icon=AllResourceItems.zoom_in_cursor_image.get_as_icon(), label=f"SEARCH {self.search_text_field.text()!r}")
+        self.app.main_window.main_widget.main_tabs_widget.setCurrentIndex(_id)
+        self.search_text_field.setEnabled(True)
+
+    def _close_tab(self, index: int):
+        if index == self._tab_id:
+            self.app.main_window.main_widget.main_tabs_widget.removeTab(self._tab_id)
 
     @property
     def layout(self) -> QFormLayout:
@@ -217,39 +228,9 @@ class LogFileToolBar(BaseToolBar):
 
         self.find_log_records_action.triggered.connect(self.on_find_log_records)
 
-        self.add_local_file_action = QAction(AllResourceItems.local_file_image.get_as_icon(), "Add local Log-File", self)
-        self.addAction(self.add_local_file_action)
-        self.add_local_file_action.triggered.connect(self.on_add_local_file)
-
     def on_find_log_records(self):
         form = FindLogRecordsForm(parent=None)
         form.show()
-
-    def on_add_local_file(self):
-        self.add_local_file_window = QWidget()
-        self.add_local_file_window.setLayout(QFormLayout())
-        self.add_local_file_path_input = PathSelectValueField(for_file=True)
-        self.add_local_file_window.layout().addRow("Path", self.add_local_file_path_input)
-
-        self.add_local_file_server_input = QComboBox()
-        from antistasi_logbook.gui.models.server_model import ServerModel
-        server_model = ServerModel().refresh()
-
-        self.add_local_file_server_input.setModel(server_model)
-        self.add_local_file_server_input.setModelColumn(self.add_local_file_server_input.model().get_column_index("name"))
-        self.add_local_file_server_input.setCurrentIndex(-1)
-        self.add_local_file_window.layout().addRow("Server", self.add_local_file_server_input)
-
-        self.done_button = QPushButton("Done")
-        self.done_button.pressed.connect(self.show_info_item)
-        self.add_local_file_window.layout().addWidget(self.done_button)
-        self.add_local_file_window.show()
-
-    def show_info_item(self):
-        from antistasi_logbook.storage.models.models import RemoteStorage
-        manager = RemoteStorage.get(name="local_files").as_remote_manager()
-        import pp
-        pp(manager.get_info(Path(self.add_local_file_path_input.get_value())))
 
 
 # region[Main_Exec]

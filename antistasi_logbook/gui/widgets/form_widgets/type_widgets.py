@@ -17,7 +17,7 @@ import PySide6
 from PySide6.QtGui import QFont
 from PySide6.QtCore import Qt, Slot, Signal
 from PySide6.QtWidgets import (QWidget, QSpinBox, QCheckBox, QComboBox, QLineEdit, QTextEdit, QFileDialog, QGridLayout, QHBoxLayout,
-                               QListWidget, QPushButton, QSizePolicy, QSpacerItem, QApplication, QButtonGroup, QRadioButton, QDoubleSpinBox)
+                               QListWidget, QPushButton, QSizePolicy, QSpacerItem, QApplication, QButtonGroup, QRadioButton, QDoubleSpinBox, QMessageBox)
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 import qt_material
@@ -72,9 +72,14 @@ ALL_VALUE_FIELDS: dict[str, type[TypeWidgetProtocol]] = {}
 
 def _add_value_field(value_field: type[TypeWidgetProtocol]):
     ALL_VALUE_FIELDS[value_field.___for_type___] = value_field
+    try:
+
+        for alias in value_field.___for_type_aliases___:
+            ALL_VALUE_FIELDS[alias] = value_field
+    except AttributeError:
+        pass
 
 
-@implements_protocol(TypeWidgetProtocol)
 class BoolValueField(QWidget):
     ___for_type___ = "boolean"
 
@@ -157,7 +162,6 @@ class TimeSpinBox(QSpinBox):
         self.layout.setAlignment(value)
 
 
-@implements_protocol(TypeWidgetProtocol)
 class TimeDeltaValueField(QWidget):
     ___for_type___ = "timedelta"
     all_units = tuple(unit for unit in TimeUnits(False) if unit.factor >= TimeUnits(False)["second"].factor)
@@ -193,7 +197,7 @@ class TimeDeltaValueField(QWidget):
         return self.get_value() != self.start_value
 
     def set_value(self, value: timedelta, is_start: bool = False):
-        parts = seconds2human(value, as_dict_result=True)
+        parts = seconds2human(value, as_dict_result=True, with_year=False)
         log.debug("seconds2human-parts: %r", parts)
         for _unit, _value in parts.items():
             self.inputs[_unit].setValue(_value)
@@ -221,7 +225,6 @@ class TimeDeltaValueField(QWidget):
 _add_value_field(TimeDeltaValueField)
 
 
-@implements_protocol(TypeWidgetProtocol)
 class UpdateTimeFrameValueField(TimeDeltaValueField):
 
     def setup_inputs(self):
@@ -229,9 +232,10 @@ class UpdateTimeFrameValueField(TimeDeltaValueField):
         self.all_check_box.setLayoutDirection(Qt.RightToLeft)
         self.layout.addWidget(self.all_check_box)
         super().setup_inputs()
-        self.all_check_box.stateChanged.connect(self.all_pressed)
         self.all_check_box.setChecked(True)
-        self.all_pressed(True)
+        self.all_check_box.clicked.connect(self.all_pressed)
+
+        self._handle_all_value(True)
 
     def set_value(self, value: timedelta, is_start: bool = False):
         self.all_check_box.setChecked(False)
@@ -243,18 +247,28 @@ class UpdateTimeFrameValueField(TimeDeltaValueField):
         return super().get_value()
 
     def all_pressed(self, active: bool):
+        log.debug("all_pressed triggered with active: %r", active)
+        if active is True or active == 2:
+            value = QMessageBox.warning(self,
+                                        "All Log-Files",
+                                        '\n'.join(i.strip() for i in """Updating all Log-Files at once can take a lot of time (up to 30 min) and a lot of disk space (5+Gb).
+
+                                        Do you really want to set it to update all Log-Files?""".splitlines()),
+                                        QMessageBox.StandardButton.Yes,
+                                        QMessageBox.StandardButton.Cancel)
+            if value == QMessageBox.StandardButton.Cancel.value:
+                self.all_check_box.setChecked(False)
+                return
+        self._handle_all_value(active=active)
+
+    def _handle_all_value(self, active: bool):
 
         for input_field in self.inputs.values():
             input_field.setEnabled(not active)
             if active == 2 or active is True:
                 input_field.setValue(0)
-        # if active == 0 or active is False:
-
-        #     if self.get_value().total_seconds() == 0:
-        #         self.inputs[TimeUnits(False)["days"]].setValue(1)
 
 
-@implements_protocol(TypeWidgetProtocol)
 class FileSizeValueField(QWidget):
     ___for_type___ = "file_size"
     all_symbols = tuple(["b"] + list(FILE_SIZE_REFERENCE.symbols))
@@ -342,9 +356,9 @@ class FileSizeValueField(QWidget):
 _add_value_field(FileSizeValueField)
 
 
-@implements_protocol(TypeWidgetProtocol)
 class IntegerValueField(QWidget):
     ___for_type___ = "integer"
+    ___for_type_aliases___ = ("int",)
 
     def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None, maximum: int = 100000) -> None:
         super().__init__(parent=parent)
@@ -376,7 +390,6 @@ class IntegerValueField(QWidget):
 _add_value_field(IntegerValueField)
 
 
-@implements_protocol(TypeWidgetProtocol)
 class FloatValueField(QWidget):
     ___for_type___ = "float"
 
@@ -411,7 +424,6 @@ class FloatValueField(QWidget):
 _add_value_field(FloatValueField)
 
 
-@implements_protocol(TypeWidgetProtocol)
 class StringValueField(QWidget):
     ___for_type___ = "string"
 
@@ -434,8 +446,11 @@ class StringValueField(QWidget):
         return self.get_value() != self.start_value
 
     def set_value(self, value: str, is_start: bool = False):
+
         self.text_part.setText(value)
+
         if is_start:
+
             self.start_value = value
 
     def get_value(self) -> str:
@@ -445,7 +460,6 @@ class StringValueField(QWidget):
 _add_value_field(StringValueField)
 
 
-@implements_protocol(TypeWidgetProtocol)
 class PathValueField(QWidget):
     ___for_type___ = "path"
 
@@ -511,7 +525,6 @@ class PathValueField(QWidget):
 _add_value_field(PathValueField)
 
 
-@implements_protocol(TypeWidgetProtocol)
 class ListValueField(QWidget):
     ___for_type___ = "list"
 
@@ -545,7 +558,6 @@ class ListValueField(QWidget):
 _add_value_field(ListValueField)
 
 
-@implements_protocol(TypeWidgetProtocol)
 class StyleValueField(QComboBox):
     ''' This QComboBox will allow the user to change the application
         style sheet on demand '''

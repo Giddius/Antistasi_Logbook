@@ -114,10 +114,12 @@ class DefaultExceptionHandler:
 
     def handle_thread_except_hook(self, args: threading.ExceptHookArgs):
         log.error(args.exc_value, exc_info=True, stacklevel=3)
+        log.error(''.join(format_tb(args.exc_traceback)))
         self.original_threading_except_hook(args)
 
     def handle_except_hook(self, type_, value, traceback):
-        log.error(value, exc_info=True, stacklevel=3)
+        log.error(value, exc_info=True)
+        log.error(''.join(format_tb(traceback)))
         self.original_sys_except_hook(type_, value, traceback)
 
 
@@ -211,6 +213,9 @@ class _ExceptionHandlerManager:
             log.critical("encountered exception %r while handling thread exception(%r).", e, (type_, value, traceback))
             self.default_exception_handler.handle_thread_except_hook((type_, value, traceback))
 
+    def unraisable_except_hook(self, except_args: "sys.UnraisableHookArgs"):
+        log.error("unraisable exception %r: %r of object %r", except_args.exc_value, except_args.err_msg, except_args.object, exc_info=except_args.exc_traceback)
+
 
 _HANDLER_SETUP_LOCK = threading.RLock()
 
@@ -227,6 +232,7 @@ def setup_exception_handler():
         else:
             threading.excepthook = ExceptionHandlerManager.thread_except_hook
             sys.excepthook = ExceptionHandlerManager.except_hook
+            sys.unraisablehook = ExceptionHandlerManager.unraisable_except_hook
             _HANDLER_IS_SETUP = True
 
 

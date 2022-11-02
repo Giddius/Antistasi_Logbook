@@ -8,12 +8,14 @@ Soon.
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import queue
+import apsw
 import random
 from time import sleep, perf_counter, perf_counter_ns
 from typing import TYPE_CHECKING, Any, Optional, Generator, Iterator, Iterable
 from pathlib import Path
 from datetime import datetime
 from threading import Event, Lock, RLock
+from collections import defaultdict
 from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor, wait, Future, FIRST_EXCEPTION
 import math
 import gc
@@ -23,10 +25,10 @@ from dateutil.tz import UTC
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.gid_signal.interface import get_signal
-from gidapptools.general_helper.conversion import number_to_pretty, ns_to_s
+from gidapptools.general_helper.conversion import number_to_pretty, ns_to_s, human2bytes, bytes2human
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord, RecordClass, OriginalLogFile, Mod, LogFileAndModJoin
+from antistasi_logbook.storage.models.models import Server, LogFile, LogRecord, RecordClass, OriginalLogFile, Mod, LogFileAndModJoin, MeanUpdateTimePerLogFile
 from antistasi_logbook.updating.remote_managers import remote_manager_registry
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 
@@ -55,6 +57,15 @@ if TYPE_CHECKING:
 get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
+
+
+# FIX THIS ASAP "THESE LOG FILES JUST GET MARKED AS TO UPDATED OVER AND OVER"
+HARD_BANNED_LOG_FILES: defaultdict[str, list[str]] = defaultdict(list)
+HARD_BANNED_LOG_FILES["testserver_1"].append("arma3server_x64_2022-07-24_11-22-56")
+HARD_BANNED_LOG_FILES["testserver_2"].append("arma3server_x64_2022-07-24_11-22-56")
+HARD_BANNED_LOG_FILES["mainserver_2"].append("arma3server_x64_2022-09-11_13-08-37")
+HARD_BANNED_LOG_FILES["mainserver_1"].append("arma3server_x64_2022-09-11_13-08-37")
+
 
 # endregion[Constants]
 
@@ -232,24 +243,27 @@ class Updater:
         current_log_files = {log_file.name: log_file for log_file in self.database.get_log_files(server=server)}
         for l in current_log_files.values():
             _ = l.has_mods
-            _ = l.has_mods
-            _ = l.has_mods
+            l.server = server
         cutoff_datetime = self.get_cutoff_datetime()
         log.debug("cutoff_datetime: %r", cutoff_datetime)
 
         for remote_info in server.get_remote_files():
             if cutoff_datetime is not None and remote_info.modified_at < cutoff_datetime:
                 continue
-
+            # if remote_info.name in HARD_BANNED_LOG_FILES[server.name.casefold()]:
+            #     continue
             stored_file: LogFile = current_log_files.get(remote_info.name, None)
 
             if stored_file is None:
+
                 to_update_files.append(self._create_new_log_file(server=server, remote_info=remote_info))
 
             elif stored_file.modified_at < remote_info.modified_at or stored_file.size < remote_info.size:
+
                 to_update_files.append(self._update_log_file(log_file=stored_file, remote_info=remote_info))
 
             elif stored_file.last_parsed_datetime != stored_file.modified_at and stored_file.unparsable is False:
+
                 to_update_files.append(stored_file)
 
         return sorted(to_update_files, key=lambda x: x.modified_at, reverse=True)
@@ -262,9 +276,11 @@ class Updater:
             return 0
         amount_deleted = 0
         tasks = []
-        with self.database.connection_context() as ctx:
-            for log_file in tuple(LogFile.select().where(LogFile.server_id == server.id).where(LogFile.modified_at < cutoff_datetime).iterator()):
+        idx = 0
+        to_delete = tuple(LogFile.select().where((LogFile.server_id == server.id) & (LogFile.modified_at < cutoff_datetime)).iterator())
 
+        for log_file in to_delete:
+            try:
                 log.info("removing log-file %r of server %r", log_file, server)
 
                 if log_file.original_file is not None:
@@ -273,7 +289,12 @@ class Updater:
                 # tasks.append(self.backend.inserting_thread_pool.submit(log_file.delete_instance, True))
 
                 log_file.delete_instance(True, True)
+                idx += 1
 
+                if idx % 10 == 0:
+                    self.backend.inserting_thread_pool.submit(self.database.checkpoint).result()
+            except Exception as e:
+                log.error(e, exc_info=True)
             # sleep(0.5)
             # amount_deleted += 1
             # if amount_deleted % 10 == 0:
@@ -304,6 +325,7 @@ class Updater:
         if force is True:
             context.force = True
         context.done_signal = self.signaler.send_update_increment
+        context.log_file_done_signal = self.signaler.send_log_file_finished
         with context:
 
             log.debug("starting to parse %s", log_file)
@@ -312,6 +334,7 @@ class Updater:
                     break
                 context.insert_record(processed_record)
             context._dump_rest()
+        # gc.collect()
 
     def process(self, server: "Server") -> None:
         log.debug("processing server %r", server)
@@ -324,6 +347,7 @@ class Updater:
                 sub_task = self.thread_pool.submit(self.process_log_file, log_file=log_file)
 
                 tasks.append(sub_task)
+                sleep(random.randint(0, 2) + random.random())
 
         wait(tasks, return_when=ALL_COMPLETED, timeout=None)
 
@@ -359,7 +383,7 @@ class Updater:
         old_idx = 0
         idx = 0
         amount_updated_record_classes = 0
-        self.backend.record_class_manager._create_record_checker()
+        self.backend.record_class_manager.create_record_checker()
         full_amount = self.database.get_amount_iter_all_records(server=server, log_file=log_file, only_missing_record_class=not force)
         log.debug("amount of log-records to check: %r", full_amount)
         if full_amount <= 0:
@@ -427,6 +451,8 @@ class Updater:
             # self.signaler.send_update_record_classes_finished()
 
     def before_updates(self):
+        self.backend.record_class_manager.create_record_checker()
+        self.database.checkpoint()
         log.debug("emiting before_updates_signal")
         self.signaler.send_update_started()
 
@@ -459,33 +485,37 @@ class Updater:
                     while self.pause_event.is_set() is True:
                         sleep(0.25)
                     log.info("STARTED updating %r", server)
-                    amount_log_files_updated += self.process(server=server)
-                    update_tasks.append(self.backend.thread_pool.submit(self._update_record_classes, server=server))
+                    new_amount_updated = self.process(server=server)
+                    amount_log_files_updated += new_amount_updated
+                    # log.debug("released %r amount of DB-memory", bytes2human(apsw.releasememory(1000)))
+                    # update_tasks.append(self.backend.thread_pool.submit(self._update_record_classes, server=server))
                     log.info("FINISHED updating server %r", server)
-                    self.database.checkpoint()
+                    update_tasks.append(self.backend.inserting_thread_pool.submit(self.database.checkpoint))
             wait(update_tasks, return_when=ALL_COMPLETED)
             log.debug("All record class update tasks have finished")
+            del_tasks = []
             amount_deleted = 0
             for server in self.database.get_all_server():
                 if server.is_updatable() is False:
                     continue
                 if self.stop_event.is_set() is False:
                     log.info("checking old log_files to delete for server %r", server)
-                    amount_deleted += self._handle_old_log_files(server=server)
+                    del_tasks.append(self.thread_pool.submit(self._handle_old_log_files, server=server))
 
-            if amount_deleted > 0:
-                if self.stop_event.is_set() is False:
-                    self.database.vacuum()
-                    self.database.optimize()
-                    self.database.checkpoint()
+            wait(del_tasks, return_when=ALL_COMPLETED)
+
             self.database.session_meta_data.update_finished()
-
+            self.thread_pool.submit(LogFile.refresh_dynamic_for_all_log_files)
         finally:
             self.is_updating_event.clear()
             self.after_updates()
         update_finish_time = perf_counter_ns()
         update_time_taken = ns_to_s(update_finish_time - update_start_time, 3)
-        time_per_log_file = ns_to_s(update_finish_time - update_start_time) / max(1, amount_log_files_updated)
+        if amount_log_files_updated > 0:
+            time_per_log_file = ns_to_s((update_finish_time - update_start_time) / amount_log_files_updated)
+            MeanUpdateTimePerLogFile.insert_new_measurement(time_taken_per_log_file=time_per_log_file, amount_updated=amount_log_files_updated)
+        else:
+            time_per_log_file = 0
         log.info("The update took %r s for %r updated log-files and %r deleted log-files -> %r s per updated log-file", update_time_taken, amount_log_files_updated, amount_deleted, round(time_per_log_file, ndigits=3))
         return amount_log_files_updated, amount_deleted
 

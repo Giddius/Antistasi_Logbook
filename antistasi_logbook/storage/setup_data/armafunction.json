@@ -1,0 +1,2099 @@
+[
+    {
+        "name": "initServer",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_initServer.sqf",
+        "function_name": "A3A_fnc_initServer"
+    },
+    {
+        "name": "initParams",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_initParams.sqf",
+        "function_name": "A3A_fnc_initParams"
+    },
+    {
+        "name": "initFuncs",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_initFuncs.sqf",
+        "function_name": "A3A_fnc_initFuncs"
+    },
+    {
+        "name": "initVar",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_initVar.sqf",
+        "function_name": "A3A_fnc_initVar"
+    },
+    {
+        "name": "initVarCommon",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_initVarCommon.sqf",
+        "function_name": "A3A_fnc_initVarCommon"
+    },
+    {
+        "name": "initVarServer",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_initVarServer.sqf",
+        "function_name": "A3A_fnc_initVarServer"
+    },
+    {
+        "name": "initDisabledMods",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_initDisabledMods.sqf",
+        "function_name": "A3A_fnc_initDisabledMods"
+    },
+    {
+        "name": "compatibilityLoadFaction",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_compatibilityLoadFaction.sqf",
+        "function_name": "A3A_fnc_compatibilityLoadFaction"
+    },
+    {
+        "name": "registerUnitType",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_registerUnitType.sqf",
+        "function_name": "A3A_fnc_registerUnitType"
+    },
+    {
+        "name": "aceModCompat",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_aceModCompat.sqf",
+        "function_name": "A3A_fnc_aceModCompat"
+    },
+    {
+        "name": "initVarClient",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_initVarClient.sqf",
+        "function_name": "A3A_fnc_initVarClient"
+    },
+    {
+        "name": "initACEUnconsciousHandler",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_initACEUnconsciousHandler.sqf",
+        "function_name": "A3A_fnc_initACEUnconsciousHandler"
+    },
+    {
+        "name": "loadNavGrid",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_loadNavGrid.sqf",
+        "function_name": "A3A_fnc_loadNavGrid"
+    },
+    {
+        "name": "initZones",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_initZones.sqf",
+        "function_name": "A3A_fnc_initZones"
+    },
+    {
+        "name": "initSpawnPlaces",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_initSpawnPlaces.sqf",
+        "function_name": "A3A_fnc_initSpawnPlaces"
+    },
+    {
+        "name": "initGarrisons",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_initGarrisons.sqf",
+        "function_name": "A3A_fnc_initGarrisons"
+    },
+    {
+        "name": "addHC",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_addHC.sqf",
+        "function_name": "A3A_fnc_addHC"
+    },
+    {
+        "name": "loadServer",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_loadServer.sqf",
+        "function_name": "A3A_fnc_loadServer"
+    },
+    {
+        "name": "returnSavedStat",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_returnSavedStat.sqf",
+        "function_name": "A3A_fnc_returnSavedStat"
+    },
+    {
+        "name": "getStatVariable",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_getStatVariable.sqf",
+        "function_name": "A3A_fnc_getStatVariable"
+    },
+    {
+        "name": "loadStat",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_loadStat.sqf",
+        "function_name": "A3A_fnc_loadStat"
+    },
+    {
+        "name": "updatePreference",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_updatePreference.sqf",
+        "function_name": "A3A_fnc_updatePreference"
+    },
+    {
+        "name": "tierCheck",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_tierCheck.sqf",
+        "function_name": "A3A_fnc_tierCheck"
+    },
+    {
+        "name": "initPetros",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_initPetros.sqf",
+        "function_name": "A3A_fnc_initPetros"
+    },
+    {
+        "name": "createPetros",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_createPetros.sqf",
+        "function_name": "A3A_fnc_createPetros"
+    },
+    {
+        "name": "assignBossIfNone",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_assignBossIfNone.sqf",
+        "function_name": "A3A_fnc_assignBossIfNone"
+    },
+    {
+        "name": "loadPlayer",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_loadPlayer.sqf",
+        "function_name": "A3A_fnc_loadPlayer"
+    },
+    {
+        "name": "logPerformance",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_logPerformance.sqf",
+        "function_name": "A3A_fnc_logPerformance"
+    },
+    {
+        "name": "scheduler",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_scheduler.sqf",
+        "function_name": "A3A_fnc_scheduler"
+    },
+    {
+        "name": "distance",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_distance.sqf",
+        "function_name": "A3A_fnc_distance"
+    },
+    {
+        "name": "onPlayerDisconnect",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_onPlayerDisconnect.sqf",
+        "function_name": "A3A_fnc_onPlayerDisconnect"
+    },
+    {
+        "name": "savePlayer",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_savePlayer.sqf",
+        "function_name": "A3A_fnc_savePlayer"
+    },
+    {
+        "name": "theBossTransfer",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_theBossTransfer.sqf",
+        "function_name": "A3A_fnc_theBossTransfer"
+    },
+    {
+        "name": "punishment_FF",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_punishment_FF.sqf",
+        "function_name": "A3A_fnc_punishment_FF"
+    },
+    {
+        "name": "punishment",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_punishment.sqf",
+        "function_name": "A3A_fnc_punishment"
+    },
+    {
+        "name": "economicsAI",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_economicsAI.sqf",
+        "function_name": "A3A_fnc_economicsAI"
+    },
+    {
+        "name": "resourcecheck",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_resourcecheck.sqf",
+        "function_name": "A3A_fnc_resourcecheck"
+    },
+    {
+        "name": "rebelAttack",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_rebelAttack.sqf",
+        "function_name": "A3A_fnc_rebelAttack"
+    },
+    {
+        "name": "promotePlayer",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_promotePlayer.sqf",
+        "function_name": "A3A_fnc_promotePlayer"
+    },
+    {
+        "name": "reinforcementsAI",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_reinforcementsAI.sqf",
+        "function_name": "A3A_fnc_reinforcementsAI"
+    },
+    {
+        "name": "AAFroadPatrol",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_AAFroadPatrol.sqf",
+        "function_name": "A3A_fnc_AAFroadPatrol"
+    },
+    {
+        "name": "createAIAction",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_createAIAction.sqf",
+        "function_name": "A3A_fnc_createAIAction"
+    },
+    {
+        "name": "wavedCA",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_wavedCA.sqf",
+        "function_name": "A3A_fnc_wavedCA"
+    },
+    {
+        "name": "retrievePlayerStat",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_retrievePlayerStat.sqf",
+        "function_name": "A3A_fnc_retrievePlayerStat"
+    },
+    {
+        "name": "resetPlayer",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_resetPlayer.sqf",
+        "function_name": "A3A_fnc_resetPlayer"
+    },
+    {
+        "name": "WPCreate",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_WPCreate.sqf",
+        "function_name": "A3A_fnc_WPCreate"
+    },
+    {
+        "name": "findPath",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_findPath.sqf",
+        "function_name": "A3A_fnc_findPath"
+    },
+    {
+        "name": "chooseSupport",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_chooseSupport.sqf",
+        "function_name": "A3A_fnc_chooseSupport"
+    },
+    {
+        "name": "AIreactOnKill",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_AIreactOnKill.sqf",
+        "function_name": "A3A_fnc_AIreactOnKill"
+    },
+    {
+        "name": "vehKilledOrCaptured",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_vehKilledOrCaptured.sqf",
+        "function_name": "A3A_fnc_vehKilledOrCaptured"
+    },
+    {
+        "name": "postmortem",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_postmortem.sqf",
+        "function_name": "A3A_fnc_postmortem"
+    },
+    {
+        "name": "AIVEHinit",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_AIVEHinit.sqf",
+        "function_name": "A3A_fnc_AIVEHinit"
+    },
+    {
+        "name": "supportAvailable",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_supportAvailable.sqf",
+        "function_name": "A3A_fnc_supportAvailable"
+    },
+    {
+        "name": "sendSupport",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_sendSupport.sqf",
+        "function_name": "A3A_fnc_sendSupport"
+    },
+    {
+        "name": "createSupport",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_createSupport.sqf",
+        "function_name": "A3A_fnc_createSupport"
+    },
+    {
+        "name": "SUP_mortar",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_SUP_mortar.sqf",
+        "function_name": "A3A_fnc_SUP_mortar"
+    },
+    {
+        "name": "saveLoop",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_saveLoop.sqf",
+        "function_name": "A3A_fnc_saveLoop"
+    },
+    {
+        "name": "theBossToggleEligibility",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_theBossToggleEligibility.sqf",
+        "function_name": "A3A_fnc_theBossToggleEligibility"
+    },
+    {
+        "name": "patrolReinf",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_patrolReinf.sqf",
+        "function_name": "A3A_fnc_patrolReinf"
+    },
+    {
+        "name": "selectReinfUnits",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_selectReinfUnits.sqf",
+        "function_name": "A3A_fnc_selectReinfUnits"
+    },
+    {
+        "name": "replenishGarrison",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_replenishGarrison.sqf",
+        "function_name": "A3A_fnc_replenishGarrison"
+    },
+    {
+        "name": "createConvoy",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_createConvoy.sqf",
+        "function_name": "A3A_fnc_createConvoy"
+    },
+    {
+        "name": "findSpawnPosition",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_findSpawnPosition.sqf",
+        "function_name": "A3A_fnc_findSpawnPosition"
+    },
+    {
+        "name": "milBuildings",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_milBuildings.sqf",
+        "function_name": "A3A_fnc_milBuildings"
+    },
+    {
+        "name": "placeIntel",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_placeIntel.sqf",
+        "function_name": "A3A_fnc_placeIntel"
+    },
+    {
+        "name": "makePlayerBossIfEligible",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_makePlayerBossIfEligible.sqf",
+        "function_name": "A3A_fnc_makePlayerBossIfEligible"
+    },
+    {
+        "name": "createAIOutposts",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_createAIOutposts.sqf",
+        "function_name": "A3A_fnc_createAIOutposts"
+    },
+    {
+        "name": "unlockEquipment",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_unlockEquipment.sqf",
+        "function_name": "A3A_fnc_unlockEquipment"
+    },
+    {
+        "name": "arsenalManage",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_arsenalManage.sqf",
+        "function_name": "A3A_fnc_arsenalManage"
+    },
+    {
+        "name": "attackDrillAI",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_attackDrillAI.sqf",
+        "function_name": "A3A_fnc_attackDrillAI"
+    },
+    {
+        "name": "callForSupport",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_callForSupport.sqf",
+        "function_name": "A3A_fnc_callForSupport"
+    },
+    {
+        "name": "findBaseForQRF",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_findBaseForQRF.sqf",
+        "function_name": "A3A_fnc_findBaseForQRF"
+    },
+    {
+        "name": "freeSpawnPositions",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_freeSpawnPositions.sqf",
+        "function_name": "A3A_fnc_freeSpawnPositions"
+    },
+    {
+        "name": "SUP_QRF",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_SUP_QRF.sqf",
+        "function_name": "A3A_fnc_SUP_QRF"
+    },
+    {
+        "name": "getVehiclePoolForQRFs",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_getVehiclePoolForQRFs.sqf",
+        "function_name": "A3A_fnc_getVehiclePoolForQRFs"
+    },
+    {
+        "name": "spawnVehicleAtMarker",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_spawnVehicleAtMarker.sqf",
+        "function_name": "A3A_fnc_spawnVehicleAtMarker"
+    },
+    {
+        "name": "createVehicleQRFBehaviour",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_createVehicleQRFBehaviour.sqf",
+        "function_name": "A3A_fnc_createVehicleQRFBehaviour"
+    },
+    {
+        "name": "createAttackVehicle",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_createAttackVehicle.sqf",
+        "function_name": "A3A_fnc_createAttackVehicle"
+    },
+    {
+        "name": "vehiclePrice",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_vehiclePrice.sqf",
+        "function_name": "A3A_fnc_vehiclePrice"
+    },
+    {
+        "name": "SUP_QRFRoutine",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_SUP_QRFRoutine.sqf",
+        "function_name": "A3A_fnc_SUP_QRFRoutine"
+    },
+    {
+        "name": "SUP_mortarRoutine",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_SUP_mortarRoutine.sqf",
+        "function_name": "A3A_fnc_SUP_mortarRoutine"
+    },
+    {
+        "name": "endSupport",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_endSupport.sqf",
+        "function_name": "A3A_fnc_endSupport"
+    },
+    {
+        "name": "spawnConvoy",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_spawnConvoy.sqf",
+        "function_name": "A3A_fnc_spawnConvoy"
+    },
+    {
+        "name": "convoyMovement",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_convoyMovement.sqf",
+        "function_name": "A3A_fnc_convoyMovement"
+    },
+    {
+        "name": "spawnConvoyLine",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_spawnConvoyLine.sqf",
+        "function_name": "A3A_fnc_spawnConvoyLine"
+    },
+    {
+        "name": "splitVehicleCrewIntoOwnGroups",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_splitVehicleCrewIntoOwnGroups.sqf",
+        "function_name": "A3A_fnc_splitVehicleCrewIntoOwnGroups"
+    },
+    {
+        "name": "garbageCleaner",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_garbageCleaner.sqf",
+        "function_name": "A3A_fnc_garbageCleaner"
+    },
+    {
+        "name": "convoy",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_convoy.sqf",
+        "function_name": "A3A_fnc_convoy"
+    },
+    {
+        "name": "missionRequest",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_missionRequest.sqf",
+        "function_name": "A3A_fnc_missionRequest"
+    },
+    {
+        "name": "findAirportForAirstrike",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_findAirportForAirstrike.sqf",
+        "function_name": "A3A_fnc_findAirportForAirstrike"
+    },
+    {
+        "name": "SUP_CAS",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_SUP_CAS.sqf",
+        "function_name": "A3A_fnc_SUP_CAS"
+    },
+    {
+        "name": "despawnConvoy",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_despawnConvoy.sqf",
+        "function_name": "A3A_fnc_despawnConvoy"
+    },
+    {
+        "name": "zoneCheck",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_zoneCheck.sqf",
+        "function_name": "A3A_fnc_zoneCheck"
+    },
+    {
+        "name": "findPathPrecheck",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_findPathPrecheck.sqf",
+        "function_name": "A3A_fnc_findPathPrecheck"
+    },
+    {
+        "name": "SUP_airstrike",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_SUP_airstrike.sqf",
+        "function_name": "A3A_fnc_SUP_airstrike"
+    },
+    {
+        "name": "markerChange",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_markerChange.sqf",
+        "function_name": "A3A_fnc_markerChange"
+    },
+    {
+        "name": "setPlaneLoadout",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_setPlaneLoadout.sqf",
+        "function_name": "A3A_fnc_setPlaneLoadout"
+    },
+    {
+        "name": "SUP_CASRoutine",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_SUP_CASRoutine.sqf",
+        "function_name": "A3A_fnc_SUP_CASRoutine"
+    },
+    {
+        "name": "SUP_CASRun",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_SUP_CASRun.sqf",
+        "function_name": "A3A_fnc_SUP_CASRun"
+    },
+    {
+        "name": "paradrop",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_paradrop.sqf",
+        "function_name": "A3A_fnc_paradrop"
+    },
+    {
+        "name": "SUP_QRFAvailable",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_SUP_QRFAvailable.sqf",
+        "function_name": "A3A_fnc_SUP_QRFAvailable"
+    },
+    {
+        "name": "SUP_airstrikeRoutine",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_SUP_airstrikeRoutine.sqf",
+        "function_name": "A3A_fnc_SUP_airstrikeRoutine"
+    },
+    {
+        "name": "airbomb",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_airbomb.sqf",
+        "function_name": "A3A_fnc_airbomb"
+    },
+    {
+        "name": "addSupportTarget",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_addSupportTarget.sqf",
+        "function_name": "A3A_fnc_addSupportTarget"
+    },
+    {
+        "name": "SUP_ASF",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_SUP_ASF.sqf",
+        "function_name": "A3A_fnc_SUP_ASF"
+    },
+    {
+        "name": "spawnDebuggingLoop",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_spawnDebuggingLoop.sqf",
+        "function_name": "A3A_fnc_spawnDebuggingLoop"
+    },
+    {
+        "name": "punishment_checkStatus",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_punishment_checkStatus.sqf",
+        "function_name": "A3A_fnc_punishment_checkStatus"
+    },
+    {
+        "name": "createAIResources",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_createAIResources.sqf",
+        "function_name": "A3A_fnc_createAIResources"
+    },
+    {
+        "name": "punishment_release",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_punishment_release.sqf",
+        "function_name": "A3A_fnc_punishment_release"
+    },
+    {
+        "name": "mrkWIN",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_mrkWIN.sqf",
+        "function_name": "A3A_fnc_mrkWIN"
+    },
+    {
+        "name": "singleAttack",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_singleAttack.sqf",
+        "function_name": "A3A_fnc_singleAttack"
+    },
+    {
+        "name": "vehicleConvoyTravel",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_vehicleConvoyTravel.sqf",
+        "function_name": "A3A_fnc_vehicleConvoyTravel"
+    },
+    {
+        "name": "invaderPunish",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_invaderPunish.sqf",
+        "function_name": "A3A_fnc_invaderPunish"
+    },
+    {
+        "name": "occupantInvaderUnitKilledEH",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_occupantInvaderUnitKilledEH.sqf",
+        "function_name": "A3A_fnc_occupantInvaderUnitKilledEH"
+    },
+    {
+        "name": "rebuildRadioTower",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_rebuildRadioTower.sqf",
+        "function_name": "A3A_fnc_rebuildRadioTower"
+    },
+    {
+        "name": "getVehiclePoolForAttacks",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_getVehiclePoolForAttacks.sqf",
+        "function_name": "A3A_fnc_getVehiclePoolForAttacks"
+    },
+    {
+        "name": "SUP_ASFRoutine",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_SUP_ASFRoutine.sqf",
+        "function_name": "A3A_fnc_SUP_ASFRoutine"
+    },
+    {
+        "name": "startBreachVehicle",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_startBreachVehicle.sqf",
+        "function_name": "A3A_fnc_startBreachVehicle"
+    },
+    {
+        "name": "minefieldAAF",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_minefieldAAF.sqf",
+        "function_name": "A3A_fnc_minefieldAAF"
+    },
+    {
+        "name": "SUP_SAM",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_SUP_SAM.sqf",
+        "function_name": "A3A_fnc_SUP_SAM"
+    },
+    {
+        "name": "createAICities",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_createAICities.sqf",
+        "function_name": "A3A_fnc_createAICities"
+    },
+    {
+        "name": "airspaceControl",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_airspaceControl.sqf",
+        "function_name": "A3A_fnc_airspaceControl"
+    },
+    {
+        "name": "getNearestNavPoint",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_getNearestNavPoint.sqf",
+        "function_name": "A3A_fnc_getNearestNavPoint"
+    },
+    {
+        "name": "arePositionsConnected",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_arePositionsConnected.sqf",
+        "function_name": "A3A_fnc_arePositionsConnected"
+    },
+    {
+        "name": "createAIcontrols",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_createAIcontrols.sqf",
+        "function_name": "A3A_fnc_createAIcontrols"
+    },
+    {
+        "name": "DES_Heli",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_DES_Heli.sqf",
+        "function_name": "A3A_fnc_DES_Heli"
+    },
+    {
+        "name": "onConvoyArrival",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_onConvoyArrival.sqf",
+        "function_name": "A3A_fnc_onConvoyArrival"
+    },
+    {
+        "name": "LOG_Supplies",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_LOG_Supplies.sqf",
+        "function_name": "A3A_fnc_LOG_Supplies"
+    },
+    {
+        "name": "taskUpdate",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_taskUpdate.sqf",
+        "function_name": "A3A_fnc_taskUpdate"
+    },
+    {
+        "name": "logistics_unload",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_logistics_unload.sqf",
+        "function_name": "A3A_fnc_logistics_unload"
+    },
+    {
+        "name": "HQGameOptions",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_HQGameOptions.sqf",
+        "function_name": "A3A_fnc_HQGameOptions"
+    },
+    {
+        "name": "fillLootCrate",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_fillLootCrate.sqf",
+        "function_name": "A3A_fnc_fillLootCrate"
+    },
+    {
+        "name": "SUP_SAMRoutine",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_SUP_SAMRoutine.sqf",
+        "function_name": "A3A_fnc_SUP_SAMRoutine"
+    },
+    {
+        "name": "createAIAirplane",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_createAIAirplane.sqf",
+        "function_name": "A3A_fnc_createAIAirplane"
+    },
+    {
+        "name": "cleanserVeh",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_cleanserVeh.sqf",
+        "function_name": "A3A_fnc_cleanserVeh"
+    },
+    {
+        "name": "roadblockFight",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_roadblockFight.sqf",
+        "function_name": "A3A_fnc_roadblockFight"
+    },
+    {
+        "name": "NATOinit",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_NATOinit.sqf",
+        "function_name": "A3A_fnc_NATOinit"
+    },
+    {
+        "name": "LOG_Salvage",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_LOG_Salvage.sqf",
+        "function_name": "A3A_fnc_LOG_Salvage"
+    },
+    {
+        "name": "surrenderAction",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_surrenderAction.sqf",
+        "function_name": "A3A_fnc_surrenderAction"
+    },
+    {
+        "name": "citySupportChange",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_citySupportChange.sqf",
+        "function_name": "A3A_fnc_citySupportChange"
+    },
+    {
+        "name": "RES_Refugees",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_RES_Refugees.sqf",
+        "function_name": "A3A_fnc_RES_Refugees"
+    },
+    {
+        "name": "punishment_FF_addEH",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_punishment_FF_addEH.sqf",
+        "function_name": "A3A_fnc_punishment_FF_addEH"
+    },
+    {
+        "name": "initPreJIP",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_initPreJIP.sqf",
+        "function_name": "A3A_fnc_initPreJIP"
+    },
+    {
+        "name": "init",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_init.sqf",
+        "function_name": "A3A_fnc_init"
+    },
+    {
+        "name": "detector",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_detector.sqf",
+        "function_name": "A3A_fnc_detector"
+    },
+    {
+        "name": "selector",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_selector.sqf",
+        "function_name": "A3A_fnc_selector"
+    },
+    {
+        "name": "TV_verifyLoadoutsData",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_TV_verifyLoadoutsData.sqf",
+        "function_name": "A3A_fnc_TV_verifyLoadoutsData"
+    },
+    {
+        "name": "TV_verifyAssets",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_TV_verifyAssets.sqf",
+        "function_name": "A3A_fnc_TV_verifyAssets"
+    },
+    {
+        "name": "compileMissionAssets",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_compileMissionAssets.sqf",
+        "function_name": "A3A_fnc_compileMissionAssets"
+    },
+    {
+        "name": "spawnGroup",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_spawnGroup.sqf",
+        "function_name": "A3A_fnc_spawnGroup"
+    },
+    {
+        "name": "createOutpostsFIA",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_createOutpostsFIA.sqf",
+        "function_name": "A3A_fnc_createOutpostsFIA"
+    },
+    {
+        "name": "punishment_oceanGulag",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_punishment_oceanGulag.sqf",
+        "function_name": "A3A_fnc_punishment_oceanGulag"
+    },
+    {
+        "name": "LOG_Ammo",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_LOG_Ammo.sqf",
+        "function_name": "A3A_fnc_LOG_Ammo"
+    },
+    {
+        "name": "compatabilityLoadFaction",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_compatabilityLoadFaction.sqf",
+        "function_name": "A3A_fnc_compatabilityLoadFaction"
+    },
+    {
+        "name": "AS_Traitor",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_AS_Traitor.sqf",
+        "function_name": "A3A_fnc_AS_Traitor"
+    },
+    {
+        "name": "prepareMarkerArrays",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_prepareMarkerArrays.sqf",
+        "function_name": "A3A_fnc_prepareMarkerArrays"
+    },
+    {
+        "name": "addNodesNearMarkers",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_addNodesNearMarkers.sqf",
+        "function_name": "A3A_fnc_addNodesNearMarkers"
+    },
+    {
+        "name": "generateRebelGear",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_generateRebelGear.sqf",
+        "function_name": "A3A_fnc_generateRebelGear"
+    },
+    {
+        "name": "aggressionUpdateLoop",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_aggressionUpdateLoop.sqf",
+        "function_name": "A3A_fnc_aggressionUpdateLoop"
+    },
+    {
+        "name": "requestSupport",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_requestSupport.sqf",
+        "function_name": "A3A_fnc_requestSupport"
+    },
+    {
+        "name": "punishment_evaluateEvent",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_punishment_evaluateEvent.sqf",
+        "function_name": "A3A_fnc_punishment_evaluateEvent"
+    },
+    {
+        "name": "maxDefenceSpend",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_maxDefenceSpend.sqf",
+        "function_name": "A3A_fnc_maxDefenceSpend"
+    },
+    {
+        "name": "enemyReturnToBase",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_enemyReturnToBase.sqf",
+        "function_name": "A3A_fnc_enemyReturnToBase"
+    },
+    {
+        "name": "addEnemyResources",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_addEnemyResources.sqf",
+        "function_name": "A3A_fnc_addEnemyResources"
+    },
+    {
+        "name": "chooseAttack",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_chooseAttack.sqf",
+        "function_name": "A3A_fnc_chooseAttack"
+    },
+    {
+        "name": "vehicleDeletedEH",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_vehicleDeletedEH.sqf",
+        "function_name": "A3A_fnc_vehicleDeletedEH"
+    },
+    {
+        "name": "createAttackForceMixed",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_createAttackForceMixed.sqf",
+        "function_name": "A3A_fnc_createAttackForceMixed"
+    },
+    {
+        "name": "findAttackTargets",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_findAttackTargets.sqf",
+        "function_name": "A3A_fnc_findAttackTargets"
+    },
+    {
+        "name": "SUP_QRFLand",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_SUP_QRFLand.sqf",
+        "function_name": "A3A_fnc_SUP_QRFLand"
+    },
+    {
+        "name": "createAttackForceAir",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_createAttackForceAir.sqf",
+        "function_name": "A3A_fnc_createAttackForceAir"
+    },
+    {
+        "name": "enemyGarrison",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_enemyGarrison.sqf",
+        "function_name": "A3A_fnc_enemyGarrison"
+    },
+    {
+        "name": "SUP_QRFAir",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_SUP_QRFAir.sqf",
+        "function_name": "A3A_fnc_SUP_QRFAir"
+    },
+    {
+        "name": "createAttackForceLand",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_createAttackForceLand.sqf",
+        "function_name": "A3A_fnc_createAttackForceLand"
+    },
+    {
+        "name": "requestArtillery",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_requestArtillery.sqf",
+        "function_name": "A3A_fnc_requestArtillery"
+    },
+    {
+        "name": "wavedAttack",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_wavedAttack.sqf",
+        "function_name": "A3A_fnc_wavedAttack"
+    },
+    {
+        "name": "attackHeli",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_attackHeli.sqf",
+        "function_name": "A3A_fnc_attackHeli"
+    },
+    {
+        "name": "SUP_artillery",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_SUP_artillery.sqf",
+        "function_name": "A3A_fnc_SUP_artillery"
+    },
+    {
+        "name": "timingCA",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_timingCA.sqf",
+        "function_name": "A3A_fnc_timingCA"
+    },
+    {
+        "name": "attackHQ",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_attackHQ.sqf",
+        "function_name": "A3A_fnc_attackHQ"
+    },
+    {
+        "name": "createFIAOutposts2",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_createFIAOutposts2.sqf",
+        "function_name": "A3A_fnc_createFIAOutposts2"
+    },
+    {
+        "name": "enemyUnitKilledEH",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_enemyUnitKilledEH.sqf",
+        "function_name": "A3A_fnc_enemyUnitKilledEH"
+    },
+    {
+        "name": "createCIV",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_createCIV.sqf",
+        "function_name": "A3A_fnc_createCIV"
+    },
+    {
+        "name": "onHeadlessClientDisconnect",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_onHeadlessClientDisconnect.sqf",
+        "function_name": "A3A_fnc_onHeadlessClientDisconnect"
+    },
+    {
+        "name": "getArtilleryRanges",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_getArtilleryRanges.sqf",
+        "function_name": "A3A_fnc_getArtilleryRanges"
+    },
+    {
+        "name": "artySupport",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_artySupport.sqf",
+        "function_name": "A3A_fnc_artySupport"
+    },
+    {
+        "name": "addFIAveh",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_addFIAveh.sqf",
+        "function_name": "A3A_fnc_addFIAveh"
+    },
+    {
+        "name": "addRecentDamage",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_addRecentDamage.sqf",
+        "function_name": "A3A_fnc_addRecentDamage"
+    },
+    {
+        "name": "SUP_gunship",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_SUP_gunship.sqf",
+        "function_name": "A3A_fnc_SUP_gunship"
+    },
+    {
+        "name": "SUP_gunshipSpawn",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_SUP_gunshipSpawn.sqf",
+        "function_name": "A3A_fnc_SUP_gunshipSpawn"
+    },
+    {
+        "name": "SUP_gunshipRoutineCSAT",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_SUP_gunshipRoutineCSAT.sqf",
+        "function_name": "A3A_fnc_SUP_gunshipRoutineCSAT"
+    },
+    {
+        "name": "SUP_gunshipRoutineNATO",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_SUP_gunshipRoutineNATO.sqf",
+        "function_name": "A3A_fnc_SUP_gunshipRoutineNATO"
+    },
+    {
+        "name": "moveHQObject",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_moveHQObject.sqf",
+        "function_name": "A3A_fnc_moveHQObject"
+    },
+    {
+        "name": "SUP_UAVRoutine",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_SUP_UAVRoutine.sqf",
+        "function_name": "A3A_fnc_SUP_UAVRoutine"
+    },
+    {
+        "name": "LOG_Bank",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_LOG_Bank.sqf",
+        "function_name": "A3A_fnc_LOG_Bank"
+    },
+    {
+        "name": "patrolInit",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_patrolInit.sqf",
+        "function_name": "A3A_fnc_patrolInit"
+    },
+    {
+        "name": "createAmbientCivCity",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_createAmbientCivCity.sqf",
+        "function_name": "A3A_fnc_createAmbientCivCity"
+    },
+    {
+        "name": "createAmbientCivRes",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_createAmbientCivRes.sqf",
+        "function_name": "A3A_fnc_createAmbientCivRes"
+    },
+    {
+        "name": "FIAinitBases",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_FIAinitBases.sqf",
+        "function_name": "A3A_fnc_FIAinitBases"
+    },
+    {
+        "name": "createSDKGarrisons",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_createSDKGarrisons.sqf",
+        "function_name": "A3A_fnc_createSDKGarrisons"
+    },
+    {
+        "name": "DES_Vehicle",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_DES_Vehicle.sqf",
+        "function_name": "A3A_fnc_DES_Vehicle"
+    },
+    {
+        "name": "savePlayerStat",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_savePlayerStat.sqf",
+        "function_name": "A3A_fnc_savePlayerStat"
+    },
+    {
+        "name": "createAmbientCiv",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_createAmbientCiv.sqf",
+        "function_name": "A3A_fnc_createAmbientCiv"
+    },
+    {
+        "name": "patrolGroupVariables",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_patrolGroupVariables.sqf",
+        "function_name": "A3A_fnc_patrolGroupVariables"
+    },
+    {
+        "name": "artilleryFireMission",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_artilleryFireMission.sqf",
+        "function_name": "A3A_fnc_artilleryFireMission"
+    },
+    {
+        "name": "patrolCommander",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_patrolCommander.sqf",
+        "function_name": "A3A_fnc_patrolCommander"
+    },
+    {
+        "name": "SUP_ASFAvailable",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_SUP_ASFAvailable.sqf",
+        "function_name": "A3A_fnc_SUP_ASFAvailable"
+    },
+    {
+        "name": "SUP_CASAvailable",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_SUP_CASAvailable.sqf",
+        "function_name": "A3A_fnc_SUP_CASAvailable"
+    },
+    {
+        "name": "SUP_mortarAvailable",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_SUP_mortarAvailable.sqf",
+        "function_name": "A3A_fnc_SUP_mortarAvailable"
+    },
+    {
+        "name": "SUP_airstrikeAvailable",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_SUP_airstrikeAvailable.sqf",
+        "function_name": "A3A_fnc_SUP_airstrikeAvailable"
+    },
+    {
+        "name": "ConvoyTravel",
+        "author_prefix": {
+            "name": "FSM",
+            "full_name": "Finite State Machine"
+        },
+        "file_name": "ConvoyTravel.fsm",
+        "function_name": "ConvoyTravel"
+    },
+    {
+        "name": "ConvoyTravelAir",
+        "author_prefix": {
+            "name": "FSM",
+            "full_name": "Finite State Machine"
+        },
+        "file_name": "ConvoyTravelAir.fsm",
+        "function_name": "ConvoyTravelAir"
+    },
+    {
+        "name": "preInit",
+        "author_prefix": {
+            "name": "FSM",
+            "full_name": "Finite State Machine"
+        },
+        "file_name": "preInit.fsm",
+        "function_name": "preInit"
+    },
+    {
+        "name": "removeFromPool",
+        "author_prefix": {
+            "name": "HR_GRG",
+            "full_name": "Hakon Garage"
+        },
+        "file_name": "fn_removeFromPool.sqf",
+        "function_name": "HR_GRG_fnc_removeFromPool"
+    },
+    {
+        "name": "addVehicle",
+        "author_prefix": {
+            "name": "HR_GRG",
+            "full_name": "Hakon Garage"
+        },
+        "file_name": "fn_addVehicle.sqf",
+        "function_name": "HR_GRG_fnc_addVehicle"
+    },
+    {
+        "name": "toggleLock",
+        "author_prefix": {
+            "name": "HR_GRG",
+            "full_name": "Hakon Garage"
+        },
+        "file_name": "fn_toggleLock.sqf",
+        "function_name": "HR_GRG_fnc_toggleLock"
+    },
+    {
+        "name": "getCatIndex",
+        "author_prefix": {
+            "name": "HR_GRG",
+            "full_name": "Hakon Garage"
+        },
+        "file_name": "fn_getCatIndex.sqf",
+        "function_name": "HR_GRG_fnc_getCatIndex"
+    },
+    {
+        "name": "confirmPlacement",
+        "author_prefix": {
+            "name": "HR_GRG",
+            "full_name": "Hakon Garage"
+        },
+        "file_name": "fn_confirmPlacement.sqf",
+        "function_name": "HR_GRG_fnc_confirmPlacement"
+    },
+    {
+        "name": "validateGarage",
+        "author_prefix": {
+            "name": "HR_GRG",
+            "full_name": "Hakon Garage"
+        },
+        "file_name": "fn_validateGarage.sqf",
+        "function_name": "HR_GRG_fnc_validateGarage"
+    },
+    {
+        "name": "loadSaveData",
+        "author_prefix": {
+            "name": "HR_GRG",
+            "full_name": "Hakon Garage"
+        },
+        "file_name": "fn_loadSaveData.sqf",
+        "function_name": "HR_GRG_fnc_loadSaveData"
+    },
+    {
+        "name": "arsenal_init",
+        "author_prefix": {
+            "name": "JN",
+            "full_name": "Jeroen Arsenal"
+        },
+        "file_name": "fn_arsenal_init.sqf",
+        "function_name": "JN_fnc_arsenal_init"
+    },
+    {
+        "name": "init",
+        "author_prefix": {
+            "name": "UNKNOWN",
+            "full_name": "Unknown"
+        },
+        "file_name": "fn_init.sqf",
+        "function_name": "fn_init.sqf"
+    },
+    {
+        "name": "advancedTowingInit",
+        "author_prefix": {
+            "name": "UNKNOWN",
+            "full_name": "Unknown"
+        },
+        "file_name": "fn_advancedTowingInit.sqf",
+        "function_name": "fn_advancedTowingInit.sqf"
+    },
+    {
+        "name": "initServer",
+        "author_prefix": {
+            "name": "UNKNOWN",
+            "full_name": "Unknown"
+        },
+        "file_name": "fn_initServer.sqf",
+        "function_name": "fn_initServer.sqf"
+    },
+    {
+        "name": "AIVEHinit",
+        "author_prefix": {
+            "name": "UNKNOWN",
+            "full_name": "Unknown"
+        },
+        "file_name": "fn_AIVEHinit.sqf",
+        "function_name": "fn_AIVEHinit.sqf"
+    },
+    {
+        "name": "rebelAttack",
+        "author_prefix": {
+            "name": "UNKNOWN",
+            "full_name": "Unknown"
+        },
+        "file_name": "fn_rebelAttack.sqf",
+        "function_name": "fn_rebelAttack.sqf"
+    },
+    {
+        "name": "punishment_sentence_server",
+        "author_prefix": {
+            "name": "UNKNOWN",
+            "full_name": "Unknown"
+        },
+        "file_name": "fn_punishment_sentence_server.sqf",
+        "function_name": "fn_punishment_sentence_server.sqf"
+    },
+    {
+        "name": "CIVinit",
+        "author_prefix": {
+            "name": "UNKNOWN",
+            "full_name": "Unknown"
+        },
+        "file_name": "fn_CIVinit.sqf",
+        "function_name": "fn_CIVinit.sqf"
+    },
+    {
+        "name": "debugv2",
+        "author_prefix": {
+            "name": "UNKNOWN",
+            "full_name": "Unknown"
+        },
+        "file_name": "fn_debugv2.sqf",
+        "function_name": "fn_debugv2.sqf"
+    },
+    {
+        "name": "SUP_CASRun",
+        "author_prefix": {
+            "name": "UNKNOWN",
+            "full_name": "Unknown"
+        },
+        "file_name": "fn_SUP_CASRun.sqf",
+        "function_name": "fn_SUP_CASRun.sqf"
+    },
+    {
+        "name": "SUP_gunshipRoutineCSAT",
+        "author_prefix": {
+            "name": "UNKNOWN",
+            "full_name": "Unknown"
+        },
+        "file_name": "fn_SUP_gunshipRoutineCSAT.sqf",
+        "function_name": "fn_SUP_gunshipRoutineCSAT.sqf"
+    },
+    {
+        "name": "SUP_gunshipRoutineNATO",
+        "author_prefix": {
+            "name": "UNKNOWN",
+            "full_name": "Unknown"
+        },
+        "file_name": "fn_SUP_gunshipRoutineNATO.sqf",
+        "function_name": "fn_SUP_gunshipRoutineNATO.sqf"
+    },
+    {
+        "name": "moveHQObject",
+        "author_prefix": {
+            "name": "UNKNOWN",
+            "full_name": "Unknown"
+        },
+        "file_name": "fn_moveHQObject.sqf",
+        "function_name": "fn_moveHQObject.sqf"
+    },
+    {
+        "name": "patrolSearchBuilding",
+        "author_prefix": {
+            "name": "UNKNOWN",
+            "full_name": "Unknown"
+        },
+        "file_name": "fn_patrolSearchBuilding.sqf",
+        "function_name": "fn_patrolSearchBuilding.sqf"
+    }
+]

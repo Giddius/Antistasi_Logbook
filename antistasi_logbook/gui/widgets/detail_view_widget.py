@@ -9,26 +9,28 @@ Soon.
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import re
 from abc import ABC
-from typing import TYPE_CHECKING, Any, Union, Optional, Generator, Literal
+import random
+from typing import TYPE_CHECKING, Any, Union, Optional, Generator, Literal, Sequence
 from pathlib import Path
 from functools import partial
 from collections.abc import Iterable
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
-from PySide6.QtGui import QFont, QColor, QAction, QPixmap, QTextFormat, QTextOption, QFontMetrics, QTextDocument, QTextCharFormat, QDesktopServices, QSyntaxHighlighter
-from PySide6.QtCore import Qt, QUrl, QAbstractTableModel
-from PySide6.QtWidgets import (QMenu, QLabel, QWidget, QGroupBox, QLineEdit, QListView, QTextEdit, QLCDNumber, QFormLayout,
-                               QHBoxLayout, QPushButton, QVBoxLayout, QApplication, QInputDialog, QTextBrowser)
+from PySide6.QtGui import QFont, QColor, QPalette, QAction, QPixmap, QTextFormat, QTextOption, QFontMetrics, QTextDocument, QTextCharFormat, QDesktopServices, QSyntaxHighlighter, QScreen, QMouseEvent
+from PySide6.QtCore import Qt, QUrl, QAbstractTableModel, QEvent, QSize, QRect, QRectF, QPoint, QPointF, QAbstractItemModel
+from PySide6.QtWidgets import (QMenu, QLabel, QWidget, QSizePolicy, QGroupBox, QLineEdit, QListView, QTextEdit, QLCDNumber, QFormLayout,
+                               QHBoxLayout, QPushButton, QVBoxLayout, QApplication, QProgressBar, QInputDialog, QTextBrowser, QDialog, QMessageBox, QGraphicsGridLayout)
 from gidapptools.general_helper.enums import MiscEnum
 # * Third Party Imports --------------------------------------------------------------------------------->
 from peewee import Field, DoesNotExist, IntegrityError
-
+import pyqtgraph as pg
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.conversion import seconds2human
 from gidapptools.general_helper.string_helper import StringCase, StringCaseConverter
 from gidapptools.general_helper.color.color_item import Color
-
+import numpy as np
+from PIL import Image
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.errors import InsufficientDataPointsError
 from antistasi_logbook.data.sqf_syntax_data import SQF_BUILTINS_REGEX
@@ -40,6 +42,9 @@ from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import
 from antistasi_logbook.gui.diagram.abstract_stats_model import PerformanceStatsModel, StatScope
 import pp
 from antistasi_logbook.utilities.gui_utilities import make_line
+
+from antistasi_logbook.storage.models.custom_fields import CompressedImageField
+from antistasi_logbook.gui.widgets.image_viewer import HighResMapImageWidget, BaseMapSymbolImageItem, AirportMapSymbolImageItem, TownMapSymbolImageItem, SeaportMapSymbolImageItem, ArmaSide, ResourceMapSymbolImageItem, FactoryMapSymbolImageItem, OutpostMapSymbolImageItem
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
@@ -124,6 +129,11 @@ class ModModel(QAbstractTableModel):
             if item.link:
                 return str(item.link)
 
+        if role == Qt.ItemDataRole.FontRole:
+            font = QFont()
+            font.setPointSizeF(font.pointSizeF() * 0.8)
+            return font
+
     def headerData(self, section: int, orientation: PySide6.QtCore.Qt.Orientation, role: int = ...) -> Any:
         if orientation == Qt.Horizontal:
             column = self.columns[section]
@@ -148,7 +158,7 @@ class ModModel(QAbstractTableModel):
 
 class ModDataView(DataView):
     def __init__(self, mod: Mod, parent: Optional[PySide6.QtWidgets.QWidget] = None, show_none: bool = False) -> None:
-        super().__init__(parent=parent, show_none=show_none, title=mod.pretty_name)
+        super().__init__(parent=parent, show_none=show_none, title=mod.get_data("name"))
         self.mod = mod
 
         for column in sorted(list(self.mod.get_meta().sorted_fields), key=self.column_sorter):
@@ -264,7 +274,7 @@ class ValueLineEdit(QLineEdit):
         self.setReadOnly(True)
         self.setAlignment(Qt.AlignCenter)
         self.setProperty("display_only", True)
-        self.setStyleSheet(self.style_sheet_data)
+        # self.setStyleSheet(self.style_sheet_data)
 
     def sizeHint(self) -> PySide6.QtCore.QSize:
         font_metrics = self.fontMetrics()
@@ -278,6 +288,100 @@ class ValueLineEdit(QLineEdit):
         return f'{self.__class__.__name__}'
 
 
+class MapSymbolImageItem(pg.ImageItem):
+
+    def __init__(self, other_image=None, image=None, **kargs):
+        super().__init__(image, **kargs)
+        self.other_image = other_image
+        self.setToolTip("A House")
+
+    def mouseClickEvent(self, ev):
+        if ev.button() == Qt.MouseButton.LeftButton:
+
+            pop_up = QMessageBox.information(None, "Housy", str((self.scenePos().x(), self.scenePos().y())), QMessageBox.Ok)
+        return super().mouseClickEvent(ev)
+
+
+class GameMapThumbnail(QLabel):
+
+    def __init__(self, game_map: GameMap, parent=None):
+        super().__init__(parent=parent)
+        self.game_map = game_map
+        self.has_low_res_image = self.game_map.has_low_res_image()
+        self.has_high_res_image = self.game_map.has_high_res_image()
+        self.original_cursor = self.cursor()
+
+        if self.has_low_res_image is True:
+            pixmap = self.game_map.map_image_low_resolution.to_qpixmap()
+            self.setPixmap(pixmap)
+
+        if self.has_high_res_image is True:
+            self.setToolTip("Click to open High-Res Map image")
+        self.high_res_game_map_window: QWidget = None
+
+    @property
+    def has_content(self) -> bool:
+        return self.has_low_res_image
+
+    def mousePressEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
+
+        if event.button() == Qt.LeftButton:
+            if self.game_map.name.casefold().startswith("chernarus"):
+                data = self.game_map.coordinates
+                self.high_res_game_map_window = HighResMapImageWidget(self.game_map.map_image_high_resolution, (data["world_size"], data["world_size"]), name=self.game_map.full_name).setup()
+
+                for item in data["map_marker"]:
+                    name = item["name"]
+                    if name.startswith("outpost"):
+                        klass = OutpostMapSymbolImageItem
+                        side = random.choices([ArmaSide.EAST, ArmaSide.WEST], weights=(0.1, 0.9), k=1)[0]
+                    elif name.startswith("resource"):
+                        klass = ResourceMapSymbolImageItem
+                        side = random.choices([ArmaSide.EAST, ArmaSide.WEST], weights=(0.1, 0.9), k=1)[0]
+                    elif name.startswith("factory"):
+                        klass = FactoryMapSymbolImageItem
+                        side = random.choices([ArmaSide.EAST, ArmaSide.WEST], weights=(0.1, 0.9), k=1)[0]
+                    elif name.startswith("airport"):
+                        klass = AirportMapSymbolImageItem
+                        side = random.choices([ArmaSide.EAST, ArmaSide.WEST], weights=(0.1, 0.9), k=1)[0]
+                    elif name.startswith("seaport"):
+                        klass = SeaportMapSymbolImageItem
+                        side = random.choices([ArmaSide.EAST, ArmaSide.WEST], weights=(0.1, 0.9), k=1)[0]
+                    else:
+                        klass = TownMapSymbolImageItem
+                        side = ArmaSide.WEST
+                    marker_item = klass(item["name"], item["x"], item["y"], side=side)
+                    marker_item.refresh()
+                    self.high_res_game_map_window.set_map_symbol(marker_item)
+                    marker_item.refresh()
+                self.high_res_game_map_window.show()
+                self._comb_window = QWidget()
+                self._comb_window.setLayout(QVBoxLayout())
+                comb_label = QLabel()
+                comb_label.setAlignment(Qt.AlignHCenter)
+                self.high_res_game_map_window.map_symbol_changed.connect(comb_label.setText)
+                self._comb_window.layout().addWidget(comb_label)
+                self._comb_window.layout().addWidget(self.high_res_game_map_window)
+                comb_progress_bar = QProgressBar()
+                comb_progress_bar.setMaximum(len(self.high_res_game_map_window._map_symbols))
+                self.high_res_game_map_window.map_symbol_changed.connect(lambda x: comb_progress_bar.setValue(comb_progress_bar.value() + 1))
+                self.high_res_game_map_window.finished_run.connect(comb_progress_bar.reset)
+                self._comb_window.layout().addWidget(comb_progress_bar)
+                self._comb_window.show()
+
+        return super().mousePressEvent(event)
+
+    def enterEvent(self, event: PySide6.QtGui.QEnterEvent) -> None:
+        if self.has_high_res_image is True:
+            self.setCursor(Qt.PointingHandCursor)
+        return super().enterEvent(event)
+
+    def leaveEvent(self, event: PySide6.QtCore.QEvent) -> None:
+        if self.has_high_res_image is True:
+            self.setCursor(self.original_cursor)
+        return super().leaveEvent(event)
+
+
 class GameMapValue(QWidget):
 
     def __init__(self, game_map=GameMap, parent=None):
@@ -286,13 +390,12 @@ class GameMapValue(QWidget):
         self.game_map = game_map
         self.game_map_label = ValueLineEdit(self.game_map.full_name)
         self.layout.addWidget(self.game_map_label)
-        self.game_map_thumbnail = QLabel()
-        self.game_map_pixmap = self._get_game_map_pixmap()
-        if self.game_map_pixmap is not None:
-            self.game_map_thumbnail.setPixmap(self.game_map_pixmap)
-            self.collapsible_box = CollapsibleGroupBox(text="Thumbnail", content=self.game_map_thumbnail, parent=self)
-            self.collapsible_box.set_expanded(False)
-            self.layout.addWidget(self.collapsible_box)
+        self.game_map_thumbnail = GameMapThumbnail(self.game_map)
+
+        self.collapsible_box = CollapsibleGroupBox(text="Thumbnail", content=self.game_map_thumbnail, parent=self)
+        self.collapsible_box.no_content_text = "NO THUMBNAIL"
+        self.collapsible_box.set_expanded(False)
+        self.layout.addWidget(self.collapsible_box)
 
     def _get_game_map_pixmap(self) -> Optional[QPixmap]:
         game_map_bytes = self.game_map.map_image_low_resolution
@@ -301,6 +404,11 @@ class GameMapValue(QWidget):
         pixmap = QPixmap()
         pixmap.loadFromData(game_map_bytes)
         return pixmap
+
+    def setFont(self, arg__1: Union[PySide6.QtGui.QFont, str, Sequence[str]]) -> None:
+        super().setFont(arg__1)
+        self.game_map_label.setFont(arg__1)
+        self.collapsible_box.setFont(arg__1)
 
     @ property
     def layout(self) -> QVBoxLayout:
@@ -340,7 +448,7 @@ class ListFormLayout(QVBoxLayout):
 
     def __init__(self, parent=None):
         super().__init__(parent=parent)
-        self._font_size_factor: float = 0.9
+        self._font_size_factor: float = 0.85
 
     def set_font_size_factor(self, factor: float):
         self._font_size_factor = factor
@@ -356,9 +464,18 @@ class ListFormLayout(QVBoxLayout):
 
     def addRow(self, label: Union[str, QLabel], value: QWidget):
         _label = self.make_label(label)
-
+        _value = self.modify_value(value)
         self.addWidget(_label)
-        self.addWidget(value)
+        self.addWidget(_value)
+
+    def modify_value(self, in_value: QWidget) -> QWidget:
+        font = in_value.font()
+
+        font.setPointSizeF(font.pointSizeF() * self.font_size_factor)
+        in_value.setFont(font)
+        in_value.repaint()
+
+        return in_value
 
     def make_label(self, label: Union[str, QLabel]) -> QLabel:
         if isinstance(label, str):
@@ -379,11 +496,11 @@ class ListFormLayout(QVBoxLayout):
 
 class BaseDetailWidget(QWidget):
 
-    def __init__(self, parent: Optional[PySide6.QtWidgets.QWidget] = None) -> None:
-        super().__init__(parent=parent)
-        self.setLayout(ListFormLayout(self))
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
+        super().__init__(parent)
+        self.setLayout(ListFormLayout())
 
-    @ property
+    @property
     def layout(self) -> ListFormLayout:
         return super().layout()
 
@@ -537,10 +654,10 @@ class LogFileDetailWidget(BaseDetailWidget):
         self.get_campaign_stats_button = QPushButton(AllResourceItems.stats_icon_2_image.get_as_icon(), "Get Campaign Stats")
         self.layout.addWidget(self.get_campaign_stats_button)
         self.get_campaign_stats_button.pressed.connect(partial(self.show_stats, "campaign"))
+        if self.log_file.campaign_id is None:
+            self.get_campaign_stats_button.setEnabled(False)
 
-        self.get_resource_check_stats_button = QPushButton(AllResourceItems.stats_icon_2_image.get_as_icon(), "Get Resource Check Stats")
-        self.layout.addWidget(self.get_resource_check_stats_button)
-        self.get_resource_check_stats_button.pressed.connect(partial(self.show_stats, "ressource_check"))
+        self.repaint()
 
     def show_stats(self, scope: Literal["log_file", "campaign", "ressource_check"]):
 
@@ -555,12 +672,7 @@ class LogFileDetailWidget(BaseDetailWidget):
             name = f"Campaign {self.log_file.campaign_id}"
             obj_name = f"{self.log_file.campaign_id}_stats_window"
             visible_item_names = {"ServerFPS"}
-        elif scope == "ressource_check":
-            all_stats = self.log_file.get_resource_check_stats()
-            all_log_files = (self.log_file,)
-            name = f"Log File: {self.log_file.name.upper()}"
-            obj_name = f"{self.log_file.name}_resource_check_stats_window"
-            visible_item_names = None
+
         if len(all_stats) < 2:
             raise InsufficientDataPointsError(len(all_stats), 2)
 
@@ -842,12 +954,12 @@ class MessageValue(QTextEdit):
         self.highlighter = MessageHighlighter(self)
         self.setup_highlighter()
         if self.record is not None:
-            self.raw_text = self.record.pretty_message
-            self.setPlainText(self.record.pretty_message)
+            self.raw_text = self.record.get_data("message")
+            self.setPlainText(self.record.get_data("message"))
 
     def set_record(self, record: "AbstractRecord"):
         self.record = record
-        self.raw_text = record.pretty_message
+        self.raw_text = record.get_data("message")
         self.setPlainText(self.raw_text)
 
     @property
@@ -947,6 +1059,9 @@ class LogRecordDetailView(BaseDetailWidget):
 
         self.temp_plot_widget.add_marked_records(self.record.log_file.get_marked_records())
         self.temp_plot_widget.show()
+
+    def sizeHint(self) -> PySide6.QtCore.QSize:
+        return self.layout.sizeHint()
 
     def __repr__(self) -> str:
         """

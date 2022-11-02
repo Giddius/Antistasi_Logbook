@@ -159,7 +159,8 @@ class LogbookMenuBar(BaseMenuBar):
         self.add_action(self.database_menu, self.cyclic_update_remaining)
         self.database_menu.addSeparator()
         self.reassign_record_classes_action = self.add_new_action(self.database_menu, "Reassign Record-Classes")
-
+        self.database_menu.addSeparator()
+        self.run_full_vaccum_action = self.add_new_action(self.database_menu, "Full Vacuum")
         self.open_settings_window_action = self.add_new_action(self.settings_menu, "Open Settings")
 
         self.exit_action.setIcon(AllResourceItems.close_cancel_image.get_as_icon())

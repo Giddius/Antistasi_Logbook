@@ -703,10 +703,23 @@ from gidapptools.general_helper.string_helper import StringCaseConverter, String
 
 
 @task()
-def std_clean(c):
+def remove_reports(c):
     project: Project = c.project
 
-    to_remove_folder = [project.base_folder.joinpath("tools", "reports").resolve()]
+    reports_folder = project.base_folder.joinpath("tools", "reports").resolve()
 
-    for folder in to_remove_folder:
-        send2trash(folder)
+    if reports_folder.exists() is False:
+        print(f"{reports_folder.as_posix()!r} already removed (does not exist).")
+        return
+    print(f"removing {reports_folder.as_posix()!r}")
+    send2trash(reports_folder)
+
+
+from gid_tasks import task
+from gid_tasks.hackler.imports_cleaner import import_clean_project
+
+
+@task
+def clean_imports(c):
+    project: Project = c.project
+    list(import_clean_project(project=project))

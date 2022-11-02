@@ -25,7 +25,7 @@ from gidapptools import get_logger
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.storage.models.models import Server, RemoteStorage
-from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE, Field, BaseModel, BaseQueryDataModel, ModelContextMenuAction
+from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE, Field, BaseModel, BaseQueryDataModel, ModelContextMenuAction, EmptyContentItem
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
@@ -72,7 +72,10 @@ class ServerModel(BaseQueryDataModel):
 
     def _get_background_data(self, index: INDEX_TYPE):
         item, colum = self.get(index)
-        _out = self.color_config.get(self.color_config_name, item.name, default=QColor(255, 255, 255, 0))
+        if isinstance(item, EmptyContentItem):
+            _out = QColor(255, 255, 255, 0)
+        else:
+            _out = self.color_config.get(self.color_config_name, item.name, default=QColor(255, 255, 255, 0))
 
         return _out
 

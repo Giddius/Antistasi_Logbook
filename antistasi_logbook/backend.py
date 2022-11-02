@@ -134,6 +134,7 @@ class Backend:
     """
     all_parsing_context: WeakSet["LogParsingContext"] = WeakSet()
     minimum_thread_amount = 10
+    average_seconds_per_log_file: float = 12.5
 
     def __init__(self, database: "GidSqliteApswDatabase", config: "GidIniConfig", update_signaler: "UpdaterSignaler" = NoneSignaler()) -> None:
         self._thread_pool: ThreadPoolExecutor = None
@@ -200,7 +201,7 @@ class Backend:
             ThreadPoolExecutor: [description]
         """
         if self._thread_pool is None:
-            self._thread_pool = ThreadPoolExecutor(max_workers=max(1, self.max_threads - 1), thread_name_prefix="backend")
+            self._thread_pool = ThreadPoolExecutor(max_workers=max(2, self.max_threads - 3), thread_name_prefix="backend")
         return self._thread_pool
 
     @property
@@ -218,7 +219,7 @@ class Backend:
             ThreadPoolExecutor: [description]
         """
         if self._inserting_thread_pool is None:
-            self._inserting_thread_pool = ThreadPoolExecutor(max_workers=10, thread_name_prefix="backend_inserting", initializer=self.database.connect, initargs=(True,))
+            self._inserting_thread_pool = ThreadPoolExecutor(max_workers=3, thread_name_prefix="backend_inserting")
         return self._inserting_thread_pool
 
     @property
@@ -254,18 +255,21 @@ class Backend:
         return context
 
     def get_parser(self) -> Parser:
-        parser = Parser(self, stop_event=self.events.stop)
+        parser = Parser(self, record_processor=RecordProcessor(backend=self, regex_keeper=SimpleRegexKeeper(), foreign_key_cache=self.foreign_key_cache), stop_event=self.events.stop)
+        parser.record_processor.foreign_key_cache.preload_all()
         log.debug("Created Parser %r", parser)
         return parser
 
     def register_record_classes(self, record_classes: Iterable[RECORD_CLASS_TYPE]) -> "Backend":
         for record_class in record_classes:
             self.record_class_manager.register_record_class(record_class=record_class, database=self.database)
+
         return self
 
     def fill_record_class_manager(self) -> None:
         for record_class in chain(ALL_ANTISTASI_RECORD_CLASSES, ALL_GENERIC_RECORD_CLASSES):
             self.record_class_manager.register_record_class(record_class=record_class, database=self.database)
+        self.record_class_manager._is_set_up = True
         RecordClass.record_class_manager = self.record_class_manager
 
     def start_up(self, overwrite: bool = False) -> "Backend":
@@ -283,6 +287,7 @@ class Backend:
         self.database.connect(True)
         self.record_class_manager = RecordClassManager(backend=self, foreign_key_cache=ForeignKeyCache(self.database))
         self.fill_record_class_manager()
+        self.record_class_manager.create_record_checker()
 
         self.signals.new_log_record.connect(self.database.session_meta_data.increment_added_log_records)
         self.signals.new_log_file.connect(self.database.session_meta_data.increment_new_log_file)
@@ -321,10 +326,9 @@ class Backend:
             self.updater.shutdown()
             self.records_inserter.shutdown()
             self.database.shutdown()
-            self.thread_pool.shutdown(wait=True)
-            self.inserting_thread_pool.shutdown(wait=True)
-            self._thread_pool._threads.clear()
-            self._inserting_thread_pool._threads.clear()
+            self.thread_pool.shutdown(cancel_futures=True)
+            self.inserting_thread_pool.shutdown(cancel_futures=True)
+
             gc.collect()
         except Exception as e:
             log.error(e, exc_info=True)

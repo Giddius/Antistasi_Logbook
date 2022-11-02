@@ -258,7 +258,7 @@ class WebdavManager(AbstractRemoteStorageManager):
         _out = InfoItem.from_webdav_info(info)
         return _out
 
-    @Retrier([httpx.ReadError, httpx.RemoteProtocolError], allowed_attempts=5, timeout=10, timeout_function=exponential_timeout)
+    @Retrier([httpx.ReadError, httpx.RemoteProtocolError], allowed_attempts=5, timeout=30, timeout_function=exponential_timeout)
     def download_file(self, log_file: "LogFile") -> "LogFile":
         with self.download_semaphore:
             local_path = log_file.local_path

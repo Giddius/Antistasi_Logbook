@@ -11,12 +11,13 @@ from time import sleep
 from typing import TYPE_CHECKING, Any, Optional
 from pathlib import Path
 from functools import partial
-
+import sys
+import json
 # * Qt Imports --------------------------------------------------------------------------------------->
-from PySide6.QtGui import QFont, QAction, QFontMetrics
+from PySide6.QtGui import QFont, QAction, QFontMetrics, QColor
 from PySide6.QtCore import Qt, Slot, QSize, Signal, QModelIndex, QSettings
 from PySide6.QtWidgets import QApplication
-
+from frozendict import frozendict
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
 from peewee import Field, Query
@@ -34,9 +35,10 @@ from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE, BaseQ
 from antistasi_logbook.gui.models.proxy_models.base_proxy_model import BaseProxyModel
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+from antistasi_logbook.records.base_record import BaseRecord
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
-    from antistasi_logbook.records.base_record import BaseRecord
+
     from antistasi_logbook.records.abstract_record import AbstractRecord
     from antistasi_logbook.gui.views.base_query_tree_view import CustomContextMenu
     from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE
@@ -77,8 +79,8 @@ class LogRecordsModel(BaseQueryDataModel):
     extra_columns = {FakeField(name="message", verbose_name="Message"),
                      FakeField(name="server", verbose_name="Server")}
     strict_exclude_columns = {"record_class", "message_item"}
-    bool_images = {True: AllResourceItems.check_mark_green_image.get_as_icon(),
-                   False: AllResourceItems.close_black_image.get_as_icon()}
+    bool_images = frozendict({True: AllResourceItems.check_mark_green_image.get_as_icon(),
+                              False: AllResourceItems.close_black_image.get_as_icon()})
 
     def __init__(self, parent=None) -> None:
         super().__init__(LogRecord, parent=parent)
@@ -90,6 +92,8 @@ class LogRecordsModel(BaseQueryDataModel):
         self.proxy_model.setSourceModel(self)
         self._refresh_task: Future = None
         self.collecting_records = False
+        self.error_color: QColor = Color(value=(225, 25, 23, 0.5), typus=Color.color_typus.RGB, name="error_red").qcolor
+        self.warning_color: QColor = Color(value=(255, 103, 0, 0.5), typus=Color.color_typus.RGB, name="warning_orange").qcolor
 
     def set_message_font(self, font):
         self.layoutAboutToBeChanged.emit()
@@ -124,7 +128,7 @@ class LogRecordsModel(BaseQueryDataModel):
 
     def get_query(self) -> "Query":
 
-        query = LogRecord.select(LogRecord, Message.text).join_from(LogRecord, LogFile).join_from(LogRecord, Message)
+        query = LogRecord.select(LogRecord, Message).join_from(LogRecord, Message, on=(LogRecord.message_item == Message.md5_hash))
         if self._base_filter_item is not None:
             query = query.where(self._base_filter_item)
         if self.filter_item is not None:
@@ -171,9 +175,9 @@ class LogRecordsModel(BaseQueryDataModel):
         column = self.columns[index.column()]
 
         if item.log_level.name == "ERROR":
-            return Color(value=(225, 25, 23, 0.5), typus=Color.color_typus.RGB, name="error_red").qcolor
+            return self.error_color
         elif item.log_level.name == "WARNING":
-            return Color(value=(255, 103, 0, 0.5), typus=Color.color_typus.RGB, name="warning_orange").qcolor
+            return self.warning_color
 
         if column.name == "log_level":
             return getattr(item, column.name).background_color
@@ -197,10 +201,10 @@ class LogRecordsModel(BaseQueryDataModel):
             return self.message_font
         return self.message_font
 
-    def _get_record(self, _item_data, _all_log_files):
-
+    def _get_record(self, **_item_data):
+        _item_data["text"] = sys.intern(Message.get_by_id_cached(_item_data["message_item"]).text)
         record_class = self.backend.record_class_manager.get_by_id(_item_data.get('record_class'))
-        log_file = _all_log_files[_item_data.get('log_file')]
+        log_file = LogFile.get_by_id_cached(_item_data["log_file"])
         record_item = record_class.from_model_dict(_item_data, foreign_key_cache=self.backend.foreign_key_cache, log_file=log_file)
 
         return record_item
@@ -208,20 +212,31 @@ class LogRecordsModel(BaseQueryDataModel):
     def get_content(self) -> "LogRecordsModel":
 
         log.debug("starting getting content for %r", self)
+        self.backend.foreign_key_cache.preload_all()
         self.collecting_records = True
-        all_log_files = {log_file.id: log_file for log_file in self.backend.database.get_log_files()}
+        # all_records = tuple(self.get_query().dicts().iterator())
+        # all_log_files = {log_file.id: log_file for log_file in self.backend.database.get_log_files() if log_file.id in {i.get('log_file') for i in all_records}}
 
-        self.content_items = list(self.app.backend.thread_pool.map(partial(self._get_record, _all_log_files=all_log_files), self.get_query().dicts().iterator()))
+        # self.content_items = tuple(self.app.backend.thread_pool.map(partial(self._get_record, _all_log_files=all_log_files), all_records))
+
+        self.content_items = []
+
+        with self.database.atomic():
+            self.content_items = tuple(self.get_query().objects(self._get_record).iterator())
 
         log.debug("finished getting content for %r", self)
         self.collecting_records = False
+
         return self
 
     def refresh(self) -> "BaseQueryDataModel":
         # self.request_view_change_visibility.emit(False)
 
         self.beginResetModel()
-        self.get_columns().get_content()
+        self.get_columns()
+
+        self.get_content()
+
         self.endResetModel()
         # self.request_view_change_visibility.emit(True)
 

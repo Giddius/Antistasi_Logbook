@@ -1,26 +1,25 @@
 <style>
-{% if style %}
-    {{style}}
-{% endif %}
+{% if style %}    {{style}}{% endif %}
 </style>
 <dl>
     {% for key, value in data.items() if key!="Summary" and key!="Description" %}
-    <dt><b><u>{{key}}:</u></b></dt>
-    <dd>{{value}}</dd>
-
+        <dt>
+            <b><u>{{ key }}:</u></b>
+        </dt>
+        <dd>
+            {{ value }}
+        </dd>
     {% endfor %}
 </dl>
-    {% if data.Summary %}
+{% if data.Summary %}
     <br>
     <hr>
     <div class="aboutSummary">
-    <center>
-    <br>
-    {{data.Summary}}
-    <br>
-    <hr>
-    </center>
-
+        <center>
+            <br>
+            {{ data.Summary }}
+            <br>
+            <hr>
+        </center>
     </div>
-
-    {% endif %}
+{% endif %}

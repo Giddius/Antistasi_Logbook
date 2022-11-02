@@ -1,0 +1,26 @@
+[
+    {
+        "id": 0,
+        "name": "NO_LEVEL"
+    },
+    {
+        "id": 1,
+        "name": "DEBUG"
+    },
+    {
+        "id": 2,
+        "name": "INFO"
+    },
+    {
+        "id": 3,
+        "name": "WARNING"
+    },
+    {
+        "id": 4,
+        "name": "CRITICAL"
+    },
+    {
+        "id": 5,
+        "name": "ERROR"
+    }
+]

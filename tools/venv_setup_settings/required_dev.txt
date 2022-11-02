@@ -24,7 +24,14 @@ tomlkit
 pip-tools
 pipreqs
 tinyaes
-code2flow
 sphinx
 py-spy~=0.3.11
 snakeviz
+djlint
+sphinx
+sphinxcontrib.fulltoc
+sphinx-design
+sphinx-copybutton
+sphinxcontrib-mermaid
+sphinx-issues
+

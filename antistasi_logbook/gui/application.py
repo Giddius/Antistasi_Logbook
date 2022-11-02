@@ -9,8 +9,10 @@ Soon.
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import shutil
 import argparse
+import sys
 import os
-from typing import TYPE_CHECKING, Any, Optional, TypedDict
+from time import sleep
+from typing import TYPE_CHECKING, Any, Optional, TypedDict, Union
 from pathlib import Path
 from datetime import datetime
 from functools import cached_property
@@ -19,7 +21,7 @@ from collections.abc import Iterable, Mapping
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QFont, QIcon, QColor, QScreen, QGuiApplication
 from PySide6.QtCore import Qt, QRect, QSettings, QObject, Signal
-from PySide6.QtWidgets import QMainWindow, QMessageBox, QApplication, QSplashScreen
+from PySide6.QtWidgets import QMainWindow, QMessageBox, QApplication, QSplashScreen, QStyle
 from antistasi_logbook.data import DATA_DIR
 # * Third Party Imports --------------------------------------------------------------------------------->
 from jinja2 import BaseLoader, Environment, Template
@@ -254,12 +256,14 @@ class AntistasiLogbookApplication(QApplication):
         BaseRecord._color_cache = RecordColorCache(self.color_config)
         self.is_setup = True
 
-    @ classmethod
-    def with_high_dpi_scaling(cls, argvs: Iterable[str] = None):
-        cls.setAttribute(Qt.AA_EnableHighDpiScaling, True)
-        cls.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
-        QGuiApplication.setDesktopSettingsAware(True)
-        return cls(argvs=argvs)
+    def get_standard_icon(self, icon_name: Union[str, QStyle.StandardPixmap]) -> QIcon:
+        if isinstance(icon_name, QStyle.StandardPixmap):
+            return self.style().standardIcon(icon_name)
+
+        all_standard_icons = {i.removeprefix("SP_").casefold(): getattr(QStyle, i) for i in dir(QStyle()) if i.startswith("SP_")}
+
+        corrected_name = all_standard_icons[icon_name.casefold().removeprefix("sp_")]
+        return self.style().standardIcon(corrected_name)
 
     def setup_app_font(self):
         font: QFont = self.font()
@@ -368,28 +372,36 @@ class AntistasiLogbookApplication(QApplication):
         args = self.parse_arguments()
 
         main_window = main_window_class(self, flags=args["main_window_flags"], ** kwargs)
-        self.current_splash_screen.finish(main_window)
+
         main_window.setWindowState(args["main_window_states"])
         self.main_window = main_window
         self.main_window.setup()
+        self.current_splash_screen.finish(main_window)
+
         return main_window
 
     def show_splash_screen(self, splash_type: str) -> QSplashScreen:
         if splash_type == "start_up":
-            pixmap = AllResourceItems.antistasi_logbook_splash_starting_backend_image.get_as_pixmap()
+            pixmap = AllResourceItems.antistasi_logbook_splash_starting_image.get_as_pixmap()
+
         elif splash_type == "shutdown":
-            pixmap = AllResourceItems.antistasi_logbook_splash_shutdown_backend_image.get_as_pixmap()
+            pixmap = AllResourceItems.antistasi_logbook_splash_shutdown_image.get_as_pixmap()
 
         self.current_splash_screen = QSplashScreen(pixmap, Qt.WindowStaysOnTopHint)
+
         self.current_splash_screen.show()
         return self.current_splash_screen
 
     def quit(self):
+
         try:
             self.on_quit()
-            super().quit()
+
+        except Exception as e:
+            log.error(e, exc_info=True)
+
         finally:
-            pass
+            super().quit()
 
     def on_quit(self):
         if self._gui_thread_pool:
