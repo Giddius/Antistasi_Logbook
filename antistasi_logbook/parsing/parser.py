@@ -53,8 +53,6 @@ class Parser:
     Parses all Parsable data from the log file, the actual log_records are parsed by the `record_processor`.
 
     """
-    log_file_data_scan_chunk_increase = 256000  # 250 kb
-    log_file_data_scan_chunk_initial = 256000
 
     __slots__ = ("backend", "regex_keeper", "stop_event", "record_processor")
 
@@ -68,7 +66,6 @@ class Parser:
         return MetaFinder(existing_data=existing_data, force=force).parse_file(file_item)
 
     def _parse_header_text(self, context: LogParsingContext) -> None:
-
         while not self.regex_keeper.only_time.match(context.current_line.content):
             context.line_cache.append(context.current_line)
             context.advance_line()

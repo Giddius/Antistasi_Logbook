@@ -14,7 +14,7 @@ from collections import deque
 from collections.abc import Generator
 
 # * Third Party Imports --------------------------------------------------------------------------------->
-import attrs
+
 
 # endregion[Imports]
 
@@ -35,10 +35,21 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 # endregion[Constants]
 
 
-@attrs.define(frozen=True, slots=True, weakref_slot=True)
 class LineData:
-    number: int
-    text: str
+
+    __slots__ = ("_number", "_text")
+
+    def __init__(self, number: Optional[int], text: Optional[str]) -> None:
+        self._number = number
+        self._text = text
+
+    @property
+    def number(self) -> Optional[int]:
+        return self._number
+
+    @property
+    def text(self) -> Optional[str]:
+        return self._text
 
     @property
     def is_none(self) -> bool:
@@ -71,6 +82,7 @@ class FileLineView(deque):
         super().__init__([self.empty_value] * 3, maxlen=3)
         self.line_generator = line_generator
         self._initial_filled: bool = False
+        self._file_completed: bool = False
 
     def initial_fill(self) -> None:
         if self._initial_filled is True:
@@ -80,14 +92,19 @@ class FileLineView(deque):
         self._initial_filled = True
 
     def advance_line(self):
-        if self.is_empty is False and self[1] is self.empty_value and self[2] is self.empty_value:
-            return
-        try:
-            self.append(next(self.line_generator))
+        if self._file_completed is True:
+            if self.current_line.is_none is False:
+                self.append(self.empty_value)
 
-        except StopIteration:
-            self.line_generator.close()
-            self.append(self.empty_value)
+        else:
+
+            try:
+                self.append(next(self.line_generator))
+
+            except StopIteration:
+                self.line_generator.close()
+                self.append(self.empty_value)
+                self._file_completed = True
 
     @property
     def is_empty(self) -> bool:
@@ -95,22 +112,22 @@ class FileLineView(deque):
 
     @property
     def has_reached_end(self) -> bool:
-        return self.is_empty is False and self.current_line is self.empty_value and self.next_line is self.empty_value
+        return self._file_completed is True and self.current_line.is_none is True
 
     @property
-    def next_line(self) -> Optional[str]:
+    def next_line(self) -> LineData:
         if self._initial_filled is False:
             self.initial_fill()
         return self[2]
 
     @property
-    def current_line(self) -> Optional[str]:
+    def current_line(self) -> LineData:
         if self._initial_filled is False:
             self.initial_fill()
         return self[1]
 
     @property
-    def previous_line(self) -> Optional[str]:
+    def previous_line(self) -> LineData:
         if self._initial_filled is False:
             self.initial_fill()
         return self[0]
