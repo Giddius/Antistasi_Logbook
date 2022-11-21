@@ -1,8 +1,8 @@
 {
     "game_map": "Chernarus_Winter",
-    "full_date_time": {
-        "local_datetime": "2022-09-18T07:22:40+00:00",
-        "utc_datetime": "2022-09-18T14:22:40.000578+00:00"
+    "utc_offset": {
+        "name": "-7",
+        "seconds": -25200
     },
     "version": "2.5.5",
     "mods": [

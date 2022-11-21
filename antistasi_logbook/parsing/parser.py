@@ -7,7 +7,7 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from typing import TYPE_CHECKING, Any, TextIO
+from typing import TYPE_CHECKING, Any, TextIO, Generator
 from pathlib import Path
 from threading import Event
 from time import sleep
@@ -23,7 +23,7 @@ from antistasi_logbook.parsing.meta_log_finder import MetaFinder
 from antistasi_logbook.parsing.parsing_context import RecordLine, LogParsingContext
 from antistasi_logbook.parsing.record_processor import RecordProcessor
 from antistasi_logbook.regex_store.regex_keeper import SimpleRegexKeeper
-from antistasi_logbook.utilities.paired_reader import PairedReader
+
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend
@@ -65,23 +65,7 @@ class Parser:
         self.record_processor = record_processor
 
     def _get_log_file_meta_data(self, file_item: TextIO, existing_data: dict[str, object] = None, force: bool = False) -> "MetaFinder":
-
-        text_parts = PairedReader(file_item, max_chunks=50)
-        regex_keeper = self.regex_keeper.__class__()
-
-        finder = MetaFinder(existing_data=existing_data, regex_keeper=regex_keeper, force=force)
-
-        while True:
-            finder.search(str(text_parts))
-            if finder.all_found() is True or text_parts.finished is True:
-                break
-
-            text_parts.read_next()
-
-        log.debug("added %r parts (len: %r), bytes: %r (%r)", text_parts.chunks_read, len(text_parts), text_parts.bytes_read, bytes2human(text_parts.bytes_read))
-        finder.change_missing_to_none()
-
-        return finder
+        return MetaFinder(existing_data=existing_data, force=force).parse_file(file_item)
 
     def _parse_header_text(self, context: LogParsingContext) -> None:
 
@@ -115,7 +99,7 @@ class Parser:
 
             yield RawRecord(rest_lines)
 
-    def __call__(self, context: "LogParsingContext") -> Any:
+    def __call__(self, context: "LogParsingContext") -> Generator:
 
         # if self.stop_event.is_set():
         #     return

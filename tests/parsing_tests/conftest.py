@@ -2,9 +2,10 @@
 
 import pytest
 from pathlib import Path
+from dateutil.tz import tzoffset
 import json
 from datetime import datetime, timedelta, timezone
-from antistasi_logbook.parsing.meta_log_finder import FullDateTimes, VersionItem
+from antistasi_logbook.parsing.meta_log_finder import VersionItem
 from hashlib import md5
 
 # endregion [Imports]
@@ -42,10 +43,12 @@ def _load_result_json(in_result_file: Path) -> dict[str, object]:
             pass
 
         try:
-            data["full_date_time"] = FullDateTimes(local_datetime=datetime.fromisoformat(data["full_date_time"]["local_datetime"]), utc_datetime=datetime.fromisoformat(data["full_date_time"]["utc_datetime"]))
+            offset_name = data["utc_offset"]["name"]
+            offset_delta = timedelta(seconds=data["utc_offset"]["seconds"])
+            data["utc_offset"] = tzoffset(offset_name, offset_delta)
+
         except KeyError:
             pass
-
         try:
             for item in data["mods"]:
 

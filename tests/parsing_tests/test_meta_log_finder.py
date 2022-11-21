@@ -24,23 +24,11 @@ def test_meta_parsing(example_log_file_and_data_1):
     results: dict[str, object] = example_log_file_and_data_1[1]
 
     with example_file.open("r", encoding='utf-8', errors='ignore') as f:
-        text_parts = PairedReader(f, max_chunks=50)
-        finder = MetaFinder(regex_keeper=SimpleRegexKeeper())
-        while True:
-            finder.search(str(text_parts))
-            if finder.all_found() is True or text_parts.finished is True:
-                break
-
-            text_parts.read_next()
-
-        finder.change_missing_to_none()
+        finder = MetaFinder().parse_file(f)
 
     assert results["game_map"] == finder.game_map
-    assert results["full_date_time"].local_datetime == finder.full_datetime.local_datetime
-    assert results["full_date_time"].utc_datetime == finder.full_datetime.utc_datetime
     assert results["version"] == finder.version
     assert results["campaign_id"] == finder.campaign_id
     assert results["is_new_campaign"] == finder.is_new_campaign
-    assert len(finder.mods) == len(set(i["name"] for i in finder.mods))
-
-    assert finder.mods == results["mods"]
+    assert results["utc_offset"] == finder.utc_offset
+    assert results["mods"] == finder.mods

@@ -7,11 +7,11 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from typing import TYPE_CHECKING, Union, TypedDict
+from typing import TYPE_CHECKING, Union, TypedDict, TextIO
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from collections import namedtuple
-
+from dateutil.tz import UTC, tzoffset
 # * Third Party Imports --------------------------------------------------------------------------------->
 from dateutil.tz import UTC
 import re
@@ -20,9 +20,10 @@ import sys
 from gidapptools import get_logger
 from gidapptools.general_helper.enums import MiscEnum
 from gidapptools.general_helper.conversion import str_to_bool
+from gidapptools.general_helper.date_time import calculate_utc_offset
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
 from antistasi_logbook.regex_store.regex_keeper import SimpleRegexKeeper
-
+from antistasi_logbook.utilities.paired_reader import PairedReader
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.utilities.misc import ModItem, VersionItem
 # * Type-Checking Imports --------------------------------------------------------------------------------->
@@ -50,9 +51,6 @@ get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
-
-
-FullDateTimes = namedtuple("FullDateTimes", ["local_datetime", "utc_datetime"])
 
 
 class RawModData(TypedDict):
@@ -110,34 +108,40 @@ def parse_mod_line(in_line: str) -> RawModData:
 
 class MetaFinder:
 
-    __slots__ = ("game_map", "full_datetime", "version", "mods", "campaign_id", "is_new_campaign", "regex_keeper")
+    __slots__ = ["game_map",
+                 "utc_offset",
+                 "version",
+                 "mods",
+                 "campaign_id",
+                 "is_new_campaign",
+                 "regex_keeper"]
 
     def __init__(self, regex_keeper: "SimpleRegexKeeper" = None, existing_data: dict[str, object] = None, force: bool = False) -> None:
         self.regex_keeper = regex_keeper or SimpleRegexKeeper()
 
         if force is True or existing_data is None:
             self.game_map: str = MiscEnum.NOT_FOUND
-            self.full_datetime: FullDateTimes = MiscEnum.NOT_FOUND
+            self.utc_offset: tzoffset = MiscEnum.NOT_FOUND
             self.version: VersionItem = MiscEnum.NOT_FOUND
             self.mods: list[RawModData] = MiscEnum.NOT_FOUND
             self.campaign_id: int = MiscEnum.NOT_FOUND
             self.is_new_campaign: bool = MiscEnum.NOT_FOUND
         else:
             self.game_map: str = MiscEnum.NOT_FOUND if existing_data.get("has_game_map", False) is False else MiscEnum.DEFAULT
-            self.full_datetime: FullDateTimes = MiscEnum.NOT_FOUND if existing_data.get("utc_offset", None) is None else MiscEnum.DEFAULT
+            self.utc_offset: tzoffset = MiscEnum.NOT_FOUND if existing_data.get("utc_offset", None) is None else MiscEnum.DEFAULT
             self.version: VersionItem = MiscEnum.NOT_FOUND if existing_data.get("version", None) is None else MiscEnum.DEFAULT
             self.mods: list[RawModData] = MiscEnum.NOT_FOUND if existing_data.get("has_mods", False) is False else MiscEnum.DEFAULT
             self.campaign_id: int = MiscEnum.NOT_FOUND if existing_data.get("campaign_id", None) is None else MiscEnum.DEFAULT
             self.is_new_campaign: bool = MiscEnum.NOT_FOUND if existing_data.get("is_new_campaign", None) is None else MiscEnum.DEFAULT
 
     def all_found(self) -> bool:
-        return all(i is not MiscEnum.NOT_FOUND for i in [self.game_map, self.full_datetime, self.version, self.campaign_id, self.is_new_campaign, self.mods])
+        return all(i is not MiscEnum.NOT_FOUND for i in [self.game_map, self.utc_offset, self.version, self.campaign_id, self.is_new_campaign, self.mods])
 
-    def _resolve_full_datetime(self, text: str) -> None:
+    def _resolve_utc_offset(self, text: str) -> None:
         if match := self.regex_keeper.first_full_datetime.search(text):
             utc_datetime_kwargs = {k: int(v) for k, v in match.groupdict().items() if not k.startswith('local_')}
             local_datetime_kwargs = {k.removeprefix('local_'): int(v) for k, v in match.groupdict().items() if k.startswith('local_')}
-            self.full_datetime = FullDateTimes(utc_datetime=datetime(tzinfo=UTC, **utc_datetime_kwargs), local_datetime=datetime(tzinfo=UTC, **local_datetime_kwargs))
+            self.utc_offset = calculate_utc_offset(utc_datetime=datetime(tzinfo=UTC, **utc_datetime_kwargs), local_datetime=datetime(tzinfo=UTC, **local_datetime_kwargs), offset_class=tzoffset)
 
     def _resolve_version(self, text: str) -> None:
         if match := self.regex_keeper.version.search(text):
@@ -158,12 +162,12 @@ class MetaFinder:
                     pass
 
     def _resolve_game_map(self, text: str) -> None:
-        # takes about 0.170319 s
+
         if match := self.regex_keeper.game_map.search(text):
             self.game_map = match.group('game_map')
 
     def _resolve_mods(self, text: str) -> None:
-        # takes about 0.263012 s
+
         match = self.regex_keeper.mods.search(text)
         if match:
             mod_lines = match.group('mod_lines').splitlines()
@@ -195,8 +199,8 @@ class MetaFinder:
 
             self._resolve_version(text)
 
-        if self.full_datetime is MiscEnum.NOT_FOUND:
-            self._resolve_full_datetime(text)
+        if self.utc_offset is MiscEnum.NOT_FOUND:
+            self._resolve_utc_offset(text)
 
         if self.mods is MiscEnum.NOT_FOUND:
             self._resolve_mods(text)
@@ -215,11 +219,24 @@ class MetaFinder:
         if self.version is MiscEnum.NOT_FOUND:
             self.version = None
 
-        if self.full_datetime is MiscEnum.NOT_FOUND:
-            self.full_datetime = None
+        if self.utc_offset is MiscEnum.NOT_FOUND:
+            self.utc_offset = None
 
         if self.mods is MiscEnum.NOT_FOUND:
             self.mods = None
+
+    def parse_file(self, in_file_obj: TextIO) -> Self:
+        text_parts = PairedReader(in_file_obj, max_chunks=50)
+
+        while True:
+            self.search(str(text_parts))
+            if self.all_found() is True or text_parts.finished is True:
+                break
+
+            text_parts.read_next()
+
+        self.change_missing_to_none()
+        return self
 
 
 # region[Main_Exec]

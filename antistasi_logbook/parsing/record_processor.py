@@ -446,8 +446,8 @@ class RecordProcessor:
             parsed_data["called_by"] = self._get_or_create_antistasi_file(parsed_data["called_by"])
 
         if parsed_data.get("local_recorded_at"):
-            local_recorded_at = parsed_data.pop("local_recorded_at")
-            utc_recorded_at = (local_recorded_at + utc_offset._offset).replace(tzinfo=UTC)
+            local_recorded_at: datetime = parsed_data.pop("local_recorded_at")
+            utc_recorded_at = local_recorded_at.replace(tzinfo=utc_offset).astimezone(UTC)
             parsed_data["recorded_at"] = utc_recorded_at
         return parsed_data
 

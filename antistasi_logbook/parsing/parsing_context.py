@@ -210,8 +210,8 @@ class LogParsingContext:
         log.debug("starting to set meta-data for %r", self._log_file)
         # TODO: Refractor this Monster!
 
-        if finder is None or finder.full_datetime is None:
-            log.debug("setting to unparsable, because either finder(%r) is None or finder.full_datetime(%r) is None or finder.campaign_id(%r) is None", finder, finder.full_datetime, finder.campaign_id)
+        if finder is None or finder.utc_offset is None:
+            log.debug("setting to unparsable, because either finder(%r) is None or finder.utc_offset(%r) is None or finder.campaign_id(%r) is None", finder, finder.utc_offset, finder.campaign_id)
             self.set_unparsable()
             if self.done_signal:
                 self._log_file._cleanup()
@@ -240,17 +240,13 @@ class LogParsingContext:
             self.log_file_data["campaign_id"] = finder.campaign_id
 
         if self.log_file_data.get("utc_offset") is None:
-            difference_seconds = (finder.full_datetime.utc_datetime - finder.full_datetime.local_datetime).total_seconds()
 
-            offset_timedelta = timedelta(seconds=int(difference_seconds))
-            offset = tzoffset(self.log_file_data["name"], offset_timedelta)
-
-            self.log_file_data["utc_offset"] = offset
+            self.log_file_data["utc_offset"] = finder.utc_offset
 
             with self.database.write_lock:
-                self.inserter.thread_pool.submit(self._log_file.update, utc_offset=offset)
+                self.inserter.thread_pool.submit(self._log_file.update, utc_offset=finder.utc_offset)
 
-            self.log_file_data["created_at"] = self._log_file.name_datetime.replace(tzinfo=offset).astimezone(UTC)
+            self.log_file_data["created_at"] = self._log_file.name_datetime.replace(tzinfo=finder.utc_offset).astimezone(UTC)
 
         if finder.mods is not None and finder.mods is not MiscEnum.DEFAULT:
 
