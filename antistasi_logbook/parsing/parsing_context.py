@@ -371,14 +371,14 @@ class LogParsingContext:
             if len(self.record_storage) == self._log_record_batch_size:
                 while len([i for i in self.futures if i.done() is False]) > 5:
                     sleep(random.randint(1, 3))
-                self.futures.append(self.inserter.insert_and_assign_messages(records=list(self.record_storage)))
+                self.futures.append(self.inserter.insert_messages(records=list(self.record_storage)))
                 self.futures.append(self.inserter.insert(records=list(self.record_storage), context=self))
                 self.record_storage = []
 
     def _dump_rest(self) -> None:
         with self.record_lock:
             if len(self.record_storage) > 0:
-                self.futures.append(self.inserter.insert_and_assign_messages(records=list(self.record_storage)))
+                self.futures.append(self.inserter.insert_messages(records=list(self.record_storage)))
                 self.futures.append(self.inserter.insert(records=list(self.record_storage), context=self))
                 self.record_storage = []
 

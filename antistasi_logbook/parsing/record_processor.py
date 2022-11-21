@@ -113,22 +113,7 @@ class RecordInserter:
     def database(self) -> "GidSqliteApswDatabase":
         return self.backend.database
 
-    # @property
-    # def write_lock(self) -> Lock:
-    #     return self.database.write_lock
-    # @time_func(output=log.debug, use_qualname=False, also_pretty=True, condition=sys.flags.dev_mode, output_kwargs={"extra": {"is_timing_decorator": True}})
     def _insert_func(self, records: Union[Iterable["RawRecord"], Future], context: "LogParsingContext") -> ManyRecordsInsertResult:
-
-        # message_insert_start_time = perf_counter()
-        # message_params = list({(Message.md5_hash.db_value(r.message_hash), Message.text.db_value(r.message)) for r in records if r})
-
-        # with self.database.connection() as conn:
-        #     try:
-        #         conn.executemany('INSERT OR IGNORE INTO "Message" ("md5_hash", "text") VALUES (?,?)', message_params)
-        #     except Exception as e:
-        #         log.error(e, exc_info=True)
-        #         raise e
-        # log.debug("inserted %r messages in %.3f s", len(message_params), perf_counter() - message_insert_start_time)
         start_time = perf_counter()
         record_params = list(r.to_sql_params(context._log_file) for r in records)
         record_insert_phrase = RawRecord.insert_sql_phrase.phrase
@@ -154,21 +139,15 @@ class RecordInserter:
 
         future = self.record_insert_thread_pool.submit(self._insert_func, records=records, context=context)
         future.add_done_callback(_callback(_context=context))
-        # with self.consecutive_insert_funcs_lock:
-        #     self.consecutive_insert_funcs += 1
-        #     if self.consecutive_insert_funcs >= 30:
-        #         self.consecutive_insert_funcs = 0
-        #         self.thread_pool.submit(self._refresh_connection)
+
         return future
 
     @time_func(output=log.debug, use_qualname=False, also_pretty=True, condition=sys.flags.dev_mode, output_kwargs={"extra": {"is_timing_decorator": True}})
     def _execute_update_record_class(self, log_record_id: int, record_class_id: int) -> None:
 
-        # with self.database.atomic("IMMEDIATE") as txn:
         self.database.connect(True)
         with self.database.connection() as conn:
             conn.execute(self.update_record_record_class_phrase, (record_class_id, log_record_id))
-        # txn.commit()
 
     @time_func(output=log.debug, use_qualname=False, also_pretty=True, condition=sys.flags.dev_mode, output_kwargs={"extra": {"is_timing_decorator": True}})
     def _execute_many_update_record_class(self, pairs: tuple[tuple[int, int]]) -> int:
@@ -184,45 +163,6 @@ class RecordInserter:
 
     def many_update_record_class(self, pairs: tuple[tuple[int, int]]) -> Future:
         return self.thread_pool.submit(self._execute_many_update_record_class, pairs=pairs)
-
-    @time_func(output=log.debug, use_qualname=False, also_pretty=True, condition=sys.flags.dev_mode, output_kwargs={"extra": {"is_timing_decorator": True}})
-    def _execute_mod_from_mod_line(self, mod_line: str) -> Optional[Mod]:
-        self.database.connect(True)
-        try:
-            mod, was_created = Mod.from_text_line(line=mod_line)
-            _ = mod.id
-            if was_created:
-                log.debug("created mod %r", mod)
-
-        except (ValueError, IndexError) as e:
-            log.critical("%r errored mod line: %r", e, mod_line)
-            mod = None
-        return mod
-
-    @time_func(output=log.debug, use_qualname=False, also_pretty=True, condition=sys.flags.dev_mode, output_kwargs={"extra": {"is_timing_decorator": True}})
-    def _execute_many_mods_from_mod_lines(self, mod_lines: Iterable[str]) -> tuple[Optional[Mod]]:
-
-        mods = []
-
-        for mod_line in mod_lines:
-            try:
-
-                mod, was_created = Mod.from_text_line(line=mod_line)
-                if was_created:
-                    log.debug("created mod %r", mod)
-                _ = mod.id
-                mods.append(mod)
-            except (ValueError, IndexError) as e:
-                log.critical("%r errored mod line: %r", e, mod_line)
-                mod = None
-                mods.append(None)
-        return tuple(mods)
-
-    def many_mods_from_mod_lines(self, mod_lines: Iterable[str]) -> Future:
-        return self.thread_pool.submit(self._execute_many_mods_from_mod_lines, mod_lines=mod_lines)
-
-    def mod_from_mod_line(self, mod_line: str) -> Future:
-        return self.thread_pool.submit(self._execute_mod_from_mod_line, mod_line=mod_line)
 
     @time_func(output=log.debug, use_qualname=False, also_pretty=True, condition=sys.flags.dev_mode, output_kwargs={"extra": {"is_timing_decorator": True}})
     def _execute_insert_mods(self, mod_data: Iterable["RawModData"], log_file: LogFile) -> None:
@@ -271,18 +211,11 @@ class RecordInserter:
             log.critical("log_file_data_dict: \n        %s", '\n        '.join(f"{k!r}:{v!r}" for k, v in in_dict.items()))
             log.error(e, exc_info=True)
             raise
-        # item = update_model_from_dict(LogFile.get_by_id(log_file.id), in_dict)
-        # item.save()
-
-        # log.debug("Updated logfile %r modified_at: %r, game_map: %r, version: %r, campaign_id: %r", item, item.modified_at, item.game_map, item.version, item.campaign_id)
 
     def update_log_file_from_dict(self, log_file: LogFile, in_dict: dict) -> Future:
-        def _ensure_dynamic_columns_done_callback(in_future: Future):
-            if in_future.cancelled() is False and in_future.exception() is False:
-                _log_file = LogFile.get_by_id(in_future.result())
-                self.thread_pool.submit(_log_file.ensure_dynamic_columns)
+
         future = self.thread_pool.submit(self._execute_update_log_file_from_dict, log_file=log_file, in_dict=in_dict)
-        future.add_done_callback(_ensure_dynamic_columns_done_callback)
+
         return future
 
     @time_func(output=log.debug, use_qualname=False, also_pretty=True, condition=sys.flags.dev_mode, output_kwargs={"extra": {"is_timing_decorator": True}})
@@ -316,7 +249,7 @@ class RecordInserter:
 
     # @time_func(output=log.debug, use_qualname=False, also_pretty=True, condition=sys.flags.dev_mode, output_kwargs={"extra": {"is_timing_decorator": True}})
     @time_func(output=log.debug, use_qualname=False, also_pretty=True, condition=sys.flags.dev_mode, output_kwargs={"extra": {"is_timing_decorator": True}})
-    def _execute_insert_and_assign_messages(self, records: Iterable["RawRecord"]):
+    def _execute_insert_messages(self, records: Iterable["RawRecord"]):
         start_time = perf_counter()
         message_params = list({(Message.md5_hash.db_value(r.message_hash), Message.text.db_value(r.message)) for r in records if r and r.message_hash not in self.database.most_common_messages.keys()})
         self.database.connect(True)
@@ -330,37 +263,11 @@ class RecordInserter:
                 raise e
         end_time = perf_counter()
         log.debug("inserted %r messsages in %.3f s", len(message_params), end_time - start_time)
-        # _out = []
 
-        # with self.database.connection() as conn:
-        #     cur: apsw.Cursor = conn.executemany('SELECT "id" FROM "Message" WHERE "md5_hash"==?', ((Message.text.db_value(r.message_hash),) for r in records))
-
-        #     for _record in records:
-        #         _record._message_item_id = cur.fetchone()[0]
-        #         del _record.parsed_data["message"]
-        #         _out.append(_record)
-
-        # return _out
-
-    def insert_and_assign_messages(self, records: Iterable["RawRecord"]) -> Future:
+    def insert_messages(self, records: Iterable["RawRecord"]) -> Future:
         if isinstance(records, Future):
             records = records.result()
-        return self.message_insert_thread_pool.submit(self._execute_insert_and_assign_messages, records=records)
-
-    def _execute_insert_and_assign_single_message(self, text: str, md5_hash: str):
-        self.database.connect(True)
-        try:
-            self.database.execute_sql('INSERT OR IGNORE INTO "Message" ("md5_hash", "text") VALUES (?,?)', (Message.md5_hash.db_value(md5_hash), Message.text.db_value(text)))
-        except Exception as e:
-            log.error(e, exc_info=True)
-            raise e
-
-    def insert_and_assign_single_message(self, record: "RawRecord") -> None:
-        text = record.parsed_data["message"]
-        md5_hash = record.message_hash
-        if md5_hash in self.database.most_common_messages:
-            return
-        self.message_insert_thread_pool.submit(self._execute_insert_and_assign_single_message, text=text, md5_hash=md5_hash)
+        return self.message_insert_thread_pool.submit(self._execute_insert_messages, records=records)
 
     @time_func(output=log.debug, use_qualname=False, also_pretty=True, condition=sys.flags.dev_mode, output_kwargs={"extra": {"is_timing_decorator": True}})
     def _execute_update_original_log_file(self, original_log_file: OriginalLogFile):
@@ -480,10 +387,6 @@ class RecordProcessor:
                                         microsecond=int(match.group("microsecond") + "000")),
                 "log_level": log_level_part.strip().upper(),
                 "logged_from": file_part.strip().removeprefix("File:")}
-
-        # if _out["logged_from"] in {None, ""}:
-        #     log.critical("empty logged from with %r", raw_record.content)
-        #     del _out["logged_from"]
 
         if called_by_match := self.regex_keeper.called_by.match(rest):
             _rest, called_by, _other_rest = called_by_match.groups()
