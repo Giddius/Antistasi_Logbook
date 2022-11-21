@@ -50,9 +50,17 @@ def _maybe_join(parts):
 # Array parsing Grammar
 
 
-def _strip_quotes(in_token: pp.ParseResults) -> str:
+def _strip_quotes(in_string, in_location, in_token) -> str:
 
     return in_token[0].strip('"' + "'").replace(r"\ ".strip() + '"', '"').replace(r"\ ".strip() + "'", "'")
+
+
+def _convert_bool_false(in_string, in_location, in_token) -> bool:
+    return False
+
+
+def _convert_bool_true(in_string, in_location, in_token) -> bool:
+    return True
 
 
 def get_array_grammar():
@@ -60,7 +68,7 @@ def get_array_grammar():
     sqb_open = pp.Suppress('[')
     sqb_close = pp.Suppress(']')
     quote = pp.Suppress('"') | pp.Suppress("'")
-    keywords = pp.Keyword("EAST") | pp.Keyword("WEST") | pp.Keyword("true", caseless=True).set_parse_action(lambda x: True) | pp.Keyword("false", caseless=True).set_parse_action(lambda x: False)
+    keywords = pp.Keyword("EAST") | pp.Keyword("WEST") | pp.Keyword("true", caseless=True).set_parse_action(_convert_bool_true) | pp.Keyword("false", caseless=True).set_parse_action(_convert_bool_false)
     items = pp.Forward()
     content = pp.Group(pp.ZeroOrMore(items + pp.Optional(colon)))
     array = sqb_open + content + sqb_close

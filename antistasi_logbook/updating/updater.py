@@ -456,7 +456,8 @@ class Updater:
 
     def after_updates(self):
         log.debug("emiting after_updates_signal")
-        self.database.resolve_all_armafunction_extras()
+        self.database.foreign_key_cache.reset_all()
+        # self.database.resolve_all_armafunction_extras()
         self.signaler.send_update_finished()
         remote_manager_registry.close()
         self.database.close()
@@ -503,7 +504,6 @@ class Updater:
             wait(del_tasks, return_when=ALL_COMPLETED)
 
             self.database.session_meta_data.update_finished()
-            self.thread_pool.submit(LogFile.refresh_dynamic_for_all_log_files)
         finally:
             self.is_updating_event.clear()
             self.after_updates()

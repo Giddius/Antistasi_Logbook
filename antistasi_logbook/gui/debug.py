@@ -130,9 +130,7 @@ def get_longest_message():
     with db.atomic():
         longest_messages = (i[0] for i in Message.select(Message.text).distinct().order_by(fn.LENGTH(Message.text).desc()).limit(500).tuples().iterator())
         _out = {len(str(longest_message)): str(longest_message) for longest_message in longest_messages}
-    with THIS_FILE_DIR.joinpath("blah.txt").open("w", encoding='utf-8', errors='ignore') as f:
-        for size, txt in _out.items():
-            f.write(f'{size!r} -> """{txt!s}"""\n\n\n\n')
+
     return _out
 
 
@@ -520,12 +518,6 @@ def show_default_icons():
     return widget
 
 
-def run_reset_dynamic_for_all_log_files():
-    app: "AntistasiLogbookApplication" = QApplication.instance()
-    db = app.backend.database
-    LogFile.refresh_dynamic_for_all_log_files()
-
-
 def get_all_chache_info():
     app: "AntistasiLogbookApplication" = QApplication.instance()
     db = app.backend.database
@@ -591,6 +583,28 @@ def show_and_dump_meta_attrs():
     return data
 
 
+def count_error_records_by_group():
+    app: "AntistasiLogbookApplication" = QApplication.instance()
+    db: "GidSqliteApswDatabase" = app.backend.database
+
+    query = """SELECT lr.log_file ,COUNT()  FROM LogRecord lr WHERE lr.log_level == 5 GROUP BY lr.log_file"""
+    conn: apsw.Connection = db.connection()
+    result = conn.execute(query).fetchall()
+
+    return {LogFile.get_by_id(i[0]).name: i[1] for i in result}
+
+
+def count_records_by_group():
+    app: "AntistasiLogbookApplication" = QApplication.instance()
+    db: "GidSqliteApswDatabase" = app.backend.database
+
+    query = """SELECT lr.log_file ,COUNT()  FROM LogRecord lr GROUP BY lr.log_file"""
+    conn: apsw.Connection = db.connection()
+    result = conn.execute(query).fetchall()
+
+    return {LogFile.get_by_id(i[0]).name: i[1] for i in result}
+
+
 def setup_debug_widget(debug_dock_widget: "DebugDockWidget") -> None:
     log.debug("running setup_debug_widget")
     app: AntistasiLogbookApplication = QApplication.instance()
@@ -632,11 +646,12 @@ def setup_debug_widget(debug_dock_widget: "DebugDockWidget") -> None:
     debug_dock_widget.add_show_func_result_button(dump_mod_sets, "setup-data")
     debug_dock_widget.add_show_func_result_button(show_all_models, "database-meta")
     debug_dock_widget.add_show_func_result_button(show_default_icons, "PySide")
-    debug_dock_widget.add_show_func_result_button(run_reset_dynamic_for_all_log_files, "models")
     debug_dock_widget.add_show_func_result_button(check_query_object_method, "models")
     debug_dock_widget.add_show_func_result_button(get_all_chache_info, "models")
     debug_dock_widget.add_show_func_result_button(check_some_model_data, "models")
     debug_dock_widget.add_show_func_result_button(show_and_dump_meta_attrs, "models")
+    debug_dock_widget.add_show_func_result_button(count_error_records_by_group, "queries")
+    debug_dock_widget.add_show_func_result_button(count_records_by_group, "queries")
 
     log.debug("finished setup_debug_widget")
 

@@ -45,7 +45,7 @@ if TYPE_CHECKING:
     from antistasi_logbook.parsing.parser import SimpleRegexKeeper, RecordClassManager
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
     from antistasi_logbook.records.record_class_manager import RecordClassChecker
-
+    from antistasi_logbook.parsing.meta_log_finder import RawModData
 # endregion[Imports]
 
 # region [TODO]
@@ -135,7 +135,7 @@ class RecordInserter:
         self.database.connect(True)
         with self.database.connection() as conn:
 
-            conn.executemany(record_insert_phrase, record_params, prepare_flags=apsw.SQLITE_PREPARE_PERSISTENT)
+            conn.executemany(record_insert_phrase, record_params)
 
         log.debug("inserted %r records in %.3f s", len(records), perf_counter() - start_time)
 
@@ -167,14 +167,14 @@ class RecordInserter:
         # with self.database.atomic("IMMEDIATE") as txn:
         self.database.connect(True)
         with self.database.connection() as conn:
-            conn.execute(self.update_record_record_class_phrase, (record_class_id, log_record_id), prepare_flags=apsw.SQLITE_PREPARE_PERSISTENT)
+            conn.execute(self.update_record_record_class_phrase, (record_class_id, log_record_id))
         # txn.commit()
 
     @time_func(output=log.debug, use_qualname=False, also_pretty=True, condition=sys.flags.dev_mode, output_kwargs={"extra": {"is_timing_decorator": True}})
     def _execute_many_update_record_class(self, pairs: tuple[tuple[int, int]]) -> int:
         self.database.connect(True)
         with self.database.connection() as conn:
-            conn.executemany(self.update_record_record_class_phrase, tuple(pairs), prepare_flags=apsw.SQLITE_PREPARE_PERSISTENT)
+            conn.executemany(self.update_record_record_class_phrase, tuple(pairs))
 
         log.info("inserted new record class for %s records", number_to_pretty(len(pairs)))
         return len(pairs)
@@ -225,11 +225,16 @@ class RecordInserter:
         return self.thread_pool.submit(self._execute_mod_from_mod_line, mod_line=mod_line)
 
     @time_func(output=log.debug, use_qualname=False, also_pretty=True, condition=sys.flags.dev_mode, output_kwargs={"extra": {"is_timing_decorator": True}})
-    def _execute_insert_mods(self, mod_items: Union[Iterable[Mod], Future], log_file: LogFile) -> None:
-        if isinstance(mod_items, Future):
-            mod_items = mod_items.result()
+    def _execute_insert_mods(self, mod_data: Iterable["RawModData"], log_file: LogFile) -> None:
+        actual_mods = []
+        for raw_data in mod_data:
+            actual_mod, was_created = Mod.from_raw_mod_data(raw_data)
+            if was_created is True:
+                log.debug("created Mod %r", actual_mod)
+            actual_mods.append(actual_mod)
+
         log.debug("creating insert_mods_parameters")
-        log_file_mod_params = tuple({"log_file": log_file.id, "mod": m.id} for m in mod_items if m)
+        log_file_mod_params = tuple({"log_file": log_file.id, "mod": m.id} for m in actual_mods if m)
 
         with self.database.connection_context():
             log.debug("inserting insert_mods")
@@ -238,8 +243,8 @@ class RecordInserter:
         if len(log_file_mod_params) > 0:
             log.info("Assigned %r mods to log file %r", len(log_file_mod_params), log_file)
 
-    def insert_mods(self, mod_items: Iterable[Mod], log_file: LogFile) -> Future:
-        return self.thread_pool.submit(self._execute_insert_mods, mod_items=mod_items, log_file=log_file)
+    def insert_mods(self, mod_data: Iterable["RawModData"], log_file: LogFile) -> Future:
+        return self.thread_pool.submit(self._execute_insert_mods, mod_data=mod_data, log_file=log_file)
 
     def _execute_update_log_file_from_dict(self, log_file: LogFile, in_dict: dict):
         log.debug("running log_file update for %r", log_file)
@@ -254,6 +259,8 @@ class RecordInserter:
                 value = in_dict.get(key_name)
                 if value is not None and isinstance(value, dict):
                     in_dict[key_name] = value["id"]
+
+            in_dict["mod_set"] = log_file.determine_mod_set()
 
             LogFile.update(**{k: v for k, v in in_dict.items() if v is not None}).where(LogFile.id == log_file.id).execute()
 

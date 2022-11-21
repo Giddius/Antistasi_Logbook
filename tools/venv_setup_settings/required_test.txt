@@ -1,3 +1,4 @@
 pytest
 pytest-html
 time-machine>=2.4.0
+pytest-lazy-fixture

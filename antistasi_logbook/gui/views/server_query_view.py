@@ -11,8 +11,8 @@ from typing import TYPE_CHECKING
 from pathlib import Path
 
 # * Qt Imports --------------------------------------------------------------------------------------->
-from PySide6.QtGui import QAction
-from PySide6.QtCore import QAbstractItemModel
+from PySide6.QtGui import QAction, QMouseEvent
+from PySide6.QtCore import QAbstractItemModel, Qt, QModelIndex
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -71,6 +71,14 @@ class ServerQueryTreeView(BaseQueryTreeView):
     def extra_setup(self):
         super().extra_setup()
 
+    def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
+        idx = self.indexAt(event.position().toPoint())
+        idx = self.model.modify_index(idx)
+
+        if idx.isValid() and event.button() == Qt.MouseButton.LeftButton and idx.column_item.name == "update_enabled":
+            self.model.change_update_enabled(idx.row_item, idx.column_item, idx)
+        else:
+            return super().mouseDoubleClickEvent(event)
         # region[Main_Exec]
 
 

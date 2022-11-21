@@ -28,7 +28,6 @@ from antistasi_logbook.gui.main_window import start_gui
 
 # endregion[Imports]
 
-
 # region [TODO]
 
 
@@ -41,11 +40,9 @@ from antistasi_logbook.gui.main_window import start_gui
 
 # region [Constants]
 
-
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 META_PATHS = get_meta_paths()
 META_INFO = get_meta_info()
-
 
 log = get_logger(__name__)
 
@@ -59,8 +56,8 @@ def main():
 
 
 # region[Main_Exec]
-if __name__ == '__main__':
 
+if __name__ == '__main__':
     main()
 
 # endregion[Main_Exec]

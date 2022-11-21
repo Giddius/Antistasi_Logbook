@@ -2095,5 +2095,122 @@
         },
         "file_name": "fn_patrolSearchBuilding.sqf",
         "function_name": "fn_patrolSearchBuilding.sqf"
+    },
+    {
+        "name": "initBases",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_initBases.sqf",
+        "function_name": "A3A_fnc_initBases"
+    },
+    {
+        "name": "setupMonitor",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_setupMonitor.sqf",
+        "function_name": "A3A_fnc_setupMonitor"
+    },
+    {
+        "name": "startGame",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_startGame.sqf",
+        "function_name": "A3A_fnc_startGame"
+    },
+    {
+        "name": "equipmentSort",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_equipmentSort.sqf",
+        "function_name": "A3A_fnc_equipmentSort"
+    },
+    {
+        "name": "addLoadAction",
+        "author_prefix": {
+            "name": "A3A_Logistics",
+            "full_name": null
+        },
+        "file_name": "fn_addLoadAction.sqf",
+        "function_name": "A3A_Logistics_fnc_addLoadAction"
+    },
+    {
+        "name": "punishment",
+        "author_prefix": {
+            "name": "UNKNOWN",
+            "full_name": "Unknown"
+        },
+        "file_name": "fn_punishment.sqf",
+        "function_name": "fn_punishment.sqf"
+    },
+    {
+        "name": "writebackSaveVar",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_writebackSaveVar.sqf",
+        "function_name": "A3A_fnc_writebackSaveVar"
+    },
+    {
+        "name": "addFIAsquadHC",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_addFIAsquadHC.sqf",
+        "function_name": "A3A_fnc_addFIAsquadHC"
+    },
+    {
+        "name": "setupDialog",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_setupDialog.sqf",
+        "function_name": "A3A_fnc_setupDialog"
+    },
+    {
+        "name": "build",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_build.sqf",
+        "function_name": "A3A_fnc_build"
+    },
+    {
+        "name": "unload",
+        "author_prefix": {
+            "name": "A3A_Logistics",
+            "full_name": null
+        },
+        "file_name": "fn_unload.sqf",
+        "function_name": "A3A_Logistics_fnc_unload"
+    },
+    {
+        "name": "deleteSave",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_deleteSave.sqf",
+        "function_name": "A3A_fnc_deleteSave"
+    },
+    {
+        "name": "buyVehicleCiv",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_buyVehicleCiv.sqf",
+        "function_name": "A3A_fnc_buyVehicleCiv"
     }
 ]

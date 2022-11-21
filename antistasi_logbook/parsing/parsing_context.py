@@ -198,6 +198,14 @@ class LogParsingContext:
     def set_unparsable(self) -> None:
         self.log_file_data["unparsable"] = True
 
+    def get_existing_meta_data(self) -> dict[str, object]:
+        return {"has_game_map": self._log_file.has_game_map(),
+                "utc_offset": self._log_file.utc_offset,
+                "version": self._log_file.version,
+                "has_mods": self._log_file.has_mods,
+                "campaign_id": self._log_file.campaign_id,
+                "is_new_campaign": self._log_file.is_new_campaign}
+
     def set_found_meta_data(self, finder: "MetaFinder") -> None:
         log.debug("starting to set meta-data for %r", self._log_file)
         # TODO: Refractor this Monster!
@@ -246,7 +254,7 @@ class LogParsingContext:
 
         if finder.mods is not None and finder.mods is not MiscEnum.DEFAULT:
 
-            self.futures.append(self.inserter.insert_mods(mod_items=finder.mods, log_file=self._log_file))
+            self.futures.append(self.inserter.insert_mods(mod_data=finder.mods, log_file=self._log_file))
         if self.done_signal:
             self.done_signal()
 
@@ -377,11 +385,13 @@ class LogParsingContext:
     def wait_on_futures(self, timeout: float = None) -> None:
         with self.record_lock:
             log.debug("Waiting for futures of %r (amount: %r)", self, len(self.futures))
-            done, not_done = wait(self.futures, return_when=ALL_COMPLETED, timeout=timeout)
+            while len([i for i in self.futures if i.done() is False]) > 1:
+                sleep(0.5)
+
             log.debug("finished waiting for futures")
 
             try:
-                for t in list(done) + list(not_done):
+                for t in list(self.futures):
                     exception = t.exception()
                     if exception is not None:
                         log.error(exception, exc_info=True)
@@ -391,6 +401,7 @@ class LogParsingContext:
                 log.critical("error %r encountered with log-file %r", e, self._log_file)
 
             self.log_file_data["last_parsed_datetime"] = self.log_file_data.get("modified_at")
+            self.futures.clear()
 
     def __enter__(self) -> "LogParsingContext":
         self._log_file.download()

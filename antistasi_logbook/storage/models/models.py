@@ -16,7 +16,7 @@ from threading import Lock, RLock
 from contextlib import contextmanager
 from statistics import mean, correlation
 from collections import defaultdict
-from concurrent.futures import Future
+from concurrent.futures import Future, ThreadPoolExecutor
 
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QColor
@@ -43,11 +43,11 @@ from gidapptools.general_helper.conversion import bytes2human, str_to_bool
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook import setup
 from antistasi_logbook.data.misc import LOG_FILE_DATE_REGEX
-from antistasi_logbook.records.enums import RecordFamily
+from antistasi_logbook.records.enums import RecordFamily, MessageFormat
 from antistasi_logbook.utilities.misc import VersionItem, EnumLikeModelCache, all_subclasses_recursively
 from antistasi_logbook.utilities.locks import FILE_LOCKS
-from antistasi_logbook.records.base_record import MessageFormat
-from antistasi_logbook.updating.remote_managers import remote_manager_registry
+
+from antistasi_logbook.updating import get_remote_manager_registry
 from antistasi_logbook.storage.models.custom_fields import (URLField, PathField, LoginField, MarkedField, VersionField, CommentsField, TextBlobField, TzOffsetField,
                                                             LocalImageField, RemotePathField, CaselessTextField, AwareTimeStampField, LZMACompressedTextField)
 from antistasi_logbook.utilities.date_time_utilities import DateTimeFrame
@@ -68,7 +68,7 @@ if TYPE_CHECKING:
     from antistasi_logbook.parsing.py_raw_record import RawRecord
     from antistasi_logbook.updating.remote_managers import InfoItem, AbstractRemoteStorageManager
     from antistasi_logbook.records.record_class_manager import RECORD_CLASS_TYPE, RecordClassManager
-
+    from antistasi_logbook.parsing.meta_log_finder import RawModData
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
@@ -489,7 +489,7 @@ class RemoteStorage(BaseModel):
         self.login = list(self.__class__.select(self.__class__.login).where(self.__class__.id == self.id).tuples().iterator())[0]
 
     def as_remote_manager(self) -> "AbstractRemoteStorageManager":
-        manager = remote_manager_registry.get_remote_manager(self)
+        manager = get_remote_manager_registry().get_remote_manager(self)
         return manager
 
     def __str__(self):
@@ -788,10 +788,6 @@ class LogFile(BaseModel):
     original_file = ForeignKeyField(model=OriginalLogFile, field="id", column_name="original_file", lazy_load=True, backref="log_file", null=True, on_delete="CASCADE", index=True)
     manually_added = BooleanField(null=False, default=False, verbose_name="Manually added", index=True)
     mod_set = ForeignKeyField(null=True, model=ModSet, field="id", column_name="mod_set", lazy_load=True, index=True, verbose_name="Mod-Set")
-    amount_headless_clients = IntegerField(null=True, unique=False, index=False, verbose_name="Headless Clients")
-    amount_log_records = IntegerField(null=True, index=False, unique=False, verbose_name="Log-Records")
-    amount_errors = IntegerField(null=True, index=False, unique=False, verbose_name="Errors")
-    amount_warnings = IntegerField(null=True, index=False, unique=False, verbose_name="Warnings")
     comments = CommentsField(null=True)
     marked = MarkedField()
 
@@ -814,54 +810,34 @@ class LogFile(BaseModel):
         super().__init__(*args, **kwargs)
         self.is_downloaded: bool = False
 
-    def ensure_dynamic_columns(self, force: bool = False, update_db: bool = True) -> dict[str, Union[int, ModSet]]:
+    @cached_property
+    def amount_headless_clients(self) -> int:
+        return self.determine_amount_headless_clients()
 
-        update_data = {}
+    @cached_property
+    def amount_log_records(self) -> int:
+        return self.determine_amount_log_records()
 
-        if self.mod_set is None or force is True:
-            self.mod_set = self.determine_mod_set()
-            update_data["mod_set"] = self.mod_set
+    @cached_property
+    def amount_errors(self) -> int:
+        return self.determine_amount_errors()
 
-        if self.amount_headless_clients is None or force is True:
-            self.amount_headless_clients = self.determine_amount_headless_clients()
-            update_data["amount_headless_clients"] = self.amount_headless_clients
-
-        if self.amount_log_records is None or force is True:
-            self.amount_log_records = self.determine_amount_log_records()
-            update_data["amount_log_records"] = self.amount_log_records
-
-        if self.amount_errors is None or force is True:
-            self.amount_errors = self.determine_amount_errors()
-            update_data["amount_errors"] = self.amount_errors
-
-        if self.amount_warnings is None or force is True:
-            self.amount_warnings = self.determine_amount_warnings()
-            update_data["amount_warnings"] = self.amount_warnings
-
-        if update_data and update_db is True:
-            with self.database.connection_context():
-                LogFile.update(**update_data).where((LogFile.id == self.id)).execute()
-
-        update_data["id"] = self.id
-        return update_data
-
-    @classmethod
-    def refresh_dynamic_for_all_log_files(cls, log_files: Iterable["LogFile"] = None):
-        while RecordClass.record_class_manager is None:
-            sleep(1)
-        if log_files is None:
-            log_files = LogFile.select().iterator()
-
-        all_update_data = list(cls._meta.database.backend.inserting_thread_pool.map(lambda x: x.ensure_dynamic_columns(force=True, update_db=False), log_files))
-        # all_update_data = [l.ensure_dynamic_columns(force=True, update_db=True) for l in log_files]
+    @cached_property
+    def amount_warnings(self) -> int:
+        return self.determine_amount_warnings()
 
     def determine_mod_set(self) -> Optional["ModSet"]:
-        own_mod_names = frozenset([m.cleaned_name for m in Mod.select().join(LogFileAndModJoin).join(LogFile).where(LogFile.id == self.id).iterator()])
+        # own_mod_names = frozenset(Mod.get_by_id_cached(i).cleaned_name for i in LogFileAndModJoin.select(LogFileAndModJoin.mod).where((LogFileAndModJoin.log_file == self.id)).iterator())
+        own_mod_names = [m.cleaned_name for m in self.get_mods()]
+        own_mod_names = frozenset(own_mod_names)
         mod_set_value = None
-        for mod_set in sorted(ModSet.select().iterator(), key=lambda x: len(x.mod_names), reverse=True):
-            if len(mod_set.mod_names) > len(own_mod_names):
+        for mod_set in sorted(ModSet.select(), key=lambda x: len(x.mod_names), reverse=True):
+            mod_set_mod_names = set(mod_set.mod_names)
+            if len(mod_set_mod_names) > len(own_mod_names):
                 continue
-            if all(mod_name in own_mod_names for mod_name in mod_set.mod_names):
+
+            if mod_set_mod_names.issubset(own_mod_names):
+                # if all(mod_name in own_mod_names for mod_name in mod_set.mod_names):
                 mod_set_value = mod_set
                 break
         return mod_set_value
@@ -979,8 +955,8 @@ class LogFile(BaseModel):
         ideal_entries_per_hour = (60 * 60) // 10
 
         def _handle_record(in_message, in_recorded_at, in_record_class_id) -> tuple[datetime, int]:
-            in_message = Message.text.python_value(in_message)
-            _timestamp: datetime = LogRecord.recorded_at.python_value(in_recorded_at).replace(microsecond=0, second=0, minute=0)
+            in_message = in_message
+            _timestamp: datetime = in_recorded_at.replace(microsecond=0, second=0, minute=0)
             # _timestamp: datetime = in_recorded_at.replace(microsecond=0, second=0, minute=0)
 
             if in_record_class_id == performance_record_class.id:
@@ -1016,10 +992,10 @@ class LogFile(BaseModel):
                 all_values += v
             return all_values
 
-        query = LogRecord.select(Message.text, LogRecord.recorded_at, LogRecord.record_class_id).join_from(LogRecord, Message, on=(LogRecord.message_item == Message.md5_hash)).where((LogRecord.log_file_id == self.id) & ((LogRecord.record_class_id == performance_record_class.id) | (LogRecord.record_class_id == generic_performance_record_class.id))).order_by(-LogRecord.recorded_at)
+        query = LogRecord.select(Message.text, LogRecord.recorded_at, LogRecord.record_class_id).where((LogRecord.log_file_id == self.id) & ((LogRecord.record_class_id == performance_record_class.id) | (LogRecord.record_class_id == generic_performance_record_class.id))).join_from(LogRecord, Message, on=(LogRecord.message_item == Message.md5_hash)).order_by(-LogRecord.recorded_at)
         hour_data = defaultdict(list)
 
-        for message, raw_recorded_at, record_class_id in list(self.database.connection().execute(*query.sql()).fetchall()):
+        for message, raw_recorded_at, record_class_id in query.tuples().iterator():
             timestamp, players = _handle_record(message, raw_recorded_at, record_class_id)
             hour_data[timestamp].append(players)
         if len(hour_data) <= 0:
@@ -1129,6 +1105,7 @@ class LogFile(BaseModel):
     def download(self, fallback_to_stored_file: bool = False) -> Path:
         try:
             path = self.server.remote_manager.download_file(self)
+            self.is_downloaded = True
             return path
         except Exception as e:
             log.warning("unable to download log-file %r because of %r", self, e)
@@ -1179,12 +1156,7 @@ class LogFile(BaseModel):
 
     def get_mods(self) -> Optional[list["Mod"]]:
         self.database.connect(reuse_if_open=True)
-        query = Mod.select().join(LogFileAndModJoin).join(LogFile).where(LogFile.id == self.id)
-        _out = list(query)
-        if not _out:
-            return None
-
-        return _out
+        return [Mod.get_by_id_cached(_id[0]) for _id in LogFileAndModJoin.select(LogFileAndModJoin.mod_id).where((LogFileAndModJoin.log_file_id == self.id)).tuples()]
 
     def delete_instance(self, *args, **kwargs):
         _out = super().delete_instance(*args, **kwargs)
@@ -1218,7 +1190,7 @@ class ModLink(BaseModel):
         return super().get_by_id(pk)
 
 
-class Mod(BaseModel):
+class Mod(EnumLikeBaseModel):
     full_path = PathField(null=True)
     mod_hash = FixedCharField(null=True, max_length=40)
     mod_hash_short = CharField(null=True, max_length=10)
@@ -1242,7 +1214,7 @@ class Mod(BaseModel):
     @lru_cache(None)
     def get_by_id_cached(cls, pk):
 
-        return super().get_by_id(pk)
+        return cls.get_by_id(pk)
 
     @property
     def link(self):
@@ -1277,51 +1249,27 @@ class Mod(BaseModel):
         return self.name
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(name={self.name!r}, default={self.default!r}, official={self.official!r}, mod_dir={self.mod_dir!r}, mod_hash_short={self.mod_hash_short!r}, mod_hash={self.mod_hash}, full_path={self.full_path.as_posix()!r})"
+        full_path = self.full_path.as_posix() if self.full_path is not None else self.full_path
+        return f"{self.__class__.__name__}(name={self.name!r}, default={self.default!r}, official={self.official!r}, mod_dir={self.mod_dir!r}, mod_hash_short={self.mod_hash_short!r}, mod_hash={self.mod_hash}, full_path={full_path!r})"
 
     @property
     def pretty_name(self) -> str:
         return self.name.removeprefix('@')
 
+    @classmethod
+    def from_raw_mod_data(cls, raw_data: "RawModData") -> tuple["Mod", bool]:
+        raw_data.pop("origin")
+        return cls.get_or_create(**raw_data)
+
     @ classmethod
-    def from_text_line(cls, line: str) -> tuple["Mod", bool]:
-
-        def strip_converter(in_string: Union[str, None]) -> str:
-            if in_string is None:
-                return in_string
-            return in_string.strip()
-
-        def strip_to_path(data):
-            data = strip_converter(data)
-            if data is None:
-                return data
-            return Path(data)
-
-        parts = line.split('|')
-        name, mod_dir, default, official, origin = parts[:5]
-        optional_kwargs = {}
-        if len(parts) > 5:
-            optional_kwargs['mod_hash'] = strip_converter(parts[5])
-            optional_kwargs["mod_hash_short"] = strip_converter(parts[6])
-            optional_kwargs["full_path"] = strip_to_path(parts[7])
+    def get_or_create(cls, **kwargs) -> tuple["Mod", bool]:
         with cls.get_or_create_lock:
-            try:
-                mod = Mod.get(name=strip_converter(name), mod_dir=strip_converter(mod_dir), default=str_to_bool(default), official=str_to_bool(official), **optional_kwargs)
-                created = False
-                return mod, created
-            except peewee.DoesNotExist:
-                created = True
-                try:
-                    Mod.insert(name=strip_converter(name), mod_dir=strip_converter(mod_dir), default=str_to_bool(default), official=str_to_bool(official), **optional_kwargs).execute()
-                except peewee.IntegrityError:
-                    created = False
-                mod = Mod.get(name=strip_converter(name), mod_dir=strip_converter(mod_dir), default=str_to_bool(default), official=str_to_bool(official), **optional_kwargs)
-        return mod, created
+            return super().get_or_create(**kwargs)
 
 
 class LogFileAndModJoin(BaseModel):
-    log_file = ForeignKeyField(model=LogFile, lazy_load=True, backref="mods", index=False, unique=False, on_delete="CASCADE")
-    mod = ForeignKeyField(model=Mod, lazy_load=True, backref="log_files", index=False, unique=False)
+    log_file = ForeignKeyField(model=LogFile, lazy_load=True, backref="mods", index=True, unique=False, on_delete="CASCADE")
+    mod = ForeignKeyField(model=Mod, lazy_load=True, backref="log_files", index=True, unique=False)
 
     class Meta:
         table_name = 'LogFile_and_Mod_join'
@@ -1727,117 +1675,9 @@ class DatabaseMetaData(BaseModel):
             DatabaseMetaData.update(last_update_finished_at=now).where(DatabaseMetaData.id == self.id).execute()
 
 
-def setup_db(database: "GidSqliteApswDatabase"):
-    from antistasi_logbook.data.map_images import MAP_IMAGES_DIR
-    from antistasi_logbook.data.coordinates import MAP_COORDS_DIR
+def initialize_db(database: "GidSqliteApswDatabase"):
+
     database_proxy.initialize(database)
 
-    all_models = [m for m in BaseModel.__subclasses__() if m.is_view is False]
+    all_models = [m for m in BaseModel.get_all_models(include_view_models=False) if m is not BaseModel and m is not EnumLikeBaseModel]
     database._models = {m.__name__.casefold(): m for m in all_models}
-    setup_data = {
-
-
-
-        GameMap: [{'dlc': None,
-                   'full_name': 'Altis',
-                   'name': 'Altis',
-                   'official': 1,
-                   'workshop_link': None,
-                   "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("altis_thumbnail.png")},
-                  {'dlc': 'Apex',
-                   'full_name': 'Tanoa',
-                   'name': 'Tanoa',
-                   'official': 1,
-                   'workshop_link': None,
-                   "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("tanoa_thumbnail.png"),
-                   "map_image_high_resolution": MAP_IMAGES_DIR.joinpath("tanoa_huge.png")},
-                  {'dlc': 'Contact',
-                   'full_name': 'Livonia',
-                   'name': 'Enoch',
-                   'official': 1,
-                   'workshop_link': None,
-                   "map_image_low_resolution": None},
-                  {'dlc': 'Malden',
-                   'full_name': 'Malden',
-                   'name': 'Malden',
-                   'official': 1,
-                   'workshop_link': None,
-                   "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("malden_thumbnail.png"),
-                   "map_image_high_resolution": MAP_IMAGES_DIR.joinpath("malden_huge.png")},
-                  {'dlc': None,
-                   'full_name': 'Takistan',
-                   'name': 'takistan',
-                   'official': 0,
-                   'workshop_link': None,
-                   "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("takistan_thumbnail.png"),
-                   "map_image_high_resolution": MAP_IMAGES_DIR.joinpath("takistan_huge.png")},
-                  {'dlc': None,
-                   'full_name': 'Virolahti',
-                   'name': 'vt7',
-                   'official': 0,
-                   'workshop_link': 'https://steamcommunity.com/workshop/filedetails/?id=1926513010',
-                   "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("virolahti_thumbnail.png")},
-                  {'dlc': None,
-                   'full_name': 'Sahrani',
-                   'name': 'sara',
-                   'official': 0,
-                   'workshop_link': 'https://steamcommunity.com/sharedfiles/filedetails/?id=583544987',
-                   "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("sahrani_thumbnail.png"),
-                   "map_image_high_resolution": MAP_IMAGES_DIR.joinpath("sara_huge.png")},
-                  {'dlc': None,
-                   'full_name': 'Chernarus Winter',
-                   'name': 'Chernarus_Winter',
-                   'official': 0,
-                   'workshop_link': 'https://steamcommunity.com/sharedfiles/filedetails/?id=583544987',
-                   "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("cherno_winter_thumbnail.png"),
-                   "map_image_high_resolution": MAP_IMAGES_DIR.joinpath("chernarus_winter_huge.png"),
-                   "coordinates": json.loads(MAP_COORDS_DIR.joinpath("chernarus_winter_pos.json").read_text(encoding='utf-8', errors='ignore'))},
-                  {'dlc': None,
-                   'full_name': 'Chernarus Summer',
-                   'name': 'chernarus_summer',
-                   'official': 0,
-                   'workshop_link': 'https://steamcommunity.com/sharedfiles/filedetails/?id=583544987',
-                   "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("cherno_summer_thumbnail.png"),
-                   "map_image_high_resolution": MAP_IMAGES_DIR.joinpath("chernarus_summer_huge.png"),
-                   "coordinates": json.loads(MAP_COORDS_DIR.joinpath("chernarus_winter_pos.json").read_text(encoding='utf-8', errors='ignore'))},
-                  {'dlc': None,
-                   'full_name': 'Anizay',
-                   'name': 'tem_anizay',
-                   'official': 0,
-                   'workshop_link': 'https://steamcommunity.com/workshop/filedetails/?id=1537973181',
-                   "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("anizay_thumbnail.png")},
-                  {'dlc': None,
-                   'full_name': 'Tembelan',
-                   'name': 'Tembelan',
-                   'official': 0,
-                   'workshop_link': 'https://steamcommunity.com/workshop/filedetails/?id=1252091296',
-                   "map_image_low_resolution": MAP_IMAGES_DIR.joinpath("tembelan_thumbnail.png")},
-                  {'dlc': 'S.O.G. Prairie Fire',
-                   'full_name': 'Cam Lao Nam',
-                   'name': 'cam_lao_nam',
-                   'official': 1,
-                   'workshop_link': None,
-                   "map_image_low_resolution": None},
-                  {'dlc': 'S.O.G. Prairie Fire',
-                   'full_name': 'Khe Sanh',
-                   'name': 'vn_khe_sanh',
-                   'official': 1,
-                   'workshop_link': None,
-                   "map_image_low_resolution": None}],
-
-    }
-
-    database.create_tables(all_models)
-
-    for model, data in setup_data.items():
-        if model == GameMap:
-            base_data = {'dlc': None,
-                         'full_name': None,
-                         'name': None,
-                         'official': 1,
-                         'workshop_link': None,
-                         "map_image_low_resolution": None,
-                         "map_image_high_resolution": None,
-                         "coordinates": None}
-            data = [base_data.copy() | d for d in data]
-        model.insert_many(data).on_conflict_ignore().execute()

@@ -15,7 +15,7 @@ from pathlib import Path
 from PySide6 import QtCore
 from PySide6.QtGui import QColor
 from PySide6.QtCore import Qt, Slot, QModelIndex
-from PySide6.QtWidgets import QLineEdit
+from PySide6.QtWidgets import QLineEdit, QInputDialog
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 from peewee import Query
@@ -116,7 +116,9 @@ class ServerModel(BaseQueryDataModel):
     @Slot(object, object, QModelIndex)
     def change_update_enabled(self, item: BaseModel, column: Field, index: QModelIndex):
         update_enabled_index = self.index(index.row(), self.get_column_index("update_enabled"), index.parent())
-        self.setData(update_enabled_index, not item.update_enabled, role=Qt.DisplayRole)
+        new_value = not item.update_enabled
+        self.setData(update_enabled_index, new_value, role=Qt.DisplayRole)
+        log.debug("changed update_enabled for %r to %r", item, new_value)
 
     @Slot(object, object, QModelIndex)
     def change_remote_path(self, item: BaseModel, column: Field, index: QModelIndex):

@@ -1,0 +1,132 @@
+[
+    {
+        "dlc": null,
+        "full_name": "Altis",
+        "name": "Altis",
+        "official": 1,
+        "workshop_link": null,
+        "map_image_low_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\altis_thumbnail.png",
+        "map_image_high_resolution": null,
+        "coordinates": null
+    },
+    {
+        "dlc": "Apex",
+        "full_name": "Tanoa",
+        "name": "Tanoa",
+        "official": 1,
+        "workshop_link": null,
+        "map_image_low_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\tanoa_thumbnail.png",
+        "map_image_high_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\tanoa_huge.png",
+        "coordinates": null
+    },
+    {
+        "dlc": "Contact",
+        "full_name": "Livonia",
+        "name": "Enoch",
+        "official": 1,
+        "workshop_link": null,
+        "map_image_low_resolution": null,
+        "map_image_high_resolution": null,
+        "coordinates": null
+    },
+    {
+        "dlc": "Malden",
+        "full_name": "Malden",
+        "name": "Malden",
+        "official": 1,
+        "workshop_link": null,
+        "map_image_low_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\malden_thumbnail.png",
+        "map_image_high_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\malden_huge.png",
+        "coordinates": null
+    },
+    {
+        "dlc": null,
+        "full_name": "Takistan",
+        "name": "takistan",
+        "official": 0,
+        "workshop_link": null,
+        "map_image_low_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\takistan_thumbnail.png",
+        "map_image_high_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\takistan_huge.png",
+        "coordinates": null
+    },
+    {
+        "dlc": null,
+        "full_name": "Virolahti",
+        "name": "vt7",
+        "official": 0,
+        "workshop_link": "https://steamcommunity.com/workshop/filedetails/?id=1926513010",
+        "map_image_low_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\virolahti_thumbnail.png",
+        "map_image_high_resolution": null,
+        "coordinates": null
+    },
+    {
+        "dlc": null,
+        "full_name": "Sahrani",
+        "name": "sara",
+        "official": 0,
+        "workshop_link": "https://steamcommunity.com/sharedfiles/filedetails/?id=583544987",
+        "map_image_low_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\sahrani_thumbnail.png",
+        "map_image_high_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\sara_huge.png",
+        "coordinates": null
+    },
+    {
+        "dlc": null,
+        "full_name": "Chernarus Winter",
+        "name": "Chernarus_Winter",
+        "official": 0,
+        "workshop_link": "https://steamcommunity.com/sharedfiles/filedetails/?id=583544987",
+        "map_image_low_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\cherno_winter_thumbnail.png",
+        "map_image_high_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\chernarus_winter_huge.png",
+        "coordinates": "d:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\.venv\\lib\\site-packages\\antistasi_logbook\\data\\coordinates\\chernarus_winter_pos.json"
+    },
+    {
+        "dlc": null,
+        "full_name": "Chernarus Summer",
+        "name": "chernarus_summer",
+        "official": 0,
+        "workshop_link": "https://steamcommunity.com/sharedfiles/filedetails/?id=583544987",
+        "map_image_low_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\cherno_summer_thumbnail.png",
+        "map_image_high_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\chernarus_summer_huge.png",
+        "coordinates": "d:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\.venv\\lib\\site-packages\\antistasi_logbook\\data\\coordinates\\chernarus_winter_pos.json"
+    },
+    {
+        "dlc": null,
+        "full_name": "Anizay",
+        "name": "tem_anizay",
+        "official": 0,
+        "workshop_link": "https://steamcommunity.com/workshop/filedetails/?id=1537973181",
+        "map_image_low_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\anizay_thumbnail.png",
+        "map_image_high_resolution": null,
+        "coordinates": null
+    },
+    {
+        "dlc": null,
+        "full_name": "Tembelan",
+        "name": "Tembelan",
+        "official": 0,
+        "workshop_link": "https://steamcommunity.com/workshop/filedetails/?id=1252091296",
+        "map_image_low_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\tembelan_thumbnail.png",
+        "map_image_high_resolution": null,
+        "coordinates": null
+    },
+    {
+        "dlc": "S.O.G. Prairie Fire",
+        "full_name": "Cam Lao Nam",
+        "name": "cam_lao_nam",
+        "official": 1,
+        "workshop_link": null,
+        "map_image_low_resolution": null,
+        "map_image_high_resolution": null,
+        "coordinates": null
+    },
+    {
+        "dlc": "S.O.G. Prairie Fire",
+        "full_name": "Khe Sanh",
+        "name": "vn_khe_sanh",
+        "official": 1,
+        "workshop_link": null,
+        "map_image_low_resolution": null,
+        "map_image_high_resolution": null,
+        "coordinates": null
+    }
+]

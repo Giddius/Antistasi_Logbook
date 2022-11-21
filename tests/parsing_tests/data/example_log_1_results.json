@@ -1,0 +1,353 @@
+{
+    "game_map": "Chernarus_Winter",
+    "full_date_time": {
+        "local_datetime": "2022-09-18T07:22:40+00:00",
+        "utc_datetime": "2022-09-18T14:22:40.000578+00:00"
+    },
+    "version": "2.5.5",
+    "mods": [
+        {
+            "default": false,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\@RHSSAF",
+            "mod_dir": "@RHSSAF",
+            "mod_hash": "40a576a45eb2d629a9fc05ba543bf905933ce741",
+            "mod_hash_short": "6430e65b",
+            "name": "RHS: Serbian Armed Forces",
+            "official": false,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": false,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\@ACECompatRHSSAF",
+            "mod_dir": "@ACECompatRHSSAF",
+            "mod_hash": "8f65fc1b0921514c9cbc546bcd9669213d6a478b",
+            "mod_hash_short": "3803e235",
+            "name": "@ACECompatRHSSAF",
+            "official": false,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": false,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\@GruppeAdlerTrenches",
+            "mod_dir": "@GruppeAdlerTrenches",
+            "mod_hash": "1469bb9106e667d7257e5117e40516bea48b6001",
+            "mod_hash_short": "a300f1d0",
+            "name": "Gruppe Adler Trenches",
+            "official": false,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": false,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\@CUPTerrainsMaps",
+            "mod_dir": "@CUPTerrainsMaps",
+            "mod_hash": "11e2851ba4154d181b57602ebaf0c2c5a8cda84a",
+            "mod_hash_short": "fbd05e37",
+            "name": "CUP Terrains - Maps 1.16.0",
+            "official": false,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": false,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\@CUPTerrainsCore",
+            "mod_dir": "@CUPTerrainsCore",
+            "mod_hash": "dabf827d62e08c1ffe2cf7f5a06be6685b3a44e9",
+            "mod_hash_short": "503b396c",
+            "name": "CUP Terrains - Core 1.17.1",
+            "official": false,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": false,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\@VETUnflipping",
+            "mod_dir": "@VETUnflipping",
+            "mod_hash": "b87f16fa85a76c4522fe0fe67521f1ab4a7a7fb0",
+            "mod_hash_short": "dc68cef1",
+            "name": "VET_Unflipping - 1.3.2",
+            "official": false,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": false,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\@ZeusEnhancedACE3Compatibility",
+            "mod_dir": "@ZeusEnhancedACE3Compatibility",
+            "mod_hash": "3ba9d33273e6b3891df3e596d51295136f59ec40",
+            "mod_hash_short": "5c267667",
+            "name": "@ZeusEnhancedACE3Compatibility",
+            "official": false,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": false,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\@ZeusEnhanced",
+            "mod_dir": "@ZeusEnhanced",
+            "mod_hash": "6f138882698bd41e062699f5b0bcc1ea79468511",
+            "mod_hash_short": "4eb0fe50",
+            "name": "Zeus Enhanced 1.12.2",
+            "official": false,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": false,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\@TaskForceArrowheadRadioBETA",
+            "mod_dir": "@TaskForceArrowheadRadioBETA",
+            "mod_hash": "6e889b7a92591e469d9e037aa3631fb8e5a954fc",
+            "mod_hash_short": "d11c0c7f",
+            "name": "TFAR",
+            "official": false,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": false,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\@RHSUSAF",
+            "mod_dir": "@RHSUSAF",
+            "mod_hash": "22dc683ee7645369b375f5d3a2db51a995658245",
+            "mod_hash_short": "736ca0ba",
+            "name": "RHS: United States Forces",
+            "official": false,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": false,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\@RHSGREF",
+            "mod_dir": "@RHSGREF",
+            "mod_hash": "d45628bb1168a22a9554c18f8c1458615546af9a",
+            "mod_hash_short": "44ebb00b",
+            "name": "RHS: GREF",
+            "official": false,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": false,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\@RHSAFRF",
+            "mod_dir": "@RHSAFRF",
+            "mod_hash": "c099f9533a1d61a33bef449594ec01c28661aa62",
+            "mod_hash_short": "9f03db96",
+            "name": "RHS: Armed Forces of the Russian Federation",
+            "official": false,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": false,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\@EnhancedMovement",
+            "mod_dir": "@EnhancedMovement",
+            "mod_hash": "fbc1f582c89f11919f9c6ead5d842e6c1aea9b71",
+            "mod_hash_short": "a47fddc8",
+            "name": "Enhanced Movement",
+            "official": false,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": false,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\@CBAA3",
+            "mod_dir": "@CBAA3",
+            "mod_hash": "1d7bc59f1f4d1d2a3604e1c33be8fdd686a5617f",
+            "mod_hash_short": "b09d9bc5",
+            "name": "Community Base Addons v3.15.8",
+            "official": false,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": false,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\@ACECompatRHSUnitedStatesArmedForces",
+            "mod_dir": "@ACECompatRHSUnitedStatesArmedForces",
+            "mod_hash": "27a62e12548924be699bc3477eb0c94c8d634e03",
+            "mod_hash_short": "50643f8",
+            "name": "@ACECompatRHSUnitedStatesArmedForces",
+            "official": false,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": false,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\@ACECompatRHSGREF",
+            "mod_dir": "@ACECompatRHSGREF",
+            "mod_hash": "527504ff55b382b8e559a7ed7a05a139c68dcdc6",
+            "mod_hash_short": "5239e3a9",
+            "name": "@ACECompatRHSGREF",
+            "official": false,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": false,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\@ACECompatRHSArmedForcesoftheRussianFederation",
+            "mod_dir": "@ACECompatRHSArmedForcesoftheRussianFederation",
+            "mod_hash": "5fa5825c61bedc345a403c15d351486a92d5746f",
+            "mod_hash_short": "7726caa0",
+            "name": "@ACECompatRHSArmedForcesoftheRussianFederation",
+            "official": false,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": false,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\@ace",
+            "mod_dir": "@ace",
+            "mod_hash": "17aae1228a2ff27920e0dfb68e0ba046376ec0ac",
+            "mod_hash_short": "d58fdeae",
+            "name": "Advanced Combat Environment 3.15.1",
+            "official": false,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": true,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\aow",
+            "mod_dir": "aow",
+            "mod_hash": "6ba7b160d357ca64590614f6a6c4579168efc1d0",
+            "mod_hash_short": "bc4189c2",
+            "name": "Arma 3 Art of War",
+            "official": true,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": true,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\enoch",
+            "mod_dir": "enoch",
+            "mod_hash": "9f6919562e719e9f70bf666194a7862d3274185a",
+            "mod_hash_short": "87e92527",
+            "name": "Arma 3 Contact (Platform)",
+            "official": true,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": true,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\tank",
+            "mod_dir": "tank",
+            "mod_hash": "b4f3c4faa775f1c81c77f02f97cfa1aa18da5209",
+            "mod_hash_short": "bbdf79e2",
+            "name": "Arma 3 Tanks",
+            "official": true,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": true,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\tacops",
+            "mod_dir": "tacops",
+            "mod_hash": "8fcf9c1f0a1fa5b8d354b64967ffd6583fc43d3e",
+            "mod_hash_short": "fb047e5c",
+            "name": "Arma 3 Tac-Ops",
+            "official": true,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": true,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\orange",
+            "mod_dir": "orange",
+            "mod_hash": "12abb4e3868e4b3036e9cea47138bdeb4abe518d",
+            "mod_hash_short": "f564c92a",
+            "name": "Arma 3 Laws of War",
+            "official": true,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": true,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\argo",
+            "mod_dir": "argo",
+            "mod_hash": "a844aa131096258aab8c000fddcc940284385494",
+            "mod_hash_short": "49d733fb",
+            "name": "Arma 3 Malden",
+            "official": true,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": true,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\jets",
+            "mod_dir": "jets",
+            "mod_hash": "3f599a4f98ca3a0cd3c5e5e574acc16737c061ef",
+            "mod_hash_short": "aae4f413",
+            "name": "Arma 3 Jets",
+            "official": true,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": true,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\expansion",
+            "mod_dir": "expansion",
+            "mod_hash": "26e79f13d9a9e6ae48a6119621f73d53cf411dbd",
+            "mod_hash_short": "fe5acf19",
+            "name": "Arma 3 Apex",
+            "official": true,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": true,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\mark",
+            "mod_dir": "mark",
+            "mod_hash": "6f0fbfd365214eb67dc377503d2583c6718ff19b",
+            "mod_hash_short": "21bc50ea",
+            "name": "Arma 3 Marksmen",
+            "official": true,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": true,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\heli",
+            "mod_dir": "heli",
+            "mod_hash": "f61b0de0ac2bd0602413e01b40b80f56b2b32130",
+            "mod_hash_short": "5e3c056",
+            "name": "Arma 3 Helicopters",
+            "official": true,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": true,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\kart",
+            "mod_dir": "kart",
+            "mod_hash": "952859b5e0bac3b093582ba87f54bdafea848df9",
+            "mod_hash_short": "e2ac0c1",
+            "name": "Arma 3 Karts",
+            "official": true,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": true,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\curator",
+            "mod_dir": "curator",
+            "mod_hash": "531b60d7d72729c65b0bb6a87f6cd48b6d6a7041",
+            "mod_hash_short": "3cafe885",
+            "name": "Arma 3 Zeus",
+            "official": true,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": true,
+            "full_path": null,
+            "mod_dir": "A3",
+            "mod_hash": null,
+            "mod_hash_short": null,
+            "name": "Arma 3",
+            "official": true,
+            "origin": "NOT FOUND (Empty)"
+        },
+        {
+            "default": false,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\@TaskForceEnforcer",
+            "mod_dir": "@TaskForceEnforcer",
+            "mod_hash": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+            "mod_hash_short": "11fdd19c",
+            "name": "@TaskForceEnforcer",
+            "official": false,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": false,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\@utility",
+            "mod_dir": "@utility",
+            "mod_hash": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+            "mod_hash_short": "11fdd19c",
+            "name": "@utility",
+            "official": false,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": false,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\@members",
+            "mod_dir": "@members",
+            "mod_hash": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+            "mod_hash_short": "11fdd19c",
+            "name": "@members",
+            "official": false,
+            "origin": "GAME DIR"
+        }
+    ],
+    "campaign_id": 16614,
+    "is_new_campaign": false,
+    "source_file_hash": "e61d084b6f897c360013d1c04a750072"
+}

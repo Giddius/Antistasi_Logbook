@@ -39,8 +39,38 @@ exclude_patterns = []
 
 # endregion [Sphinx_Settings]
 
-# -- Options for HTML output -------------------------------------------------
-# https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
+
+def fix_multiline_text(in_text: str, indentation: int = 0) -> str:
+    fixed_lines = in_text.strip().splitlines()
+    return '\n'.join(('   ' * indentation) + line.strip() for line in fixed_lines)
+
+
+def do_underline(in_title: str) -> str:
+    ul = "=" * int(len(in_title) * 1.25)
+    return f"\n{in_title}\n{ul}\n\n"
+
 
 html_theme = 'alabaster'
 html_static_path = ['_static']
+
+html_context = {"do_underline": do_underline,
+                "fix_multiline_text": fix_multiline_text}
+
+source_suffix = {".rst": "restructuredtext",
+                 ".rst_t": "restructuredtext"}
+
+
+def rstjinja(app, docname, source):
+    """
+    Render our pages as a jinja template for fancy templating goodness.
+    """
+    print(f"{docname=}\n")
+    src = source[0]
+    rendered = app.builder.templates.render_string(
+        src, app.config.html_context
+    )
+    source[0] = rendered
+
+
+def setup(app):
+    app.connect("source-read", rstjinja)

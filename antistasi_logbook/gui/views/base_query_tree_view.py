@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Union, Optional
 from pathlib import Path
 
 # * Qt Imports --------------------------------------------------------------------------------------->
-from PySide6.QtGui import QIcon, QAction
+from PySide6.QtGui import QIcon, QAction, QMouseEvent
 from PySide6.QtCore import Qt, Slot, QPoint, Signal, QSettings, QModelIndex, QItemSelection, QAbstractItemModel, QAbstractTableModel, QItemSelectionModel, QItemSelectionRange
 from PySide6.QtWidgets import QMenu, QToolBar, QTreeView, QScrollBar, QHeaderView, QApplication, QAbstractItemView
 
@@ -476,6 +476,15 @@ class BaseQueryTreeView(QTreeView):
 
         self.current_items_changed.emit(items)
         return super().selectionChanged(selected, deselected)
+
+    def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
+        idx = self.indexAt(event.position().toPoint())
+        idx = self.model.modify_index(idx)
+
+        if idx.isValid() and event.button() == Qt.MouseButton.LeftButton and idx.column_item.name == "marked":
+            self.model.mark_item(idx.row_item, idx.column_item, idx)
+        else:
+            return super().mouseDoubleClickEvent(event)
 
 
 # region[Main_Exec]

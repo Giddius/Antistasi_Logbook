@@ -713,6 +713,7 @@ def remove_reports(c):
         return
     print(f"removing {reports_folder.as_posix()!r}")
     send2trash(reports_folder)
+    print(f"succesfully removed {reports_folder.as_posix()!r}")
 
 
 from gid_tasks.hackler.imports_cleaner import import_clean_project
@@ -722,3 +723,37 @@ from gid_tasks.hackler.imports_cleaner import import_clean_project
 def clean_imports(c):
     project: Project = c.project
     list(import_clean_project(project=project))
+
+
+@task()
+def remove_logs(c):
+    project: Project = c.project
+
+    logs_folder = project.main_module.base_folder.joinpath("logs").resolve()
+
+    if logs_folder.exists() is False:
+        print(f"{logs_folder.as_posix()!r} already removed (does not exist).")
+        return
+    print(f"removing {logs_folder.as_posix()!r}")
+    send2trash(logs_folder)
+    print(f"succesfully removed {logs_folder.as_posix()!r}")
+
+
+@task()
+def reset_storage(c):
+    project: Project = c.project
+    storage_folder = project.main_module.base_folder.joinpath("storage").resolve()
+
+    to_remove = ("original_log_files",
+                 "storage.logbook_db",
+                 "storage.logbook_db-shm",
+                 "storage.logbook_db-wal")
+
+    for name in to_remove:
+        path = storage_folder.joinpath(name).resolve()
+        if path.exists() is False:
+            continue
+
+        print(f"removing {path.as_posix()!r}")
+        send2trash(path)
+        print(f"succesfully removed {path.as_posix()!r}")

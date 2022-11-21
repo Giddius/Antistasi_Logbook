@@ -15,7 +15,7 @@ from pathlib import Path
 from weakref import WeakSet
 from itertools import chain
 from threading import Lock, Event
-from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor, wait
+from concurrent.futures import ALL_COMPLETED, ThreadPoolExecutor, wait, Future
 
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtWidgets import QApplication
@@ -28,7 +28,7 @@ from gidapptools import get_logger, get_meta_info, get_meta_paths
 from gidapptools.gid_signal.interface import get_signal
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.records import ALL_GENERIC_RECORD_CLASSES, ALL_ANTISTASI_RECORD_CLASSES
+from antistasi_logbook.records import get_all_antistasi_record_classes, get_all_generic_record_classes
 from antistasi_logbook.parsing.parser import Parser
 from antistasi_logbook.storage.database import GidSqliteApswDatabase, make_db_path
 from antistasi_logbook.updating.updater import Updater
@@ -267,7 +267,7 @@ class Backend:
         return self
 
     def fill_record_class_manager(self) -> None:
-        for record_class in chain(ALL_ANTISTASI_RECORD_CLASSES, ALL_GENERIC_RECORD_CLASSES):
+        for record_class in chain(get_all_antistasi_record_classes(), get_all_generic_record_classes()):
             self.record_class_manager.register_record_class(record_class=record_class, database=self.database)
         self.record_class_manager._is_set_up = True
         RecordClass.record_class_manager = self.record_class_manager
@@ -294,6 +294,8 @@ class Backend:
         self.signals.updated_log_file.connect(self.database.session_meta_data.increment_updated_log_file)
         for obj in self.dependent_objects:
             obj.start()
+
+        # self.database.ensure_log_file_data_update_futures()
         return self
 
     def shutdown(self) -> None:
@@ -316,7 +318,7 @@ class Backend:
                     if int(time() - open_wait_start_time) >= 5:
                         log.critical("timed out waiting for context %r to finish", ctx)
                         break
-                all_futures += ctx.futures
+                all_futures += [i for i in ctx.futures if i.done() is False]
             log.debug("waiting for all futures to finish")
             wait(all_futures, return_when=ALL_COMPLETED, timeout=3.0)
             all_futures.clear()

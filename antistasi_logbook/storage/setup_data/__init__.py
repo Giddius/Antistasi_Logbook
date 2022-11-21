@@ -35,6 +35,12 @@ def get_setup_data(name: str, default=None) -> list[dict]:
         return default
 
 
+def setup_tables(db: "GidSqliteApswDatabase"):
+    for table in db._models.values():
+        table.create_table()
+        log.debug("created table %r", table._meta.table_name)
+
+
 def setup_loglevel(db: "GidSqliteApswDatabase"):
     model = db.get_model("loglevel")
     model.create_table()
@@ -124,7 +130,22 @@ def setup_server(db: "GidSqliteApswDatabase"):
         model.insert_many(data).on_conflict_ignore().execute()
 
 
+def setup_game_map(db: "GidSqliteApswDatabase"):
+    model = db.get_model("gamemap")
+    model.create_table()
+    data = get_setup_data("gamemap")
+
+    with db:
+        for item in data:
+            if item.get("coordinates", None):
+                with Path(item["coordinates"]).open("r", encoding='utf-8', errors='ignore') as f:
+                    item["coordinates"] = json.load(f)
+
+        model.insert_many(data).on_conflict_ignore().execute()
+
+
 def setup_from_data(db: "GidSqliteApswDatabase"):
+    setup_tables(db)
     setup_loglevel(db)
     setup_recordorigin(db)
     setup_arma_author_prefix(db)
@@ -134,3 +155,4 @@ def setup_from_data(db: "GidSqliteApswDatabase"):
     setup_modlink(db)
     setup_remote_storage(db)
     setup_server(db)
+    setup_game_map(db)

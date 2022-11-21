@@ -40,7 +40,7 @@ from gidapptools.general_helper.conversion import ns_to_s, bytes2human, human2by
 from antistasi_logbook import setup
 from antistasi_logbook.utilities.locks import FakeLock
 from antistasi_logbook.storage.models.models import (Server, GameMap, LogFile, Message, Version, LogLevel, LogRecord, RecordClass, ArmaFunction,
-                                                     RecordOrigin, RemoteStorage, DatabaseMetaData, ArmaFunctionAuthorPrefix, setup_db)
+                                                     RecordOrigin, RemoteStorage, DatabaseMetaData, ArmaFunctionAuthorPrefix, initialize_db)
 from antistasi_logbook.storage.models.migration import run_migration
 
 setup()
@@ -334,6 +334,7 @@ class GidSqliteApswDatabase(APSWDatabase):
         self._base_model: Model = None
         self._view_base_model = None
         self.pragma_info = None
+        self.log_file_data_update_futures: list[Future] = []
 
     def get_model(self, model_name: str) -> Model:
         model_name = model_name.casefold()
@@ -517,7 +518,7 @@ class GidSqliteApswDatabase(APSWDatabase):
             if wal_autocheckpoint:
                 self.pragma("wal_autocheckpoint", 1_000, True)
             log.debug("starting setup for %r", self)
-            setup_db(self)
+            initialize_db(self)
             setup_from_data(self)
             log.debug("finished setup for %r", self)
             log.debug("starting migration for %r", self)
@@ -528,7 +529,7 @@ class GidSqliteApswDatabase(APSWDatabase):
             self.started_up = True
             self.foreign_key_cache.reset_all()
             self.foreign_key_cache.preload_all()
-            # LogFile.refresh_dynamic_for_all_log_files(self.get_log_files())
+
             log.info("finished starting up %r", self)
             log.info("server-version: %r", ".".join(str(i) for i in self.server_version))
             log.info("apsw-compile-options: %r", apsw.compile_options)
@@ -542,6 +543,17 @@ class GidSqliteApswDatabase(APSWDatabase):
             log.info("database data_version: %r", self.data_version)
 
             return self
+
+    def ensure_log_file_data_update_futures(self):
+
+        rounds_slept = 0
+        sleep_amount = 0.5
+        while len([i for i in self.log_file_data_update_futures if i.done() is False]) >= 1:
+            sleep(sleep_amount)
+            rounds_slept += 1
+
+        log.debug("slept %r (%r s) rounds to update log_file data", rounds_slept, sleep_amount * rounds_slept)
+        self.log_file_data_update_futures.clear()
 
     def optimize(self) -> "GidSqliteApswDatabase":
         log.debug("optimizing connection")
@@ -629,7 +641,7 @@ class GidSqliteApswDatabase(APSWDatabase):
         log.debug("ArmaFunctionAuthorPrefix_instances -> amount: %r, content: %r", len(_cache._full_map), _cache._full_map)
         log.debug("ArmaFunctionAuthorPrefix_instances -> unique_field_names: %r, unique_indexes: %r", _cache.unique_field_names, _cache.unique_indexes)
 
-    def get_log_files(self, server: Server = None, ordered_by=LogFile.id) -> tuple[LogFile]:
+    def get_log_files(self, server: Server = None, ordered_by=LogFile.id, exclude_unparsable:bool=False) -> tuple[LogFile]:
 
         def _resolve_game_map_and_version(in_log_file: LogFile) -> LogFile:
             if in_log_file.server_id is not None:
@@ -641,15 +653,21 @@ class GidSqliteApswDatabase(APSWDatabase):
                 in_log_file.game_map = GameMap.get_by_id_cached(in_log_file.game_map_id)
             if in_log_file.version_id is not None:
                 in_log_file.version = Version.get_by_id_cached(in_log_file.version_id)
+
             return in_log_file
 
         query = LogFile.select(LogFile)
         if server is None:
-            query = query.order_by(ordered_by)
+            query = query
         else:
-            query = query.where(LogFile.server_id == server.id).order_by(ordered_by)
+            query = query.where((LogFile.server_id == server.id))
 
-        _out = tuple(_resolve_game_map_and_version(i) for i in query.iterator())
+        if exclude_unparsable is True:
+            query = query.where((LogFile.unparsable ==False))
+
+
+
+        _out = tuple(_resolve_game_map_and_version(i) for i in query.order_by(ordered_by).iterator())
 
         return _out
 
@@ -759,11 +777,11 @@ class GidSqliteApswDatabase(APSWDatabase):
 
     def resolve_all_armafunction_extras(self) -> None:
         log.debug("resolving all armafunction extras")
+        with self.transaction():
+            query = ArmaFunction.select(ArmaFunction, ArmaFunctionAuthorPrefix).join_from(ArmaFunction, ArmaFunctionAuthorPrefix, join_type=JOIN.LEFT_OUTER).where((ArmaFunction.file_name == None) | (ArmaFunction.function_name == None))
 
-        query = ArmaFunction.select(ArmaFunction, ArmaFunctionAuthorPrefix).join_from(ArmaFunction, ArmaFunctionAuthorPrefix, join_type=JOIN.LEFT_OUTER).where((ArmaFunction.file_name == None) | (ArmaFunction.function_name == None))
-
-        for arma_func in tuple(query.iterator()):
-            arma_func.load_extras()
+            for arma_func in tuple(query.iterator()):
+                arma_func.load_extras()
 
     def __repr__(self) -> str:
         repr_attrs = ("database_name", "config", "auto_backup", "thread_safe", "autoconnect")

@@ -7,21 +7,23 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TextIO
 from pathlib import Path
 from threading import Event
-
+from time import sleep
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
-
+from gidapptools.general_helper.conversion import human2bytes, bytes2human
+from collections import deque
+from queue import Queue, LifoQueue, SimpleQueue, PriorityQueue
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.parsing.py_raw_record import RawRecord
 from antistasi_logbook.parsing.meta_log_finder import MetaFinder
 from antistasi_logbook.parsing.parsing_context import RecordLine, LogParsingContext
 from antistasi_logbook.parsing.record_processor import RecordProcessor
 from antistasi_logbook.regex_store.regex_keeper import SimpleRegexKeeper
-
+from antistasi_logbook.utilities.paired_reader import PairedReader
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend
@@ -51,8 +53,8 @@ class Parser:
     Parses all Parsable data from the log file, the actual log_records are parsed by the `record_processor`.
 
     """
-    log_file_data_scan_chunk_increase = 27239
-    log_file_data_scan_chunk_initial = (104997 // 2)
+    log_file_data_scan_chunk_increase = 256000  # 250 kb
+    log_file_data_scan_chunk_initial = 256000
 
     __slots__ = ("backend", "regex_keeper", "stop_event", "record_processor")
 
@@ -62,28 +64,21 @@ class Parser:
         self.stop_event = stop_event
         self.record_processor = record_processor
 
-    def _get_log_file_meta_data(self, context: LogParsingContext) -> "MetaFinder":
-        with context.open(cleanup=False) as file:
+    def _get_log_file_meta_data(self, file_item: TextIO, existing_data: dict[str, object] = None, force: bool = False) -> "MetaFinder":
 
-            text = file.read(self.log_file_data_scan_chunk_initial)
-            regex_keeper = self.regex_keeper.__class__()
-            force = context.force
-            finder = MetaFinder(context=context, regex_keeper=regex_keeper, force=force)
-            idx = 0
-            while True:
-                finder.search(text)
-                if finder.all_found() is True:
-                    break
-                idx += 1
-                if idx > 100:
-                    break
-                # new_text = file.read(self.log_file_data_scan_chunk_increase)
-                new_text = file.read(104997)
+        text_parts = PairedReader(file_item, max_chunks=50)
+        regex_keeper = self.regex_keeper.__class__()
 
-                if new_text == '' or new_text is None:
-                    break
-                text += new_text
+        finder = MetaFinder(existing_data=existing_data, regex_keeper=regex_keeper, force=force)
 
+        while True:
+            finder.search(str(text_parts))
+            if finder.all_found() is True or text_parts.finished is True:
+                break
+
+            text_parts.read_next()
+
+        log.debug("added %r parts (len: %r), bytes: %r (%r)", text_parts.chunks_read, len(text_parts), text_parts.bytes_read, bytes2human(text_parts.bytes_read))
         finder.change_missing_to_none()
 
         return finder
@@ -125,7 +120,8 @@ class Parser:
         # if self.stop_event.is_set():
         #     return
         log.info("Parsing meta-data for %r", context._log_file)
-        context.set_found_meta_data(self._get_log_file_meta_data(context=context))
+        with context.open(cleanup=False) as file:
+            context.set_found_meta_data(self._get_log_file_meta_data(file_item=file, force=context.force, existing_data=context.get_existing_meta_data()))
         if context.unparsable is True:
             log.info("Log file %r is unparseable", context._log_file)
             return

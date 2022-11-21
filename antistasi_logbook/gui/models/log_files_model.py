@@ -143,7 +143,6 @@ class LogFilesModel(BaseQueryDataModel):
                 in_log_file.version = Version.get_by_id_cached(in_log_file.version_id)
             if in_log_file.mod_set_id is not None:
                 in_log_file.mod_set = ModSet.get_by_id_cached(in_log_file.mod_set_id)
-            in_log_file.ensure_dynamic_columns()
 
             return in_log_file
 
@@ -155,7 +154,7 @@ class LogFilesModel(BaseQueryDataModel):
         for log_file in self.backend.thread_pool.map(load_up_log_file, self.get_query().iterator()):
 
             self.content_items.append(log_file)
-        self.content_items = tuple(self.content_items)
+        self.content_items = self.content_items
         return self
 
     def _get_tool_tip_data(self, index: INDEX_TYPE) -> Any:

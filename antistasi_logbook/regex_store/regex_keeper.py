@@ -55,7 +55,8 @@ class SimpleRegexKeeper:
                  "first_full_datetime",
                  "fault_error_start",
                  "mod_start_indicator",
-                 "mod_end_indicator")
+                 "mod_end_indicator",
+                 "alternative_campaign_id")
 
     def __init__(self) -> None:
 
@@ -73,8 +74,9 @@ class SimpleRegexKeeper:
 
         self.game_map = re.compile(r"\sMission world\:\s*(?P<game_map>.*)")
         self.game_file = re.compile(r"\s+Mission file\:\s*(?P<game_file>.*)")
-        self.version = re.compile(r"\s*MP server version:\s*(?P<version>.*)")
+        self.version = re.compile(r"\s*((MP server version)|(Server version)):\s*(?P<version>.*)")
         self.campaign_id = re.compile(r"((?P<text_loading>Loading last campaign ID)|(?P<text_creating>Creating new campaign with ID))\s*(?P<campaign_id>\d+)")
+        self.alternative_campaign_id = re.compile(r'\["gameID","(?P<campaign_id>\d+)"\]')
         self.mod_start_indicator = re.compile(r"\=+\sList\sof\smods\s\=+")
         self.mod_end_indicator = re.compile(r"\={25,}")
         self.mods = re.compile(r"""^([0-2\s]?\d)
