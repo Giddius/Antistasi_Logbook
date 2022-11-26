@@ -1,4 +1,10 @@
 pytest
-pytest-html
-time-machine>=2.4.0
+time-machine
 pytest-lazy-fixture
+faker
+pytest
+pytest-cov
+pytest-datafiles
+pytest-metadata
+pytest-qt
+pytest-repeat

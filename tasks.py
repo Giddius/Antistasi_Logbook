@@ -39,7 +39,7 @@ from pprint import pprint
 from gid_tasks.project_info.project import Project
 from send2trash import send2trash
 # from gid_tasks.actions import doc_collection, clean_collection, update_collection
-
+# from gid_tasks._custom_invoke_classes.custom_task_objects import task
 # ns = Collection()
 # ns.add_collection(doc_collection)
 # ns.add_collection(clean_collection)
@@ -71,7 +71,7 @@ def rprint(*args, **kwargs):
 
 print = rprint
 Context.console = CONSOLE
-CONSOLE.print(RULE)
+# CONSOLE.print(RULE)
 
 
 class PyprojectTomlFile:
@@ -264,204 +264,7 @@ def main_dir_from_git():
 os.chdir(main_dir_from_git())
 
 
-@task
-def checky(c):
-    try:
-        NEXTCLOUD_CLIENT = WebdavClient(NEXTCLOUD_OPTIONS)
-        print(NEXTCLOUD_CLIENT.list(NEXTCLOUD_BASE_FOLDER))
-    finally:
-        NEXTCLOUD_CLIENT.session.close()
-
-
-def download_log_file(paths, try_num=1):
-    try:
-        client = WebdavClient(NEXTCLOUD_OPTIONS)
-        client.download_sync(remote_path=paths[0], local_path=paths[1])
-        sleep(random.uniform(0.1, 3.0))
-        client.session.close()
-    except Exception:
-        if try_num <= 10:
-            print(f'retrying because of NoConnection Error, try_number: {try_num}')
-            sleep(random.randint(5, 10))
-            download_log_file(paths, try_num + 1)
-        else:
-            raise
-    finally:
-        client.session.close()
-
-
-def _date_time_from_name(path):
-    matched_data = LOG_NAME_DATE_TIME_REGEX.search(os.path.basename(path))
-    if matched_data:
-        date_time_string = f"{matched_data.group('year')}-{matched_data.group('month')}-{matched_data.group('day')} {matched_data.group('hour')}:{matched_data.group('minute')}:{matched_data.group('second')}"
-        date_time = datetime.strptime(date_time_string, "%Y-%m-%d %H:%M:%S")
-        return date_time
-    else:
-        raise RuntimeError(f'unable to find date_time_string in {os.path.basename(path)}')
-
-
-@task
-def get_logs(c, low_filter_date="2021.january.01"):
-    NEXTCLOUD_CLIENT = WebdavClient(NEXTCLOUD_OPTIONS)
-    try:
-        to_download = []
-        logs_base_folder = os.path.join(TEMP_FOLDER, 'antistasi_logs')
-        clean_create_folder(logs_base_folder)
-        server_to_get = ['Mainserver_1', 'Mainserver_2', "Testserver_1", "Testserver_2", "Testserver_3"]
-        sub_folder_to_get = 'Server'
-        filter_date = date_parse(low_filter_date, settings={'TIMEZONE': 'UTC'}) if low_filter_date is not None else low_filter_date
-        if filter_date is not None:
-            rprint(f"Getting all logs modified after {filter_date.strftime('%Y-%m-%d_%H-%M-%S')}")
-        for server in server_to_get:
-            remote_path = f"{NEXTCLOUD_BASE_FOLDER}/{server}/{sub_folder_to_get}"
-            local_path = pathmaker(logs_base_folder, server)
-            clean_create_folder(local_path)
-            for file in NEXTCLOUD_CLIENT.list(remote_path, get_info=True):
-
-                if file.get('isdir') is False:
-                    log_file_remote_path = f"{remote_path}/{os.path.basename(file.get('path'))}"
-                    log_file_local_path = pathmaker(local_path, os.path.basename(file.get("path")))
-                    file_date = _date_time_from_name(file.get('path'))
-
-                    if filter_date is None:
-                        to_download.append([log_file_remote_path, log_file_local_path])
-                    elif file_date >= filter_date:
-                        to_download.append([log_file_remote_path, log_file_local_path])
-        with ThreadPoolExecutor(20) as pool:
-            random.shuffle(to_download)
-            random.shuffle(to_download)
-            list(pool.map(download_log_file, to_download))
-    finally:
-        NEXTCLOUD_CLIENT.session.close()
-
-
-@task
-def archive_reports(c):
-    def _make_archive_name():
-        datetime_format = "%Y-%m-%d_%H-%M-%S"
-        all_dates = []
-        for dirname, folderlist, filelist in os.walk(REPORTS_FOLDER):
-            for file in filelist:
-                date_part = file.split(']', 1)[0].strip('[')
-                date = datetime.strptime(date_part, datetime_format)
-                all_dates.append(date)
-
-        first_date = min(all_dates)
-        last_date = max(all_dates)
-        name = first_date.strftime(datetime_format) + '--' + last_date.strftime(datetime_format) + '.zip'
-        return name
-    archive_folder = TOOLS_FOLDER.joinpath("archived_reports")
-    archive_folder.mkdir(exist_ok=True, parents=True)
-    archive_name = _make_archive_name()
-    archive_path = archive_folder.joinpath(archive_name)
-    with ZipFile(archive_path, 'w', compression=ZIP_LZMA) as zippy:
-        for dirname, folderlist, filelist in os.walk(REPORTS_FOLDER):
-            for file in filelist:
-                file_path = Path(dirname, file)
-                zippy.write(file_path, file_path.relative_to(REPORTS_FOLDER))
-    for item in REPORTS_FOLDER.iterdir():
-        if item.is_dir():
-            shutil.rmtree(item)
-
-
-class ModelsCode:
-    comment_line_regex = re.compile(r"^\#.*", re.MULTILINE)
-    unknown_field_regex = re.compile(r"^\s+(?P<attr_name>\w+)\s*\=\s*UnknownField\((?P<field_kwargs>(\w+\=\w+\,?\s?)+)\)\s*\#\s*(?P<unknown_type>[A-z]+)", re.MULTILINE)
-    extra_field_types = {"REMOTEPATH": "RemotePathField",
-                         "PATH": "PathField",
-                         "VERSION": "VersionField",
-                         "URL": "URLField"}
-
-    def __init__(self, text: str) -> None:
-        self.original_text = text
-        self.text = str(text)
-
-    def _remove_comment_lines(self) -> None:
-        self.text = self.comment_line_regex.sub("", self.text).strip()
-
-    def _replace_imports(self) -> None:
-        new_import_lines = ["from peewee import Model, TextField, IntegerField, BooleanField, AutoField, DateTimeField, ForeignKeyField, SQL, BareField, SqliteDatabase, Field, DatabaseProxy",
-                            "from .custom_fields import RemotePathField, PathField, VersionField, URLField"]
-        self.text = self.text.replace("from peewee import *", '\n'.join(new_import_lines))
-
-    def _replace_db_instance(self) -> None:
-        new_db_instance_line = "database = DatabaseProxy()"
-        db_instance_regex = re.compile(r"database \= SqliteDatabase\(\'.*\'\)")
-        self.text = db_instance_regex.sub(new_db_instance_line, self.text)
-
-    def _remove_unknown_field_class(self) -> None:
-        class_text = """
-class UnknownField(object):
-    def __init__(self, *_, **__): pass
-    """.strip()
-        self.text = self.text.replace(class_text, "")
-
-    def _replace_unknow_field_types(self) -> None:
-        def _sub_function(match: re.Match) -> str:
-            attr_name = match.group('attr_name')
-            unknown_type_name = self.extra_field_types.get(match.group("unknown_type"))
-            field_kwargs = match.group("field_kwargs")
-            indentation = ' ' * 4
-            _out = f"{indentation}{attr_name} = {unknown_type_name}({field_kwargs})"
-
-            return _out
-
-        self.text = self.unknown_field_regex.sub(_sub_function, self.text)
-
-    def _add_lazy_loading(self) -> None:
-        new_text = []
-        for idx, line in enumerate(self.text.splitlines()):
-
-            if idx > 3 and "ForeignKeyField" in line:
-
-                line = line.rstrip(')') + ', lazy_load=True)'
-            new_text.append(line)
-        self.text = '\n'.join(new_text)
-
-    def process(self) -> None:
-        self._remove_comment_lines()
-        self._replace_imports()
-        self._replace_db_instance()
-        self._remove_unknown_field_class()
-        self._replace_unknow_field_types()
-        self._add_lazy_loading()
-
-    def __str__(self) -> str:
-        return self.text
-
-
-@task
-def create_models(c, db_file=None):
-
-    target_dir = THIS_FILE_DIR
-    target_dir.mkdir(exist_ok=True, parents=True)
-    db_file = target_dir.joinpath('storage.db')
-
-    conn = sqlite3.connect(str(db_file), timeout=5)
-    for file in PROJECT_INFO.important_folder.get('sql_scripts').iterdir():
-        if file.is_file() and file.suffix.casefold() == '.sql':
-            cursor = conn.cursor()
-            cursor.executescript(file.read_text(encoding='utf-8', errors='ignore'))
-            cursor.close()
-    conn.close()
-
-    try:
-        with c.prefix(str(PROJECT_INFO.important_files.get('activate_venv'))):
-            command = f"pwiz -e sqlite -i -o {str(db_file)}"
-            result: Result = c.run(command, echo=False, hide=True, asynchronous=False)
-
-        text = ModelsCode(str(result.stdout))
-
-        text.process()
-        out_file: Path = PROJECT_INFO.important_folder.get("main_module").joinpath("storage").joinpath("models").joinpath("models.py")
-        out_file.write_text(str(text), encoding='utf-8', errors='ignore')
-
-    finally:
-
-        os.remove(str(db_file))
-
-
-@task(name="convert-designer-files")
+@task()
 def convert_designer_files(c, target_folder=None):
     target_folder = DESIGNER_FILES_FOLDER if target_folder is None else Path(target_folder)
     to_convert: dict[Path:Path] = {}
@@ -654,7 +457,7 @@ def collect_resources(folder: Path, target_file: Path):
         tree.write(f)
 
 
-@task(name="convert-resources")
+@task()
 def convert_resources(c):
     target_folder = MAIN_MODULE_FOLDER.joinpath("gui", "resources")
     target_folder.mkdir(exist_ok=True, parents=True)
@@ -671,55 +474,23 @@ def convert_resources(c):
 
 
 @task()
-def build_onefile(c):
-    pyinstaller_script = THIS_FILE_DIR.joinpath("tools", "quick_pyinstaller_noconsole.bat")
-    spec_file = THIS_FILE_DIR.joinpath("tools", "Antistasi_Logbook_onefile.spec")
-    activator_run(c, f"{str(pyinstaller_script)} {str(spec_file)}")
-
-
-@task()
-def build_onedir(c):
-    pyinstaller_script = THIS_FILE_DIR.joinpath("tools", "quick_pyinstaller_noconsole.bat")
-    spec_file = THIS_FILE_DIR.joinpath("tools", "Antistasi_Logbook.spec")
-    activator_run(c, f"{str(pyinstaller_script)} {str(spec_file)}")
-
-
-# from gidapptools.gid_scribe.markdown.document import MarkdownDocument, MarkdownHeadline, MarkdownImage, MarkdownCodeBlock, MarkdownRawText, MarkdownSimpleList
-from gidapptools.general_helper.string_helper import StringCaseConverter, StringCase
-
-
-# @task()
-# def make_readme(c):
-#     project: Project = c.project
-#     top_headline = project.general_project_data["name"]
-#     top_headline = StringCaseConverter.convert_to(top_headline, StringCase.TITLE)
-#     top_image = THIS_FILE_DIR.joinpath("docs", "images", "app_icon.png")
-#     readme_document = MarkdownDocument(THIS_FILE_DIR.joinpath("README.md"), top_headline=top_headline, top_image=top_image)
-#     fact_list = MarkdownSimpleList(ordered=False)
-#     fact_list.add_entry(f"**__Version:__** `{project.version!s}`")
-
-#     readme_document.add_part(fact_list)
-#     readme_document.to_file()
-
-
-@task()
 def remove_reports(c):
     project: Project = c.project
 
     reports_folder = project.base_folder.joinpath("tools", "reports").resolve()
 
     if reports_folder.exists() is False:
-        print(f"{reports_folder.as_posix()!r} already removed (does not exist).")
+        CONSOLE.print(f"{reports_folder.as_posix()!r} already removed (does not exist).")
         return
-    print(f"removing {reports_folder.as_posix()!r}")
+    CONSOLE.print(f"removing {reports_folder.as_posix()!r}")
     send2trash(reports_folder)
-    print(f"succesfully removed {reports_folder.as_posix()!r}")
+    CONSOLE.print(f"succesfully removed {reports_folder.as_posix()!r}")
 
 
 from gid_tasks.hackler.imports_cleaner import import_clean_project
 
 
-@task
+@task()
 def clean_imports(c):
     project: Project = c.project
     list(import_clean_project(project=project))
@@ -732,11 +503,11 @@ def remove_logs(c):
     logs_folder = project.main_module.base_folder.joinpath("logs").resolve()
 
     if logs_folder.exists() is False:
-        print(f"{logs_folder.as_posix()!r} already removed (does not exist).")
+        CONSOLE.print(f"{logs_folder.as_posix()!r} already removed (does not exist).")
         return
-    print(f"removing {logs_folder.as_posix()!r}")
+    CONSOLE.print(f"removing {logs_folder.as_posix()!r}")
     send2trash(logs_folder)
-    print(f"succesfully removed {logs_folder.as_posix()!r}")
+    CONSOLE.print(f"succesfully removed {logs_folder.as_posix()!r}")
 
 
 @task()
@@ -754,6 +525,6 @@ def reset_storage(c):
         if path.exists() is False:
             continue
 
-        print(f"removing {path.as_posix()!r}")
+        CONSOLE.print(f"removing {path.as_posix()!r}")
         send2trash(path)
-        print(f"succesfully removed {path.as_posix()!r}")
+        CONSOLE.print(f"succesfully removed {path.as_posix()!r}")

@@ -65,18 +65,19 @@ class Parser:
     def _get_log_file_meta_data(self, file_item: TextIO, existing_data: dict[str, object] = None, force: bool = False) -> "MetaFinder":
         return MetaFinder(existing_data=existing_data, force=force).parse_file(file_item)
 
-    def _parse_header_text(self, context: LogParsingContext) -> None:
+    def _parse_header_text(self, context: LogParsingContext) -> list["RecordLine"]:
+        header_text_lines = []
         while not self.regex_keeper.only_time.match(context.current_line.content):
-            context.line_cache.append(context.current_line)
+            header_text_lines.append(context.current_line)
             context.advance_line()
-        return context.line_cache.dump()
+        return header_text_lines
 
-    def _parse_startup_entries(self, context: LogParsingContext) -> None:
-
+    def _parse_startup_entries(self, context: LogParsingContext) -> list[RecordLine]:
+        startup_entrie_lines = []
         while not self.regex_keeper.local_datetime.match(context.current_line.content):
-            context.line_cache.append(context.current_line)
+            startup_entrie_lines.append(context.current_line)
             context.advance_line()
-        return context.line_cache.dump()
+        return startup_entrie_lines
 
     def parse_entries(self, context: LogParsingContext) -> None:
         while context.current_line is not ... and not self.stop_event.is_set():

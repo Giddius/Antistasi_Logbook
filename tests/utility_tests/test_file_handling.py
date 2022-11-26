@@ -1,6 +1,6 @@
 import pytest
 from pathlib import Path
-from antistasi_logbook.utilities.file_handling import FileContext
+from antistasi_logbook.utilities.file_handling import FileLineProvider
 
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
@@ -17,31 +17,32 @@ test_file_context_params = [pytest.param(TEST_DATA_DIR.joinpath("simple_text.txt
 def test_file_context(file_path: Path):
     all_lines = file_path.read_text(encoding='utf-8', errors='ignore').splitlines()
 
-    context = FileContext(file_path=file_path)
-    line_view = context.file_line_view
-    assert line_view.has_reached_end is False
+    line_provider = FileLineProvider(file_path)
+    current_line_number = 0
+    while line_provider.has_reached_end is False:
+        next(line_provider)
+        current_line_number += 1
 
-    assert line_view.previous_line is line_view.empty_value
-    assert line_view.current_line[1] == all_lines[0]
+        assert line_provider.current_line.content is not None
+        assert line_provider.current_line.start == current_line_number
+        assert line_provider.current_line.content == all_lines[current_line_number - 1]
+        if current_line_number != 1:
+            assert line_provider.previous_line.start == current_line_number - 1
+            assert line_provider.previous_line.content == all_lines[current_line_number - 2]
 
-    curr_line_num: int = 0
-    for i in range(len(all_lines)):
-        line_view.advance_line()
-        curr_line_num += 1
+    assert len(all_lines) == line_provider.current_line.start
 
-        assert line_view.previous_line[1] == all_lines[curr_line_num - 1]
 
-        if i == len(all_lines) - 2:
-            assert line_view.next_line is line_view.empty_value
-            assert line_view.current_line[1] == all_lines[-1]
+@pytest.mark.parametrize(["file_path"], test_file_context_params)
+def test_file_context_lineview(file_path: Path):
+    all_lines = file_path.read_text(encoding='utf-8', errors='ignore').splitlines()
 
-        elif i == len(all_lines) - 1:
-            assert line_view.next_line is line_view.empty_value
-            assert line_view.current_line is line_view.empty_value
-            assert line_view.previous_line[1] == all_lines[-1]
-
-        else:
-            assert line_view.current_line[1] == all_lines[curr_line_num]
-            assert line_view.next_line[1] == all_lines[curr_line_num + 1]
-
-    assert line_view.has_reached_end is True
+    line_provider = FileLineProvider(file_path)
+    current_line_number = 0
+    while line_provider.has_reached_end is False:
+        line_view = next(line_provider)
+        current_line_number += 1
+        assert line_view.current_line.start == current_line_number
+        assert line_view.current_line.content == all_lines[current_line_number - 1]
+        assert line_view.content == all_lines[current_line_number - 1]
+        assert str(line_view) == all_lines[current_line_number - 1]

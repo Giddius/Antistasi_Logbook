@@ -50,6 +50,7 @@ from statistics import mean, mode, stdev, median, variance, pvariance, harmonic_
 from urllib.parse import urlparse
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, Future, wait, as_completed, ALL_COMPLETED, FIRST_EXCEPTION, FIRST_COMPLETED
 
+import apsw
 
 if sys.version_info >= (3, 11):
     from typing import Self
@@ -78,68 +79,8 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 # endregion[Constants]
 
 
-class PairedReader(deque):
-    # TODO: Find better name for this class.
-    # TODO: Maybe add __repr__.
-
-    def __init__(self, file_item: TextIO, chunk_size: int = 512000, *, max_bytes: int = None, max_chunks: int = None):
-        self.file_item = file_item
-        self.chunk_size = chunk_size
-        self.max_bytes = max_bytes
-        self.max_chunks = max_chunks
-        self.chunks_read: int = 0
-        self._inital_loaded: bool = False
-        super().__init__(maxlen=2)
-
-    @property
-    def bytes_read(self) -> int:
-        return self.file_item.tell()
-
-    @property
-    def finished(self) -> bool:
-        if self[1] == "":
-            return True
-
-        if self.max_chunks is not None and self.chunks_read >= self.max_chunks:
-            return True
-
-        if self.max_bytes is not None and self.bytes_read >= self.max_bytes:
-            return True
-
-        return False
-
-    def _read_chunk(self) -> None:
-        self.append(self.file_item.read(self.chunk_size))
-        self.chunks_read += 1
-
-    def _load_initial(self) -> None:
-        if self._inital_loaded is False:
-            while len(self) < self.maxlen:
-                self._read_chunk()
-            self._inital_loaded = True
-
-    def get_text(self) -> str:
-        return self[0] + self[1]
-
-    def read_next(self) -> None:
-        if self._inital_loaded is False:
-            self._load_initial()
-
-        else:
-            self._read_chunk()
-
-    def __iter__(self) -> Generator[str, None, None]:
-        self._load_initial()
-        yield self.get_text()
-        while self.finished is False:
-            yield self.get_text()
-            self.read_next()
-
-    def __str__(self) -> str:
-        return self.get_text()
-
-
 # region[Main_Exec]
+
 if __name__ == '__main__':
     pass
 

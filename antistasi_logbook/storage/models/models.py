@@ -1508,7 +1508,7 @@ class MeanUpdateTimePerLogFile(BaseModel):
     time_taken_per_log_file = FloatField(null=False)
     amount_updated = IntegerField(null=False)
 
-    row_limit: int = 3
+    row_limit: int = 100
 
     class Meta:
         table_name = 'MeanUpdateTimePerLogFile'
@@ -1607,19 +1607,20 @@ class DatabaseMetaData(BaseModel):
 
     @property
     def mean_update_time_per_log_file(self) -> timedelta:
-        values = []
-        weights = []
+        collected = []
+
         for time_taken_per_log_file, amount_updated in MeanUpdateTimePerLogFile.select(MeanUpdateTimePerLogFile.time_taken_per_log_file, MeanUpdateTimePerLogFile.amount_updated).tuples().iterator():
-            values.append(time_taken_per_log_file)
-            weights.append(amount_updated)
+            collected.append({"value":time_taken_per_log_file, "weight":amount_updated})
 
-        if len(values) == 0:
-            values = [15.0]
+        if len(collected) == 0:
+            collected = [{"value":10.0, "weight":1}]
 
-        if len(weights) == 0:
-            weights = [1]
 
-        raw_update_time = numpy.average(values, weights=weights)
+        if len(collected) >= 2:
+            longest_item = sorted(collected, key=lambda x: x["value"])[-1]
+            _=collected.pop(collected.index(longest_item))
+
+        raw_update_time = numpy.average([i["value"] for i in collected], weights=[i["weight"] for i in collected])
 
         return timedelta(seconds=round(raw_update_time, ndigits=3))
 

@@ -33,7 +33,7 @@ from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_glo
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.parsing.py_raw_record import RawRecord
 from antistasi_logbook.storage.models.models import GameMap, LogFile, Version
-
+from antistasi_logbook.parsing.record_line import RecordLine
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
@@ -60,25 +60,6 @@ get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 # endregion[Constants]
-
-try:
-    from antistasi_logbook.parsing.record_line import RecordLine
-except ImportError:
-    @attr.s(slots=True, weakref_slot=False, frozen=True)
-    class RecordLine:
-        content: str = attr.ib()
-        start: int = attr.ib()
-
-        def __repr__(self) -> str:
-            return self.content
-
-        def __str__(self) -> str:
-            return self.content
-
-        def __eq__(self, o: object) -> bool:
-            if isinstance(o, self.__class__):
-                return self.content == o.content and self.start == o.start
-            return NotImplemented
 
 
 LINE_ITERATOR_TYPE = Generator[RecordLine, None, None]
@@ -186,7 +167,6 @@ class LogParsingContext:
     def _log_record_batch_size(self) -> int:
 
         if self._bulk_create_batch_size is None:
-            # self._bulk_create_batch_size = RawRecord.insert_sql_phrase.batch_size
             self._bulk_create_batch_size = 10_000
 
         return self._bulk_create_batch_size
@@ -195,8 +175,8 @@ class LogParsingContext:
     def unparsable(self) -> bool:
         return self.log_file_data.get("unparsable", False)
 
-    def set_unparsable(self) -> None:
-        self.log_file_data["unparsable"] = True
+    def set_unparsable(self, unparsable_value: bool) -> None:
+        self.log_file_data["unparsable"] = unparsable_value
 
     def get_existing_meta_data(self) -> dict[str, object]:
         return {"has_game_map": self._log_file.has_game_map(),
@@ -209,10 +189,10 @@ class LogParsingContext:
     def set_found_meta_data(self, finder: "MetaFinder") -> None:
         log.debug("starting to set meta-data for %r", self._log_file)
         # TODO: Refractor this Monster!
-
+        self.set_unparsable(False)
         if finder is None or finder.utc_offset is None:
             log.debug("setting to unparsable, because either finder(%r) is None or finder.utc_offset(%r) is None or finder.campaign_id(%r) is None", finder, finder.utc_offset, finder.campaign_id)
-            self.set_unparsable()
+            self.set_unparsable(True)
             if self.done_signal:
                 self._log_file._cleanup()
             return

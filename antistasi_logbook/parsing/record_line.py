@@ -78,65 +78,42 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 # endregion[Constants]
 
 
-class PairedReader(deque):
-    # TODO: Find better name for this class.
-    # TODO: Maybe add __repr__.
+class RecordLine:
+    __slots__ = ("_content", "_start")
 
-    def __init__(self, file_item: TextIO, chunk_size: int = 512000, *, max_bytes: int = None, max_chunks: int = None):
-        self.file_item = file_item
-        self.chunk_size = chunk_size
-        self.max_bytes = max_bytes
-        self.max_chunks = max_chunks
-        self.chunks_read: int = 0
-        self._inital_loaded: bool = False
-        super().__init__(maxlen=2)
+    def __init__(self, content: Optional[str], start: Optional[int]):
+        self._content = content
+        self._start = start
 
     @property
-    def bytes_read(self) -> int:
-        return self.file_item.tell()
+    def start(self) -> Optional[int]:
+        return self._start
 
     @property
-    def finished(self) -> bool:
-        if self[1] == "":
-            return True
+    def content(self) -> Optional[str]:
+        return self._content
 
-        if self.max_chunks is not None and self.chunks_read >= self.max_chunks:
-            return True
+    @property
+    def line_number(self) -> Optional[int]:
+        return self._start
 
-        if self.max_bytes is not None and self.bytes_read >= self.max_bytes:
-            return True
+    @property
+    def is_none(self) -> bool:
+        return self.start is None and self.content is None
 
-        return False
+    def __hash__(self) -> int:
+        return hash(self._content) + hash(self._start)
 
-    def _read_chunk(self) -> None:
-        self.append(self.file_item.read(self.chunk_size))
-        self.chunks_read += 1
-
-    def _load_initial(self) -> None:
-        if self._inital_loaded is False:
-            while len(self) < self.maxlen:
-                self._read_chunk()
-            self._inital_loaded = True
-
-    def get_text(self) -> str:
-        return self[0] + self[1]
-
-    def read_next(self) -> None:
-        if self._inital_loaded is False:
-            self._load_initial()
-
-        else:
-            self._read_chunk()
-
-    def __iter__(self) -> Generator[str, None, None]:
-        self._load_initial()
-        yield self.get_text()
-        while self.finished is False:
-            yield self.get_text()
-            self.read_next()
+    def __eq__(self, o: object) -> bool:
+        if isinstance(o, self.__class__):
+            return self.content == o.content and self.start == o.start
+        return NotImplemented
 
     def __str__(self) -> str:
-        return self.get_text()
+        return self.content
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(start={self.start!r}, content={self.content!r})"
 
 
 # region[Main_Exec]

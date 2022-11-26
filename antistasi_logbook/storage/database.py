@@ -386,6 +386,11 @@ class GidSqliteApswDatabase(APSWDatabase):
         return RecordClass.select().where(RecordClass.name == "BaseRecord").scalar()
 
     def _add_conn_hooks(self, conn: "apsw.Connection"):
+        if "auto_vacuum" in [i[0] for i in self._pragmas]:
+            cursor = conn.cursor()
+            for pragma, value in (i for i in self._pragmas if i[0] == "auto_vacuum"):
+                cursor.execute('PRAGMA %s = %s;' % (pragma, value))
+            cursor.close()
         self.all_connections.update([])
         self.all_connections.add(conn)
         conn.setbusyhandler(self._busy_handling)
@@ -641,7 +646,7 @@ class GidSqliteApswDatabase(APSWDatabase):
         log.debug("ArmaFunctionAuthorPrefix_instances -> amount: %r, content: %r", len(_cache._full_map), _cache._full_map)
         log.debug("ArmaFunctionAuthorPrefix_instances -> unique_field_names: %r, unique_indexes: %r", _cache.unique_field_names, _cache.unique_indexes)
 
-    def get_log_files(self, server: Server = None, ordered_by=LogFile.id, exclude_unparsable:bool=False) -> tuple[LogFile]:
+    def get_log_files(self, server: Server = None, ordered_by=LogFile.id, exclude_unparsable: bool = False) -> tuple[LogFile]:
 
         def _resolve_game_map_and_version(in_log_file: LogFile) -> LogFile:
             if in_log_file.server_id is not None:
@@ -663,9 +668,7 @@ class GidSqliteApswDatabase(APSWDatabase):
             query = query.where((LogFile.server_id == server.id))
 
         if exclude_unparsable is True:
-            query = query.where((LogFile.unparsable ==False))
-
-
+            query = query.where((LogFile.unparsable == False))
 
         _out = tuple(_resolve_game_map_and_version(i) for i in query.order_by(ordered_by).iterator())
 

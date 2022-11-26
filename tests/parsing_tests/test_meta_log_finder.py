@@ -10,6 +10,7 @@ from antistasi_logbook.parsing.meta_log_finder import MetaFinder
 from antistasi_logbook.utilities.paired_reader import PairedReader
 from antistasi_logbook.regex_store.regex_keeper import SimpleRegexKeeper
 from pprint import pprint
+from time import perf_counter
 # endregion[Imports]
 
 # region [Constants]

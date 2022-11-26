@@ -468,11 +468,11 @@ class Updater:
             log.info("update already running, returning!")
             return None, None
 
-        update_start_time = perf_counter_ns()
         self.is_updating_event.set()
         self.before_updates()
         amount_log_files_updated = 0
         update_tasks = []
+        update_start_time = perf_counter_ns()
         try:
 
             self.database.session_meta_data.update_started()

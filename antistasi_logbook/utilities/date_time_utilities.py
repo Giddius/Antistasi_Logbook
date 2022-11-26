@@ -13,6 +13,7 @@ from typing import Union
 from pathlib import Path
 from datetime import tzinfo, datetime, timezone, timedelta
 from functools import total_ordering
+from dateutil.tz import UTC
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
@@ -51,7 +52,7 @@ DEFAULT_DATE_TIME_FORMAT = "%Y-%m-%d_%H-%M-%S"
 
 
 def convert_to_utc(date_time: datetime) -> datetime:
-    if date_time.tzinfo is timezone.utc:
+    if date_time.tzinfo in (timezone.utc, UTC):
         return date_time
     if date_time.tzinfo is None:
         date_time = date_time.replace(tzinfo=tzlocal.get_localzone())

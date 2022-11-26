@@ -226,14 +226,10 @@ class MetaFinder:
             self.mods = None
 
     def parse_file(self, in_file_obj: TextIO) -> Self:
-        text_parts = PairedReader(in_file_obj, max_chunks=50)
-
-        while True:
-            self.search(str(text_parts))
-            if self.all_found() is True or text_parts.finished is True:
+        for text in PairedReader(in_file_obj, max_chunks=50):
+            self.search(text)
+            if self.all_found() is True:
                 break
-
-            text_parts.read_next()
 
         self.change_missing_to_none()
         return self

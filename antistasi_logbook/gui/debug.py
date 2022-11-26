@@ -27,7 +27,7 @@ from gidapptools.meta_data.interface import MetaPaths, get_meta_paths
 from gidapptools.general_helper.conversion import bytes2human
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.storage.models.models import Mod, ModSet, LogFile, Message, BaseModel, LogRecord, ArmaFunction, DatabaseMetaData, ArmaFunctionAuthorPrefix
+from antistasi_logbook.storage.models.models import Mod, ModSet, LogFile, Message, BaseModel, LogRecord, ArmaFunction, DatabaseMetaData, ArmaFunctionAuthorPrefix, MeanUpdateTimePerLogFile
 from antistasi_logbook.gui.widgets.debug_widgets import DebugDockWidget, ListOfDictsResult
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
@@ -605,6 +605,17 @@ def count_records_by_group():
     return {LogFile.get_by_id(i[0]).name: i[1] for i in result}
 
 
+def all_update_durations():
+    app: "AntistasiLogbookApplication" = QApplication.instance()
+    db: "GidSqliteApswDatabase" = app.backend.database
+    data = []
+    with db.connection_context():
+        for item in MeanUpdateTimePerLogFile.select().order_by(-MeanUpdateTimePerLogFile.recorded_at).iterator():
+            data.append({"recorded_at": item.recorded_at.strftime("%Y-%m-%d %H:%M:%S"), "time_taken_per_log_file": round(item.time_taken_per_log_file, ndigits=2), "amount_updated": item.amount_updated, "overall_time_taken": round(item.time_taken_per_log_file * item.amount_updated, ndigits=2)})
+
+    return data
+
+
 def setup_debug_widget(debug_dock_widget: "DebugDockWidget") -> None:
     log.debug("running setup_debug_widget")
     app: AntistasiLogbookApplication = QApplication.instance()
@@ -641,6 +652,8 @@ def setup_debug_widget(debug_dock_widget: "DebugDockWidget") -> None:
     debug_dock_widget.add_show_func_result_button(most_common_messages, "message")
     debug_dock_widget.add_show_func_result_button(release_memory, "apsw")
     debug_dock_widget.add_show_func_result_button(show_mean_update_time_per_log_file, "database-meta")
+    debug_dock_widget.add_show_func_result_button(all_update_durations, "database-meta")
+
     debug_dock_widget.add_show_func_result_button(dump_arma_functions, "setup-data")
     debug_dock_widget.add_show_func_result_button(dump_most_common_messages, "setup-data")
     debug_dock_widget.add_show_func_result_button(dump_mod_sets, "setup-data")
