@@ -15,14 +15,18 @@ from weakref import WeakValueDictionary
 from frozendict import frozendict
 from playhouse.signals import post_save
 from playhouse.shortcuts import model_to_dict
-
+import peewee
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.concurrency.events import BlockingEvent
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.storage.models.models import GameMap, Version, LogLevel, ArmaFunction, RecordOrigin
-
+import sys
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
@@ -188,21 +192,20 @@ class ForeignKeyCache:
 
     @ property
     def all_origin_objects(self) -> dict[str, RecordOrigin]:
-        self.origin_blocker.wait()
-        if self._all_origin_objects is None:
 
+        if self._all_origin_objects is None:
+            self.origin_blocker.wait()
             self._all_origin_objects = frozendict({origin.identifier: origin for origin in self.database.get_all_origins()})
-            for origin in self._all_origin_objects.values():
-                _ = origin.record_family
+
         return self._all_origin_objects
 
     @ property
     def all_origin_objects_by_id(self) -> dict[str, RecordOrigin]:
-        self.origin_blocker.wait()
+
         if self._all_origin_objects_by_id is None:
+            self.origin_blocker.wait()
             self._all_origin_objects_by_id = frozendict({origin.id: origin for origin in self.database.get_all_origins()})
-            for origin in self._all_origin_objects_by_id.values():
-                _ = origin.record_family
+
         return self._all_origin_objects_by_id
 
     @ property
@@ -264,9 +267,10 @@ class ForeignKeyCache:
         try:
             return self.all_version_objects_by_id[model_id]
         except KeyError:
-            return Version.select().where(Version.id == model_id).execute(self.database)[0]
 
-    def reset_all(self) -> None:
+            return Version.select().where(Version.id == model_id).execute()[0]
+
+    def reset_all(self) -> Self:
         """
         Invalidate each cache.
 
@@ -293,8 +297,9 @@ class ForeignKeyCache:
             self._all_version_objects_by_id = None
 
         log.info("all cached foreign keys were reseted.")
+        return self
 
-    def preload_all(self) -> None:
+    def preload_all(self) -> Self:
         _ = self.all_log_levels
         _ = self.all_arma_file_objects
         _ = self.all_game_map_objects
@@ -307,6 +312,7 @@ class ForeignKeyCache:
         _ = self.all_version_objects
         _ = self.all_version_objects_by_id
         log.info("all cached foreign keys preloaded.")
+        return self
 
     @ classmethod
     def reset_all_instances(cls):

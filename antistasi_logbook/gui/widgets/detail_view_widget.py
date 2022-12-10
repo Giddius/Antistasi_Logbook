@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any, Union, Literal, Optional, Sequence, Gener
 from pathlib import Path
 from functools import partial
 from collections.abc import Iterable
-
+from pprint import pprint
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
 import pyqtgraph as pg
@@ -82,8 +82,19 @@ class ModModel(QAbstractTableModel):
         if not mods:
             self.mods = []
         else:
-            self.mods = sorted(mods, key=lambda x: (x.official is True, x.default is True, self.ace_compat_regex.search(x.name) is not None, "rhs" in x.name.casefold(), "3cb" in x.name.casefold(), "cup" in x.name.casefold()))
+            self.mods = sorted(mods, key=self._sort_func)
         self.columns: tuple[Field] = self.get_columns()
+
+    def _sort_func(self, in_mod: Mod):
+        return (in_mod.cleaned_name == "utility",
+                in_mod.official is True,
+                in_mod.default is True,
+                self.ace_compat_regex.search(in_mod.name) is not None,
+                "rhs" in in_mod.name.casefold(),
+                "3cb" in in_mod.name.casefold(),
+                "cup" in in_mod.name.casefold(),
+                in_mod.cleaned_name
+                )
 
     def get_columns(self) -> tuple[Field]:
         columns = sorted([field for field_name, field in Mod._meta.fields.items() if field_name not in self.column_names_to_exclude], key=lambda x: x.name != "name")
@@ -163,7 +174,19 @@ class ModDataView(DataView):
             self.add_row(column.verbose_name or column.name, getattr(self.mod, column.name))
         for extra_name in ["cleaned_name", "link"]:
             self.add_row(extra_name, getattr(self.mod, extra_name))
-        self.add_row("log_files", [f"{i.server.name}/{i}" for i in sorted(self.mod.get_log_files(), key=lambda x: (-x.server_id, x.modified_at), reverse=True)])
+
+        all_log_files_values = self.get_all_log_file_values()
+        if all_log_files_values is not None:
+            self.add_row("log_files", all_log_files_values)
+
+    def get_all_log_file_values(self) -> Optional[tuple["LogFile"]]:
+        all_log_files = self.mod.get_log_files()
+        if all_log_files is None:
+            return None
+
+        sorted_log_files = sorted(all_log_files, key=lambda x: (-x.server_id, x.modified_at), reverse=True)
+
+        return [f"{i.server.name}/{i}" for i in sorted_log_files]
 
     def column_sorter(self, column: Field) -> int:
         if column.name.casefold() == "marked":
@@ -631,6 +654,7 @@ class LogFileDetailWidget(BaseDetailWidget):
         self.layout.addRow("Mod-Set", self.mod_set_value)
 
         self.mods_value = ModView(self)
+
         model = ModModel(self.log_file.get_mods())
         self.mods_value.setModel(model)
 

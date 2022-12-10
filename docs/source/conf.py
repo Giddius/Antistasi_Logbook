@@ -7,11 +7,12 @@ import time
 from pathlib import Path
 from types import ModuleType
 import importlib.util
+import json
 
 sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(0, os.path.abspath('../antistasi_logbook'))
 
-
+THIS_FILE_DIR = Path(__file__).parent.absolute()
 # endregion[Imports]
 
 # region [Project_Info]
@@ -27,50 +28,56 @@ html_favicon = "_images/app_favicon.png"
 # region [Sphinx_Settings]
 
 extensions = ['sphinxcontrib.mermaid',
-              "sphinxcontrib.fulltoc",
+              "sphinx_inline_tabs",
               "sphinx.ext.githubpages",
               'sphinx_copybutton',
               "sphinx_design",
               'sphinx.ext.autosectionlabel',
+              #   "sphinxcontrib.fulltoc",
               'sphinx_issues']
 
 templates_path = ['_templates']
+
+html_static_path = ['_static']
+html_css_files = [
+    'css/extra_styling.css',
+]
+
 exclude_patterns = []
+
+
+# get available styles via `pygmentize -L styles`
+# pygments_style = "tomorrow-night-eighties"
+pygments_style = "monokai"
+
 
 # endregion [Sphinx_Settings]
 
 
-def fix_multiline_text(in_text: str, indentation: int = 0) -> str:
-    fixed_lines = in_text.strip().splitlines()
-    return '\n'.join(('   ' * indentation) + line.strip() for line in fixed_lines)
+html_theme = 'furo'
 
 
-def do_underline(in_title: str) -> str:
-    ul = "=" * int(len(in_title) * 1.25)
-    return f"\n{in_title}\n{ul}\n\n"
+html_context = {"base_css_name": html_theme}
 
 
-html_theme = 'alabaster'
-html_static_path = ['_static']
+class ExternalLink:
 
-html_context = {"do_underline": do_underline,
-                "fix_multiline_text": fix_multiline_text}
+    def __init__(self, name: str, url: str, description: str = None) -> None:
+        self.name = name
+        self.url = url
+        self.description = description
 
-source_suffix = {".rst": "restructuredtext",
-                 ".rst_t": "restructuredtext"}
-
-
-def rstjinja(app, docname, source):
-    """
-    Render our pages as a jinja template for fancy templating goodness.
-    """
-    print(f"{docname=}\n")
-    src = source[0]
-    rendered = app.builder.templates.render_string(
-        src, app.config.html_context
-    )
-    source[0] = rendered
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(name={self.name!r}, url={self.url!r}, description={self.description!r})"
 
 
-def setup(app):
-    app.connect("source-read", rstjinja)
+def get_link_data() -> tuple[ExternalLink]:
+    link_file = THIS_FILE_DIR.joinpath("_data").joinpath("links.json")
+    if not link_file.exists():
+        return tuple()
+
+    with link_file.open("r", encoding='utf-8', errors='ignore') as f:
+        return tuple(ExternalLink(**i) for i in json.load(f))
+
+
+print(get_link_data())

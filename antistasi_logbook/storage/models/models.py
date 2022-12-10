@@ -181,35 +181,7 @@ class ViewBaseModel(BaseModel):
 database_proxy.attach_callback(lambda _db: setattr(_db, "_view_base_model", ViewBaseModel))
 
 
-class EnumLikeBaseModel(BaseModel):
-    _instance_cache: EnumLikeModelCache = None
-
-    def __new__(cls: type[Self], *args, **kwargs) -> Self:
-
-        cls._ensure_instance_cache()
-        _id = kwargs.get("id", None)
-        instance = cls._instance_cache.get_by_id(_id)
-
-        if instance is None:
-            instance = super(EnumLikeBaseModel, cls).__new__(cls)
-
-        return instance
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._instance_cache.add(self)
-
-    @classmethod
-    def clear_instance_cache(cls) -> None:
-        cls._instance_cache.clear()
-
-    @classmethod
-    def _ensure_instance_cache(cls):
-        if cls._instance_cache is None:
-            cls._instance_cache = EnumLikeModelCache(cls)
-
-
-class ArmaFunctionAuthorPrefix(EnumLikeBaseModel):
+class ArmaFunctionAuthorPrefix(BaseModel):
     name = TextField(unique=True, index=True)
     full_name = TextField(unique=True, null=True, index=True)
     local_folder_path = PathField(null=True)
@@ -230,6 +202,7 @@ class ArmaFunctionAuthorPrefix(EnumLikeBaseModel):
         return super().pretty_name
 
     @classmethod
+    @lru_cache(None)
     def get_by_id_cached(cls, pk):
 
         return super().get_by_id(pk)
@@ -797,7 +770,8 @@ class LogFile(BaseModel):
         indexes = (
             (("name", "server", "created_at"), True),
             (("name", "server", "remote_path"), True),
-            (("unparsable", "modified_at", "server", "version", "game_map", "original_file"), False)
+            (("unparsable", "modified_at", "server", "version", "game_map", "original_file"), False),
+            (("name", "server"), False)
         )
 
     @classmethod
@@ -1156,7 +1130,8 @@ class LogFile(BaseModel):
 
     def get_mods(self) -> Optional[list["Mod"]]:
         self.database.connect(reuse_if_open=True)
-        return [Mod.get_by_id_cached(_id[0]) for _id in LogFileAndModJoin.select(LogFileAndModJoin.mod_id).where((LogFileAndModJoin.log_file_id == self.id)).tuples()]
+        return list(Mod.select().join(LogFileAndModJoin).where(LogFileAndModJoin.log_file_id == self.id))
+        # return [Mod.get_by_id_cached(_id[0]) for _id in LogFileAndModJoin.select(LogFileAndModJoin.mod_id).where((LogFileAndModJoin.log_file_id == self.id)).tuples()]
 
     def delete_instance(self, *args, **kwargs):
         _out = super().delete_instance(*args, **kwargs)
@@ -1190,7 +1165,7 @@ class ModLink(BaseModel):
         return super().get_by_id(pk)
 
 
-class Mod(EnumLikeBaseModel):
+class Mod(BaseModel):
     full_path = PathField(null=True)
     mod_hash = FixedCharField(null=True, max_length=40)
     mod_hash_short = CharField(null=True, max_length=10)
@@ -1240,7 +1215,9 @@ class Mod(EnumLikeBaseModel):
         return tuple(mod for mod in all_mods if mod.cleaned_name == self.cleaned_name)
 
     def get_log_files(self) -> tuple[LogFile]:
-        query = LogFile.select().join(LogFileAndModJoin).join(Mod).where(Mod.id == self.id)
+        if self.mod_hash is None:
+            return None
+        query = LogFile.select().join(LogFileAndModJoin).join(Mod).where(Mod.mod_hash == self.mod_hash)
         log_files = tuple(query)
 
         return log_files
@@ -1273,17 +1250,14 @@ class LogFileAndModJoin(BaseModel):
 
     class Meta:
         table_name = 'LogFile_and_Mod_join'
-        index = (
-            (("log_file", "mod"), True)
-        )
-        primary_key = False
+        primary_key = peewee.CompositeKey('log_file', 'mod')
 
     @ property
     def name(self) -> str:
         return self.mod.name
 
 
-class LogLevel(EnumLikeBaseModel):
+class LogLevel(BaseModel):
     name = TextField(unique=True, index=True)
     comments = CommentsField(null=True)
 
@@ -1292,11 +1266,9 @@ class LogLevel(EnumLikeBaseModel):
         return self.color_config.get("log_level", self.name, default=None)
 
     @classmethod
+    @lru_cache(None)
     def get_by_id_cached(cls, pk):
-
-        instance = cls._instance_cache.get_by_id(pk)
-        if instance is None:
-            return super().get_by_id(pk)
+        super().get_by_id(pk)
 
     class Meta:
         table_name = 'LogLevel'
@@ -1405,12 +1377,11 @@ class RecordOrigin(BaseModel):
 
 
 class Message(BaseModel):
-    md5_hash = FixedCharField(max_length=32, unique=True, null=False, index=True)
-    text = TextBlobField(unique=False, null=False, index=False)
+    md5_hash = FixedCharField(max_length=32, unique=True, null=False, index=True, primary_key=True)
+    text = TextBlobField(unique=True, null=False, index=False)
 
     class Meta:
         table_name = 'Message'
-        primary_key = False
 
     @classmethod
     def get_by_id_cached(cls, pk: str):
@@ -1435,7 +1406,9 @@ class Message(BaseModel):
 class LogRecord(BaseModel):
     start = IntegerField(help_text="Start Line number of the Record", verbose_name="Start", index=False)
     end = IntegerField(help_text="End Line number of the Record", verbose_name="End", index=False)
-    message_item = FixedCharField(max_length=32, help_text="Message part of the Record", verbose_name="Message", null=False, unique=False, _hidden=True, index=False)
+    # message_item = FixedCharField(max_length=32, help_text="Message part of the Record", verbose_name="Message", null=False, unique=False, _hidden=True, index=False)
+    message_item = ForeignKeyField(column_name="message_item", field="md5_hash", model=Message, backref="log_records", lazy_load=True, null=False, verbose_name="Message", index=False)
+
     recorded_at = AwareTimeStampField(verbose_name="Recorded at", index=False)
     called_by = ForeignKeyField(column_name='called_by', field='id', model=ArmaFunction, backref="log_records_called_by", lazy_load=True, null=True, verbose_name="Called by", index=False)
     origin = ForeignKeyField(column_name="origin", field="id", model=RecordOrigin, backref="records", lazy_load=True, verbose_name="Origin", default=0, index=False)
@@ -1450,9 +1423,9 @@ class LogRecord(BaseModel):
 
     class Meta:
         table_name = 'LogRecord'
-        indexes = (
-            (("start", "end", "log_file", "log_level", "record_class"), False),
-        )
+        # indexes = (
+        #     (("start", "end", "log_file", "log_level", "record_class"), False),
+        # )
 
     @classmethod
     @lru_cache(None)
@@ -1470,11 +1443,14 @@ class LogRecord(BaseModel):
 
     @property
     def message(self) -> str:
-        try:
-            message_obj = self._message
-            return message_obj.text
-        except AttributeError:
-            return sys.intern(next((i[0] for i in Message.select(Message.text).where((Message.md5_hash == self.message_item)).tuples().iterator())))
+        return sys.intern(self.message_item.text)
+    # @property
+    # def message(self) -> str:
+    #     try:
+    #         message_obj = self._message
+    #         return message_obj.text
+    #     except AttributeError:
+    #         return sys.intern(next((i[0] for i in Message.select(Message.text).where((Message.md5_hash == self.message_item)).tuples().iterator())))
 
     @ property
     def pretty_log_level(self) -> str:
@@ -1610,15 +1586,14 @@ class DatabaseMetaData(BaseModel):
         collected = []
 
         for time_taken_per_log_file, amount_updated in MeanUpdateTimePerLogFile.select(MeanUpdateTimePerLogFile.time_taken_per_log_file, MeanUpdateTimePerLogFile.amount_updated).tuples().iterator():
-            collected.append({"value":time_taken_per_log_file, "weight":amount_updated})
+            collected.append({"value": time_taken_per_log_file, "weight": amount_updated})
 
         if len(collected) == 0:
-            collected = [{"value":10.0, "weight":1}]
-
+            collected = [{"value": 10.0, "weight": 1}]
 
         if len(collected) >= 2:
             longest_item = sorted(collected, key=lambda x: x["value"])[-1]
-            _=collected.pop(collected.index(longest_item))
+            _ = collected.pop(collected.index(longest_item))
 
         raw_update_time = numpy.average([i["value"] for i in collected], weights=[i["weight"] for i in collected])
 
@@ -1676,9 +1651,13 @@ class DatabaseMetaData(BaseModel):
             DatabaseMetaData.update(last_update_finished_at=now).where(DatabaseMetaData.id == self.id).execute()
 
 
+def get_all_actual_models() -> list[BaseModel]:
+    return [m for m in BaseModel.get_all_models(include_view_models=False) if m is not BaseModel]
+
+
 def initialize_db(database: "GidSqliteApswDatabase"):
 
     database_proxy.initialize(database)
 
-    all_models = [m for m in BaseModel.get_all_models(include_view_models=False) if m is not BaseModel and m is not EnumLikeBaseModel]
+    all_models = get_all_actual_models()
     database._models = {m.__name__.casefold(): m for m in all_models}

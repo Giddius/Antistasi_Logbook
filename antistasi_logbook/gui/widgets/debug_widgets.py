@@ -341,6 +341,8 @@ class DebugDialog(QScrollArea):
             return data.to_sub_widget(self.content_widget)
         if PathButton.check_if_path(data) is True:
             return PathButton(data, self.content_widget)
+        if isinstance(data, QWidget):
+            return data
 
         if isinstance(data, QFont):
             return FontInfoWidget(data, self.content_widget)
@@ -378,9 +380,6 @@ class DebugDialog(QScrollArea):
             widget.setReadOnly(True)
             widget.setFrameStyle(QFrame.NoFrame)
             return widget
-
-        elif isinstance(data, QWidget):
-            return data
 
         else:
 

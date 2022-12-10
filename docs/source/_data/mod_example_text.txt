@@ -1,0 +1,37 @@
+.. code::
+
+    11:51:09 ============================================================================================= List of mods ===============================================================================================
+    11:51:09 modsReadOnly = true
+    11:51:09 safeModsActivated = false
+    11:51:09 customMods = true
+    11:51:09 hash = '06E03E1C463E72E69E7B56CB8BD8C7F859180514'
+    11:51:09 hashShort = 'f1973b83'
+    11:51:09                                               name |               modDir |    default |   official |               origin |                                     hash | hashShort | fullPath
+    11:51:09 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+    11:51:09                                      @ACECompatSOG |        @ACECompatSOG |      false |      false |             GAME DIR | 58c416e22842b40b72edf1dde9ddc97cb1f6667a |  75251e92 | C:\TCAFiles\Users\Antistasi\2433\@ACECompatSOG
+    11:51:09                              Gruppe Adler Trenches | @GruppeAdlerTrenches |      false |      false |             GAME DIR | 1469bb9106e667d7257e5117e40516bea48b6001 |  a300f1d0 | C:\TCAFiles\Users\Antistasi\2433\@GruppeAdlerTrenches
+    11:51:09                             VET_Unflipping - 1.3.2 |       @VETUnflipping |      false |      false |             GAME DIR | b87f16fa85a76c4522fe0fe67521f1ab4a7a7fb0 |  dc68cef1 | C:\TCAFiles\Users\Antistasi\2433\@VETUnflipping
+    11:51:09                     @ZeusEnhancedACE3Compatibility | @ZeusEnhancedACE3Compatibility |      false |      false |             GAME DIR | 3ba9d33273e6b3891df3e596d51295136f59ec40 |  5c267667 | C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhancedACE3Compatibility
+    11:51:09                               Zeus Enhanced 1.12.2 |        @ZeusEnhanced |      false |      false |             GAME DIR | 6f138882698bd41e062699f5b0bcc1ea79468511 |  4eb0fe50 | C:\TCAFiles\Users\Antistasi\2433\@ZeusEnhanced
+    11:51:09                                               TFAR | @TaskForceArrowheadRadioBETA |      false |      false |             GAME DIR | 6e889b7a92591e469d9e037aa3631fb8e5a954fc |  d11c0c7f | C:\TCAFiles\Users\Antistasi\2433\@TaskForceArrowheadRadioBETA
+    11:51:09                                  Enhanced Movement |    @EnhancedMovement |      false |      false |             GAME DIR | fbc1f582c89f11919f9c6ead5d842e6c1aea9b71 |  a47fddc8 | C:\TCAFiles\Users\Antistasi\2433\@EnhancedMovement
+    11:51:09                      Community Base Addons v3.15.8 |               @CBAA3 |      false |      false |             GAME DIR | 1d7bc59f1f4d1d2a3604e1c33be8fdd686a5617f |  b09d9bc5 | C:\TCAFiles\Users\Antistasi\2433\@CBAA3
+    11:51:09                 Advanced Combat Environment 3.15.2 |                 @ace |      false |      false |             GAME DIR | f5413c6e60e6aa9e5bbeda3f1dcdc3e029727f68 |  56cefafc | C:\TCAFiles\Users\Antistasi\2433\@ace
+    11:51:09                  [Dev] Antistasi - Community 2.6.1 | @Dev1AntistasiDevBuild |      false |      false |             GAME DIR | 1c0cf6a7b0eaf2c81d3a479c327a5c1712e28070 |  19619fb8 | C:\TCAFiles\Users\Antistasi\2433\@Dev1AntistasiDevBuild
+    11:51:09            Arma 3 Creator DLC: S.O.G. Prairie Fire |                   vn |      false |       true |             GAME DIR | b086dbcc2986a92aef3b0fd6204c8bc54ee8a8d4 |  f66fee82 | C:\TCAFiles\Users\Antistasi\2433\vn
+    11:51:09                                  Arma 3 Art of War |                  aow |       true |       true |             GAME DIR | 6ba7b160d357ca64590614f6a6c4579168efc1d0 |  bc4189c2 | C:\TCAFiles\Users\Antistasi\2433\aow
+    11:51:09                          Arma 3 Contact (Platform) |                enoch |       true |       true |             GAME DIR | 9f6919562e719e9f70bf666194a7862d3274185a |  87e92527 | C:\TCAFiles\Users\Antistasi\2433\enoch
+    11:51:09                                       Arma 3 Tanks |                 tank |       true |       true |             GAME DIR | b4f3c4faa775f1c81c77f02f97cfa1aa18da5209 |  bbdf79e2 | C:\TCAFiles\Users\Antistasi\2433\tank
+    11:51:09                                     Arma 3 Tac-Ops |               tacops |       true |       true |             GAME DIR | 8fcf9c1f0a1fa5b8d354b64967ffd6583fc43d3e |  fb047e5c | C:\TCAFiles\Users\Antistasi\2433\tacops
+    11:51:09                                 Arma 3 Laws of War |               orange |       true |       true |             GAME DIR | 12abb4e3868e4b3036e9cea47138bdeb4abe518d |  f564c92a | C:\TCAFiles\Users\Antistasi\2433\orange
+    11:51:09                                      Arma 3 Malden |                 argo |       true |       true |             GAME DIR | a844aa131096258aab8c000fddcc940284385494 |  49d733fb | C:\TCAFiles\Users\Antistasi\2433\argo
+    11:51:09                                        Arma 3 Jets |                 jets |       true |       true |             GAME DIR | 3f599a4f98ca3a0cd3c5e5e574acc16737c061ef |  aae4f413 | C:\TCAFiles\Users\Antistasi\2433\jets
+    11:51:09                                        Arma 3 Apex |            expansion |       true |       true |             GAME DIR | 26e79f13d9a9e6ae48a6119621f73d53cf411dbd |  fe5acf19 | C:\TCAFiles\Users\Antistasi\2433\expansion
+    11:51:09                                    Arma 3 Marksmen |                 mark |       true |       true |             GAME DIR | 6f0fbfd365214eb67dc377503d2583c6718ff19b |  21bc50ea | C:\TCAFiles\Users\Antistasi\2433\mark
+    11:51:09                                 Arma 3 Helicopters |                 heli |       true |       true |             GAME DIR | f61b0de0ac2bd0602413e01b40b80f56b2b32130 |   5e3c056 | C:\TCAFiles\Users\Antistasi\2433\heli
+    11:51:09                                       Arma 3 Karts |                 kart |       true |       true |             GAME DIR | 952859b5e0bac3b093582ba87f54bdafea848df9 |   e2ac0c1 | C:\TCAFiles\Users\Antistasi\2433\kart
+    11:51:09                                        Arma 3 Zeus |              curator |       true |       true |             GAME DIR | 531b60d7d72729c65b0bb6a87f6cd48b6d6a7041 |  3cafe885 | C:\TCAFiles\Users\Antistasi\2433\curator
+    11:51:09                                             Arma 3 |                   A3 |       true |       true |    NOT FOUND (Empty) |                                          |           |
+    11:51:09                                 @TaskForceEnforcer |   @TaskForceEnforcer |      false |      false |             GAME DIR | da39a3ee5e6b4b0d3255bfef95601890afd80709 |  11fdd19c | C:\TCAFiles\Users\Antistasi\2433\@TaskForceEnforcer
+    11:51:09                                           @utility |             @utility |      false |      false |             GAME DIR | da39a3ee5e6b4b0d3255bfef95601890afd80709 |  11fdd19c | C:\TCAFiles\Users\Antistasi\2433\@utility
+    11:51:09 ==========================================================================================================================================================================================================

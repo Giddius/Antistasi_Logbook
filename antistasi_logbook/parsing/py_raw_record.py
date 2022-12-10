@@ -9,7 +9,7 @@ Soon.
 # * Standard Library Imports ---------------------------------------------------------------------------->
 from typing import Optional
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from concurrent.futures import Future
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
@@ -42,9 +42,18 @@ log = get_logger(__name__)
 
 class RawRecord:
     insert_sql_phrase = RawSQLPhrase(phrase="""INSERT OR IGNORE INTO "LogRecord" ("start", "end", "message_item", "recorded_at", "called_by", "origin", "logged_from", "log_file", "log_level", "record_class", "marked") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""")
-    __slots__ = ("lines", "_is_antistasi_record", "start", "end", "parsed_data", "record_class", "record_origin", "_message_item_id", "_message_hash")
+    __slots__ = ("lines",
+                 "_is_antistasi_record",
+                 "start",
+                 "end",
+                 "parsed_data",
+                 "record_class",
+                 "record_origin",
+                 "_message_item_id",
+                 "_message_hash",
+                 "utc_offset")
 
-    def __init__(self, lines) -> None:
+    def __init__(self, lines, utc_offset: timezone) -> None:
         self.lines = lines
         self._is_antistasi_record = None
         self.start = self.lines[0].start
@@ -54,6 +63,7 @@ class RawRecord:
         self.record_origin = None
         self._message_item_id = None
         self._message_hash = None
+        self.utc_offset = utc_offset
 
     @property
     def message_item_id(self) -> int:

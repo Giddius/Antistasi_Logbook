@@ -1,0 +1,33 @@
+{
+    "game_map": "cam_lao_nam",
+    "utc_offset": {
+        "name": "-8",
+        "seconds": -28800
+    },
+    "version": "2.6.1.872dbb3",
+    "mods": [
+        {
+            "default": false,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\@ACECompatSOG",
+            "mod_dir": "@ACECompatSOG",
+            "mod_hash": "58c416e22842b40b72edf1dde9ddc97cb1f6667a",
+            "mod_hash_short": "75251e92",
+            "name": "@ACECompatSOG",
+            "official": false,
+            "origin": "GAME DIR"
+        },
+        {
+            "default": false,
+            "full_path": "C:\\TCAFiles\\Users\\Antistasi\\2433\\@GruppeAdlerTrenches",
+            "mod_dir": "@GruppeAdlerTrenches",
+            "mod_hash": "1469bb9106e667d7257e5117e40516bea48b6001",
+            "mod_hash_short": "a300f1d0",
+            "name": "Gruppe Adler Trenches",
+            "official": false,
+            "origin": "GAME DIR"
+        }
+    ],
+    "campaign_id": null,
+    "is_new_campaign": null,
+    "source_file_hash": "3962128b51a729d2f16e7716188239c6"
+}

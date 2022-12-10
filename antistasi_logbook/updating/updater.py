@@ -10,12 +10,12 @@ Soon.
 import queue
 import random
 from time import sleep, perf_counter_ns
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Union
 from pathlib import Path
 from datetime import datetime
 from threading import Lock, Event
 from collections import defaultdict
-from concurrent.futures import ALL_COMPLETED, FIRST_EXCEPTION, ThreadPoolExecutor, wait
+from concurrent.futures import ALL_COMPLETED, FIRST_EXCEPTION, ThreadPoolExecutor, wait, Future
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 from dateutil.tz import UTC
@@ -236,34 +236,36 @@ class Updater:
         Returns:
             [type]: [description]
         """
-        to_update_files = []
-
-        current_log_files = {log_file.name: log_file for log_file in self.database.get_log_files(server=server)}
-        for l in current_log_files.values():
-            _ = l.has_mods
-            l.server = server
         cutoff_datetime = self.get_cutoff_datetime()
-        log.debug("cutoff_datetime: %r", cutoff_datetime)
 
-        for remote_info in server.get_remote_files():
-            if cutoff_datetime is not None and remote_info.modified_at < cutoff_datetime:
-                continue
-            # if remote_info.name in HARD_BANNED_LOG_FILES[server.name.casefold()]:
-            #     continue
-            stored_file: LogFile = current_log_files.get(remote_info.name, None)
+        def _check_log_file(in_remote_info: "InfoItem") -> Union["LogFile", None]:
+            if cutoff_datetime is not None and in_remote_info.modified_at < cutoff_datetime:
+                return None
+
+            stored_file: LogFile = next(LogFile.select().where((LogFile.server == server) & (LogFile.name == in_remote_info.name)).limit(1).iterator(), None)
 
             if stored_file is None:
+                return self._create_new_log_file(server=server, remote_info=in_remote_info)
 
-                to_update_files.append(self._create_new_log_file(server=server, remote_info=remote_info))
+            if stored_file.modified_at < in_remote_info.modified_at or stored_file.size < in_remote_info.size:
+                stored_file.server = server
+                stored_file.game_map = self.database.foreign_key_cache.get_game_map_by_id(stored_file.game_map_id) if stored_file.game_map_id is not None else None
+                # stored_file.version = self.database.foreign_key_cache.get_version_by_id(stored_file.version_id) if stored_file.version_id is not None else None
 
-            elif stored_file.modified_at < remote_info.modified_at or stored_file.size < remote_info.size:
+                return self._update_log_file(log_file=stored_file, remote_info=in_remote_info)
 
-                to_update_files.append(self._update_log_file(log_file=stored_file, remote_info=remote_info))
+            if stored_file.last_parsed_datetime != stored_file.modified_at and stored_file.unparsable is False:
+                stored_file.server = server
+                stored_file.game_map = self.database.foreign_key_cache.get_game_map_by_id(stored_file.game_map_id) if stored_file.game_map_id is not None else None
+                # stored_file.version = self.database.foreign_key_cache.get_version_by_id(stored_file.version_id) if stored_file.version_id is not None else None
 
-            elif stored_file.last_parsed_datetime != stored_file.modified_at and stored_file.unparsable is False:
+                return stored_file
 
-                to_update_files.append(stored_file)
+        futures: list[Future] = []
+        for remote_info in server.get_remote_files():
+            futures.append(self.thread_pool.submit(_check_log_file, remote_info))
 
+        to_update_files = [ii for ii in (i.result() for i in futures) if ii is not None]
         return sorted(to_update_files, key=lambda x: x.modified_at, reverse=True)
 
     def _handle_old_log_files(self, server: "Server") -> None:
@@ -334,10 +336,12 @@ class Updater:
             context._dump_rest()
         # gc.collect()
 
-    def process(self, server: "Server") -> None:
+    def process(self, server: "Server") -> int:
         log.debug("processing server %r", server)
         tasks = []
         to_update_log_files = self._get_updated_log_files(server=server)
+        if not to_update_log_files:
+            return 0
         self.signaler.send_update_info(len(to_update_log_files) * 2, server.name)
         for log_file in to_update_log_files:
             if self.stop_event.is_set() is False:
@@ -345,10 +349,12 @@ class Updater:
                 sub_task = self.thread_pool.submit(self.process_log_file, log_file=log_file)
 
                 tasks.append(sub_task)
-                sleep(random.randint(0, 2) + random.random())
 
-        wait(tasks, return_when=ALL_COMPLETED, timeout=None)
-
+        done, not_done = wait(tasks, return_when=ALL_COMPLETED, timeout=None)
+        for i in (list(done) + list(not_done)):
+            err = i.exception()
+            if err:
+                log.error(err, exc_info=True)
         return len(to_update_log_files)
 
     def emit_change_update_text(self, text):
@@ -453,10 +459,12 @@ class Updater:
         self.database.checkpoint()
         log.debug("emiting before_updates_signal")
         self.signaler.send_update_started()
+        self.database.foreign_key_cache.preload_all()
 
     def after_updates(self):
         log.debug("emiting after_updates_signal")
         self.database.foreign_key_cache.reset_all()
+
         # self.database.resolve_all_armafunction_extras()
         self.signaler.send_update_finished()
         remote_manager_registry.close()

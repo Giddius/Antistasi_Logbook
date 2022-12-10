@@ -1,0 +1,604 @@
+<!doctype html>
+<html class="no-js" lang="en">
+  <head><meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../genindex.html" /><link rel="search" title="Search" href="../../search.html" /><link rel="next" title="Frontend" href="../frontend/frontend_index.html" /><link rel="prev" title="Backend" href="backend_index.html" />
+
+    <link rel="shortcut icon" href="../../_static/app_favicon.png"/><!-- Generated with Sphinx 5.3.0 and Furo 2022.12.07 -->
+        <title>Parsing - Antistasi Logbook 0.4.6 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?digest=91d0f0d1c444bdcb17a68e833c7a53903343c195" />
+    <link rel="stylesheet" type="text/css" href="../../_static/tabs.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/design-style.4045f2051d55cab465a707391d5b2007.min.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/css/extra_styling.css" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #272822;
+  --color-code-foreground: #f8f8f2;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../index.html"><div class="brand">Antistasi Logbook 0.4.6 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand centered" href="../../index.html">
+  
+  <div class="sidebar-logo-container">
+    <img class="sidebar-logo" src="../../_static/app_logo.png" alt="Logo"/>
+  </div>
+  
+  <span class="sidebar-brand-text">Antistasi Logbook 0.4.6 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../../description/description_index.html">Description</a></li>
+<li class="toctree-l1 current has-children"><a class="reference internal" href="../development_index.html">Development</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-1" name="toctree-checkbox-1" role="switch" type="checkbox"/><label for="toctree-checkbox-1"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
+<li class="toctree-l2 current has-children"><a class="reference internal" href="backend_index.html">Backend</a><input checked="" class="toctree-checkbox" id="toctree-checkbox-2" name="toctree-checkbox-2" role="switch" type="checkbox"/><label for="toctree-checkbox-2"><div class="visually-hidden">Toggle child pages in navigation</div><i class="icon"><svg><use href="#svg-arrow-right"></use></svg></i></label><ul class="current">
+<li class="toctree-l3 current current-page"><a class="current reference internal" href="#">Parsing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../frontend/frontend_index.html">Frontend</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../database/database_index.html">Database</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../plans.html">Plans</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../../glossary.html">Glossary</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../links.html">Links</a></li>
+</ul>
+
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <div class="section" id="parsing">
+<h1>Parsing<a class="headerlink" href="#parsing" title="Permalink to this heading">#</a></h1>
+<div class="sd-card sd-sphinx-override sd-mb-3 sd-shadow-sm docutils">
+<div class="sd-card-body docutils">
+<p class="sd-card-text">Each Log-file goes through up to 4 different kinds of parsing steps:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p class="sd-card-text"><a class="reference internal" href="#meta-data-parsing"><span class="std std-ref">Meta-Data Parsing</span></a></p></li>
+<li><p class="sd-card-text"><a class="reference internal" href="#header-text-parsing"><span class="std std-ref">Header-Text Parsing</span></a></p></li>
+<li><p class="sd-card-text"><a class="reference internal" href="#startup-entries-parsing"><span class="std std-ref">Startup-Entries Parsing</span></a></p></li>
+<li><dl class="simple">
+<dt><a class="reference internal" href="#entries-parsing"><span class="std std-ref">Entries Parsing</span></a></dt><dd><ul>
+<li><p class="sd-card-text"><a class="reference internal" href="#record-processing"><span class="std std-ref">Record Processing</span></a></p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+</div></blockquote>
+</div>
+</div>
+<div class="section" id="meta-data-parsing">
+<h2>Meta-Data Parsing<a class="headerlink" href="#meta-data-parsing" title="Permalink to this heading">#</a></h2>
+<div class="sd-card sd-sphinx-override sd-mb-3 sd-shadow-sm docutils">
+<div class="sd-card-body docutils">
+<p class="sd-card-text">To parse the meda-data, the whole file has to be available.
+The Meta-Data parser goes through the file in chunks and tries to find each attribute via regex.</p>
+<p class="sd-card-text">It takes a ‘LogFile’-Instance as input and copies all Meta-Data attributes that the ‘LogFile’ already has to itself.
+This means it only searches for those attributes that are missing on the ‘LogFile’.</p>
+<div class="sd-card sd-sphinx-override sd-mb-3 sd-shadow-md docutils">
+<div class="sd-card-body docutils">
+<div class="sd-card-title sd-font-weight-bold docutils">
+Meta-Data attributes</div>
+<ul>
+<li><details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header">
+Game Map<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<p class="sd-card-text">This has to be the arma internal used name (no spaces, can also differ from the display name like <cite>virolahti</cite> -&gt; <cite>vt7</cite>)</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-0" name="sd-tab-set-0" type="radio">
+</input><label class="sd-tab-label" for="sd-tab-item-0">
+Example</label><div class="sd-tab-content docutils">
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="mi">2022</span><span class="o">/</span><span class="mi">11</span><span class="o">/</span><span class="mi">13</span><span class="p">,</span> <span class="mi">11</span><span class="p">:</span><span class="mi">52</span><span class="p">:</span><span class="mi">47</span>  <span class="n">Mission</span> <span class="n">world</span><span class="p">:</span> <span class="n">cam_lao_nam</span>
+</pre></div>
+</div>
+</div>
+<input id="sd-tab-item-1" name="sd-tab-set-0" type="radio">
+</input><label class="sd-tab-label" for="sd-tab-item-1">
+Regex</label><div class="sd-tab-content docutils">
+<p class="sd-card-text"><a class="sd-sphinx-override sd-btn sd-text-wrap sd-btn-primary sd-shadow-sm reference external" href="https://regex101.com/r/smMRra/1"><span>🔗explanation with regex101.com</span></a></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;\sMission world\:\s*(?P&lt;game_map&gt;.*)&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+</details></li>
+<li><details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header">
+Version<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<p class="sd-card-text">A <a class="reference internal" href="../../glossary.html#term-semi-semvar-version"><span class="xref std std-term">semi-semvar-version</span></a> is needed to be parseable</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-2" name="sd-tab-set-1" type="radio">
+</input><label class="sd-tab-label" for="sd-tab-item-2">
+Example</label><div class="sd-tab-content docutils">
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="mi">2022</span><span class="o">/</span><span class="mi">11</span><span class="o">/</span><span class="mi">13</span><span class="p">,</span> <span class="mi">11</span><span class="p">:</span><span class="mi">53</span><span class="p">:</span><span class="mi">11</span> <span class="mi">2022</span><span class="o">-</span><span class="mi">11</span><span class="o">-</span><span class="mi">13</span> <span class="mi">19</span><span class="p">:</span><span class="mi">53</span><span class="p">:</span><span class="mi">11</span><span class="p">:</span><span class="mi">377</span> <span class="o">|</span> <span class="n">Antistasi</span> <span class="o">|</span> <span class="n">Info</span> <span class="o">|</span> <span class="n">File</span><span class="p">:</span> <span class="n">A3A_fnc_initServer</span> <span class="o">|</span> <span class="n">Server</span> <span class="n">version</span><span class="p">:</span> <span class="mf">2.6.1.872</span><span class="n">dbb3</span>
+</pre></div>
+</div>
+</div>
+<input id="sd-tab-item-3" name="sd-tab-set-1" type="radio">
+</input><label class="sd-tab-label" for="sd-tab-item-3">
+Regex</label><div class="sd-tab-content docutils">
+<p class="sd-card-text"><a class="sd-sphinx-override sd-btn sd-text-wrap sd-btn-primary sd-shadow-sm reference external" href="https://regex101.com/r/5qFKRc/1"><span>🔗explanation with regex101.com</span></a></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;\s*((MP server version)|(Server version)):\s*(?P&lt;version&gt;.*?)(?=\s|$)&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+</details></li>
+<li><details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header">
+Mods<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<p class="sd-card-text">It looks for the special delimited block of mods that arma puts in the logs by default and then processes each line as a possible mod.</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-4" name="sd-tab-set-2" type="radio">
+</input><label class="sd-tab-label" for="sd-tab-item-4">
+Example</label><div class="sd-tab-content docutils">
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span> <span class="o">=============================================================================================</span> <span class="n">List</span> <span class="n">of</span> <span class="n">mods</span> <span class="o">===============================================================================================</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span> <span class="n">modsReadOnly</span> <span class="o">=</span> <span class="n">true</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span> <span class="n">safeModsActivated</span> <span class="o">=</span> <span class="n">false</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span> <span class="n">customMods</span> <span class="o">=</span> <span class="n">true</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span> <span class="nb">hash</span> <span class="o">=</span> <span class="s1">&#39;06E03E1C463E72E69E7B56CB8BD8C7F859180514&#39;</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span> <span class="n">hashShort</span> <span class="o">=</span> <span class="s1">&#39;f1973b83&#39;</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span>                                               <span class="n">name</span> <span class="o">|</span>               <span class="n">modDir</span> <span class="o">|</span>    <span class="n">default</span> <span class="o">|</span>   <span class="n">official</span> <span class="o">|</span>               <span class="n">origin</span> <span class="o">|</span>                                     <span class="nb">hash</span> <span class="o">|</span> <span class="n">hashShort</span> <span class="o">|</span> <span class="n">fullPath</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span> <span class="o">----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span>                                      <span class="nd">@ACECompatSOG</span> <span class="o">|</span>        <span class="nd">@ACECompatSOG</span> <span class="o">|</span>      <span class="n">false</span> <span class="o">|</span>      <span class="n">false</span> <span class="o">|</span>             <span class="n">GAME</span> <span class="n">DIR</span> <span class="o">|</span> <span class="mi">58</span><span class="n">c416e22842b40b72edf1dde9ddc97cb1f6667a</span> <span class="o">|</span>  <span class="mf">75251e92</span> <span class="o">|</span> <span class="n">C</span><span class="p">:</span>\<span class="n">TCAFiles</span>\<span class="n">Users</span>\<span class="n">Antistasi</span>\<span class="mi">2433</span>\<span class="nd">@ACECompatSOG</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span>                              <span class="n">Gruppe</span> <span class="n">Adler</span> <span class="n">Trenches</span> <span class="o">|</span> <span class="nd">@GruppeAdlerTrenches</span> <span class="o">|</span>      <span class="n">false</span> <span class="o">|</span>      <span class="n">false</span> <span class="o">|</span>             <span class="n">GAME</span> <span class="n">DIR</span> <span class="o">|</span> <span class="mi">1469</span><span class="n">bb9106e667d7257e5117e40516bea48b6001</span> <span class="o">|</span>  <span class="n">a300f1d0</span> <span class="o">|</span> <span class="n">C</span><span class="p">:</span>\<span class="n">TCAFiles</span>\<span class="n">Users</span>\<span class="n">Antistasi</span>\<span class="mi">2433</span>\<span class="nd">@GruppeAdlerTrenches</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span>                             <span class="n">VET_Unflipping</span> <span class="o">-</span> <span class="mf">1.3.2</span> <span class="o">|</span>       <span class="nd">@VETUnflipping</span> <span class="o">|</span>      <span class="n">false</span> <span class="o">|</span>      <span class="n">false</span> <span class="o">|</span>             <span class="n">GAME</span> <span class="n">DIR</span> <span class="o">|</span> <span class="n">b87f16fa85a76c4522fe0fe67521f1ab4a7a7fb0</span> <span class="o">|</span>  <span class="n">dc68cef1</span> <span class="o">|</span> <span class="n">C</span><span class="p">:</span>\<span class="n">TCAFiles</span>\<span class="n">Users</span>\<span class="n">Antistasi</span>\<span class="mi">2433</span>\<span class="nd">@VETUnflipping</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span>                     <span class="nd">@ZeusEnhancedACE3Compatibility</span> <span class="o">|</span> <span class="nd">@ZeusEnhancedACE3Compatibility</span> <span class="o">|</span>      <span class="n">false</span> <span class="o">|</span>      <span class="n">false</span> <span class="o">|</span>             <span class="n">GAME</span> <span class="n">DIR</span> <span class="o">|</span> <span class="mi">3</span><span class="n">ba9d33273e6b3891df3e596d51295136f59ec40</span> <span class="o">|</span>  <span class="mi">5</span><span class="n">c267667</span> <span class="o">|</span> <span class="n">C</span><span class="p">:</span>\<span class="n">TCAFiles</span>\<span class="n">Users</span>\<span class="n">Antistasi</span>\<span class="mi">2433</span>\<span class="nd">@ZeusEnhancedACE3Compatibility</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span>                               <span class="n">Zeus</span> <span class="n">Enhanced</span> <span class="mf">1.12.2</span> <span class="o">|</span>        <span class="nd">@ZeusEnhanced</span> <span class="o">|</span>      <span class="n">false</span> <span class="o">|</span>      <span class="n">false</span> <span class="o">|</span>             <span class="n">GAME</span> <span class="n">DIR</span> <span class="o">|</span> <span class="mi">6</span><span class="n">f138882698bd41e062699f5b0bcc1ea79468511</span> <span class="o">|</span>  <span class="mi">4</span><span class="n">eb0fe50</span> <span class="o">|</span> <span class="n">C</span><span class="p">:</span>\<span class="n">TCAFiles</span>\<span class="n">Users</span>\<span class="n">Antistasi</span>\<span class="mi">2433</span>\<span class="nd">@ZeusEnhanced</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span>                                               <span class="n">TFAR</span> <span class="o">|</span> <span class="nd">@TaskForceArrowheadRadioBETA</span> <span class="o">|</span>      <span class="n">false</span> <span class="o">|</span>      <span class="n">false</span> <span class="o">|</span>             <span class="n">GAME</span> <span class="n">DIR</span> <span class="o">|</span> <span class="mf">6e889</span><span class="n">b7a92591e469d9e037aa3631fb8e5a954fc</span> <span class="o">|</span>  <span class="n">d11c0c7f</span> <span class="o">|</span> <span class="n">C</span><span class="p">:</span>\<span class="n">TCAFiles</span>\<span class="n">Users</span>\<span class="n">Antistasi</span>\<span class="mi">2433</span>\<span class="nd">@TaskForceArrowheadRadioBETA</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span>                                  <span class="n">Enhanced</span> <span class="n">Movement</span> <span class="o">|</span>    <span class="nd">@EnhancedMovement</span> <span class="o">|</span>      <span class="n">false</span> <span class="o">|</span>      <span class="n">false</span> <span class="o">|</span>             <span class="n">GAME</span> <span class="n">DIR</span> <span class="o">|</span> <span class="n">fbc1f582c89f11919f9c6ead5d842e6c1aea9b71</span> <span class="o">|</span>  <span class="n">a47fddc8</span> <span class="o">|</span> <span class="n">C</span><span class="p">:</span>\<span class="n">TCAFiles</span>\<span class="n">Users</span>\<span class="n">Antistasi</span>\<span class="mi">2433</span>\<span class="nd">@EnhancedMovement</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span>                      <span class="n">Community</span> <span class="n">Base</span> <span class="n">Addons</span> <span class="n">v3</span><span class="mf">.15.8</span> <span class="o">|</span>               <span class="nd">@CBAA3</span> <span class="o">|</span>      <span class="n">false</span> <span class="o">|</span>      <span class="n">false</span> <span class="o">|</span>             <span class="n">GAME</span> <span class="n">DIR</span> <span class="o">|</span> <span class="mi">1</span><span class="n">d7bc59f1f4d1d2a3604e1c33be8fdd686a5617f</span> <span class="o">|</span>  <span class="n">b09d9bc5</span> <span class="o">|</span> <span class="n">C</span><span class="p">:</span>\<span class="n">TCAFiles</span>\<span class="n">Users</span>\<span class="n">Antistasi</span>\<span class="mi">2433</span>\<span class="nd">@CBAA3</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span>                 <span class="n">Advanced</span> <span class="n">Combat</span> <span class="n">Environment</span> <span class="mf">3.15.2</span> <span class="o">|</span>                 <span class="nd">@ace</span> <span class="o">|</span>      <span class="n">false</span> <span class="o">|</span>      <span class="n">false</span> <span class="o">|</span>             <span class="n">GAME</span> <span class="n">DIR</span> <span class="o">|</span> <span class="n">f5413c6e60e6aa9e5bbeda3f1dcdc3e029727f68</span> <span class="o">|</span>  <span class="mi">56</span><span class="n">cefafc</span> <span class="o">|</span> <span class="n">C</span><span class="p">:</span>\<span class="n">TCAFiles</span>\<span class="n">Users</span>\<span class="n">Antistasi</span>\<span class="mi">2433</span>\<span class="nd">@ace</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span>                  <span class="p">[</span><span class="n">Dev</span><span class="p">]</span> <span class="n">Antistasi</span> <span class="o">-</span> <span class="n">Community</span> <span class="mf">2.6.1</span> <span class="o">|</span> <span class="nd">@Dev1AntistasiDevBuild</span> <span class="o">|</span>      <span class="n">false</span> <span class="o">|</span>      <span class="n">false</span> <span class="o">|</span>             <span class="n">GAME</span> <span class="n">DIR</span> <span class="o">|</span> <span class="mi">1</span><span class="n">c0cf6a7b0eaf2c81d3a479c327a5c1712e28070</span> <span class="o">|</span>  <span class="mi">19619</span><span class="n">fb8</span> <span class="o">|</span> <span class="n">C</span><span class="p">:</span>\<span class="n">TCAFiles</span>\<span class="n">Users</span>\<span class="n">Antistasi</span>\<span class="mi">2433</span>\<span class="nd">@Dev1AntistasiDevBuild</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span>            <span class="n">Arma</span> <span class="mi">3</span> <span class="n">Creator</span> <span class="n">DLC</span><span class="p">:</span> <span class="n">S</span><span class="o">.</span><span class="n">O</span><span class="o">.</span><span class="n">G</span><span class="o">.</span> <span class="n">Prairie</span> <span class="n">Fire</span> <span class="o">|</span>                   <span class="n">vn</span> <span class="o">|</span>      <span class="n">false</span> <span class="o">|</span>       <span class="n">true</span> <span class="o">|</span>             <span class="n">GAME</span> <span class="n">DIR</span> <span class="o">|</span> <span class="n">b086dbcc2986a92aef3b0fd6204c8bc54ee8a8d4</span> <span class="o">|</span>  <span class="n">f66fee82</span> <span class="o">|</span> <span class="n">C</span><span class="p">:</span>\<span class="n">TCAFiles</span>\<span class="n">Users</span>\<span class="n">Antistasi</span>\<span class="mi">2433</span>\<span class="n">vn</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span>                                  <span class="n">Arma</span> <span class="mi">3</span> <span class="n">Art</span> <span class="n">of</span> <span class="n">War</span> <span class="o">|</span>                  <span class="n">aow</span> <span class="o">|</span>       <span class="n">true</span> <span class="o">|</span>       <span class="n">true</span> <span class="o">|</span>             <span class="n">GAME</span> <span class="n">DIR</span> <span class="o">|</span> <span class="mi">6</span><span class="n">ba7b160d357ca64590614f6a6c4579168efc1d0</span> <span class="o">|</span>  <span class="n">bc4189c2</span> <span class="o">|</span> <span class="n">C</span><span class="p">:</span>\<span class="n">TCAFiles</span>\<span class="n">Users</span>\<span class="n">Antistasi</span>\<span class="mi">2433</span>\<span class="n">aow</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span>                          <span class="n">Arma</span> <span class="mi">3</span> <span class="n">Contact</span> <span class="p">(</span><span class="n">Platform</span><span class="p">)</span> <span class="o">|</span>                <span class="n">enoch</span> <span class="o">|</span>       <span class="n">true</span> <span class="o">|</span>       <span class="n">true</span> <span class="o">|</span>             <span class="n">GAME</span> <span class="n">DIR</span> <span class="o">|</span> <span class="mi">9</span><span class="n">f6919562e719e9f70bf666194a7862d3274185a</span> <span class="o">|</span>  <span class="mf">87e92527</span> <span class="o">|</span> <span class="n">C</span><span class="p">:</span>\<span class="n">TCAFiles</span>\<span class="n">Users</span>\<span class="n">Antistasi</span>\<span class="mi">2433</span>\<span class="n">enoch</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span>                                       <span class="n">Arma</span> <span class="mi">3</span> <span class="n">Tanks</span> <span class="o">|</span>                 <span class="n">tank</span> <span class="o">|</span>       <span class="n">true</span> <span class="o">|</span>       <span class="n">true</span> <span class="o">|</span>             <span class="n">GAME</span> <span class="n">DIR</span> <span class="o">|</span> <span class="n">b4f3c4faa775f1c81c77f02f97cfa1aa18da5209</span> <span class="o">|</span>  <span class="n">bbdf79e2</span> <span class="o">|</span> <span class="n">C</span><span class="p">:</span>\<span class="n">TCAFiles</span>\<span class="n">Users</span>\<span class="n">Antistasi</span>\<span class="mi">2433</span>\<span class="n">tank</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span>                                     <span class="n">Arma</span> <span class="mi">3</span> <span class="n">Tac</span><span class="o">-</span><span class="n">Ops</span> <span class="o">|</span>               <span class="n">tacops</span> <span class="o">|</span>       <span class="n">true</span> <span class="o">|</span>       <span class="n">true</span> <span class="o">|</span>             <span class="n">GAME</span> <span class="n">DIR</span> <span class="o">|</span> <span class="mi">8</span><span class="n">fcf9c1f0a1fa5b8d354b64967ffd6583fc43d3e</span> <span class="o">|</span>  <span class="n">fb047e5c</span> <span class="o">|</span> <span class="n">C</span><span class="p">:</span>\<span class="n">TCAFiles</span>\<span class="n">Users</span>\<span class="n">Antistasi</span>\<span class="mi">2433</span>\<span class="n">tacops</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span>                                 <span class="n">Arma</span> <span class="mi">3</span> <span class="n">Laws</span> <span class="n">of</span> <span class="n">War</span> <span class="o">|</span>               <span class="n">orange</span> <span class="o">|</span>       <span class="n">true</span> <span class="o">|</span>       <span class="n">true</span> <span class="o">|</span>             <span class="n">GAME</span> <span class="n">DIR</span> <span class="o">|</span> <span class="mi">12</span><span class="n">abb4e3868e4b3036e9cea47138bdeb4abe518d</span> <span class="o">|</span>  <span class="n">f564c92a</span> <span class="o">|</span> <span class="n">C</span><span class="p">:</span>\<span class="n">TCAFiles</span>\<span class="n">Users</span>\<span class="n">Antistasi</span>\<span class="mi">2433</span>\<span class="n">orange</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span>                                      <span class="n">Arma</span> <span class="mi">3</span> <span class="n">Malden</span> <span class="o">|</span>                 <span class="n">argo</span> <span class="o">|</span>       <span class="n">true</span> <span class="o">|</span>       <span class="n">true</span> <span class="o">|</span>             <span class="n">GAME</span> <span class="n">DIR</span> <span class="o">|</span> <span class="n">a844aa131096258aab8c000fddcc940284385494</span> <span class="o">|</span>  <span class="mi">49</span><span class="n">d733fb</span> <span class="o">|</span> <span class="n">C</span><span class="p">:</span>\<span class="n">TCAFiles</span>\<span class="n">Users</span>\<span class="n">Antistasi</span>\<span class="mi">2433</span>\<span class="n">argo</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span>                                        <span class="n">Arma</span> <span class="mi">3</span> <span class="n">Jets</span> <span class="o">|</span>                 <span class="n">jets</span> <span class="o">|</span>       <span class="n">true</span> <span class="o">|</span>       <span class="n">true</span> <span class="o">|</span>             <span class="n">GAME</span> <span class="n">DIR</span> <span class="o">|</span> <span class="mi">3</span><span class="n">f599a4f98ca3a0cd3c5e5e574acc16737c061ef</span> <span class="o">|</span>  <span class="n">aae4f413</span> <span class="o">|</span> <span class="n">C</span><span class="p">:</span>\<span class="n">TCAFiles</span>\<span class="n">Users</span>\<span class="n">Antistasi</span>\<span class="mi">2433</span>\<span class="n">jets</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span>                                        <span class="n">Arma</span> <span class="mi">3</span> <span class="n">Apex</span> <span class="o">|</span>            <span class="n">expansion</span> <span class="o">|</span>       <span class="n">true</span> <span class="o">|</span>       <span class="n">true</span> <span class="o">|</span>             <span class="n">GAME</span> <span class="n">DIR</span> <span class="o">|</span> <span class="mf">26e79</span><span class="n">f13d9a9e6ae48a6119621f73d53cf411dbd</span> <span class="o">|</span>  <span class="n">fe5acf19</span> <span class="o">|</span> <span class="n">C</span><span class="p">:</span>\<span class="n">TCAFiles</span>\<span class="n">Users</span>\<span class="n">Antistasi</span>\<span class="mi">2433</span>\<span class="n">expansion</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span>                                    <span class="n">Arma</span> <span class="mi">3</span> <span class="n">Marksmen</span> <span class="o">|</span>                 <span class="n">mark</span> <span class="o">|</span>       <span class="n">true</span> <span class="o">|</span>       <span class="n">true</span> <span class="o">|</span>             <span class="n">GAME</span> <span class="n">DIR</span> <span class="o">|</span> <span class="mi">6</span><span class="n">f0fbfd365214eb67dc377503d2583c6718ff19b</span> <span class="o">|</span>  <span class="mi">21</span><span class="n">bc50ea</span> <span class="o">|</span> <span class="n">C</span><span class="p">:</span>\<span class="n">TCAFiles</span>\<span class="n">Users</span>\<span class="n">Antistasi</span>\<span class="mi">2433</span>\<span class="n">mark</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span>                                 <span class="n">Arma</span> <span class="mi">3</span> <span class="n">Helicopters</span> <span class="o">|</span>                 <span class="n">heli</span> <span class="o">|</span>       <span class="n">true</span> <span class="o">|</span>       <span class="n">true</span> <span class="o">|</span>             <span class="n">GAME</span> <span class="n">DIR</span> <span class="o">|</span> <span class="n">f61b0de0ac2bd0602413e01b40b80f56b2b32130</span> <span class="o">|</span>   <span class="mf">5e3</span><span class="n">c056</span> <span class="o">|</span> <span class="n">C</span><span class="p">:</span>\<span class="n">TCAFiles</span>\<span class="n">Users</span>\<span class="n">Antistasi</span>\<span class="mi">2433</span>\<span class="n">heli</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span>                                       <span class="n">Arma</span> <span class="mi">3</span> <span class="n">Karts</span> <span class="o">|</span>                 <span class="n">kart</span> <span class="o">|</span>       <span class="n">true</span> <span class="o">|</span>       <span class="n">true</span> <span class="o">|</span>             <span class="n">GAME</span> <span class="n">DIR</span> <span class="o">|</span> <span class="mi">952859</span><span class="n">b5e0bac3b093582ba87f54bdafea848df9</span> <span class="o">|</span>   <span class="n">e2ac0c1</span> <span class="o">|</span> <span class="n">C</span><span class="p">:</span>\<span class="n">TCAFiles</span>\<span class="n">Users</span>\<span class="n">Antistasi</span>\<span class="mi">2433</span>\<span class="n">kart</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span>                                        <span class="n">Arma</span> <span class="mi">3</span> <span class="n">Zeus</span> <span class="o">|</span>              <span class="n">curator</span> <span class="o">|</span>       <span class="n">true</span> <span class="o">|</span>       <span class="n">true</span> <span class="o">|</span>             <span class="n">GAME</span> <span class="n">DIR</span> <span class="o">|</span> <span class="mi">531</span><span class="n">b60d7d72729c65b0bb6a87f6cd48b6d6a7041</span> <span class="o">|</span>  <span class="mi">3</span><span class="n">cafe885</span> <span class="o">|</span> <span class="n">C</span><span class="p">:</span>\<span class="n">TCAFiles</span>\<span class="n">Users</span>\<span class="n">Antistasi</span>\<span class="mi">2433</span>\<span class="n">curator</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span>                                             <span class="n">Arma</span> <span class="mi">3</span> <span class="o">|</span>                   <span class="n">A3</span> <span class="o">|</span>       <span class="n">true</span> <span class="o">|</span>       <span class="n">true</span> <span class="o">|</span>    <span class="n">NOT</span> <span class="n">FOUND</span> <span class="p">(</span><span class="n">Empty</span><span class="p">)</span> <span class="o">|</span>                                          <span class="o">|</span>           <span class="o">|</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span>                                 <span class="nd">@TaskForceEnforcer</span> <span class="o">|</span>   <span class="nd">@TaskForceEnforcer</span> <span class="o">|</span>      <span class="n">false</span> <span class="o">|</span>      <span class="n">false</span> <span class="o">|</span>             <span class="n">GAME</span> <span class="n">DIR</span> <span class="o">|</span> <span class="n">da39a3ee5e6b4b0d3255bfef95601890afd80709</span> <span class="o">|</span>  <span class="mi">11</span><span class="n">fdd19c</span> <span class="o">|</span> <span class="n">C</span><span class="p">:</span>\<span class="n">TCAFiles</span>\<span class="n">Users</span>\<span class="n">Antistasi</span>\<span class="mi">2433</span>\<span class="nd">@TaskForceEnforcer</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span>                                           <span class="nd">@utility</span> <span class="o">|</span>             <span class="nd">@utility</span> <span class="o">|</span>      <span class="n">false</span> <span class="o">|</span>      <span class="n">false</span> <span class="o">|</span>             <span class="n">GAME</span> <span class="n">DIR</span> <span class="o">|</span> <span class="n">da39a3ee5e6b4b0d3255bfef95601890afd80709</span> <span class="o">|</span>  <span class="mi">11</span><span class="n">fdd19c</span> <span class="o">|</span> <span class="n">C</span><span class="p">:</span>\<span class="n">TCAFiles</span>\<span class="n">Users</span>\<span class="n">Antistasi</span>\<span class="mi">2433</span>\<span class="nd">@utility</span>
+<span class="mi">11</span><span class="p">:</span><span class="mi">51</span><span class="p">:</span><span class="mi">09</span> <span class="o">==========================================================================================================================================================================================================</span>
+</pre></div>
+</div>
+</div>
+<input id="sd-tab-item-5" name="sd-tab-set-2" type="radio">
+</input><label class="sd-tab-label" for="sd-tab-item-5">
+Regex</label><div class="sd-tab-content docutils">
+<p class="sd-card-text"><a class="sd-sphinx-override sd-btn sd-text-wrap sd-btn-primary sd-shadow-sm reference external" href="https://regex101.com/r/G7BaoJ/1"><span>🔗explanation with regex101.com</span></a></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;&quot;&quot;^([0-2\s]?\d)</span>
+<span class="s2">                [^\d]</span>
+<span class="s2">                ([0-6]\d)</span>
+<span class="s2">                [^\d]</span>
+<span class="s2">                ([0-6]\d)</span>
+<span class="s2">                \s?\={25,}\sList\sof\smods\s\={25,}</span>
+<span class="s2">                \n</span>
+<span class="s2">                (?P&lt;mod_lines&gt;(^([0-2\s]?\d)</span>
+<span class="s2">                                [^\d]</span>
+<span class="s2">                                ([0-6]\d)</span>
+<span class="s2">                                [^\d]</span>
+<span class="s2">                                ([0-6]\d)</span>
+<span class="s2">                                \s(?!\=).*\n)</span>
+<span class="s2">                                +</span>
+<span class="s2">                )</span>
+<span class="s2">                ^([0-2\s]?\d)</span>
+<span class="s2">                [^\d]</span>
+<span class="s2">                ([0-6]\d)</span>
+<span class="s2">                [^\d]</span>
+<span class="s2">                ([0-6]\d)</span>
+<span class="s2">                \s?\={25,}&quot;&quot;&quot;</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">VERBOSE</span> <span class="o">|</span> <span class="n">re</span><span class="o">.</span><span class="n">MULTILINE</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+</details></li>
+<li><details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header">
+Campaign ID<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<p class="sd-card-text">Is only allowed to consist of digits. Currently this attribute also sets if the Log-file is from a new Campaign or loaded and continued from a saved Campaign.</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-6" name="sd-tab-set-3" type="radio">
+</input><label class="sd-tab-label" for="sd-tab-item-6">
+Example</label><div class="sd-tab-content docutils">
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="mi">2022</span><span class="o">/</span><span class="mi">07</span><span class="o">/</span><span class="mi">04</span><span class="p">,</span> <span class="mi">06</span><span class="p">:</span><span class="mi">11</span><span class="p">:</span><span class="mi">28</span> <span class="mi">2022</span><span class="o">-</span><span class="mi">07</span><span class="o">-</span><span class="mi">04</span> <span class="mi">13</span><span class="p">:</span><span class="mi">11</span><span class="p">:</span><span class="mi">28</span><span class="p">:</span><span class="mi">248</span> <span class="o">|</span> <span class="n">Antistasi</span> <span class="o">|</span> <span class="n">Info</span> <span class="o">|</span> <span class="n">File</span><span class="p">:</span> <span class="n">A3A_fnc_initServer</span> <span class="o">|</span> <span class="n">Loading</span> <span class="n">last</span> <span class="n">campaign</span> <span class="n">ID</span> <span class="mi">93344</span>
+</pre></div>
+</div>
+</div>
+<input id="sd-tab-item-7" name="sd-tab-set-3" type="radio">
+</input><label class="sd-tab-label" for="sd-tab-item-7">
+Regex</label><div class="sd-tab-content docutils">
+<p class="sd-card-text"><a class="sd-sphinx-override sd-btn sd-text-wrap sd-btn-primary sd-shadow-sm reference external" href="https://regex101.com/r/8P312m/1"><span>🔗explanation with regex101.com</span></a></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;((?P&lt;text_loading&gt;Loading last campaign ID)|(?P&lt;text_creating&gt;Creating new campaign with ID))\s*(?P&lt;campaign_id&gt;\d+)&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+</details></li>
+<li><details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
+<summary class="sd-summary-title sd-card-header">
+UTC offset of the log-file<div class="sd-summary-down docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.72a.75.75 0 000 1.06l6.25 6.25a.75.75 0 001.06 0l6.25-6.25a.75.75 0 00-1.06-1.06L12 14.44 6.28 8.72a.75.75 0 00-1.06 0z"></path></svg></div>
+<div class="sd-summary-up docutils">
+<svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-up" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M18.78 15.28a.75.75 0 000-1.06l-6.25-6.25a.75.75 0 00-1.06 0l-6.25 6.25a.75.75 0 101.06 1.06L12 9.56l5.72 5.72a.75.75 0 001.06 0z"></path></svg></div>
+</summary><div class="sd-summary-content sd-card-body docutils">
+<div class="admonition danger">
+<p class="admonition-title">Danger</p>
+<p class="sd-card-text">if this attribute is not found, the log-file is marked as <cite>unparsable</cite> and will not be parsed any further.</p>
+</div>
+<p class="sd-card-text">It does this by looking for the first log-entry it can find, that contains the full local datetime <strong>AND</strong> the full UTC datetime and calculate the offset from those two.</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-8" name="sd-tab-set-4" type="radio">
+</input><label class="sd-tab-label" for="sd-tab-item-8">
+Example</label><div class="sd-tab-content docutils">
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="mi">2022</span><span class="o">/</span><span class="mi">11</span><span class="o">/</span><span class="mi">13</span><span class="p">,</span> <span class="mi">11</span><span class="p">:</span><span class="mi">53</span><span class="p">:</span><span class="mi">11</span> <span class="mi">2022</span><span class="o">-</span><span class="mi">11</span><span class="o">-</span><span class="mi">13</span> <span class="mi">19</span><span class="p">:</span><span class="mi">53</span><span class="p">:</span><span class="mi">11</span><span class="p">:</span><span class="mi">377</span> <span class="o">|</span> <span class="n">Antistasi</span> <span class="o">|</span> <span class="n">Info</span> <span class="o">|</span> <span class="n">File</span><span class="p">:</span> <span class="n">A3A_fnc_initServer</span> <span class="o">|</span> <span class="n">Server</span> <span class="n">init</span> <span class="n">started</span>
+</pre></div>
+</div>
+</div>
+<input id="sd-tab-item-9" name="sd-tab-set-4" type="radio">
+</input><label class="sd-tab-label" for="sd-tab-item-9">
+Regex</label><div class="sd-tab-content docutils">
+<p class="sd-card-text"><a class="sd-sphinx-override sd-btn sd-text-wrap sd-btn-primary sd-shadow-sm reference external" href="https://regex101.com/r/h51YxR/1"><span>🔗explanation with regex101.com</span></a></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;&quot;&quot;^</span>
+<span class="s2">               (?P&lt;local_year&gt;\d</span><span class="si">{4}</span><span class="s2">)</span>
+<span class="s2">               /</span>
+<span class="s2">               (?P&lt;local_month&gt;[01]\d)</span>
+<span class="s2">               /</span>
+<span class="s2">               (?P&lt;local_day&gt;[0-3]\d)</span>
+<span class="s2">               \,\s+</span>
+<span class="s2">               (?P&lt;local_hour&gt;[0-2]\d)</span>
+<span class="s2">               \:</span>
+<span class="s2">               (?P&lt;local_minute&gt;[0-6]\d)</span>
+<span class="s2">               \:</span>
+<span class="s2">               (?P&lt;local_second&gt;[0-6]\d)</span>
+<span class="s2">               \s</span>
+<span class="s2">               (?P&lt;year&gt;\d</span><span class="si">{4}</span><span class="s2">)</span>
+<span class="s2">               \-</span>
+<span class="s2">               (?P&lt;month&gt;[01]\d)</span>
+<span class="s2">               \-</span>
+<span class="s2">               (?P&lt;day&gt;[0-3]\d)</span>
+<span class="s2">               \s</span>
+<span class="s2">               (?P&lt;hour&gt;[0-2]\d)</span>
+<span class="s2">               \:</span>
+<span class="s2">               (?P&lt;minute&gt;[0-6]\d)</span>
+<span class="s2">               \:</span>
+<span class="s2">               (?P&lt;second&gt;[0-6]\d)</span>
+<span class="s2">               \:</span>
+<span class="s2">               (?P&lt;microsecond&gt;\d</span><span class="si">{3}</span><span class="s2">)</span>
+<span class="s2">               (?=\s)&quot;&quot;&quot;</span><span class="p">,</span>
+               <span class="n">re</span><span class="o">.</span><span class="n">VERBOSE</span> <span class="o">|</span> <span class="n">re</span><span class="o">.</span><span class="n">MULTILINE</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</div>
+</details></li>
+</ul>
+</div>
+</div>
+<p class="sd-card-text">To not use too much memory when reading large log-files and to not accidentally cut one of the search texts in half with chunking, it always keeps 2 chunks and processes the combined text of both.
+When reading a new chunk, the older one of the 2 stored gets discarded and the other one gets combined with the new one to create the new text to search.</p>
+<div class="figure align-center" id="id1">
+<a class="reference internal image-reference" href="../../_images/PairedReader_diagram.png"><img alt="../../_images/PairedReader_diagram.png" src="../../_images/PairedReader_diagram.png" style="width: 181.25px; height: 158.5px;" /></a>
+<p class="caption"><span class="caption-text">The Mechanism of how the files are read.</span><a class="headerlink" href="#id1" title="Permalink to this image">#</a></p>
+</div>
+<p class="sd-card-text">It will continue reading chunks and searching until one of the following conditions is fulfilled:</p>
+<ul class="simple">
+<li><p class="sd-card-text">☐ end of file reached</p></li>
+<li><p class="sd-card-text">☐ all meta-attributes found</p></li>
+<li><p class="sd-card-text">☐ it has read more than the set limit (in bytes), as all attributes should be able to be found (if they exist) in the beginning of a log-file.</p></li>
+</ul>
+</div>
+</div>
+</div>
+<div class="section" id="header-text-parsing">
+<h2>Header-Text Parsing<a class="headerlink" href="#header-text-parsing" title="Permalink to this heading">#</a></h2>
+<div class="sd-card sd-sphinx-override sd-mb-3 sd-shadow-sm docutils">
+<div class="sd-card-body docutils">
+</div>
+</div>
+</div>
+<div class="section" id="startup-entries-parsing">
+<h2>Startup-Entries Parsing<a class="headerlink" href="#startup-entries-parsing" title="Permalink to this heading">#</a></h2>
+<div class="sd-card sd-sphinx-override sd-mb-3 sd-shadow-sm docutils">
+<div class="sd-card-body docutils">
+</div>
+</div>
+</div>
+<div class="section" id="entries-parsing">
+<h2>Entries Parsing<a class="headerlink" href="#entries-parsing" title="Permalink to this heading">#</a></h2>
+<div class="sd-card sd-sphinx-override sd-mb-3 sd-shadow-sm docutils">
+<div class="sd-card-body docutils">
+</div>
+</div>
+<div class="section" id="record-processing">
+<h3>Record Processing<a class="headerlink" href="#record-processing" title="Permalink to this heading">#</a></h3>
+<blockquote>
+<div><div class="sd-card sd-sphinx-override sd-mb-3 sd-shadow-sm docutils">
+<div class="sd-card-body docutils">
+</div>
+</div>
+</div></blockquote>
+</div>
+</div>
+</div>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="../frontend/frontend_index.html">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">Frontend</div>
+              </div>
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="backend_index.html">
+              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">Backend</div>
+                
+              </div>
+            </a>
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2022, Antistasi-Tools
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Parsing</a><ul>
+<li><a class="reference internal" href="#meta-data-parsing">Meta-Data Parsing</a></li>
+<li><a class="reference internal" href="#header-text-parsing">Header-Text Parsing</a></li>
+<li><a class="reference internal" href="#startup-entries-parsing">Startup-Entries Parsing</a></li>
+<li><a class="reference internal" href="#entries-parsing">Entries Parsing</a><ul>
+<li><a class="reference internal" href="#record-processing">Record Processing</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+    <script src="../../_static/jquery.js"></script>
+    <script src="../../_static/underscore.js"></script>
+    <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/sphinx_highlight.js"></script>
+    <script src="../../_static/scripts/furo.js"></script>
+    <script src="../../_static/tabs.js"></script>
+    <script src="../../_static/clipboard.min.js"></script>
+    <script src="../../_static/copybutton.js"></script>
+    <script src="../../_static/design-tabs.js"></script>
+    <script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+    <script>mermaid.initialize({startOnLoad:true});</script>
+    </body>
+</html>

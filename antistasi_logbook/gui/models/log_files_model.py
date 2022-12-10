@@ -52,7 +52,8 @@ log = get_logger(__name__)
 
 class LogFilesModel(BaseQueryDataModel):
     extra_columns = {
-        FakeField("time_frame", "Time Frame")
+        FakeField("time_frame", "Time Frame"),
+        FakeField("amount_headless_clients", "Amount Headless Clients")
     }
     strict_exclude_columns = {"startup_text", "remote_path", "header_text", "original_file"}
 

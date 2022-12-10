@@ -9,7 +9,7 @@ Soon.
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import re
-from typing import Union
+from typing import Union, Optional
 from pathlib import Path
 from datetime import tzinfo, datetime, timezone, timedelta
 from functools import total_ordering
@@ -114,12 +114,13 @@ def _validate_date_time_frame_tzinfo(instance: "DateTimeFrame"):
         raise DurationTimezoneError(instance, instance.start.tzinfo, instance.end.tzinfo, 'start time and end time do not have the same timezone')
 
 
-@attr.s(auto_attribs=True, auto_detect=True, frozen=True, slots=True, weakref_slot=True)
+@attr.s(auto_attribs=True, auto_detect=True, frozen=True, slots=True)
 @total_ordering
 class DateTimeFrame:
     start: datetime = attr.ib()
     end: datetime = attr.ib()
     delta: timedelta = attr.ib(init=False)
+    tzinfo: timezone = attr.ib(init=False)
 
     def __attrs_post_init__(self):
         _validate_date_time_frame_tzinfo(self)
@@ -128,8 +129,8 @@ class DateTimeFrame:
     def get_delta(self) -> timedelta:
         return self.end - self.start
 
-    @property
-    def tzinfo(self) -> timezone:
+    @tzinfo.default
+    def get_tzinfo(self) -> Optional[timezone]:
         return self.start.tzinfo
 
     @property
@@ -143,23 +144,17 @@ class DateTimeFrame:
 
     @property
     def hours(self) -> int:
-        minutes = self.delta.total_seconds() / 60
-        hours = minutes / 60
+        hours = self.delta.total_seconds() / 3600
         return int(hours)
 
     @property
     def days(self) -> int:
-        minutes = self.delta.total_seconds() / 60
-        hours = minutes / 60
-        days = hours / 24
+        days = self.delta.total_seconds() / 86400
         return int(days)
 
     @property
     def weeks(self) -> int:
-        minutes = self.delta.total_seconds() / 60
-        hours = minutes / 60
-        days = hours / 24
-        weeks = days / 7
+        weeks = self.delta.total_seconds() / 604800
         return int(weeks)
 
     def __eq__(self, other: object) -> bool:

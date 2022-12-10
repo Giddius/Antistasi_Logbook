@@ -67,35 +67,36 @@ class Parser:
 
     def _parse_header_text(self, context: LogParsingContext) -> list["RecordLine"]:
         header_text_lines = []
-        while not self.regex_keeper.only_time.match(context.current_line.content):
-            header_text_lines.append(context.current_line)
-            context.advance_line()
+        while not self.regex_keeper.only_time.match(context.file_line_provider.current_line.content):
+            header_text_lines.append(context.file_line_provider.current_line)
+            context.file_line_provider.advance_line()
         return header_text_lines
 
     def _parse_startup_entries(self, context: LogParsingContext) -> list[RecordLine]:
         startup_entrie_lines = []
-        while not self.regex_keeper.local_datetime.match(context.current_line.content):
-            startup_entrie_lines.append(context.current_line)
-            context.advance_line()
+        while not self.regex_keeper.local_datetime.match(context.file_line_provider.current_line.content):
+            startup_entrie_lines.append(context.file_line_provider.current_line)
+            context.file_line_provider.advance_line()
         return startup_entrie_lines
 
     def parse_entries(self, context: LogParsingContext) -> None:
-        while context.current_line is not ... and not self.stop_event.is_set():
-            if self.regex_keeper.local_datetime.match(context.current_line.content):
-                if match := self.regex_keeper.continued_record.match(context.current_line.content):
-                    context.line_cache.append(RecordLine(content=match.group('content'), start=context.current_line.start))
-                    context.advance_line()
+        utc_offset = context.log_file_data["utc_offset"]
+        while context.file_line_provider.has_reached_end is False and not self.stop_event.is_set():
+            if self.regex_keeper.local_datetime.match(context.file_line_provider.current_line.content):
+                if match := self.regex_keeper.continued_record.match(context.file_line_provider.current_line.content):
+                    context.line_cache.append(RecordLine(content=match.group('content'), start=context.file_line_provider.current_line.start))
+                    context.file_line_provider.advance_line()
                     continue
 
                 if context.line_cache.is_empty is False:
-                    yield RawRecord(context.line_cache.dump())
+                    yield RawRecord(context.line_cache.dump(), utc_offset=utc_offset)
 
-            context.line_cache.append(context.current_line)
-            context.advance_line()
+            context.line_cache.append(context.file_line_provider.current_line)
+            context.file_line_provider.advance_line()
         rest_lines = context.line_cache.dump()
         if rest_lines:
 
-            yield RawRecord(rest_lines)
+            yield RawRecord(rest_lines, utc_offset=utc_offset)
 
     def __call__(self, context: "LogParsingContext") -> Generator:
 
@@ -109,6 +110,7 @@ class Parser:
             return
         if self.stop_event.is_set():
             return
+        _ = context.file_line_provider
         if context._log_file.header_text is None:
             log.info("Parsing header-text for %r", context._log_file)
             context.set_header_text(self._parse_header_text(context))
@@ -124,7 +126,7 @@ class Parser:
         log.info("Parsing entries for %r", context._log_file)
         for raw_record in self.parse_entries(context):
 
-            processed_record = self.record_processor(raw_record=raw_record, utc_offset=context.log_file_data["utc_offset"])
+            processed_record = self.record_processor(raw_record=raw_record)
             yield processed_record
 
 

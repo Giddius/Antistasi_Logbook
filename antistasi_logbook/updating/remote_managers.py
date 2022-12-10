@@ -42,7 +42,7 @@ setup()
 if TYPE_CHECKING:
     from gidapptools.meta_data.interface import MetaPaths
     from gidapptools.gid_config.interface import GidIniConfig
-
+    from antistasi_logbook.backend import Backend
     from antistasi_logbook.storage.models.models import LogFile, RemoteStorage
 
 # endregion[Imports]
@@ -261,9 +261,10 @@ class WebdavManager(AbstractRemoteStorageManager):
     def download_file(self, log_file: "LogFile") -> "LogFile":
         with self.download_semaphore:
             local_path = log_file.local_path
-            chunk_size = self.config.get("downloading", "chunk_size", default=human2bytes("1 mb"))
+            chunk_size = 10_000
 
             log.info("downloading %s", log_file)
+
             result = self.client.http.get(str(log_file.download_url), auth=(self.login, self.password))
             with local_path.open("wb") as f:
                 for chunk in result.iter_bytes(chunk_size=chunk_size):

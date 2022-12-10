@@ -37,8 +37,10 @@ def get_setup_data(name: str, default=None) -> list[dict]:
 
 def setup_tables(db: "GidSqliteApswDatabase"):
     for table in db._models.values():
+        pre_exists = table.table_exists()
         table.create_table()
-        log.debug("created table %r", table._meta.table_name)
+        if pre_exists is False:
+            log.debug("created table %r", table._meta.table_name)
 
 
 def setup_loglevel(db: "GidSqliteApswDatabase"):

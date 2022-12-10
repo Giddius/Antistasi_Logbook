@@ -442,6 +442,7 @@ class SettingsWindow(QWidget):
                     if sect_name == "updating" and field.name == "update_interval":
                         if self.main_window.cyclic_update_running is True:
                             self.main_window.start_update_timer()
+
         # self.general_config.config.save()
         self.general_config.config.auto_write = old_auto_write
 
@@ -458,6 +459,8 @@ class SettingsWindow(QWidget):
 
 
 class CredentialsBox(QGroupBox):
+    credentials_submited = Signal()
+
     def __init__(self, remote_storage: RemoteStorage, parent=None):
         super().__init__(parent=parent)
         self.remote_storage = remote_storage
@@ -517,6 +520,7 @@ class CredentialsBox(QGroupBox):
     def indicate_success(self):
         self.color_box(False)
         self._single_shot_timer = QTimer.singleShot(1 * 1000, self.color_box)
+        self.credentials_submited.emit()
 
     def submit_credentials(self):
         login = self.login_input_widget.text()
@@ -555,6 +559,7 @@ class CredentialsManagmentWindow(QWidget):
                     widget = CredentialsBox(remote_storage, self)
                     self.layout.addWidget(widget)
                     widget.setup()
+                    widget.credentials_submited.connect(self.close)
 
     @property
     def app(self) -> "AntistasiLogbookApplication":

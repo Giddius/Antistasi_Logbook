@@ -100,7 +100,13 @@
                 "chunk_size": {
                     "converter": "file_size",
                     "default": null,
-                    "initial_value": "5mb"
+                    "initial_value": "5mb",
+                    "implemented": false
+                },
+                "global_download_speed_limit": {
+                    "converter": "file_size",
+                    "default": "10mb",
+                    "initial_value": "10mb"
                 }
             }
         },

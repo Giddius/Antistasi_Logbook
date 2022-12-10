@@ -2136,7 +2136,7 @@
         "name": "addLoadAction",
         "author_prefix": {
             "name": "A3A_Logistics",
-            "full_name": null
+            "full_name": "Antistasi Logistics"
         },
         "file_name": "fn_addLoadAction.sqf",
         "function_name": "A3A_Logistics_fnc_addLoadAction"
@@ -2190,7 +2190,7 @@
         "name": "unload",
         "author_prefix": {
             "name": "A3A_Logistics",
-            "full_name": null
+            "full_name": "Antistasi Logistics"
         },
         "file_name": "fn_unload.sqf",
         "function_name": "A3A_Logistics_fnc_unload"
@@ -2212,5 +2212,14 @@
         },
         "file_name": "fn_buyVehicleCiv.sqf",
         "function_name": "A3A_fnc_buyVehicleCiv"
+    },
+    {
+        "name": "equipRebel",
+        "author_prefix": {
+            "name": "A3A",
+            "full_name": "Antistasi"
+        },
+        "file_name": "fn_equipRebel.sqf",
+        "function_name": "A3A_fnc_equipRebel"
     }
 ]

@@ -41,7 +41,7 @@ from antistasi_logbook.regex_store.regex_keeper import SimpleRegexKeeper
 from antistasi_logbook.updating.remote_managers import AbstractRemoteStorageManager, remote_manager_registry
 from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 from antistasi_logbook.records.record_class_manager import RECORD_CLASS_TYPE, RecordClassManager
-
+from antistasi_logbook.utilities.networker_limiter import NetworkSpeedLimiter
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_signal.signals import abstract_signal
@@ -153,6 +153,7 @@ class Backend:
         self.time_clock = TimeClock(config=self.config, stop_event=self.events.stop)
         self.remote_manager_registry = remote_manager_registry
         AbstractRemoteStorageManager.config = self.config
+
         self.record_processor = RecordProcessor(backend=self, regex_keeper=SimpleRegexKeeper(), foreign_key_cache=self.foreign_key_cache)
         self.updater = Updater(stop_event=self.events.stop, pause_event=self.events.pause, backend=self, signaler=self.update_signaler)
         self.records_inserter = RecordInserter(config=self.config, backend=self)
@@ -285,6 +286,7 @@ class Backend:
         self.database.start_up(overwrite=overwrite)
 
         self.database.connect(True)
+        self.database.foreign_key_cache.preload_all()
         self.record_class_manager = RecordClassManager(backend=self, foreign_key_cache=ForeignKeyCache(self.database))
         self.fill_record_class_manager()
         self.record_class_manager.create_record_checker()
@@ -295,7 +297,6 @@ class Backend:
         for obj in self.dependent_objects:
             obj.start()
 
-        # self.database.ensure_log_file_data_update_futures()
         return self
 
     def shutdown(self) -> None:

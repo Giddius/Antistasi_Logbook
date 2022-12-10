@@ -125,12 +125,18 @@ def show_amount_messages_compared_to_amount_records():
 
 
 def get_longest_message():
+    from pympler import asizeof
     app: "AntistasiLogbookApplication" = QApplication.instance()
     db = app.backend.database
+    _out_file = META_PATHS.debug_dump_dir.joinpath("longest_messages.txt")
     with db.atomic():
         longest_messages = (i[0] for i in Message.select(Message.text).distinct().order_by(fn.LENGTH(Message.text).desc()).limit(500).tuples().iterator())
         _out = {len(str(longest_message)): str(longest_message) for longest_message in longest_messages}
-
+    with _out_file.open("w", encoding='utf-8', errors='ignore') as f:
+        for k, v in _out.items():
+            f.write(("#" * 25) + f" lenght: {k!r}  |  size: {bytes2human(asizeof.asizeof(v))}\n\n\n")
+            f.write(str(v) + '\n\n\n')
+            f.write(("+" * 50) + '\n\n')
     return _out
 
 
@@ -504,12 +510,13 @@ class CopyPushButton(QPushButton):
 
 def show_default_icons():
     app: "AntistasiLogbookApplication" = QApplication.instance()
-    icons = sorted([attr for attr in dir(QStyle) if attr.startswith("SP_")])
+
+    icons = sorted([attr for attr in dir(QStyle.StandardPixmap) if attr.startswith("SP_")])
     layout = QGridLayout()
     for n, name in enumerate(icons):
         label = CopyPushButton(name)
 
-        pixmapi = getattr(QStyle, name)
+        pixmapi = getattr(QStyle.StandardPixmap, name)
         icon = app.style().standardIcon(pixmapi)
         label.setIcon(icon)
         layout.addWidget(label, n / 4, n % 4)
@@ -616,6 +623,34 @@ def all_update_durations():
     return data
 
 
+def show_cache_stats():
+    app: "AntistasiLogbookApplication" = QApplication.instance()
+    db: "GidSqliteApswDatabase" = app.backend.database
+
+    conn: apsw.Connection = db.connection()
+    return conn.cache_stats(include_entries=True)
+
+
+def show_message_hash_stats():
+    from pympler import asizeof
+    app: "AntistasiLogbookApplication" = QApplication.instance()
+    db: "GidSqliteApswDatabase" = app.backend.database
+    with db.connection_context():
+        log.debug("starting collecting all text-hashes")
+        all_hashes = {m[0] for m in Message.select(Message.md5_hash).tuples().iterator()}
+        log.debug("finished collecting all text-hashes")
+    log.debug("starting calculating size of all text-hashes")
+    size = asizeof.asizeof(all_hashes)
+    log.debug("finished calculating size of all text-hashes")
+
+    log.debug("starting calculating amount of all text-hashes")
+    amount = len(all_hashes)
+    log.debug("finished calculating amount of all text-hashes")
+
+    log.debug("returning stats about all text-hashes")
+    return {"raw_size": size, "size": bytes2human(size), "amount": amount}
+
+
 def setup_debug_widget(debug_dock_widget: "DebugDockWidget") -> None:
     log.debug("running setup_debug_widget")
     app: AntistasiLogbookApplication = QApplication.instance()
@@ -650,9 +685,12 @@ def setup_debug_widget(debug_dock_widget: "DebugDockWidget") -> None:
     debug_dock_widget.add_show_func_result_button(get_longest_message, "message")
     debug_dock_widget.add_show_func_result_button(show_screens_output, "gui")
     debug_dock_widget.add_show_func_result_button(most_common_messages, "message")
+    debug_dock_widget.add_show_func_result_button(show_message_hash_stats, "message")
+
     debug_dock_widget.add_show_func_result_button(release_memory, "apsw")
     debug_dock_widget.add_show_func_result_button(show_mean_update_time_per_log_file, "database-meta")
     debug_dock_widget.add_show_func_result_button(all_update_durations, "database-meta")
+    debug_dock_widget.add_show_func_result_button(show_cache_stats, "database-meta")
 
     debug_dock_widget.add_show_func_result_button(dump_arma_functions, "setup-data")
     debug_dock_widget.add_show_func_result_button(dump_most_common_messages, "setup-data")

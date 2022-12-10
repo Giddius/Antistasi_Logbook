@@ -53,7 +53,7 @@ from gidapptools.gid_database.orm_peewee.sqlite.pragma_info import PragmaInfo
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.storage.setup_data import setup_from_data
 from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
-
+from antistasi_logbook.utilities.apsw_profiling import SQLProfiler, PrintReporter, SimpleTextReporter
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
@@ -115,19 +115,19 @@ DEFAULT_PRAGMAS = frozendict({
 
 DEFAULT_PRAGMAS = frozendict({
     "auto_vacuum": 2,
-    "cache_size": -1 * 256_000,  # 128mb
+    "cache_size": -1 * 256_000,
     "journal_mode": 'WAL',
     "synchronous": 0,
     "ignore_check_constraints": 0,
     "foreign_keys": 1,
-    "journal_size_limit": human2bytes("1500mb"),
+    "journal_size_limit": human2bytes("750mb"),
     # "wal_autocheckpoint": 150_000,
     "page_size": 8192,
     "analysis_limit": 1_000_000,
     "case_sensitive_like": False,
-    "threads": 8,
-    # "temp_store": "MEMORY",
-    # "mmap_size": 30_000_000_000
+    "threads": 6,
+    "temp_store": "MEMORY",
+    "mmap_size": 30_000_000_000
 })
 
 
@@ -232,21 +232,6 @@ def profile_hook(stmt: str, time_taken):
     # SQL_PROFILING_FILE.write(f'-{now}- <<SQL-PROFILING>> {{"time_taken": {ns_to_s(time_taken, 6)!sr}, "statement": "{stmt!r}"}}\n')
 
 
-performance_write_lock = RLock()
-
-
-# def profile_hook(stmt: str, time_taken):
-#     def _write_it(_stmt: str, _time_taken):
-#         with performance_write_lock:
-#             with SQL_PROFILING_FILE_PATH.open("a", encoding="utf-8", errors="ignore") as f:
-#                 f.write(f"time_taken: {ns_to_s(_time_taken)!r}, stmt: {_stmt!r}\n")
-
-#     if "PRAGMA " in stmt:
-#         return
-#     QApplication.instance().gui_thread_pool.submit(_write_it, stmt, time_taken)
-#     # log.info("<<SQL-PROFILING>> time_taken: %r, stmt: %r", ns_to_s(time_taken, 4), stmt[:500])
-
-
 def update_hook(typus: int, database_name: str, table_name: str, row_id: int):
     typus = apsw.mapping_authorizer_function[typus]
     now = datetime.now().strftime('%H-%M-%S')
@@ -261,11 +246,9 @@ def connection_hook(conn: apsw.Connection):
     while Path(call_frame.f_code.co_filename).stem in {"peewee", "line_profile"} or Path(call_frame.f_code.co_filename).parent.stem in {"playhouse", "line_profile"}:
         call_frame = call_frame.f_back
     caller = call_frame.f_code.co_name
-    # module_name: str = 'main.' + call_frame.f_globals.get("__name__").split(".", 1)[-1]
+
     line_number = call_frame.f_lineno
     caller_file = Path(call_frame.f_code.co_filename)
-
-    # SQL_PROFILING_FILE.write(" -%s- opening connection %r in thread %r and caller %r, file: %r\n", datetime.now().strftime('%H-%M-%S'), conn, current_thread(), caller, caller_file.name, extra={"function_name": caller, "module": module_name})
 
     log.info(f" -{now}- opening connection {conn!r} in thread {current_thread()!r} and caller {caller!r}, file: {caller_file!r}, line_number: {line_number!r}\n")
 
@@ -395,6 +378,7 @@ class GidSqliteApswDatabase(APSWDatabase):
         self.all_connections.add(conn)
         conn.setbusyhandler(self._busy_handling)
         conn.setwalhook(self.wal_hook)
+
         if self.config.get("database", "enable_connection_creation_logging") is True:
             connection_hook(conn)
 
@@ -416,46 +400,12 @@ class GidSqliteApswDatabase(APSWDatabase):
             conn.wal_autocheckpoint(wal_autocheckpoint)
 
     def _busy_handling(self, prior_calls: int) -> bool:
-        # if prior_calls > 0 and prior_calls % 5 == 0:
-
-        sleep(random.random())
-        #     if META_INFO.is_dev is True:
-        #         log.debug("%r busy sleeping for %r prior-calls", round(sleep_time, 4), prior_calls)
+        sleep(random.random() / 10)
         return True
 
-    # def _busy_handling(self, prior_calls: int) -> bool:
-
-    #     sleep_time = 0.5 + random.random() + (prior_calls / 100)
-
-    #     sleep(sleep_time)
-    #     if prior_calls > 0 and prior_calls % 5 == 0 and META_INFO.is_dev is True:
-    #         try:
-    #             call_frame = sys._getframe().f_back.f_back.f_back
-    #             while Path(call_frame.f_code.co_filename).stem in {"peewee", "threading"} or Path(call_frame.f_code.co_filename).parent.stem in {"playhouse", "futures"}:
-    #                 call_frame = call_frame.f_back
-    #             caller = call_frame.f_code.co_name
-    #             module_name: str = 'main.' + call_frame.f_globals.get("__name__").split(".", 1)[-1]
-    #             line_number = call_frame.f_lineno
-    #             caller_file = Path(call_frame.f_code.co_filename)
-
-    #             log.debug("%r busy sleeping for %r prior-calls caller: %r, module_name: %r, caller_file: %r, line_number: %r", round(sleep_time, 4), prior_calls, caller, module_name, caller_file, line_number)
-    #         except AttributeError:
-    #             try:
-    #                 call_frame = sys._getframe().f_back.f_back.f_back.f_back
-    #                 while Path(call_frame.f_code.co_filename).stem in {"threading"} or Path(call_frame.f_code.co_filename).parent.stem in {"futures"}:
-    #                     call_frame = call_frame.f_back
-    #                 caller = call_frame.f_code.co_name
-    #                 module_name: str = 'main.' + call_frame.f_globals.get("__name__").split(".", 1)[-1]
-    #                 line_number = call_frame.f_lineno
-    #                 caller_file = Path(call_frame.f_code.co_filename)
-
-    #                 log.debug("%r busy sleeping for %r prior-calls caller: %r, module_name: %r, caller_file: %r, line_number: %r", round(sleep_time, 4), prior_calls, caller, module_name, caller_file, line_number)
-    #             except AttributeError:
-    #                 log.debug("%r busy sleeping for %r prior-calls", round(sleep_time, 4), prior_calls)
-    #     return True
-
     def _close(self, conn: "apsw.Connection"):
-
+        # res = conn.execute("PRAGMA incremental_vacuum").fetchall()
+        # log.debug("incremental_vacuum result: %r", len(res))
         if self.config.get("database", "enable_connection_creation_logging") is True:
             log.debug("closed connection %r (changes: %r, total changes: %r) of thread %r", conn, conn.changes(), conn.totalchanges(), current_thread())
 
@@ -488,14 +438,14 @@ class GidSqliteApswDatabase(APSWDatabase):
         log.info("checkpoint wal with return: %r, time taken: %rs", result, round(time_taken, 3))
 
     def _set_page_size(self):
-        print("setting page size")
+
         wal_mode = False
         conn: apsw.Connection = self.connection()
         journal_mode = conn.execute("PRAGMA journal_mode;").fetchone()[0]
         if journal_mode.casefold() == "wal":
             wal_mode = True
         page_size = next((i[1] for i in self._pragmas if i[0] == "page_size"), None)
-        print(f"{page_size=}")
+
         if page_size is None:
             return
 
@@ -535,18 +485,7 @@ class GidSqliteApswDatabase(APSWDatabase):
             self.foreign_key_cache.reset_all()
             self.foreign_key_cache.preload_all()
 
-            log.info("finished starting up %r", self)
-            log.info("server-version: %r", ".".join(str(i) for i in self.server_version))
-            log.info("apsw-compile-options: %r", apsw.compile_options)
-            log.info("Uses CYTHON_SQLITE_EXTENSIONS: %r", CYTHON_SQLITE_EXTENSIONS)
-            log.info("Using Amalgamation: %r", apsw.using_amalgamation)
-            log.info("current installed vfs: %r", apsw.vfsnames())
-            log.info("registered_modules: %r", list(self._modules))
-            log.info("%r context_options: %r", self, self.get_context_options())
-            log.info("database application_id: %r", self.application_id)
-            log.info("database user_version: %r", self.user_version)
-            log.info("database data_version: %r", self.data_version)
-
+            self.checkpoint()
             return self
 
     def ensure_log_file_data_update_futures(self):
@@ -590,15 +529,6 @@ class GidSqliteApswDatabase(APSWDatabase):
         log.debug("finished vacuuming %r, time taken: %rs", self, round(time_taken, 3))
         return self
 
-    # def close(self):
-    #     if not self.is_closed():
-    #         try:
-    #             self.optimize()
-    #         except apsw.BusyError:
-    #             log.warning("unable to optimize because database is busy")
-
-    #     return super().close()
-
     def shutdown(self, error: BaseException = None) -> None:
         self.log_all_cache_infos()
         log.debug("shutting down %r", self)
@@ -611,7 +541,8 @@ class GidSqliteApswDatabase(APSWDatabase):
         for conn in set(self.all_connections):
 
             try:
-                self.vacuum()
+                res = conn.execute("PRAGMA incremental_vacuum").fetchall()
+                log.debug("incremental_vacuum result: %r", len(res))
                 # self.execute_sql("VACUUM;")
                 cur = conn.cursor()
                 log.debug("optimizing before closing connection %r", conn)
@@ -628,6 +559,7 @@ class GidSqliteApswDatabase(APSWDatabase):
         log.debug("finished shutting down %r", self)
         if len(prof_dict) > 0:
             write_prof_dict()
+        # self.sql_profiler.close()
         gc.collect()
 
     def get_all_server(self, ordered_by=Server.id) -> tuple[Server]:
@@ -639,12 +571,6 @@ class GidSqliteApswDatabase(APSWDatabase):
                 log.debug("cache-info for %r ('get_by_id_cached'): %r", model, model.get_by_id_cached.cache_info())
             except AttributeError:
                 continue
-        _cache = LogLevel._instance_cache
-        log.debug("LogLevel_instances -> amount: %r, content: %r", len(_cache._full_map), _cache._full_map)
-        log.debug("LogLevel_instances -> unique_field_names: %r, unique_indexes: %r", _cache.unique_field_names, _cache.unique_indexes)
-        _cache = ArmaFunctionAuthorPrefix._instance_cache
-        log.debug("ArmaFunctionAuthorPrefix_instances -> amount: %r, content: %r", len(_cache._full_map), _cache._full_map)
-        log.debug("ArmaFunctionAuthorPrefix_instances -> unique_field_names: %r, unique_indexes: %r", _cache.unique_field_names, _cache.unique_indexes)
 
     def get_log_files(self, server: Server = None, ordered_by=LogFile.id, exclude_unparsable: bool = False) -> tuple[LogFile]:
 
@@ -695,6 +621,7 @@ class GidSqliteApswDatabase(APSWDatabase):
             _out = []
             for _id, in GameMap.select(GameMap.id).order_by(ordered_by).tuples().iterator():
                 _out.append(GameMap.get_by_id_cached(_id))
+
         return tuple(_out)
 
     def get_all_origins(self, ordered_by=RecordOrigin.id) -> tuple[RecordOrigin]:
@@ -780,7 +707,7 @@ class GidSqliteApswDatabase(APSWDatabase):
 
     def resolve_all_armafunction_extras(self) -> None:
         log.debug("resolving all armafunction extras")
-        with self.transaction():
+        with self.atomic():
             query = ArmaFunction.select(ArmaFunction, ArmaFunctionAuthorPrefix).join_from(ArmaFunction, ArmaFunctionAuthorPrefix, join_type=JOIN.LEFT_OUTER).where((ArmaFunction.file_name == None) | (ArmaFunction.function_name == None))
 
             for arma_func in tuple(query.iterator()):

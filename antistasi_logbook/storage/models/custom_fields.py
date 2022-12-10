@@ -176,6 +176,7 @@ class URLField(CharField):
 class AwareTimeStampField(BigIntegerField):
     field_type = 'BIGINT'
     mult_factor = 1000000
+    allowed_tz = (UTC, timezone.utc)
 
     def __init__(self, *args, **kwargs):
 
@@ -193,20 +194,21 @@ class AwareTimeStampField(BigIntegerField):
     def check_is_utc(self, in_value: Optional[datetime]):
         if in_value is None:
             return
-        if in_value.tzname() != "UTC":
-            tz_item = in_value.tzinfo
-
-            if tz_item is None:
+        try:
+            if in_value.utcoffset().total_seconds() == 0:
+                return
+        except AttributeError:
+            if in_value.tzinfo is None:
                 raise ValueError(f"tzinfo of {in_value} can not be none!")
 
-            if tz_item is not UTC and tz_item is not timezone.utc:
+            if in_value.tzinfo not in self.allowed_tz:
                 raise TypeError(f"tzinfo needs to be utc not {in_value.tzinfo!r}")
 
     def db_value(self, value: datetime):
         if value is None:
             return None
-        if self.utc is True:
-            self.check_is_utc(value)
+        # if self.utc is True:
+        #     self.check_is_utc(value)
         return int(value.timestamp() * self.mult_factor)
 
     def python_value(self, value):

@@ -185,8 +185,6 @@ class MetaFinder:
                 self.is_new_campaign = False
             elif match.group("text_creating") is not None:
                 self.is_new_campaign = True
-        elif match := self.regex_keeper.alternative_campaign_id.search(text):
-            self.campaign_id = int(match.group("campaign_id"))
 
     def search(self, text: str) -> None:
         if self.campaign_id is MiscEnum.NOT_FOUND:

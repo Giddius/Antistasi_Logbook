@@ -50,6 +50,7 @@ from statistics import mean, mode, stdev, median, variance, pvariance, harmonic_
 from urllib.parse import urlparse
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, Future, wait, as_completed, ALL_COMPLETED, FIRST_EXCEPTION, FIRST_COMPLETED
 
+from attrs import define, field
 
 if sys.version_info >= (3, 11):
     from typing import Self
@@ -72,37 +73,64 @@ if TYPE_CHECKING:
 # endregion[Logging]
 
 # region [Constants]
-
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 # endregion[Constants]
 
 
+# class RecordLine:
+#     __slots__ = ("_content", "_start")
+
+#
+#     def __init__(self, content: Optional[str], start: Optional[int]):
+#         self._content = content
+#         self._start = start
+
+#     @property
+#     def start(self) -> Optional[int]:
+#         return self._start
+
+#     @property
+#     def content(self) -> Optional[str]:
+#         return self._content
+
+#     @property
+#     def line_number(self) -> Optional[int]:
+#         return self._start
+
+#     @property
+#     def is_none(self) -> bool:
+#         return self.start is None and self.content is None
+
+#     def __hash__(self) -> int:
+#         return hash(self._content) + hash(self._start)
+
+#     def __eq__(self, o: object) -> bool:
+#         if isinstance(o, self.__class__):
+#             return self.content == o.content and self.start == o.start
+#         return NotImplemented
+
+#     def __str__(self) -> str:
+#         return self.content
+
+#     def __repr__(self):
+#         return f"{self.__class__.__name__}(start={self.start!r}, content={self.content!r})"
+
+
+@define(frozen=True, slots=True)
 class RecordLine:
-    __slots__ = ("_content", "_start")
-
-    def __init__(self, content: Optional[str], start: Optional[int]):
-        self._content = content
-        self._start = start
-
-    @property
-    def start(self) -> Optional[int]:
-        return self._start
-
-    @property
-    def content(self) -> Optional[str]:
-        return self._content
+    content: str = field()
+    start: int = field()
 
     @property
     def line_number(self) -> Optional[int]:
-        return self._start
+        return self.start
 
     @property
     def is_none(self) -> bool:
         return self.start is None and self.content is None
-
-    def __hash__(self) -> int:
-        return hash(self._content) + hash(self._start)
 
     def __eq__(self, o: object) -> bool:
         if isinstance(o, self.__class__):
@@ -110,10 +138,7 @@ class RecordLine:
         return NotImplemented
 
     def __str__(self) -> str:
-        return self.content
-
-    def __repr__(self):
-        return f"{self.__class__.__name__}(start={self.start!r}, content={self.content!r})"
+        return str(self.content)
 
 
 # region[Main_Exec]

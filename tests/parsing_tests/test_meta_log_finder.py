@@ -18,11 +18,15 @@ from time import perf_counter
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 # endregion [Constants]
+test_meta_parsing_params = [
+    param(lazy_fixture(f"example_log_file_and_data_{data_num}"), id=str(data_num)) for data_num in (1, 2)
+]
 
 
-def test_meta_parsing(example_log_file_and_data_1):
-    example_file: Path = example_log_file_and_data_1[0]
-    results: dict[str, object] = example_log_file_and_data_1[1]
+@pytest.mark.parametrize(["in_log_file_and_data"], test_meta_parsing_params)
+def test_meta_parsing(in_log_file_and_data):
+    example_file: Path = in_log_file_and_data[0]
+    results: dict[str, object] = in_log_file_and_data[1]
 
     with example_file.open("r", encoding='utf-8', errors='ignore') as f:
         finder = MetaFinder().parse_file(f)
@@ -32,4 +36,6 @@ def test_meta_parsing(example_log_file_and_data_1):
     assert results["campaign_id"] == finder.campaign_id
     assert results["is_new_campaign"] == finder.is_new_campaign
     assert results["utc_offset"] == finder.utc_offset
-    assert results["mods"] == finder.mods
+
+    for item in results["mods"]:
+        assert item in finder.mods

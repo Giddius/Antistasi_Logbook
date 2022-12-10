@@ -69,3 +69,13 @@ def example_log_file_and_data_1():
     if _check_hash(example_file, result_data["source_file_hash"]) is False:
         raise ValueError(f"file {example_file.name!r} has changed and {example_result_file.name!r} needs updating")
     yield example_file, _load_result_json(example_result_file)
+
+
+@pytest.fixture
+def example_log_file_and_data_2():
+    example_file = EXAMPLE_LOG_FILES["example_log_2.txt"]
+    example_result_file = EXAMPLE_LOG_FILES[example_file.stem + "_results.json"]
+    result_data = _load_result_json(example_result_file)
+    if _check_hash(example_file, result_data["source_file_hash"]) is False:
+        raise ValueError(f"file {example_file.name!r} has changed and {example_result_file.name!r} needs updating")
+    yield example_file, _load_result_json(example_result_file)

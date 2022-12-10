@@ -29,59 +29,41 @@ from antistasi_logbook.parsing.record_line import RecordLine
 # endregion[Logging]
 
 # region [Constants]
-
+from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
+get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 # endregion[Constants]
 
 
-class LineData:
-
-    __slots__ = ("_start", "_content")
-
-    def __init__(self, start: Optional[int], content: Optional[str]) -> None:
-        self._start = start
-        self._content = content
-
-    @property
-    def start(self) -> Optional[int]:
-        return self._start
-
-    @property
-    def line_number(self) -> Optional[int]:
-        return self._start
-
-    @property
-    def content(self) -> Optional[str]:
-        return self._content
-
-    @property
-    def is_none(self) -> bool:
-        return self.start is None and self.content is None
-
-    def __eq__(self, o: object) -> bool:
-        if isinstance(o, self.__class__):
-            return self.content == o.content and self.start == o.content
-        return NotImplemented
-
-    def __str__(self) -> str:
-        return self.start
-
-    def __repr__(self):
-        return str(self.start) + " " + str(self.content)
-
-
 class LineView:
+    __slots__ = ("_previous_line", "_current_line", "_next_line", "_reached_end")
 
     def __init__(self,
-                 previous_line: LineData,
-                 current_line: LineData,
-                 next_line: LineData,
+                 previous_line: Optional[RecordLine],
+                 current_line: Optional[RecordLine],
+                 next_line: Optional[RecordLine],
                  reached_end: bool) -> None:
-        self.previous_line = previous_line
-        self.current_line = current_line
-        self.next_line = next_line
-        self.reached_end = reached_end
+        self._previous_line = previous_line
+        self._current_line = current_line
+        self._next_line = next_line
+        self._reached_end = reached_end
+
+    @property
+    def previous_line(self) -> Optional[RecordLine]:
+        return self._previous_line
+
+    @property
+    def current_line(self) -> Optional[RecordLine]:
+        return self._current_line
+
+    @property
+    def next_line(self) -> Optional[RecordLine]:
+        return self._next_line
+
+    @property
+    def reached_end(self) -> Optional[RecordLine]:
+        return self._reached_end
 
     @property
     def content(self) -> Optional[str]:
@@ -96,12 +78,13 @@ class LineView:
 
 
 class FileLineProvider:
-    empty_value = LineData(None, None)
+    __slots__ = ("file_path", "line_generator", "_line_deque", "_initial_filled", "_file_completed")
+    empty_value = RecordLine(None, None)
 
     def __init__(self, file_path: Union[str, os.PathLike, Path]):
         self.file_path: Path = Path(file_path)
-        self.line_generator: Optional[Generator[LineData, None, None]] = None
-        self._line_deque: deque[Union[LineData, None]] = deque([self.empty_value] * 3, maxlen=3)
+        self.line_generator: Optional[Generator[RecordLine, None, None]] = None
+        self._line_deque: deque[Union[RecordLine, None]] = deque([self.empty_value] * 3, maxlen=3)
         self._initial_filled: bool = False
         self._file_completed: bool = False
 
@@ -123,7 +106,8 @@ class FileLineProvider:
         else:
 
             try:
-                self._line_deque.append(next(self.line_generator))
+                new_line = next(self.line_generator)
+                self._line_deque.append(new_line)
 
             except StopIteration:
                 self.line_generator.close()
@@ -141,12 +125,15 @@ class FileLineProvider:
             self.advance_line()
         return LineView(self.previous_line, self.current_line, self.next_line, self.has_reached_end)
 
-    def _get_new_line_generator(self) -> Generator[LineData, None, None]:
-        current_line_number = 0
-        with self.file_path.open("r", encoding='utf-8', errors='ignore') as f:
-            for line in f:
-                current_line_number += 1
-                yield RecordLine(start=current_line_number, content=line.rstrip("\n\r"))
+    def _get_new_line_generator(self) -> Generator[RecordLine, None, None]:
+        current_line_num: int = 0
+        open_file = self.file_path.open("r", encoding='utf-8', errors='ignore')
+        try:
+            for line in open_file:
+                current_line_num += 1
+                yield RecordLine(start=current_line_num, content=line.rstrip())
+        finally:
+            open_file.close()
 
     def close(self) -> None:
         if self.line_generator is None:
@@ -164,17 +151,17 @@ class FileLineProvider:
         return self._file_completed is True and self.next_line.is_none is True
 
     @property
-    def next_line(self) -> LineData:
+    def next_line(self) -> RecordLine:
 
         return self._line_deque[2]
 
     @property
-    def current_line(self) -> LineData:
+    def current_line(self) -> RecordLine:
 
         return self._line_deque[1]
 
     @property
-    def previous_line(self) -> LineData:
+    def previous_line(self) -> RecordLine:
 
         return self._line_deque[0]
 

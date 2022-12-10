@@ -9,7 +9,7 @@ if "%SPHINXBUILD%" == "" (
 )
 set SOURCEDIR=source
 set BUILDDIR=build
-
+set SPHINXOPTS=-a
 %SPHINXBUILD% >NUL 2>NUL
 if errorlevel 9009 (
 	echo.

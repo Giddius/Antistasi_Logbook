@@ -35,3 +35,6 @@ sphinx-copybutton
 sphinxcontrib-mermaid
 sphinx-issues
 
+pygments-style-tomorrow
+furo
+sphinx-inline-tabs
