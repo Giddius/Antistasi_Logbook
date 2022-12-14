@@ -93,7 +93,7 @@ class LogFilesModel(BaseQueryDataModel):
     def reparse_log_file(self, item: LogFile, column: Field, index: QModelIndex):
         def _actual_reparse(log_file: LogFile):
             self.backend.updater.process_log_file(log_file=log_file, force=True)
-            self.backend.updater._update_record_classes(log_file=log_file, force=True)
+
             self.refresh()
 
         def _callback(future):

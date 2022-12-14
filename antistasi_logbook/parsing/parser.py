@@ -124,6 +124,7 @@ class Parser:
         if self.stop_event.is_set():
             return
         log.info("Parsing entries for %r", context._log_file)
+        context.advance_to_not_parsed_line()
         for raw_record in self.parse_entries(context):
 
             processed_record = self.record_processor(raw_record=raw_record)

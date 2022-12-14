@@ -11,6 +11,27 @@ Parsing
       * :ref:`Entries Parsing`
          * :ref:`Record Processing`
 
+
+.. dropdown:: Overview Image
+   :color: secondary
+
+
+   Image showing what is parsed by which part.
+
+   * 🟨 -> Header-Text
+   * 🟪 -> Startup-Entries
+   * 🟥 -> Meta-Data
+   * 🟧 -> Multiline entry
+
+
+   .. figure:: /_images/doc_example_log_file.png
+      :scale: 25 %
+      :align: center
+
+
+
+
+
 Meta-Data Parsing
 ++++++++++++++++++
 
@@ -218,6 +239,10 @@ Header-Text Parsing
 
 .. card::
 
+   The :term:`Header-text`, that each arma log-file has, is parsed by collecting lines, until a line that starts with a :term:`simple timestamp`. That line is not consumed.
+
+   .. note::
+      The file-object position is not reset to zero after parsing the header-text.
 
 
 Startup-Entries Parsing
@@ -225,6 +250,11 @@ Startup-Entries Parsing
 
 .. card::
 
+   All lines from the end of the :term:`Header-text` to the first line that has a :term:`full local timestamp` are collected and stored unprocessed.
+   This is done because most of the time these messages do not contain data that is usually checked and would bloat the database and slow down parsing.
+
+   .. note::
+      The file-object position is not reset to zero after parsing the header-text.
 
 
 Entries Parsing
@@ -232,11 +262,44 @@ Entries Parsing
 
 .. card::
 
+   .. note::
+      This programm assumes that each line is a unique :term:`entry` and only in special cases, does an entry stretched over more than a single line.
+      These special cases must either have a concrete syntax or start with special markers.
+
+      .. attention::
+         **It is not advised to use multiline entries, not with the Logbook, but also not in General.**
+
+
+   The Parser read the log-file line by line (using the `FileLineProvider` which gives easy access to the previous, current and the next line),
+   if the line starts with a :term:`full local timestamp`, it stores the line and looks at the next line.
+   If the next line
+
+   * does not start with a full local timestamp
+   * has a entry continuing-marker after the timestamp
+
+   then it adds the next line also to the stored lines, if not it yields the stored lines as an entry and clears the line-storage.
+
+
+   .. admonition:: Future Plans
+
+      This will probably change in the future, to be more flexible. If I am able to achieve this, the parsing will change to statemachine parser, that is extendable.
+      It is mostly necessary for the default arma error entries, that often need knowledge of lines about 4 lines after the current one to check if they are still part of the entry.
+
+   .. dropdown:: Flowchart
+      :color: secondary
+
+      .. raw:: html
+         :file: ../../_data/entry_parsing_flowchart.svg
+
+
 
 Record Processing
 ------------------
 
+.. card::
 
-   .. card::
+
+   .. warning::
+      Most Code here will be changed in the near future as it currently is almost hardcoded specifically to Antistasi-logs. It will be changed to be more generic and also easier to extend.
 
 

@@ -520,6 +520,8 @@ class DebugDockWidget(BaseDockWidget):
         self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.scroll_area.setWidgetResizable(True)
+
+        self.scroll_area.verticalScrollBar().setSingleStep(self.scroll_area.verticalScrollBar().singleStep() // 4)
         self.content_widget = DebugContentWidget(self)
         self.scroll_area.setWidget(self.content_widget)
         self.setWidget(self.scroll_area)

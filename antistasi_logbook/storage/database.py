@@ -578,12 +578,11 @@ class GidSqliteApswDatabase(APSWDatabase):
             if in_log_file.server_id is not None:
                 if server is not None:
                     in_log_file.server = server
-                else:
-                    in_log_file.server = Server.get_by_id_cached(in_log_file.server_id)
+
             if in_log_file.game_map_id is not None:
-                in_log_file.game_map = GameMap.get_by_id_cached(in_log_file.game_map_id)
+                in_log_file.game_map = self.foreign_key_cache.get_game_map_by_id(in_log_file.game_map_id)
             if in_log_file.version_id is not None:
-                in_log_file.version = Version.get_by_id_cached(in_log_file.version_id)
+                in_log_file.version = self.foreign_key_cache.get_version_by_id(in_log_file.version_id)
 
             return in_log_file
 
@@ -602,7 +601,7 @@ class GidSqliteApswDatabase(APSWDatabase):
 
     def get_all_log_levels(self, ordered_by=LogLevel.id) -> tuple[LogLevel]:
         with self.connection_context() as ctx:
-            return tuple(LogLevel.select().order_by(ordered_by).iterator())
+            return tuple(LogLevel.select().order_by(ordered_by))
 
     def get_all_arma_functions(self, ordered_by=None) -> tuple[ArmaFunction]:
         with self._resolve_arma_functions_check_lock:
@@ -612,14 +611,14 @@ class GidSqliteApswDatabase(APSWDatabase):
         with self.atomic() as txn:
             _ = list(ArmaFunctionAuthorPrefix.select().iterator())
             if not ordered_by:
-                return tuple(ArmaFunction.select(ArmaFunction, ArmaFunctionAuthorPrefix).join_from(ArmaFunction, ArmaFunctionAuthorPrefix).iterator())
+                return tuple(ArmaFunction.select(ArmaFunction, ArmaFunctionAuthorPrefix).join_from(ArmaFunction, ArmaFunctionAuthorPrefix))
 
-            return tuple(ArmaFunction.select(ArmaFunction, ArmaFunctionAuthorPrefix).join_from(ArmaFunction, ArmaFunctionAuthorPrefix).order_by(ordered_by).iterator())
+            return tuple(ArmaFunction.select(ArmaFunction, ArmaFunctionAuthorPrefix).join_from(ArmaFunction, ArmaFunctionAuthorPrefix).order_by(ordered_by))
 
     def get_all_game_maps(self, ordered_by=GameMap.id) -> tuple[GameMap]:
         with self.connection_context() as ctx:
             _out = []
-            for _id, in GameMap.select(GameMap.id).order_by(ordered_by).tuples().iterator():
+            for _id, in GameMap.select(GameMap.id).order_by(ordered_by).tuples():
                 _out.append(GameMap.get_by_id_cached(_id))
 
         return tuple(_out)
@@ -627,14 +626,14 @@ class GidSqliteApswDatabase(APSWDatabase):
     def get_all_origins(self, ordered_by=RecordOrigin.id) -> tuple[RecordOrigin]:
         with self.connection_context() as ctx:
             _out = []
-            for _id, in RecordOrigin.select(RecordOrigin.id).order_by(ordered_by).tuples().iterator():
+            for _id, in RecordOrigin.select(RecordOrigin.id).order_by(ordered_by).tuples():
                 _out.append(RecordOrigin.get_by_id_cached(_id))
         return tuple(_out)
 
     def get_all_versions(self, ordered_by=Version.id) -> tuple[Version]:
         with self.connection_context() as ctx:
             _out = []
-            for _id, in Version.select(Version.id).order_by(ordered_by).tuples().iterator():
+            for _id, in Version.select(Version.id).order_by(ordered_by).tuples():
                 _out.append(Version.get_by_id_cached(_id))
         return tuple(_out)
 
@@ -662,11 +661,11 @@ class GidSqliteApswDatabase(APSWDatabase):
                 in_record.record_class = self.backend.record_class_manager.get_model_by_id(in_record.record_class_id)
                 return in_record
 
-            query = LogRecord.select(LogRecord.id, Message.text, LogRecord.origin_id, LogRecord.called_by_id, LogRecord.logged_from_id, LogRecord.record_class_id).join_from(LogRecord, Message, join_type=JOIN.LEFT_OUTER, on=(LogRecord.message_item == Message.md5_hash), attr="_message")
+            query = LogRecord.select(LogRecord.id, Message.text, LogRecord.origin_id, LogRecord.called_by_id, LogRecord.logged_from_id, LogRecord.record_class_id).join_from(LogRecord, Message, join_type=JOIN.LEFT_OUTER)
             if only_missing_record_class is True:
                 query = query.where(LogRecord.record_class_id >> None)
 
-            for _record_chunk in chunked(query.where(LogRecord.log_file_id == in_log_file_id).iterator(), 1_000):
+            for _record_chunk in chunked(query.where(LogRecord.log_file_id == in_log_file_id), 1_000):
 
                 yield from [_resolve_record(r, self.foreign_key_cache) for r in _record_chunk]
 
@@ -696,13 +695,13 @@ class GidSqliteApswDatabase(APSWDatabase):
 
     def get_unique_server_ips(self) -> tuple[str]:
 
-        _out = tuple(set(s.ip for s in Server.select().iterator(self) if s.ip is not None))
+        _out = tuple(set(s.ip for s in Server.select() if s.ip is not None))
 
         return _out
 
     def get_unique_campaign_ids(self) -> tuple[int]:
 
-        _out = set(l.campaign_id for l in LogFile.select().where(LogFile.unparsable == False).iterator(self) if l.campaign_id is not None)
+        _out = set(l.campaign_id for l in LogFile.select().where(LogFile.unparsable == False) if l.campaign_id is not None)
         return tuple(sorted(_out))
 
     def resolve_all_armafunction_extras(self) -> None:
@@ -710,7 +709,7 @@ class GidSqliteApswDatabase(APSWDatabase):
         with self.atomic():
             query = ArmaFunction.select(ArmaFunction, ArmaFunctionAuthorPrefix).join_from(ArmaFunction, ArmaFunctionAuthorPrefix, join_type=JOIN.LEFT_OUTER).where((ArmaFunction.file_name == None) | (ArmaFunction.function_name == None))
 
-            for arma_func in tuple(query.iterator()):
+            for arma_func in tuple(query):
                 arma_func.load_extras()
 
     def __repr__(self) -> str:

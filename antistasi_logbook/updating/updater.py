@@ -250,14 +250,12 @@ class Updater:
             if stored_file.modified_at < in_remote_info.modified_at or stored_file.size < in_remote_info.size:
                 stored_file.server = server
                 stored_file.game_map = self.database.foreign_key_cache.get_game_map_by_id(stored_file.game_map_id) if stored_file.game_map_id is not None else None
-                # stored_file.version = self.database.foreign_key_cache.get_version_by_id(stored_file.version_id) if stored_file.version_id is not None else None
 
                 return self._update_log_file(log_file=stored_file, remote_info=in_remote_info)
 
             if stored_file.last_parsed_datetime != stored_file.modified_at and stored_file.unparsable is False:
                 stored_file.server = server
                 stored_file.game_map = self.database.foreign_key_cache.get_game_map_by_id(stored_file.game_map_id) if stored_file.game_map_id is not None else None
-                # stored_file.version = self.database.foreign_key_cache.get_version_by_id(stored_file.version_id) if stored_file.version_id is not None else None
 
                 return stored_file
 
@@ -354,7 +352,7 @@ class Updater:
         for i in (list(done) + list(not_done)):
             err = i.exception()
             if err:
-                log.error(err, exc_info=True)
+                raise err
         return len(to_update_log_files)
 
     def emit_change_update_text(self, text):

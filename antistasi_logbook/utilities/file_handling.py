@@ -15,7 +15,11 @@ from collections.abc import Generator
 import inspect
 # * Third Party Imports --------------------------------------------------------------------------------->
 from antistasi_logbook.parsing.record_line import RecordLine
-
+import sys
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 # endregion[Imports]
 
 # region [TODO]
@@ -115,6 +119,9 @@ class FileLineProvider:
                 self._file_completed = True
 
     def advance_line(self) -> None:
+        if self.line_generator is not None and inspect.getgeneratorstate(self.line_generator) is inspect.GEN_CLOSED:
+            raise RuntimeError(f"line_generator of {self!r} is closed.")
+
         if self._initial_filled is False:
             self.initial_fill()
         else:
@@ -140,7 +147,26 @@ class FileLineProvider:
             return
         if inspect.getgeneratorstate(self.line_generator) is not inspect.GEN_CLOSED:
             self.line_generator.close()
+
+    def reset(self) -> Self:
+        self.close()
         self.line_generator = None
+        self._initial_filled = False
+        self.initial_fill()
+
+    def seek_to_line_number(self, line_number: int) -> Self:
+        self.initial_fill()
+
+        if line_number == self.current_line.start:
+            return self
+
+        if line_number < self.current_line.start:
+            self.reset()
+
+        while self.current_line.start < line_number:
+            self.advance_line()
+
+        return self
 
     @property
     def is_empty(self) -> bool:

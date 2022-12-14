@@ -50,3 +50,24 @@ def test_file_context_lineview(file_path: Path):
         assert str(line_view) == all_lines[current_line_number - 1]
 
     assert set(all_lines) == set(collected_lines)
+
+
+def test_seeking():
+    file_path = TEST_DATA_DIR.joinpath("simple_text.txt")
+    all_lines = file_path.read_text(encoding='utf-8', errors='ignore').splitlines()
+    line_provider = FileLineProvider(file_path)
+
+    line_provider.seek_to_line_number(3)
+
+    assert line_provider.current_line.line_number == 3
+    assert line_provider.current_line.content == all_lines[2]
+
+    line_provider.seek_to_line_number(4)
+
+    assert line_provider.current_line.line_number == 4
+    assert line_provider.current_line.content == all_lines[3]
+
+    line_provider.seek_to_line_number(1)
+
+    assert line_provider.current_line.line_number == 1
+    assert line_provider.current_line.content == all_lines[0]

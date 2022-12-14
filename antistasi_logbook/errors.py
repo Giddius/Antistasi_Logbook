@@ -175,6 +175,7 @@ class TypeErrorHandler(DefaultExceptionHandler):
 
 
 class _ExceptionHandlerManager:
+    _is_setup: bool = False
 
     def __init__(self) -> None:
         self.signaler = None
@@ -214,26 +215,26 @@ class _ExceptionHandlerManager:
             self.default_exception_handler.handle_thread_except_hook((type_, value, traceback))
 
     def unraisable_except_hook(self, except_args: "sys.UnraisableHookArgs"):
-        log.error("unraisable exception %r: %r of object %r", except_args.exc_value, except_args.err_msg, except_args.object, exc_info=except_args.exc_traceback)
+        log.error(except_args.exc_value, exc_info=True)
+        log.error("unraisable exception %r: %r of object %r", except_args.exc_value, except_args.err_msg, except_args.object)
 
 
 _HANDLER_SETUP_LOCK = threading.RLock()
 
-_HANDLER_IS_SETUP = False
 
 ExceptionHandlerManager = _ExceptionHandlerManager()
 
 
 def setup_exception_handler():
-    global _HANDLER_IS_SETUP
+
     with _HANDLER_SETUP_LOCK:
-        if _HANDLER_IS_SETUP is True:
+        if ExceptionHandlerManager._is_setup is True:
             return
         else:
             threading.excepthook = ExceptionHandlerManager.thread_except_hook
             sys.excepthook = ExceptionHandlerManager.except_hook
             sys.unraisablehook = ExceptionHandlerManager.unraisable_except_hook
-            _HANDLER_IS_SETUP = True
+            ExceptionHandlerManager._is_setup = True
 
 
 # region[Main_Exec]

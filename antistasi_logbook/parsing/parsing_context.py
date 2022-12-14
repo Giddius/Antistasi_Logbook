@@ -155,7 +155,7 @@ class LogParsingContext:
         self.record_storage: list["RawRecord"] = []
         self._file_line_provider: FileLineProvider = None
         self.futures: list[Future] = []
-        self._bulk_create_batch_size: int = None
+        self._bulk_create_batch_size: int = 2_500
         self.record_lock = RLock()
         self.is_open: bool = False
         self.done_signal: Callable[[], None] = None
@@ -253,6 +253,11 @@ class LogParsingContext:
             self._file_line_provider.initial_fill()
         return self._file_line_provider
 
+    def advance_to_not_parsed_line(self) -> None:
+        if self._log_file.last_parsed_line_number is None:
+            return
+        self.file_line_provider.seek_to_line_number(self._log_file.last_parsed_line_number + 1)
+
     @contextmanager
     def open(self, cleanup: bool = True) -> TextIO:
         with self._log_file.open(cleanup=cleanup) as f:
@@ -327,15 +332,15 @@ class LogParsingContext:
             if len(self.record_storage) == self._log_record_batch_size:
                 while len([i for i in self.futures if i.done() is False]) > 5:
                     sleep(random.randint(1, 3))
-                self.futures.append(self.inserter.insert_messages(records=list(self.record_storage)))
-                self.futures.append(self.inserter.insert(records=list(self.record_storage), context=self))
+                self.futures.append(self.inserter.insert_messages(records=self.record_storage))
+                self.futures.append(self.inserter.insert(records=self.record_storage, context=self))
                 self.record_storage = []
 
     def _dump_rest(self) -> None:
         with self.record_lock:
             if len(self.record_storage) > 0:
-                self.futures.append(self.inserter.insert_messages(records=list(self.record_storage)))
-                self.futures.append(self.inserter.insert(records=list(self.record_storage), context=self))
+                self.futures.append(self.inserter.insert_messages(records=self.record_storage))
+                self.futures.append(self.inserter.insert(records=self.record_storage, context=self))
                 self.record_storage = []
 
     def wait_on_futures(self, timeout: float = None) -> None:

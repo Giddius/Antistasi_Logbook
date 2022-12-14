@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any, Union, Iterable, Optional
 from pathlib import Path
 from datetime import datetime, timezone
 from threading import Lock, RLock
+import threading
 from concurrent.futures import Future, ThreadPoolExecutor
 
 # * Third Party Imports --------------------------------------------------------------------------------->
@@ -109,6 +110,7 @@ class RecordInserter:
         return self.backend.database
 
     def _insert_func(self, records: Union[Iterable["RawRecord"], Future], context: "LogParsingContext") -> ManyRecordsInsertResult:
+
         start_time = perf_counter()
         record_params = list(r.to_sql_params(context._log_file) for r in records)
         record_insert_phrase = str(RawRecord.insert_sql_phrase.phrase)
@@ -441,7 +443,7 @@ class RecordProcessor:
             line_split_2 = [idx for idx, l in enumerate(raw_record.lines) if l.content == "-------------------------------------------------------"][0]
             if line_split_2 == line_split_1 + 1:
                 new_lines = list(raw_record.lines)[:line_split_1]
-                raw_record = raw_record.__class__(lines=new_lines)
+                raw_record = raw_record.__class__(lines=new_lines, utc_offset=raw_record.utc_offset)
 
         raw_record.record_origin = self.determine_origin(raw_record)
         if raw_record.record_origin == self.antistasi_origin:

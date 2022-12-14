@@ -1,0 +1,30 @@
+.. mermaid::
+
+   %%{init: {'theme':'neutral','flowchart': { 'curve': 'natural' }}%%
+   graph TD
+
+      READ_LINE[read line]
+      STORE_LINE[(store line)]
+      CLEAR_STORED_LINES[(clear\nline-storage)]
+      CHECK_STARTS_WITH_TS{line starts with\nfull local timestamp?}
+      CHECK_STARTS_WITH_MARKER{line starts with\ncontinuing-marker?}
+      CHECK_LINES_STORAGE_EMPTY{is line-storage empty?}
+      YIELD_ENTRY[yield\nstored lines\nas entry]
+
+
+      READ_LINE --> CHECK_STARTS_WITH_TS
+      YIELD_ENTRY --> CLEAR_STORED_LINES --> STORE_LINE
+      STORE_LINE --> READ_LINE
+
+
+
+      CHECK_STARTS_WITH_TS --> |NO| STORE_LINE
+
+
+      CHECK_STARTS_WITH_TS --> |YES| CHECK_LINES_STORAGE_EMPTY
+      CHECK_LINES_STORAGE_EMPTY --> |YES| STORE_LINE
+      CHECK_LINES_STORAGE_EMPTY --> |NO| CHECK_STARTS_WITH_MARKER
+
+      CHECK_STARTS_WITH_MARKER --> |YES| STORE_LINE
+      CHECK_STARTS_WITH_MARKER --> |NO| YIELD_ENTRY
+

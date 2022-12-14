@@ -192,18 +192,18 @@ class ForeignKeyCache:
 
     @ property
     def all_origin_objects(self) -> dict[str, RecordOrigin]:
+        self.origin_blocker.wait()
 
         if self._all_origin_objects is None:
-            self.origin_blocker.wait()
             self._all_origin_objects = frozendict({origin.identifier: origin for origin in self.database.get_all_origins()})
 
         return self._all_origin_objects
 
     @ property
     def all_origin_objects_by_id(self) -> dict[str, RecordOrigin]:
-
+        self.origin_blocker.wait()
         if self._all_origin_objects_by_id is None:
-            self.origin_blocker.wait()
+
             self._all_origin_objects_by_id = frozendict({origin.id: origin for origin in self.database.get_all_origins()})
 
         return self._all_origin_objects_by_id
@@ -230,6 +230,8 @@ class ForeignKeyCache:
         try:
             return self.all_log_levels_by_id[model_id]
         except KeyError:
+            log.debug("Having to query database for log_level with id %r", model_id)
+
             return LogLevel.select().where(LogLevel.id == model_id).execute(self.database)[0]
 
     def get_arma_file_by_id(self, model_id: int) -> Optional[ArmaFunction]:
@@ -238,6 +240,7 @@ class ForeignKeyCache:
         try:
             return self.all_arma_file_objects_by_id[model_id]
         except KeyError:
+            log.debug("Having to query database for arma_file with id %r", model_id)
             return ArmaFunction.select().where(ArmaFunction.id == model_id).execute(self.database)[0]
 
     def get_game_map_by_id(self, model_id: int) -> Optional[GameMap]:
@@ -246,6 +249,8 @@ class ForeignKeyCache:
         try:
             return self.all_game_map_objects_by_id[model_id]
         except KeyError:
+            log.debug("Having to query database for game_map with id %r", model_id)
+
             return GameMap.select().where(GameMap.id == model_id).execute(self.database)[0]
 
     def get_game_map_case_insensitive(self, name: str) -> Optional[GameMap]:
@@ -259,6 +264,8 @@ class ForeignKeyCache:
         try:
             return self.all_origin_objects_by_id[model_id]
         except KeyError:
+            log.debug("Having to query database for origin with id %r", model_id)
+
             return RecordOrigin.select().where(RecordOrigin.id == model_id).execute(self.database)[0]
 
     def get_version_by_id(self, model_id: int) -> Optional[Version]:
@@ -267,6 +274,7 @@ class ForeignKeyCache:
         try:
             return self.all_version_objects_by_id[model_id]
         except KeyError:
+            log.debug("Having to query database for version with id %r", model_id)
 
             return Version.select().where(Version.id == model_id).execute()[0]
 

@@ -1423,9 +1423,10 @@ class LogRecord(BaseModel):
 
     class Meta:
         table_name = 'LogRecord'
-        # indexes = (
-        #     (("start", "end", "log_file", "log_level", "record_class"), False),
-        # )
+        indexes = (
+            (("log_file", "start", "message_item"), True),
+            #     (("start", "end", "log_file", "log_level", "record_class"), False),
+        )
 
     @classmethod
     @lru_cache(None)
@@ -1441,7 +1442,7 @@ class LogRecord(BaseModel):
     def server(self) -> Server:
         return Server.get_by_id_cached(self.log_file.server_id)
 
-    @property
+    @cached_property
     def message(self) -> str:
         return sys.intern(self.message_item.text)
     # @property
