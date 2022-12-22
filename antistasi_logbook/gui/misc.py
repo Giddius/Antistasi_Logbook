@@ -9,9 +9,9 @@ Soon.
 # * Standard Library Imports ---------------------------------------------------------------------------->
 from enum import Enum, auto, unique
 from pathlib import Path
-
+from typing import Union, Iterable
 # * Qt Imports --------------------------------------------------------------------------------------->
-from PySide6.QtCore import Qt, Signal, QObject
+from PySide6.QtCore import Qt, Signal, QObject, QSettings
 
 # endregion[Imports]
 
@@ -80,6 +80,48 @@ class UpdaterSignaler(QObject):
         !REPLACE!
         """
         return f'{self.__class__.__name__}'
+
+
+def write_settings(settings_obj: QSettings, key_path: Union[str, Iterable], value: object) -> None:
+    if isinstance(key_path, str):
+        settings_obj.setValue(key_path, value)
+
+    elif len(key_path) == 1:
+        settings_obj.setValue(key_path[0], value)
+
+    else:
+        groups_opened = 0
+        for sub_key in key_path[:-1]:
+            settings_obj.beginGroup(sub_key)
+            groups_opened += 1
+
+        settings_obj.setValue(key_path[-1], value)
+
+        for _ in range(groups_opened):
+            settings_obj.endGroup()
+
+
+def read_settings(settings_obj: QSettings, key_path: Union[str, Iterable], default: object = ...) -> object:
+    default_param = tuple() if default is ... else (default,)
+
+    if isinstance(key_path, str):
+        return settings_obj.value(key_path, *default_param)
+
+    elif len(key_path) == 1:
+        return settings_obj.value(key_path[0], *default_param)
+
+    else:
+        groups_opened = 0
+        for sub_key in key_path[:-1]:
+            settings_obj.beginGroup(sub_key)
+            groups_opened += 1
+
+        _out = settings_obj.value(key_path[-1], *default_param)
+
+        for _ in range(groups_opened):
+            settings_obj.endGroup()
+
+        return _out
 
 # region[Main_Exec]
 

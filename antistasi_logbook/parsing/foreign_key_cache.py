@@ -227,6 +227,8 @@ class ForeignKeyCache:
     def get_log_level_by_id(self, model_id: int) -> Optional[LogLevel]:
         if model_id is None:
             return
+        if not isinstance(model_id, int):
+            return model_id
         try:
             return self.all_log_levels_by_id[model_id]
         except KeyError:
@@ -237,6 +239,8 @@ class ForeignKeyCache:
     def get_arma_file_by_id(self, model_id: int) -> Optional[ArmaFunction]:
         if model_id is None:
             return
+        if not isinstance(model_id, int):
+            return model_id
         try:
             return self.all_arma_file_objects_by_id[model_id]
         except KeyError:
@@ -246,6 +250,9 @@ class ForeignKeyCache:
     def get_game_map_by_id(self, model_id: int) -> Optional[GameMap]:
         if model_id is None:
             return
+
+        if not isinstance(model_id, int):
+            return model_id
         try:
             return self.all_game_map_objects_by_id[model_id]
         except KeyError:
@@ -261,6 +268,8 @@ class ForeignKeyCache:
     def get_origin_by_id(self, model_id: int) -> Optional[RecordOrigin]:
         if model_id is None:
             return
+        if not isinstance(model_id, int):
+            return model_id
         try:
             return self.all_origin_objects_by_id[model_id]
         except KeyError:
@@ -271,6 +280,8 @@ class ForeignKeyCache:
     def get_version_by_id(self, model_id: int) -> Optional[Version]:
         if model_id is None:
             return
+        if not isinstance(model_id, int):
+            return model_id
         try:
             return self.all_version_objects_by_id[model_id]
         except KeyError:
@@ -332,10 +343,10 @@ class ForeignKeyCache:
 
     @ classmethod
     def reset_sender_for_all_instances(cls, sender, instance=None, created: bool = False):
-        for instance in cls._instances.values():
-            if instance is None:
+        for _instance in cls._instances.values():
+            if _instance is None:
                 continue
-            instance._on_save_handler(sender=sender, instance=instance, created=created)
+            _instance._on_save_handler(sender=sender, instance=instance, created=created)
 
     def _on_save_handler(self, sender, instance, created):
         """
@@ -353,10 +364,7 @@ class ForeignKeyCache:
             with event:
                 for attr_name in class_attr_names:
                     setattr(self, attr_name, None)
-                try:
-                    getattr(sender, "get_by_id_cached").cache_clear()
-                except AttributeError:
-                    pass
+
             try:
                 model_data = model_to_dict(instance, recurse=False)
             except Exception as e:

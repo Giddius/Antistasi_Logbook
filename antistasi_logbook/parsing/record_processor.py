@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from threading import Lock, RLock
 import threading
 from concurrent.futures import Future, ThreadPoolExecutor
-
+from pprint import pformat
 # * Third Party Imports --------------------------------------------------------------------------------->
 import apsw
 import attr
@@ -192,8 +192,6 @@ class RecordInserter:
 
             LogFile.update(**{k: v for k, v in in_dict.items() if v is not None}).where(LogFile.id == log_file.id).execute()
 
-            LogFile.get_by_id_cached.cache_clear()
-
             return log_file.id
         except Exception as e:
             log.critical("log_file_data_dict: \n        %s", '\n        '.join(f"{k!r}:{v!r}" for k, v in in_dict.items()))
@@ -235,13 +233,17 @@ class RecordInserter:
 
     def _execute_insert_messages(self, records: Iterable["RawRecord"]):
         start_time = perf_counter()
-        message_params = list({(Message.md5_hash.db_value(r.message_hash), Message.text.db_value(r.message)) for r in records if r and r.message_hash not in self.database.most_common_messages.keys()})
+        try:
+            most_common_hashes = self.database.most_common_messages.keys()
+            message_params = list({(r.message_hash, r.message) for r in records if r and r.message_hash not in most_common_hashes})
+            message_params = tuple({"md5_hash": i[0], "text": i[1]} for i in message_params)
 
-        with self.database.connection() as conn:
-            conn.executemany('INSERT OR IGNORE INTO "Message" ("md5_hash", "text") VALUES (?, ?)', message_params)
+            Message.insert_many(message_params).on_conflict_ignore().execute()
 
-        end_time = perf_counter()
-        log.debug("inserted %r messsages in %.3f s", len(message_params), end_time - start_time)
+            end_time = perf_counter()
+            log.debug("inserted %r messsages in %.3f s", len(message_params), end_time - start_time)
+        except Exception as e:
+            log.error(e, exc_info=True)
 
     def insert_messages(self, records: Iterable["RawRecord"]) -> Future:
         if isinstance(records, Future):
@@ -265,6 +267,10 @@ class RecordInserter:
             self.database.commit()
             conn: apsw.Connection = self.database.connection()
             if conn is not None:
+                try:
+                    log.debug("%s", pformat(conn.cache_stats(include_entries=True)))
+                except Exception as e:
+                    log.error(e, exc_info=True)
                 conn.close(True)
 
         for pool in [self.thread_pool]:

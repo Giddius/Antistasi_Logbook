@@ -525,21 +525,6 @@ def show_default_icons():
     return widget
 
 
-def get_all_chache_info():
-    app: "AntistasiLogbookApplication" = QApplication.instance()
-    db = app.backend.database
-    _out = {}
-    for model in db._base_model.get_all_models():
-        try:
-            _out[model._meta.table_name] = model.get_by_id_cached.cache_info()._asdict()
-        except AttributeError:
-            try:
-                _out[model._meta.table_name] = model._get_by_id_cached.cache_info()._asdict()
-            except AttributeError:
-                continue
-    return _out
-
-
 def check_query_object_method():
 
     def _fake_constructor(*args, **kwargs):
@@ -698,7 +683,6 @@ def setup_debug_widget(debug_dock_widget: "DebugDockWidget") -> None:
     debug_dock_widget.add_show_func_result_button(show_all_models, "database-meta")
     debug_dock_widget.add_show_func_result_button(show_default_icons, "PySide")
     debug_dock_widget.add_show_func_result_button(check_query_object_method, "models")
-    debug_dock_widget.add_show_func_result_button(get_all_chache_info, "models")
     debug_dock_widget.add_show_func_result_button(check_some_model_data, "models")
     debug_dock_widget.add_show_func_result_button(show_and_dump_meta_attrs, "models")
     debug_dock_widget.add_show_func_result_button(count_error_records_by_group, "queries")

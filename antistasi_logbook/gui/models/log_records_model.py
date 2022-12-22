@@ -19,7 +19,7 @@ from PySide6.QtWidgets import QApplication
 
 # * Third Party Imports --------------------------------------------------------------------------------->
 import attr
-from peewee import Field, Query
+from peewee import Field, Query, JOIN, prefetch, PREFETCH_TYPE
 from frozendict import frozendict
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
@@ -31,12 +31,12 @@ from gidapptools.general_helper.color.color_item import Color
 from antistasi_logbook.gui.misc import CustomRole
 from antistasi_logbook.records.enums import MessageFormat
 from antistasi_logbook.records.base_record import BaseRecord
-from antistasi_logbook.storage.models.models import LogFile, Message, LogRecord, RecordClass
+from antistasi_logbook.storage.models.models import LogFile, Message, LogRecord, RecordClass, LogLevel, ArmaFunction, RecordOrigin, Server
 from antistasi_logbook.storage.models.custom_fields import FakeField
 from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE, BaseQueryDataModel
 from antistasi_logbook.gui.models.proxy_models.base_proxy_model import BaseProxyModel
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-
+from antistasi_logbook.utilities.misc import tell_callers
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.records.abstract_record import AbstractRecord
@@ -128,7 +128,7 @@ class LogRecordsModel(BaseQueryDataModel):
 
     def get_query(self) -> "Query":
 
-        query = LogRecord.select(LogRecord, Message).join_from(LogRecord, Message, on=(LogRecord.message_item == Message.md5_hash))
+        query = LogRecord.select(LogRecord)
         if self._base_filter_item is not None:
             query = query.where(self._base_filter_item)
         if self.filter_item is not None:
@@ -201,28 +201,41 @@ class LogRecordsModel(BaseQueryDataModel):
             return self.message_font
         return self.message_font
 
-    def _get_record(self, **_item_data):
-        _item_data["text"] = sys.intern(Message.get_by_id_cached(_item_data["message_item"]).text)
-        record_class = self.backend.record_class_manager.get_by_id(_item_data.get('record_class'))
-        log_file = LogFile.get_by_id_cached(_item_data["log_file"])
-        record_item = record_class.from_model_dict(_item_data, foreign_key_cache=self.backend.foreign_key_cache, log_file=log_file)
+    def _get_record(self, _item: LogRecord):
+
+        record_class = self.backend.record_class_manager.get_by_id(_item.record_class_id)
+        _item_dict = {"id": _item.id,
+                      "log_file": _item.log_file,
+                      "origin": _item.origin_id,
+                      "start": _item.start,
+                      "end": _item.end,
+                      "text": sys.intern(_item.message_item.text),
+                      "recorded_at": _item.recorded_at,
+                      "log_level": _item.log_level_id,
+                      "marked": _item.marked,
+                      "called_by": _item.called_by_id,
+                      "logged_from": _item.logged_from_id}
+        record_item = record_class.from_model_dict(_item_dict, foreign_key_cache=self.backend.foreign_key_cache, log_file=_item_dict["log_file"])
 
         return record_item
 
     def get_content(self) -> "LogRecordsModel":
 
         log.debug("starting getting content for %r", self)
+        self.backend.foreign_key_cache.reset_all()
         self.backend.foreign_key_cache.preload_all()
         self.collecting_records = True
-        # all_records = tuple(self.get_query().dicts().iterator())
-        # all_log_files = {log_file.id: log_file for log_file in self.backend.database.get_log_files() if log_file.id in {i.get('log_file') for i in all_records}}
-
-        # self.content_items = tuple(self.app.backend.thread_pool.map(partial(self._get_record, _all_log_files=all_log_files), all_records))
 
         self.content_items = []
+        # items = list(self.get_query().iterator())
+        # all_log_files = {i.id: i for i in LogFile.select().where(LogFile.id << list({s.log_file_id for s in items})).iterator()}
+        # for item in items:
+        #     item.log_file = all_log_files[item.log_file_id]
 
-        with self.database.atomic():
-            self.content_items = tuple(self.get_query().objects(self._get_record).iterator())
+        self.content_items = tuple(self.backend.thread_pool.map(self._get_record, prefetch(self.get_query(), LogFile, Message, Server, prefetch_type=PREFETCH_TYPE.JOIN)))
+
+        log.debug("amount log_file items: %r", len([id(i.log_file) for i in self.content_items]))
+        log.debug("amount unique objects of log_file items: %r", len({id(i.log_file) for i in self.content_items}))
 
         log.debug("finished getting content for %r", self)
         self.collecting_records = False

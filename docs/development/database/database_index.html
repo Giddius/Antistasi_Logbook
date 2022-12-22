@@ -8,12 +8,13 @@
     <link rel="shortcut icon" href="../../_static/app_favicon.png"/><!-- Generated with Sphinx 5.3.0 and Furo 2022.12.07 -->
         <title>Database - Antistasi Logbook 0.4.6 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?digest=91d0f0d1c444bdcb17a68e833c7a53903343c195" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?digest=c30b4703f2f8d6f3aebc320892d7f567136b22ee" />
     <link rel="stylesheet" type="text/css" href="../../_static/tabs.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/design-style.4045f2051d55cab465a707391d5b2007.min.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
     <link rel="stylesheet" type="text/css" href="../../_static/css/extra_styling.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/css/extra_cards_styling.css" />
     
     
 
@@ -22,18 +23,24 @@
   body {
     --color-code-background: #272822;
   --color-code-foreground: #f8f8f2;
+  --logbook-card-background-color: #ffffef40;
+  --sd-color-shadow: #00000080;
   
   }
   @media not print {
     body[data-theme="dark"] {
       --color-code-background: #202020;
   --color-code-foreground: #d0d0d0;
+  --logbook-card-background-color: #54544440;
+  --sd-color-shadow: #ffffff40;
   
     }
     @media (prefers-color-scheme: dark) {
       body:not([data-theme="light"]) {
         --color-code-background: #202020;
   --color-code-foreground: #d0d0d0;
+  --logbook-card-background-color: #54544440;
+  --sd-color-shadow: #ffffff40;
   
       }
     }
@@ -212,9 +219,20 @@
         <article role="main">
           <section id="database">
 <h1>Database<a class="headerlink" href="#database" title="Permalink to this heading">#</a></h1>
+<section id="why-sqlite">
+<h2>Why SQLite?<a class="headerlink" href="#why-sqlite" title="Permalink to this heading">#</a></h2>
+<div class="admonition-see admonition">
+<p class="admonition-title">See</p>
+<p><a class="reference external" href="https://www.sqlite.org/index.html">SQLite</a></p>
+</div>
+<p>The reason that this application is using a local SQLite file and not a Database that is Server based is, that arma log-files can often contain sensitive or private information.
+Either about the server or the user playing on it. Dealing with making a Database Server secure and making sure it does not break any laws, is not something I feel comfortable and also not something I want to do.
+Finally I generally dislike the idea of online data collection if it is not absolutely necessary.</p>
+<p>SQLite is the best solution for a local Database and has matured a lot in recent years. It is also cross-platform and does not need anything like docker.</p>
+</section>
 <section id="erd">
 <h2>ERD<a class="headerlink" href="#erd" title="Permalink to this heading">#</a></h2>
-<a class="reference internal image-reference" href="../../_images/database_graph.png"><img alt="../../_images/database_graph.png" class="align-center" src="../../_images/database_graph.png" style="width: 430.55px; height: 368.45000000000005px;" /></a>
+<a class="reference internal image-reference" href="../../_images/database_graph.png"><img alt="../../_images/database_graph.png" class="align-left" src="../../_images/database_graph.png" style="width: 838.8000000000001px; height: 1459.9px;" /></a>
 </section>
 </section>
 
@@ -274,6 +292,7 @@
           <div class="toc-tree">
             <ul>
 <li><a class="reference internal" href="#">Database</a><ul>
+<li><a class="reference internal" href="#why-sqlite">Why SQLite?</a></li>
 <li><a class="reference internal" href="#erd">ERD</a></li>
 </ul>
 </li>

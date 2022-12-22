@@ -54,11 +54,10 @@ class Parser:
 
     """
 
-    __slots__ = ("backend", "regex_keeper", "stop_event", "record_processor")
+    __slots__ = ("backend", "stop_event", "record_processor")
 
     def __init__(self, backend: "Backend", record_processor: "RecordProcessor", stop_event: Event) -> None:
         self.backend = backend
-        self.regex_keeper = SimpleRegexKeeper()
         self.stop_event = stop_event
         self.record_processor = record_processor
 
@@ -67,14 +66,14 @@ class Parser:
 
     def _parse_header_text(self, context: LogParsingContext) -> list["RecordLine"]:
         header_text_lines = []
-        while not self.regex_keeper.only_time.match(context.file_line_provider.current_line.content):
+        while not context.regex_keeper.only_time.match(context.file_line_provider.current_line.content):
             header_text_lines.append(context.file_line_provider.current_line)
             context.file_line_provider.advance_line()
         return header_text_lines
 
     def _parse_startup_entries(self, context: LogParsingContext) -> list[RecordLine]:
         startup_entrie_lines = []
-        while not self.regex_keeper.local_datetime.match(context.file_line_provider.current_line.content):
+        while not context.regex_keeper.local_datetime.match(context.file_line_provider.current_line.content):
             startup_entrie_lines.append(context.file_line_provider.current_line)
             context.file_line_provider.advance_line()
         return startup_entrie_lines
@@ -82,8 +81,8 @@ class Parser:
     def parse_entries(self, context: LogParsingContext) -> None:
         utc_offset = context.log_file_data["utc_offset"]
         while context.file_line_provider.has_reached_end is False and not self.stop_event.is_set():
-            if self.regex_keeper.local_datetime.match(context.file_line_provider.current_line.content):
-                if match := self.regex_keeper.continued_record.match(context.file_line_provider.current_line.content):
+            if context.regex_keeper.local_datetime.match(context.file_line_provider.current_line.content):
+                if match := context.regex_keeper.continued_record.match(context.file_line_provider.current_line.content):
                     context.line_cache.append(RecordLine(content=match.group('content'), start=context.file_line_provider.current_line.start))
                     context.file_line_provider.advance_line()
                     continue
@@ -108,8 +107,7 @@ class Parser:
         if context.unparsable is True:
             log.info("Log file %r is unparseable", context._log_file)
             return
-        if self.stop_event.is_set():
-            return
+
         _ = context.file_line_provider
         if context._log_file.header_text is None:
             log.info("Parsing header-text for %r", context._log_file)
@@ -128,7 +126,8 @@ class Parser:
         for raw_record in self.parse_entries(context):
 
             processed_record = self.record_processor(raw_record=raw_record)
-            yield processed_record
+            context.insert_record(processed_record)
+        context._dump_rest()
 
 
 # region[Main_Exec]

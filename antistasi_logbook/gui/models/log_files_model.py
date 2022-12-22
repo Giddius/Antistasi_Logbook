@@ -138,12 +138,11 @@ class LogFilesModel(BaseQueryDataModel):
 
     def get_content(self) -> "BaseQueryDataModel":
         def load_up_log_file(in_log_file: LogFile):
-            in_log_file.server = Server.get_by_id_cached(in_log_file.server_id)
+            in_log_file.server = Server.get_by_id(in_log_file.server_id)
             in_log_file.game_map = self.backend.database.foreign_key_cache.get_game_map_by_id(in_log_file.game_map_id)
-            if in_log_file.version_id is not None:
-                in_log_file.version = Version.get_by_id_cached(in_log_file.version_id)
+
             if in_log_file.mod_set_id is not None:
-                in_log_file.mod_set = ModSet.get_by_id_cached(in_log_file.mod_set_id)
+                in_log_file.mod_set = ModSet.get_by_id(in_log_file.mod_set_id)
 
             return in_log_file
 

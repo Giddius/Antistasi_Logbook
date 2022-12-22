@@ -256,7 +256,7 @@ class BaseRecord:
         if name == "record_class":
             return self.__class__
         if name == "server":
-            return Server.get_by_id_cached(self.log_file.server_id)
+            return Server.get_by_id(self.log_file.server_id)
         try:
             return super().__getattr__(name)
         except AttributeError:

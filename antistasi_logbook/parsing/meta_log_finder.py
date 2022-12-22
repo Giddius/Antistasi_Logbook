@@ -127,6 +127,7 @@ class MetaFinder:
             self.campaign_id: int = MiscEnum.NOT_FOUND
             self.is_new_campaign: bool = MiscEnum.NOT_FOUND
         else:
+            log.debug("received existing_data: %r", existing_data)
             self.game_map: str = MiscEnum.NOT_FOUND if existing_data.get("has_game_map", False) is False else MiscEnum.DEFAULT
             self.utc_offset: tzoffset = MiscEnum.NOT_FOUND if existing_data.get("utc_offset", None) is None else MiscEnum.DEFAULT
             self.version: VersionItem = MiscEnum.NOT_FOUND if existing_data.get("version", None) is None else MiscEnum.DEFAULT
@@ -145,11 +146,13 @@ class MetaFinder:
 
     def _resolve_version(self, text: str) -> None:
         if match := self.regex_keeper.version.search(text):
+            log.debug("found version match %r", match)
             version = VersionItem.from_string(match.group("version").strip())
 
             self.version = version
         elif match := self.regex_keeper.game_file.search(text):
             raw = match.group('game_file')
+            log.debug("found version via game_file match %r | %r", raw, match)
             version_args = [i for i in raw if i.isnumeric()]
             if version_args:
                 while len(version_args) < 3:

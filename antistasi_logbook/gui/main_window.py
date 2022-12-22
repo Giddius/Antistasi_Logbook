@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 from tempfile import TemporaryDirectory
 from threading import Thread
 from concurrent.futures import Future
-
+from pprint import pformat
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QColor, QCloseEvent, QDesktopServices
 from PySide6.QtCore import Qt, QSize, QTimer, Signal, QSettings, QByteArray, QTimerEvent
@@ -68,7 +68,7 @@ from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataMode
 from antistasi_logbook.gui.models.remote_storages_model import RemoteStoragesModel
 from antistasi_logbook.gui.widgets.data_view_widget.data_view import DataView
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-
+from antistasi_logbook.gui.misc import write_settings, read_settings
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
@@ -208,8 +208,12 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.menubar.open_credentials_managment_action.triggered.connect(self.show_credentials_managment_window)
         log.debug("finished setting up %r", self.menubar)
         self.setWindowIcon(self.app.icon)
-        settings = QSettings()
-        geometry = settings.value('main_window_geometry', QByteArray())
+        settings = self.app.settings
+        log.debug("settings.allKeys(): %r", settings.allKeys())
+        log.debug("settings.group(): %r", settings.group())
+        log.debug("settings.fileName(): %r", settings.fileName())
+
+        geometry = read_settings(self.app.settings, ['main_window', 'geometry'], QByteArray())
         if geometry.size():
             self.restoreGeometry(geometry)
         else:
@@ -729,9 +733,9 @@ class AntistasiLogbookMainWindow(QMainWindow):
             log.info("closing %r", self)
             self.stop_update_timer()
             splash = QSplashScreen(AllResourceItems.app_icon_image.get_as_pixmap(), Qt.WindowStaysOnTopHint)
-            settings = QSettings()
+
             log.debug("saving main window geometry")
-            settings.setValue('main_window_geometry', self.saveGeometry())
+            write_settings(self.app.settings, ['main_window', 'geometry'], self.saveGeometry())
             self.setVisible(False)
             if self.config.get("database", "backup_database") is True:
                 splash.show()

@@ -288,7 +288,9 @@ class AntistasiLogbookApplication(QApplication):
 
     @property
     def settings(self) -> QSettings:
-        return QSettings()
+        settings = QSettings()
+        settings.setAtomicSyncRequired(True)
+        return settings
 
     @property
     def is_dev(self) -> bool:

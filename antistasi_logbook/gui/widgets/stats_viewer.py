@@ -103,7 +103,7 @@ class ColorSelector(QGroupBox):
         color = self.app.color_config.get(self.color_config_name, key.replace(" ", "_"), default=None)
         if color is not None:
             color_selector.setColor(color)
-        color_selector.sigColorChanged.connect(self.color_change_proxy)
+        color_selector.sigColorChanged.connect(self.color_change_proxy, type=Qt.ConnectionType.UniqueConnection)
         self.key_map[color_selector] = key
 
     @Slot(object)
@@ -137,14 +137,14 @@ class PaddingOptionsBox(QGroupBox):
         self.y_padding_factor_selector.setValue(self.default_y_padding_factor)
 
         self.y_padding_factor_selector.setSingleStep(0.05)
-        self.y_padding_factor_selector.valueChanged.connect(self.y_padding_factor_changed.emit)
+        self.y_padding_factor_selector.valueChanged.connect(self.y_padding_factor_changed.emit, type=Qt.ConnectionType.UniqueConnection)
         self.layout.addRow("Y", self.y_padding_factor_selector)
 
         self.x_padding_factor_selector = QDoubleSpinBox(self)
         self.x_padding_factor_selector.setDecimals(2)
         self.x_padding_factor_selector.setValue(self.default_x_padding_factor)
         self.x_padding_factor_selector.setSingleStep(0.05)
-        self.x_padding_factor_selector.valueChanged.connect(self.x_padding_factor_changed.emit)
+        self.x_padding_factor_selector.valueChanged.connect(self.x_padding_factor_changed.emit, type=Qt.ConnectionType.UniqueConnection)
         self.layout.addRow("X", self.x_padding_factor_selector)
 
     @property
@@ -183,17 +183,17 @@ class ControlBox(QGroupBox):
 
         self.hide_extra_lines_toggle.active = False
 
-        self.hide_extra_lines_toggle.clicked.connect(self.on_hide_extra_lines_pressed)
+        self.hide_extra_lines_toggle.clicked.connect(self.on_hide_extra_lines_pressed, type=Qt.ConnectionType.UniqueConnection)
         self.form_layout.addRow("Hide extra Lines", self.hide_extra_lines_toggle)
 
         self.hide_symbols_button = QPushButton("Hide")
         self.hide_symbols_button.active = False
-        self.hide_symbols_button.clicked.connect(self.on_hide_symbols_pressed)
+        self.hide_symbols_button.clicked.connect(self.on_hide_symbols_pressed, type=Qt.ConnectionType.UniqueConnection)
         self.form_layout.addRow("Hide Symbols", self.hide_symbols_button)
 
         self.hide_legend_button = QPushButton("Hide")
         self.hide_legend_button.active = True
-        self.hide_legend_button.clicked.connect(self.on_hide_legend_pressed)
+        self.hide_legend_button.clicked.connect(self.on_hide_legend_pressed, type=Qt.ConnectionType.UniqueConnection)
         self.form_layout.addRow("Hide Legend", self.hide_legend_button)
         self.on_hide_symbols_pressed()
 
@@ -483,8 +483,8 @@ class StatsWindow(QMainWindow):
     def general_setup(self):
         self.resize(1500, 1000)
         self.status_bar = CrosshairDisplayBar(self).setup()
-        self.mouse_x_pos_changed.connect(self.status_bar.set_x_value)
-        self.mouse_y_pos_changed.connect(self.status_bar.set_y_value)
+        self.mouse_x_pos_changed.connect(self.status_bar.set_x_value, type=Qt.ConnectionType.UniqueConnection)
+        self.mouse_y_pos_changed.connect(self.status_bar.set_y_value, type=Qt.ConnectionType.UniqueConnection)
         self.setStatusBar(self.status_bar)
         self.control_box.setFixedWidth(450)
         self.layout.addWidget(self.control_box, 0)
@@ -541,9 +541,9 @@ class StatsWindow(QMainWindow):
                 item.setVisible(False)
 
             for sample, label in self.legend.items:
-                sample.changed_vis.connect(self.change_limits)
+                sample.changed_vis.connect(self.change_limits, type=Qt.ConnectionType.UniqueConnection)
 
-            self.plot_widget.sceneObj.sigMouseMoved.connect(self.mouse_moved_in_plot)
+            self.plot_widget.sceneObj.sigMouseMoved.connect(self.mouse_moved_in_plot, type=Qt.ConnectionType.UniqueConnection)
 
         self.view_box.setAspectLocked(None)
 
@@ -630,17 +630,17 @@ class StatsWindow(QMainWindow):
 
     def control_setup(self):
         self.control_box.line_width_selector.setValue(1)
-        self.control_box.line_width_selector.valueChanged.connect(self.change_pen_widths)
+        self.control_box.line_width_selector.valueChanged.connect(self.change_pen_widths, type=Qt.ConnectionType.UniqueConnection)
         for key in self.keys:
             self.control_box.color_box.add_key(key)
-        self.control_box.color_box.color_changed.connect(self.change_pen_color)
-        self.control_box.request_change_extra_lines_hidden.connect(self.change_hide_extra_lines)
-        self.control_box.padding_factor_select_box.y_padding_factor_changed.connect(self.y_factor_changed)
-        self.control_box.padding_factor_select_box.x_padding_factor_changed.connect(self.x_factor_changed)
-        self.control_box.hide_legend_button.pressed.connect(self.legend.change_visibility)
-        self.control_box.show_all_button.pressed.connect(self.legend.show_all)
-        self.control_box.hide_all_button.pressed.connect(self.legend.hide_all)
-        self.control_box.hide_symbols_button.pressed.connect(self.change_symbol_vis)
+        self.control_box.color_box.color_changed.connect(self.change_pen_color, type=Qt.ConnectionType.UniqueConnection)
+        self.control_box.request_change_extra_lines_hidden.connect(self.change_hide_extra_lines, type=Qt.ConnectionType.UniqueConnection)
+        self.control_box.padding_factor_select_box.y_padding_factor_changed.connect(self.y_factor_changed, type=Qt.ConnectionType.UniqueConnection)
+        self.control_box.padding_factor_select_box.x_padding_factor_changed.connect(self.x_factor_changed, type=Qt.ConnectionType.UniqueConnection)
+        self.control_box.hide_legend_button.pressed.connect(self.legend.change_visibility, type=Qt.ConnectionType.UniqueConnection)
+        self.control_box.show_all_button.pressed.connect(self.legend.show_all, type=Qt.ConnectionType.UniqueConnection)
+        self.control_box.hide_all_button.pressed.connect(self.legend.hide_all, type=Qt.ConnectionType.UniqueConnection)
+        self.control_box.hide_symbols_button.pressed.connect(self.change_symbol_vis, type=Qt.ConnectionType.UniqueConnection)
 
     def change_symbol_vis(self):
         if self._symbols_visible is True:

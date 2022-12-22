@@ -35,7 +35,7 @@ from gidapptools.general_helper.color.color_item import Color
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.errors import InsufficientDataPointsError
 from antistasi_logbook.data.sqf_syntax_data import SQF_BUILTINS_REGEX
-from antistasi_logbook.storage.models.models import Mod, Server, GameMap, LogFile, ModLink, LogRecord, RecordClass
+from antistasi_logbook.storage.models.models import Mod, Server, GameMap, LogFile, ModLink, LogRecord, RecordClass, Version
 from antistasi_logbook.utilities.gui_utilities import make_line
 from antistasi_logbook.gui.widgets.image_viewer import (ArmaSide, HighResMapImageWidget, TownMapSymbolImageItem, AirportMapSymbolImageItem,
                                                         FactoryMapSymbolImageItem, OutpostMapSymbolImageItem, SeaportMapSymbolImageItem, ResourceMapSymbolImageItem)
@@ -380,13 +380,13 @@ class GameMapThumbnail(QLabel):
                 self._comb_window.setLayout(QVBoxLayout())
                 comb_label = QLabel()
                 comb_label.setAlignment(Qt.AlignHCenter)
-                self.high_res_game_map_window.map_symbol_changed.connect(comb_label.setText)
+                self.high_res_game_map_window.map_symbol_changed.connect(comb_label.setText, type=Qt.ConnectionType.UniqueConnection)
                 self._comb_window.layout().addWidget(comb_label)
                 self._comb_window.layout().addWidget(self.high_res_game_map_window)
                 comb_progress_bar = QProgressBar()
                 comb_progress_bar.setMaximum(len(self.high_res_game_map_window._map_symbols))
-                self.high_res_game_map_window.map_symbol_changed.connect(lambda x: comb_progress_bar.setValue(comb_progress_bar.value() + 1))
-                self.high_res_game_map_window.finished_run.connect(comb_progress_bar.reset)
+                self.high_res_game_map_window.map_symbol_changed.connect(lambda x: comb_progress_bar.setValue(comb_progress_bar.value() + 1), type=Qt.ConnectionType.UniqueConnection)
+                self.high_res_game_map_window.finished_run.connect(comb_progress_bar.reset, type=Qt.ConnectionType.UniqueConnection)
                 self._comb_window.layout().addWidget(comb_progress_bar)
                 self._comb_window.show()
 
@@ -628,7 +628,15 @@ class LogFileDetailWidget(BaseDetailWidget):
         self.game_map_value = GameMapValue(self.log_file.game_map, self)
         self.layout.addRow("Game Map", self.game_map_value)
 
-        self.version_value = ValueLineEdit(text=str(self.log_file.version), parent=self)
+        try:
+            version_string = str(self.log_file.version)
+
+        except DoesNotExist:
+            log.debug("failing version id is %r for log_file %r", self.log_file.version_id, self.log_file)
+            log.debug("result of querying by id: %r", Version.get_by_id(self.log_file.version_id))
+            version_string = ""
+
+        self.version_value = ValueLineEdit(text=version_string, parent=self)
         self.layout.addRow("Version", self.version_value)
 
         self.campaign_id_value = ValueLineEdit(text=str(self.log_file.campaign_id), parent=self)
@@ -660,7 +668,7 @@ class LogFileDetailWidget(BaseDetailWidget):
 
         self.layout.addRow("Mods", self.mods_value)
 
-        self.mods_value.doubleClicked.connect(self.open_mod_link)
+        self.mods_value.doubleClicked.connect(self.open_mod_link, type=Qt.ConnectionType.UniqueConnection)
         self.header_text_value = QTextEdit()
         self.header_text_value.setReadOnly(True)
         self.header_text_value.setLineWrapMode(QTextEdit.NoWrap)
@@ -671,11 +679,11 @@ class LogFileDetailWidget(BaseDetailWidget):
 
         self.get_stats_button = QPushButton(AllResourceItems.stats_icon_2_image.get_as_icon(), "Get Stats")
         self.layout.addWidget(self.get_stats_button)
-        self.get_stats_button.pressed.connect(partial(self.show_stats, "log_file"))
+        self.get_stats_button.pressed.connect(partial(self.show_stats, "log_file"), type=Qt.ConnectionType.UniqueConnection)
 
         self.get_campaign_stats_button = QPushButton(AllResourceItems.stats_icon_2_image.get_as_icon(), "Get Campaign Stats")
         self.layout.addWidget(self.get_campaign_stats_button)
-        self.get_campaign_stats_button.pressed.connect(partial(self.show_stats, "campaign"))
+        self.get_campaign_stats_button.pressed.connect(partial(self.show_stats, "campaign"), type=Qt.ConnectionType.UniqueConnection)
         if self.log_file.campaign_id is None:
             self.get_campaign_stats_button.setEnabled(False)
 
@@ -1055,7 +1063,7 @@ class LogRecordDetailView(BaseDetailWidget):
 
         self.get_stats_button = QPushButton(AllResourceItems.stats_icon_2_image.get_as_icon(), "Stats for this Record")
         self.layout.addWidget(self.get_stats_button)
-        self.get_stats_button.pressed.connect(self.get_stats)
+        self.get_stats_button.pressed.connect(self.get_stats, type=Qt.ConnectionType.UniqueConnection)
 
         self.amount_selected = 1
         self.amount_selected_value = ValueLineEdit(str(self.amount_selected))

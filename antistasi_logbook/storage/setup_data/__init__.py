@@ -86,12 +86,7 @@ def setup_most_common_messages(db: "GidSqliteApswDatabase"):
             model.insert_many(data_chunk).on_conflict_ignore().execute()
         log.debug("inserted (or ignored) %r most_common_message items", len(data))
     with db:
-        db.most_common_messages = frozendict({m.md5_hash: m for m in model.select().where((model.md5_hash << [i["md5_hash"] for i in data])).iterator()})
-
-    # def _assign_most_common_messages(_db):
-    #     _db.most_common_messages = {m.md5_hash: m for m in model.select().where((model.md5_hash << [i["md5_hash"] for i in data])).iterator()}
-
-    # db.backend.thread_pool.submit(_assign_most_common_messages, db)
+        db.most_common_messages = frozendict({m.md5_hash: m for m in model.select().where((model.md5_hash << [i["md5_hash"] for i in data]))})
 
 
 def setup_mod_set(db: "GidSqliteApswDatabase"):

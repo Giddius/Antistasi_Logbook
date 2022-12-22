@@ -16,7 +16,7 @@ from pathlib import Path
 from PySide6.QtGui import QIcon, QAction, QMouseEvent
 from PySide6.QtCore import Qt, Slot, QPoint, Signal, QSettings, QModelIndex, QItemSelection, QAbstractItemModel, QAbstractTableModel, QItemSelectionModel, QItemSelectionRange
 from PySide6.QtWidgets import QMenu, QToolBar, QTreeView, QScrollBar, QHeaderView, QApplication, QAbstractItemView
-
+from gidapptools.general_helper.string_helper import StringCaseConverter, StringCase
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
@@ -24,7 +24,7 @@ from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_glo
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.views.delegates.universal_delegates import BoolImageDelegate, MarkedImageDelegate
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-
+from antistasi_logbook.gui.misc import write_settings, read_settings
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend
@@ -130,6 +130,10 @@ class BaseQueryTreeView(QTreeView):
         self._last_selection_ids: list[int] = None
 
     @property
+    def settings_prefix(self) -> str:
+        return StringCaseConverter.convert_to(self.name, StringCase.SNAKE) + '_view'
+
+    @property
     def app(self) -> "AntistasiLogbookApplication":
         return QApplication.instance()
 
@@ -155,8 +159,8 @@ class BaseQueryTreeView(QTreeView):
 
     @property
     def column_order(self) -> dict[str, int]:
-        settings = self.app.settings
-        data = settings.value(f"{self.name}_column_order", None)
+        data = read_settings(self.app.settings, ["views", self.settings_prefix, "column_order"], None)
+
         if data is None:
             data = {}
 
@@ -181,9 +185,7 @@ class BaseQueryTreeView(QTreeView):
 
         # column = self.model.columns[logical_index]
         # column_order[column.name] = new_visual_index
-
-        settings = QSettings()
-        settings.setValue(f"{self.name}_column_order", column_order)
+        write_settings(self.app.settings, ["views", self.settings_prefix, "column_order"], column_order)
 
     def setup(self) -> "BaseQueryTreeView":
 
@@ -231,8 +233,9 @@ class BaseQueryTreeView(QTreeView):
         menu.exec(self.mapToGlobal(pos))
 
     def get_hidden_header_names(self) -> set[str]:
-        settings = QSettings()
-        hidden_header = settings.value(f"{self.name}_hidden_headers", set())
+
+        hidden_header = read_settings(self.app.settings, ["views", self.settings_prefix, "hidden_headers"], set())
+
         return hidden_header
 
     def set_hidden_header_names(self):
@@ -242,8 +245,8 @@ class BaseQueryTreeView(QTreeView):
             if index is not None:
                 if self.header_view.isSectionHidden(index) is True:
                     hidden_section_names.append(column.name)
-        settings = QSettings()
-        settings.setValue(f"{self.name}_hidden_headers", set(hidden_section_names))
+
+        write_settings(self.app.settings, ["views", self.settings_prefix, "hidden_headers"], set(hidden_section_names))
 
     def setup_headers(self):
         for column_name in self.initially_hidden_columns:
@@ -346,6 +349,7 @@ class BaseQueryTreeView(QTreeView):
         self.setEnabled(True)
         self.setSortingEnabled(self._temp_original_sorting_enabled)
         self.model_was_set.emit(self.model)
+
         self.model.modelReset.connect(self.on_model_reset)
 
     def on_model_reset(self):

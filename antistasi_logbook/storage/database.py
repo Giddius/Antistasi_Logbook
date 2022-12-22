@@ -176,6 +176,7 @@ class GidSqliteDatabase(Protocol):
 SQL_PROFILING_FILE_PATH = THIS_FILE_DIR.joinpath(f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_SQL_PROFILING.txt")
 # SQL_PROFILING_FILE = SQL_PROFILING_FILE_PATH.open("a", encoding='utf-8', errors='ignore')
 # atexit.register(SQL_PROFILING_FILE.close)
+# SQL_PROFILING_FILE = THIS_FILE_DIR.joinpath("quick_profile_sql.txt").open("w", encoding='utf-8', errors='ignore')
 SQL_PROFILING_FILE = None
 
 
@@ -219,7 +220,7 @@ def profile_hook(stmt: str, time_taken):
 
     if "PRAGMA" in stmt:
         return
-    # now = datetime.now().strftime('%H:%M:%S.%f')
+    now = datetime.now().strftime('%H:%M:%S.%f')
     time_taken = ns_to_s(time_taken, 6)
     stmt = stmt.replace('"', r'\"')
     # stmt = param_regex.sub("", stmt, 1)
@@ -229,7 +230,10 @@ def profile_hook(stmt: str, time_taken):
         prof_dict[stmt]["amount_called"] += 1
         prof_dict[stmt]["per_call"] = prof_dict[stmt]["overall_time"] / prof_dict[stmt]["amount_called"]
         # prof_dict[stmt]["all_times"].append([now, time_taken])
-    # SQL_PROFILING_FILE.write(f'-{now}- <<SQL-PROFILING>> {{"time_taken": {ns_to_s(time_taken, 6)!sr}, "statement": "{stmt!r}"}}\n')
+    # SQL_PROFILING_FILE.write(f'-{now}- <<SQL-PROFILING>>' +
+    #                          '{{' +
+    #                          f'"time_taken": {ns_to_s(time_taken, 6)!r}, "statement": "{stmt}"' +
+    #                          '}}\n')
 
 
 def update_hook(typus: int, database_name: str, table_name: str, row_id: int):
@@ -354,7 +358,7 @@ class GidSqliteApswDatabase(APSWDatabase):
                 database_path = database_path.joinpath(DEFAULT_DB_NAME)
         else:
             database_path = cls.default_db_path.joinpath(DEFAULT_DB_NAME)
-        return database_path
+        return database_path.resolve()
 
     @property
     def database_file_size(self) -> int:
@@ -367,6 +371,9 @@ class GidSqliteApswDatabase(APSWDatabase):
     @cached_property
     def base_record_id(self) -> int:
         return RecordClass.select().where(RecordClass.name == "BaseRecord").scalar()
+
+    def connection(self) -> apsw.Connection:
+        return super().connection()
 
     def _add_conn_hooks(self, conn: "apsw.Connection"):
         if "auto_vacuum" in [i[0] for i in self._pragmas]:
@@ -406,6 +413,7 @@ class GidSqliteApswDatabase(APSWDatabase):
     def _close(self, conn: "apsw.Connection"):
         # res = conn.execute("PRAGMA incremental_vacuum").fetchall()
         # log.debug("incremental_vacuum result: %r", len(res))
+
         if self.config.get("database", "enable_connection_creation_logging") is True:
             log.debug("closed connection %r (changes: %r, total changes: %r) of thread %r", conn, conn.changes(), conn.totalchanges(), current_thread())
 
@@ -530,7 +538,7 @@ class GidSqliteApswDatabase(APSWDatabase):
         return self
 
     def shutdown(self, error: BaseException = None) -> None:
-        self.log_all_cache_infos()
+
         log.debug("shutting down %r", self)
 
         self.session_meta_data.save()
@@ -563,14 +571,7 @@ class GidSqliteApswDatabase(APSWDatabase):
         gc.collect()
 
     def get_all_server(self, ordered_by=Server.id) -> tuple[Server]:
-        return tuple(Server.select(Server, RemoteStorage).join_from(Server, RemoteStorage, on=Server.remote_storage).order_by(ordered_by).iterator())
-
-    def log_all_cache_infos(self):
-        for model in self._base_model.get_all_models():
-            try:
-                log.debug("cache-info for %r ('get_by_id_cached'): %r", model, model.get_by_id_cached.cache_info())
-            except AttributeError:
-                continue
+        return tuple(s for s in Server.select(Server, RemoteStorage).join_from(Server, RemoteStorage, on=Server.remote_storage).order_by(ordered_by).iterator())
 
     def get_log_files(self, server: Server = None, ordered_by=LogFile.id, exclude_unparsable: bool = False) -> tuple[LogFile]:
 
@@ -581,8 +582,8 @@ class GidSqliteApswDatabase(APSWDatabase):
 
             if in_log_file.game_map_id is not None:
                 in_log_file.game_map = self.foreign_key_cache.get_game_map_by_id(in_log_file.game_map_id)
-            if in_log_file.version_id is not None:
-                in_log_file.version = self.foreign_key_cache.get_version_by_id(in_log_file.version_id)
+            # if in_log_file.version_id is not None:
+            #     in_log_file.version = self.foreign_key_cache.get_version_by_id(in_log_file.version_id)
 
             return in_log_file
 
@@ -601,7 +602,7 @@ class GidSqliteApswDatabase(APSWDatabase):
 
     def get_all_log_levels(self, ordered_by=LogLevel.id) -> tuple[LogLevel]:
         with self.connection_context() as ctx:
-            return tuple(LogLevel.select().order_by(ordered_by))
+            return tuple(i for i in LogLevel.select().order_by(ordered_by).iterator())
 
     def get_all_arma_functions(self, ordered_by=None) -> tuple[ArmaFunction]:
         with self._resolve_arma_functions_check_lock:
@@ -609,32 +610,32 @@ class GidSqliteApswDatabase(APSWDatabase):
                 self._resolve_arma_functions_future = self.record_inserter.thread_pool.submit(self.resolve_all_armafunction_extras)
 
         with self.atomic() as txn:
-            _ = list(ArmaFunctionAuthorPrefix.select().iterator())
+            _ = list(afap for afap in ArmaFunctionAuthorPrefix.select())
             if not ordered_by:
-                return tuple(ArmaFunction.select(ArmaFunction, ArmaFunctionAuthorPrefix).join_from(ArmaFunction, ArmaFunctionAuthorPrefix))
+                return tuple(i for i in ArmaFunction.select(ArmaFunction, ArmaFunctionAuthorPrefix).join_from(ArmaFunction, ArmaFunctionAuthorPrefix).iterator())
 
-            return tuple(ArmaFunction.select(ArmaFunction, ArmaFunctionAuthorPrefix).join_from(ArmaFunction, ArmaFunctionAuthorPrefix).order_by(ordered_by))
+            return tuple(i for i in ArmaFunction.select(ArmaFunction, ArmaFunctionAuthorPrefix).join_from(ArmaFunction, ArmaFunctionAuthorPrefix).order_by(ordered_by).iterator())
 
     def get_all_game_maps(self, ordered_by=GameMap.id) -> tuple[GameMap]:
-        with self.connection_context() as ctx:
-            _out = []
-            for _id, in GameMap.select(GameMap.id).order_by(ordered_by).tuples():
-                _out.append(GameMap.get_by_id_cached(_id))
+
+        _out = []
+        for game_map in GameMap.select().order_by(ordered_by).iterator():
+            _out.append(game_map)
 
         return tuple(_out)
 
     def get_all_origins(self, ordered_by=RecordOrigin.id) -> tuple[RecordOrigin]:
-        with self.connection_context() as ctx:
-            _out = []
-            for _id, in RecordOrigin.select(RecordOrigin.id).order_by(ordered_by).tuples():
-                _out.append(RecordOrigin.get_by_id_cached(_id))
+
+        _out = []
+        for record_origin in RecordOrigin.select().order_by(ordered_by).iterator():
+            _out.append(record_origin)
         return tuple(_out)
 
     def get_all_versions(self, ordered_by=Version.id) -> tuple[Version]:
-        with self.connection_context() as ctx:
-            _out = []
-            for _id, in Version.select(Version.id).order_by(ordered_by).tuples():
-                _out.append(Version.get_by_id_cached(_id))
+
+        _out = []
+        for version in Version.select().order_by(ordered_by).iterator():
+            _out.append(version)
         return tuple(_out)
 
     def iter_all_records(self, server: Server = None, log_file: LogFile = None, only_missing_record_class: bool = False) -> Generator[LogRecord, None, None]:
@@ -669,7 +670,7 @@ class GidSqliteApswDatabase(APSWDatabase):
 
                 yield from [_resolve_record(r, self.foreign_key_cache) for r in _record_chunk]
 
-        log_files_ids = tuple(l.id for l in log_files.iterator())
+        log_files_ids = tuple(l.id for l in log_files)
 
         with ThreadPoolExecutor(max_workers=max(1, len(log_files_ids) // 10), initializer=self.connect, initargs=(True,)) as pool:
             for idx, records_chunk in enumerate(pool.map(_get_records, log_files_ids)):

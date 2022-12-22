@@ -35,6 +35,7 @@ from antistasi_logbook.parsing.py_raw_record import RawRecord
 from antistasi_logbook.storage.models.models import GameMap, LogFile, Version
 from antistasi_logbook.parsing.record_line import RecordLine
 from antistasi_logbook.utilities.file_handling import FileLineProvider
+from antistasi_logbook.regex_store.regex_keeper import SimpleRegexKeeper
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
@@ -138,15 +139,32 @@ class LineCache(deque):
 
 class LogParsingContext:
     new_log_record_signal = get_signal("new_log_record")
-    mem_cache_regex = re.compile(r"-MaxMem\=(?P<max_mem>\d+)")
-    __slots__ = ("__weakref__", "_log_file", "record_lock", "log_file_data", "data_lock", "foreign_key_cache", "line_cache",
-                 "_file_line_provider", "futures", "record_storage", "inserter", "_bulk_create_batch_size", "database", "config", "is_open", "done_signal", "force", "log_file_done_signal")
+
+    __slots__ = ("__weakref__",
+                 "_log_file",
+                 "record_lock",
+                 "log_file_data",
+                 "data_lock",
+                 "foreign_key_cache",
+                 "line_cache",
+                 "_file_line_provider",
+                 "futures",
+                 "record_storage",
+                 "inserter",
+                 "_bulk_create_batch_size",
+                 "database",
+                 "config",
+                 "is_open",
+                 "done_signal",
+                 "force",
+                 "log_file_done_signal",
+                 "regex_keeper")
 
     def __init__(self, log_file: "LogFile", inserter: "RecordInserter", config: "GidIniConfig", foreign_key_cache: "ForeignKeyCache") -> None:
         self._log_file = log_file
         self.database = self._log_file.get_meta().database
         self.inserter = inserter
-        self.log_file_data = model_to_dict(self._log_file, exclude=[LogFile.log_records, LogFile.mods, LogFile.comments, LogFile.marked], extra_attrs=["is_downloaded"])
+        self.log_file_data = model_to_dict(self._log_file, exclude=[LogFile.log_records, LogFile.mods, LogFile.comments, LogFile.marked], extra_attrs=["is_downloaded"], recurse=True)
         self.log_file_data["unparsable"] = False
         self.data_lock = RLock()
         self.foreign_key_cache = foreign_key_cache
@@ -155,12 +173,13 @@ class LogParsingContext:
         self.record_storage: list["RawRecord"] = []
         self._file_line_provider: FileLineProvider = None
         self.futures: list[Future] = []
-        self._bulk_create_batch_size: int = 2_500
+        self._bulk_create_batch_size: int = 5000
         self.record_lock = RLock()
         self.is_open: bool = False
         self.done_signal: Callable[[], None] = None
         self.log_file_done_signal: Callable[[], None] = None
         self.force: bool = False
+        self.regex_keeper = SimpleRegexKeeper()
 
     @property
     def _log_record_batch_size(self) -> int:
@@ -193,7 +212,9 @@ class LogParsingContext:
             log.debug("setting to unparsable, because either finder(%r) is None or finder.utc_offset(%r) is None or finder.campaign_id(%r) is None", finder, finder.utc_offset, finder.campaign_id)
             self.set_unparsable(True)
             if self.done_signal:
-                self._log_file._cleanup()
+                self.done_signal()
+
+            self._log_file._cleanup()
             return
 
         if self.log_file_data.get("game_map") is None:
@@ -204,12 +225,17 @@ class LogParsingContext:
 
             self.log_file_data["game_map"] = game_map_item
 
-        if self.log_file_data.get("version") is None:
+        if self.log_file_data.get("version") is None and finder.version is not None:
+            log.debug("version found as %r for %r", finder.version, self._log_file)
             try:
                 version = self.foreign_key_cache.all_version_objects[str(finder.version)]
+                log.debug("retrieved version %r from foreign key cache", finder.version)
             except KeyError:
-                version = self.inserter.thread_pool.submit(Version.add_or_get_version, finder.version)
+                log.debug("trying add or get for version %r", finder.version)
+                version = Version.add_or_get_version(finder.version)
+                log.debug("version_item %r as version: %r", finder.version, version)
                 self.inserter.thread_pool.submit(self.foreign_key_cache.reset_sender_for_all_instances, sender=Version, created=True, isinstance=finder.version)
+
             self.log_file_data["version"] = version
 
         if self.log_file_data.get("is_new_campaign") is None:
@@ -236,9 +262,6 @@ class LogParsingContext:
     def set_header_text(self, lines: Iterable["RecordLine"]) -> None:
         if lines:
             text = '\n'.join(i.content for i in lines if i.content)
-            if match := self.mem_cache_regex.search(text):
-                max_mem = int(match.group("max_mem"))
-                self.log_file_data["max_mem"] = max_mem
             self.log_file_data["header_text"] = text
 
     def set_startup_text(self, lines: Iterable["RecordLine"]) -> None:
@@ -256,7 +279,7 @@ class LogParsingContext:
     def advance_to_not_parsed_line(self) -> None:
         if self._log_file.last_parsed_line_number is None:
             return
-        self.file_line_provider.seek_to_line_number(self._log_file.last_parsed_line_number + 1)
+        self.file_line_provider.seek_to_line_number(self._log_file.last_parsed_line_number)
 
     @contextmanager
     def open(self, cleanup: bool = True) -> TextIO:
@@ -333,6 +356,7 @@ class LogParsingContext:
                 while len([i for i in self.futures if i.done() is False]) > 5:
                     sleep(random.randint(1, 3))
                 self.futures.append(self.inserter.insert_messages(records=self.record_storage))
+
                 self.futures.append(self.inserter.insert(records=self.record_storage, context=self))
                 self.record_storage = []
 

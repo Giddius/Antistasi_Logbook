@@ -3,3 +3,6 @@ Links
 
 
 `Repo <https://github.com/Giddius/Antistasi_Logbook>`_
+
+
+`SQLite <https://www.sqlite.org/index.html>`_

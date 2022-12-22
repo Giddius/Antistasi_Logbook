@@ -8,12 +8,13 @@
     <link rel="shortcut icon" href="_static/app_favicon.png"/><!-- Generated with Sphinx 5.3.0 and Furo 2022.12.07 -->
         <title>Glossary - Antistasi Logbook 0.4.6 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?digest=91d0f0d1c444bdcb17a68e833c7a53903343c195" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?digest=c30b4703f2f8d6f3aebc320892d7f567136b22ee" />
     <link rel="stylesheet" type="text/css" href="_static/tabs.css" />
     <link rel="stylesheet" type="text/css" href="_static/copybutton.css" />
     <link rel="stylesheet" type="text/css" href="_static/design-style.4045f2051d55cab465a707391d5b2007.min.css" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
     <link rel="stylesheet" type="text/css" href="_static/css/extra_styling.css" />
+    <link rel="stylesheet" type="text/css" href="_static/css/extra_cards_styling.css" />
     
     
 
@@ -22,18 +23,24 @@
   body {
     --color-code-background: #272822;
   --color-code-foreground: #f8f8f2;
+  --logbook-card-background-color: #ffffef40;
+  --sd-color-shadow: #00000080;
   
   }
   @media not print {
     body[data-theme="dark"] {
       --color-code-background: #202020;
   --color-code-foreground: #d0d0d0;
+  --logbook-card-background-color: #54544440;
+  --sd-color-shadow: #ffffff40;
   
     }
     @media (prefers-color-scheme: dark) {
       body:not([data-theme="light"]) {
         --color-code-background: #202020;
   --color-code-foreground: #d0d0d0;
+  --logbook-card-background-color: #54544440;
+  --sd-color-shadow: #ffffff40;
   
       }
     }
@@ -248,6 +255,11 @@ PhysMem: 24 GiB, VirtMem : 131072 GiB, AvailPhys : 18 GiB, AvailVirt : 131068 Gi
 </div>
 </div>
 </details></dd>
+<dt id="term-Record">Record<a class="headerlink" href="#term-Record" title="Permalink to this term">#</a></dt><dd><p>An <a class="reference internal" href="#term-Entry"><span class="xref std std-term">Entry</span></a> after it is processed, this means it has an assigned <a class="reference internal" href="#term-RecordClass"><span class="xref std std-term">RecordClass</span></a> and all dates and times are converted to <cite>UTC</cite>.
+A Record knows about its content and has the ability to extract data from it.</p>
+</dd>
+<dt id="term-RecordClass">RecordClass<a class="headerlink" href="#term-RecordClass" title="Permalink to this term">#</a></dt><dd><p>The display-bridge of a <a class="reference internal" href="#term-Record"><span class="xref std std-term">Record</span></a>. It is specific to the message-content of the Record. If no RecordClass for a specific <a class="reference internal" href="#term-Record"><span class="xref std std-term">Record</span></a> can be determined, a Generic-RecordClass will be used.</p>
+</dd>
 <dt id="term-semi-semvar-version">semi-semvar-version<a class="headerlink" href="#term-semi-semvar-version" title="Permalink to this term">#</a></dt><dd><p><code class="samp docutils literal notranslate"><span class="pre">&lt;</span><em><span class="pre">major</span></em><span class="pre">&gt;.&lt;</span><em><span class="pre">minor</span></em><span class="pre">&gt;.&lt;</span><em><span class="pre">patch</span></em><span class="pre">&gt;.&lt;</span><em><span class="pre">extra(optional)</span></em><span class="pre">&gt;</span></code></p>
 </dd>
 <dt id="term-simple-timestamp">simple timestamp<a class="headerlink" href="#term-simple-timestamp" title="Permalink to this term">#</a></dt><dd><p>Timestamp that only contains hours, minutes, seconds. i.e. <code class="samp docutils literal notranslate"><em> <span class="pre">7</span></em><span class="pre">:</span><em><span class="pre">21</span></em><span class="pre">:</span><em><span class="pre">11</span></em></code> or <code class="samp docutils literal notranslate"><em><span class="pre">11</span></em><span class="pre">:</span><em><span class="pre">50</span></em><span class="pre">:</span><em><span class="pre">57</span></em></code>.</p>

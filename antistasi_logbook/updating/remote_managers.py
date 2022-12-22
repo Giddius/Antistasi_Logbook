@@ -130,7 +130,7 @@ class AbstractRemoteStorageManager(ABC):
         ...
 
     @abstractmethod
-    def download_file(self, log_file: "LogFile") -> "LogFile":
+    def download_file(self, log_file: "LogFile") -> Path:
         ...
 
     @classmethod
@@ -175,8 +175,8 @@ class LocalManager(AbstractRemoteStorageManager):
                 "name": file_path.stem}
         return info
 
-    def download_file(self, log_file: "LogFile") -> "LogFile":
-        return log_file
+    def download_file(self, log_file: "LogFile") -> Path:
+        return Path(shutil.copyfile(log_file.remote_path, log_file.local_path)).resolve()
 
     def close(self) -> None:
         pass
@@ -258,10 +258,10 @@ class WebdavManager(AbstractRemoteStorageManager):
         return _out
 
     @Retrier([httpx.ReadError, httpx.RemoteProtocolError], allowed_attempts=5, timeout=30, timeout_function=exponential_timeout)
-    def download_file(self, log_file: "LogFile") -> "LogFile":
+    def download_file(self, log_file: "LogFile") -> Path:
         with self.download_semaphore:
             local_path = log_file.local_path
-            chunk_size = 10_000
+            chunk_size = 100_000
 
             log.info("downloading %s", log_file)
 

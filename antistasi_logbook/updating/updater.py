@@ -242,7 +242,7 @@ class Updater:
             if cutoff_datetime is not None and in_remote_info.modified_at < cutoff_datetime:
                 return None
 
-            stored_file: LogFile = next(LogFile.select().where((LogFile.server == server) & (LogFile.name == in_remote_info.name)).limit(1).iterator(), None)
+            stored_file: LogFile = next((i for i in LogFile.select().where((LogFile.server == server) & (LogFile.name == in_remote_info.name)).limit(1)), None)
 
             if stored_file is None:
                 return self._create_new_log_file(server=server, remote_info=in_remote_info)
@@ -275,7 +275,7 @@ class Updater:
         amount_deleted = 0
         tasks = []
         idx = 0
-        to_delete = tuple(LogFile.select().where((LogFile.server_id == server.id) & (LogFile.modified_at < cutoff_datetime)).iterator())
+        to_delete = tuple(LogFile.select().where((LogFile.server_id == server.id) & (LogFile.modified_at < cutoff_datetime)))
 
         for log_file in to_delete:
             try:
@@ -313,7 +313,6 @@ class Updater:
             log_file.game_map = None
             log_file.startup_text = None
             log_file.header_text = None
-            log_file.max_mem = None
             log_file.is_downloaded = True
             drop_query = LogRecord.delete().where(LogRecord.log_file_id == log_file.id)
             with self.database:
@@ -327,18 +326,14 @@ class Updater:
         with context:
 
             log.debug("starting to parse %s", log_file)
-            for processed_record in parser(context=context):
-                if self.stop_event.is_set() is True:
-                    break
-                context.insert_record(processed_record)
-            context._dump_rest()
-        # gc.collect()
+            parser(context=context)
 
     def process(self, server: "Server") -> int:
         log.debug("processing server %r", server)
         tasks = []
         to_update_log_files = self._get_updated_log_files(server=server)
         if not to_update_log_files:
+            sleep(3.0)
             return 0
         self.signaler.send_update_info(len(to_update_log_files) * 2, server.name)
         for log_file in to_update_log_files:

@@ -30,7 +30,7 @@ from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_glo
 
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.misc import CustomRole
-from antistasi_logbook.storage.models.models import GameMap, Version, BaseModel, ArmaFunctionAuthorPrefix
+from antistasi_logbook.storage.models.models import GameMap, Version, BaseModel, ArmaFunctionAuthorPrefix, ModSet
 from antistasi_logbook.storage.models.custom_fields import URLField, PathField
 from antistasi_logbook.gui.widgets.better_color_dialog import BetterColorDialog
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
@@ -585,6 +585,9 @@ class BaseQueryDataModel(QAbstractTableModel):
 
                 if isinstance(_out, Version):
                     return _out.full
+
+                if isinstance(_out, ModSet):
+                    return str(_out)
 
                 if _out is None:
                     return ""

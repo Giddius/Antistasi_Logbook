@@ -198,7 +198,11 @@ class MainWidget(QWidget):
 
         if index == self.main_tabs_widget.indexOf(self.log_files_tab):
             self.main_window.set_tool_bar(self.log_files_tab.tool_bar_item)
-            self.main_window.tool_bar.show_records_action.triggered.connect(self.query_log_file)
+            # try:
+            #     self.main_window.tool_bar.show_records_action.triggered.disconnect(self.query_log_file)
+            # except Exception as e:
+            #     log.error(e, exc_info=True)
+            self.main_window.tool_bar.show_records_action.triggered.connect(self.query_log_file, type=Qt.ConnectionType.UniqueConnection)
             if self.log_files_tab.model is None:
 
                 return
@@ -316,11 +320,16 @@ class MainWidget(QWidget):
             return
         log_file = self.log_files_tab.model.content_items[index.row()]
         log_record_model = LogRecordsModel(parent=self.query_result_tab)
-        log_record_model._base_filter_item = log_record_model._base_filter_item & (LogRecord.log_file_id == log_file.id)
+        log_record_model._base_filter_item = log_record_model._base_filter_item & (LogRecord.log_file == log_file)
         # log_record_model.request_view_change_visibility.connect(self.query_result_tab.setEnabled)
         # log_record_model.request_view_change_visibility.connect(self.query_result_tab.setVisible)
         self.main_tabs_widget.setCurrentWidget(self.query_result_tab)
         self.query_result_tab.tool_bar_item.set_title_from_log_file(log_file)
+        if self.query_result_tab.model is not None:
+            self.query_result_tab.model.deleteLater()
+        if self.query_result_tab.original_model is not None:
+            self.query_result_tab.original_model.deleteLater()
+
         self.query_result_tab.setModel(log_record_model)
         self.on_tab_changed(self.main_tabs_widget.currentIndex())
         self.query_result_tab.model.data_tool.set_log_file(log_file)

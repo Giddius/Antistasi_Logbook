@@ -8,12 +8,13 @@
     <link rel="shortcut icon" href="../../_static/app_favicon.png"/><!-- Generated with Sphinx 5.3.0 and Furo 2022.12.07 -->
         <title>Parsing - Antistasi Logbook 0.4.6 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?digest=91d0f0d1c444bdcb17a68e833c7a53903343c195" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?digest=c30b4703f2f8d6f3aebc320892d7f567136b22ee" />
     <link rel="stylesheet" type="text/css" href="../../_static/tabs.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/design-style.4045f2051d55cab465a707391d5b2007.min.css" />
     <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
     <link rel="stylesheet" type="text/css" href="../../_static/css/extra_styling.css" />
+    <link rel="stylesheet" type="text/css" href="../../_static/css/extra_cards_styling.css" />
     
     
 
@@ -22,18 +23,24 @@
   body {
     --color-code-background: #272822;
   --color-code-foreground: #f8f8f2;
+  --logbook-card-background-color: #ffffef40;
+  --sd-color-shadow: #00000080;
   
   }
   @media not print {
     body[data-theme="dark"] {
       --color-code-background: #202020;
   --color-code-foreground: #d0d0d0;
+  --logbook-card-background-color: #54544440;
+  --sd-color-shadow: #ffffff40;
   
     }
     @media (prefers-color-scheme: dark) {
       body:not([data-theme="light"]) {
         --color-code-background: #202020;
   --color-code-foreground: #d0d0d0;
+  --logbook-card-background-color: #54544440;
+  --sd-color-shadow: #ffffff40;
   
       }
     }
@@ -212,25 +219,28 @@
         <article role="main">
           <section id="parsing">
 <h1>Parsing<a class="headerlink" href="#parsing" title="Permalink to this heading">#</a></h1>
-<div class="sd-card sd-sphinx-override sd-mb-3 sd-shadow-sm docutils">
-<div class="sd-card-body docutils">
+<div class="sd-card sd-sphinx-override sd-mb-3 sd-shadow-md docutils">
+<div class="sd-card-body card-logbook-body docutils">
 <p class="sd-card-text">Each Log-file goes through up to 4 different kinds of parsing steps:</p>
-<blockquote>
-<div><ul class="simple">
+<ul class="simple">
 <li><p class="sd-card-text"><a class="reference internal" href="#meta-data-parsing"><span class="std std-ref">Meta-Data Parsing</span></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="#header-text-parsing"><span class="std std-ref">Header-Text Parsing</span></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="#startup-entries-parsing"><span class="std std-ref">Startup-Entries Parsing</span></a></p></li>
 <li><dl class="simple">
 <dt><a class="reference internal" href="#entries-parsing"><span class="std std-ref">Entries Parsing</span></a></dt><dd><ul>
-<li><p class="sd-card-text"><a class="reference internal" href="#record-processing"><span class="std std-ref">Record Processing</span></a></p></li>
+<li><dl class="simple">
+<dt><a class="reference internal" href="#record-processing"><span class="std std-ref">Record Processing</span></a></dt><dd><ul>
+<li><p class="sd-card-text"><a class="reference internal" href="#generic-records"><span class="std std-ref">Generic Records</span></a></p></li>
+<li><p class="sd-card-text"><a class="reference internal" href="#antistasi-records"><span class="std std-ref">Antistasi Records</span></a></p></li>
 </ul>
 </dd>
 </dl>
 </li>
 </ul>
-</div></blockquote>
-</div>
-</div>
+</dd>
+</dl>
+</li>
+</ul>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-secondary sd-bg-text-secondary">
 Overview Image<div class="sd-summary-down docutils">
@@ -245,14 +255,14 @@ Overview Image<div class="sd-summary-down docutils">
 <li><p class="sd-card-text">🟥 -&gt; Meta-Data</p></li>
 <li><p class="sd-card-text">🟧 -&gt; Multiline entry</p></li>
 </ul>
-<figure class="align-center">
-<a class="reference internal image-reference" href="../../_images/doc_example_log_file.png"><img alt="../../_images/doc_example_log_file.png" src="../../_images/doc_example_log_file.png" style="width: 589.75px; height: 2870.25px;" /></a>
-</figure>
+<a class="reference internal image-reference" href="../../_images/doc_example_log_file.png"><img alt="../../_images/doc_example_log_file.png" class="align-center" src="../../_images/doc_example_log_file.png" style="width: 205.5px; height: 1000.0px;" /></a>
 </div>
-</details><section id="meta-data-parsing">
+</details></div>
+</div>
+<section id="meta-data-parsing">
 <h2>Meta-Data Parsing<a class="headerlink" href="#meta-data-parsing" title="Permalink to this heading">#</a></h2>
-<div class="sd-card sd-sphinx-override sd-mb-3 sd-shadow-sm docutils">
-<div class="sd-card-body docutils">
+<div class="sd-card sd-sphinx-override sd-mb-3 sd-shadow-md docutils">
+<div class="sd-card-body card-logbook-body docutils">
 <p class="sd-card-text">To parse the meda-data, the whole file has to be available.
 The Meta-Data parser goes through the file in chunks and tries to find each attribute via regex.</p>
 <p class="sd-card-text">It takes a ‘LogFile’-Instance as input and copies all Meta-Data attributes that the ‘LogFile’ already has to itself.
@@ -504,8 +514,8 @@ When reading a new chunk, the older one of the 2 stored gets discarded and the o
 </section>
 <section id="header-text-parsing">
 <h2>Header-Text Parsing<a class="headerlink" href="#header-text-parsing" title="Permalink to this heading">#</a></h2>
-<div class="sd-card sd-sphinx-override sd-mb-3 sd-shadow-sm docutils">
-<div class="sd-card-body docutils">
+<div class="sd-card sd-sphinx-override sd-mb-3 sd-shadow-md docutils">
+<div class="sd-card-body card-logbook-body docutils">
 <p class="sd-card-text">The <a class="reference internal" href="../../glossary.html#term-Header-text"><span class="xref std std-term">Header-text</span></a>, that each arma log-file has, is parsed by collecting lines, until a line that starts with a <a class="reference internal" href="../../glossary.html#term-simple-timestamp"><span class="xref std std-term">simple timestamp</span></a>. That line is not consumed.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -516,8 +526,8 @@ When reading a new chunk, the older one of the 2 stored gets discarded and the o
 </section>
 <section id="startup-entries-parsing">
 <h2>Startup-Entries Parsing<a class="headerlink" href="#startup-entries-parsing" title="Permalink to this heading">#</a></h2>
-<div class="sd-card sd-sphinx-override sd-mb-3 sd-shadow-sm docutils">
-<div class="sd-card-body docutils">
+<div class="sd-card sd-sphinx-override sd-mb-3 sd-shadow-md docutils">
+<div class="sd-card-body card-logbook-body docutils">
 <p class="sd-card-text">All lines from the end of the <a class="reference internal" href="../../glossary.html#term-Header-text"><span class="xref std std-term">Header-text</span></a> to the first line that has a <a class="reference internal" href="../../glossary.html#term-full-local-timestamp"><span class="xref std std-term">full local timestamp</span></a> are collected and stored unprocessed.
 This is done because most of the time these messages do not contain data that is usually checked and would bloat the database and slow down parsing.</p>
 <div class="admonition note">
@@ -529,16 +539,13 @@ This is done because most of the time these messages do not contain data that is
 </section>
 <section id="entries-parsing">
 <h2>Entries Parsing<a class="headerlink" href="#entries-parsing" title="Permalink to this heading">#</a></h2>
-<div class="sd-card sd-sphinx-override sd-mb-3 sd-shadow-sm docutils">
-<div class="sd-card-body docutils">
+<div class="sd-card sd-sphinx-override sd-mb-3 sd-shadow-md docutils">
+<div class="sd-card-body card-logbook-body docutils">
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p class="sd-card-text">This programm assumes that each line is a unique <a class="reference internal" href="../../glossary.html#term-Entry"><span class="xref std std-term">entry</span></a> and only in special cases, does an entry stretched over more than a single line.
-These special cases must either have a concrete syntax or start with special markers.</p>
-<div class="admonition attention">
-<p class="admonition-title">Attention</p>
+<p class="sd-card-text">This programm assumes that each line is a unique <a class="reference internal" href="../../glossary.html#term-Entry"><span class="xref std std-term">entry</span></a> and only in special cases, does an entry stretched over more than a single line.</p>
+<p class="sd-card-text">These special cases must either have a concrete syntax or start with special markers.</p>
 <p class="sd-card-text"><strong>It is not advised to use multiline entries, not with the Logbook, but also not in General.</strong></p>
-</div>
 </div>
 <p class="sd-card-text">The Parser read the log-file line by line (using the <cite>FileLineProvider</cite> which gives easy access to the previous, current and the next line),
 if the line starts with a <a class="reference internal" href="../../glossary.html#term-full-local-timestamp"><span class="xref std std-term">full local timestamp</span></a>, it stores the line and looks at the next line.
@@ -548,11 +555,6 @@ If the next line</p>
 <li><p class="sd-card-text">has a entry continuing-marker after the timestamp</p></li>
 </ul>
 <p class="sd-card-text">then it adds the next line also to the stored lines, if not it yields the stored lines as an entry and clears the line-storage.</p>
-<div class="admonition-future-plans admonition">
-<p class="admonition-title">Future Plans</p>
-<p class="sd-card-text">This will probably change in the future, to be more flexible. If I am able to achieve this, the parsing will change to statemachine parser, that is extendable.
-It is mostly necessary for the default arma error entries, that often need knowledge of lines about 4 lines after the current one to check if they are still part of the entry.</p>
-</div>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3">
 <summary class="sd-summary-title sd-card-header sd-bg-secondary sd-bg-text-secondary">
 Flowchart<div class="sd-summary-down docutils">
@@ -562,18 +564,37 @@ Flowchart<div class="sd-summary-down docutils">
 </summary><div class="sd-summary-content sd-card-body docutils">
 <svg viewBox="-8 -8 371.6833190917969 1358.5335693359375" style="max-width: 100%;" aria-labelledby="chart-title-graph-div chart-desc-graph-div" role="img" xmlns="http://www.w3.org/2000/svg" width="1500px" id="graph-div" height="1119px" xmlns:xlink="http://www.w3.org/1999/xlink"><style>@import url("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css");'</style><title id="chart-title-graph-div"></title><desc id="chart-desc-graph-div"></desc><style>#graph-div {font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;fill:#ccc;}#graph-div .error-icon{fill:#a44141;}#graph-div .error-text{fill:#ddd;stroke:#ddd;}#graph-div .edge-thickness-normal{stroke-width:2px;}#graph-div .edge-thickness-thick{stroke-width:3.5px;}#graph-div .edge-pattern-solid{stroke-dasharray:0;}#graph-div .edge-pattern-dashed{stroke-dasharray:3;}#graph-div .edge-pattern-dotted{stroke-dasharray:2;}#graph-div .marker{fill:lightgrey;stroke:lightgrey;}#graph-div .marker.cross{stroke:lightgrey;}#graph-div svg{font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:16px;}#graph-div .label{font-family:"trebuchet ms",verdana,arial,sans-serif;color:#ccc;}#graph-div .cluster-label text{fill:#F9FFFE;}#graph-div .cluster-label span{color:#F9FFFE;}#graph-div .label text,#graph-div span{fill:#ccc;color:#ccc;}#graph-div .node rect,#graph-div .node circle,#graph-div .node ellipse,#graph-div .node polygon,#graph-div .node path{fill:#1f2020;stroke:#81B1DB;stroke-width:1px;}#graph-div .node .label{text-align:center;}#graph-div .node.clickable{cursor:pointer;}#graph-div .arrowheadPath{fill:lightgrey;}#graph-div .edgePath .path{stroke:lightgrey;stroke-width:2.0px;}#graph-div .flowchart-link{stroke:lightgrey;fill:none;}#graph-div .edgeLabel{background-color:hsl(0, 0%, 34.4117647059%);text-align:center;}#graph-div .edgeLabel rect{opacity:0.5;background-color:hsl(0, 0%, 34.4117647059%);fill:hsl(0, 0%, 34.4117647059%);}#graph-div .cluster rect{fill:hsl(180, 1.5873015873%, 28.3529411765%);stroke:rgba(255, 255, 255, 0.25);stroke-width:1px;}#graph-div .cluster text{fill:#F9FFFE;}#graph-div .cluster span{color:#F9FFFE;}#graph-div div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:"trebuchet ms",verdana,arial,sans-serif;font-size:12px;background:hsl(20, 1.5873015873%, 12.3529411765%);border:1px solid rgba(255, 255, 255, 0.25);border-radius:2px;pointer-events:none;z-index:100;}#graph-div :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g><marker orient="auto" markerHeight="12" markerWidth="12" markerUnits="userSpaceOnUse" refY="5" refX="10" viewBox="0 0 10 10" class="marker flowchart" id="flowchart-pointEnd"><path style="stroke-width: 1px; stroke-dasharray: 1px, 0px;" class="arrowMarkerPath" d="M 0 0 L 10 5 L 0 10 z"></path></marker><marker orient="auto" markerHeight="12" markerWidth="12" markerUnits="userSpaceOnUse" refY="5" refX="0" viewBox="0 0 10 10" class="marker flowchart" id="flowchart-pointStart"><path style="stroke-width: 1px; stroke-dasharray: 1px, 0px;" class="arrowMarkerPath" d="M 0 5 L 10 10 L 10 0 z"></path></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5" refX="11" viewBox="0 0 10 10" class="marker flowchart" id="flowchart-circleEnd"><circle style="stroke-width: 1px; stroke-dasharray: 1px, 0px;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5" refX="-1" viewBox="0 0 10 10" class="marker flowchart" id="flowchart-circleStart"><circle style="stroke-width: 1px; stroke-dasharray: 1px, 0px;" class="arrowMarkerPath" r="5" cy="5" cx="5"></circle></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5.2" refX="12" viewBox="0 0 11 11" class="marker cross flowchart" id="flowchart-crossEnd"><path style="stroke-width: 2px; stroke-dasharray: 1px, 0px;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><marker orient="auto" markerHeight="11" markerWidth="11" markerUnits="userSpaceOnUse" refY="5.2" refX="-1" viewBox="0 0 11 11" class="marker cross flowchart" id="flowchart-crossStart"><path style="stroke-width: 2px; stroke-dasharray: 1px, 0px;" class="arrowMarkerPath" d="M 1,1 l 9,9 M 10,1 l -9,9"></path></marker><g class="root"><g class="clusters"></g><g class="edgePaths"><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-READ_LINE LE-CHECK_STARTS_WITH_TS" id="L-READ_LINE-CHECK_STARTS_WITH_TS-0" d="M149.315167887827,39L114.15833282470703,64L114.65833282470702,89.5"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-YIELD_ENTRY LE-CLEAR_STORED_LINES" id="L-YIELD_ENTRY-CLEAR_STORED_LINES-0" d="M262.4916648864746,1053.1999969482422L262.4916648864746,1090.1999969482422L262.4916648864746,1127.1999969482422"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-CLEAR_STORED_LINES LE-STORE_LINE" id="L-CLEAR_STORED_LINES-STORE_LINE-0" d="M262.4916648864746,1223.6164932250977L262.4916648864746,1248.6164932250977L230.2791633605957,1284.5811441634235"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-STORE_LINE LE-READ_LINE" id="L-STORE_LINE-READ_LINE-0" d="M230.2791633605957,1293.297604277925L355.6833305358887,1248.6164932250977L355.6833305358887,1175.40824508667L355.6833305358887,1090.1999969482422L355.6833305358887,1009.6999969482422L355.6833305358887,929.1999969482422L355.6833305358887,784.3499984741211L355.6833305358887,639.5L355.6833305358887,496.90833282470703L355.6833305358887,354.31666564941406L355.6833305358887,203.15833282470703L355.6833305358887,64L216.16250228881836,29.304154827577207"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-CHECK_STARTS_WITH_TS LE-STORE_LINE" id="L-CHECK_STARTS_WITH_TS-STORE_LINE-0" d="M76.53988020218023,279.69821302688723L38.38333511352539,354.31666564941406L38.38333511352539,496.90833282470703L38.38333511352539,639.5L38.38333511352539,784.3499984741211L38.38333511352539,929.1999969482422L38.38333511352539,1009.6999969482422L38.38333511352539,1090.1999969482422L38.38333511352539,1175.40824508667L38.38333511352539,1248.6164932250977L147.32916641235352,1291.680729765057"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-CHECK_STARTS_WITH_TS LE-CHECK_LINES_STORAGE_EMPTY" id="L-CHECK_STARTS_WITH_TS-CHECK_LINES_STORAGE_EMPTY-0" d="M146.43117977725052,286.0438186968706L172.45416641235352,354.31666564941406L172.95416641235352,391.81666564941406"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-CHECK_LINES_STORAGE_EMPTY LE-STORE_LINE" id="L-CHECK_LINES_STORAGE_EMPTY-STORE_LINE-0" d="M141.89343834091937,571.9392719285659L113.02916717529297,639.5L113.02916717529297,784.3499984741211L113.02916717529297,929.1999969482422L113.02916717529297,1009.6999969482422L113.02916717529297,1090.1999969482422L113.02916717529297,1175.40824508667L113.02916717529297,1248.6164932250977L147.32916641235352,1285.503092845032"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-CHECK_LINES_STORAGE_EMPTY LE-CHECK_STARTS_WITH_MARKER" id="L-CHECK_LINES_STORAGE_EMPTY-CHECK_STARTS_WITH_MARKER-0" d="M204.01489448378763,571.9392719285659L231.87916564941406,639.5L232.3791656494141,677.0000000000001"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-CHECK_STARTS_WITH_MARKER LE-STORE_LINE" id="L-CHECK_STARTS_WITH_MARKER-STORE_LINE-0" d="M207.6584590621256,867.9792903609538L188.8041648864746,929.1999969482422L188.8041648864746,1009.6999969482422L188.8041648864746,1090.1999969482422L188.8041648864746,1175.40824508667L188.8041648864746,1248.6164932250977L188.8041648864746,1273.6164932250977"></path><path marker-end="url(#flowchart-pointEnd)" style="fill:none;" class="edge-thickness-normal edge-pattern-solid flowchart-link LS-CHECK_STARTS_WITH_MARKER LE-YIELD_ENTRY" id="L-CHECK_STARTS_WITH_MARKER-YIELD_ENTRY-0" d="M251.1954827489262,873.8836798487301L262.4916648864746,929.1999969482422L262.4916648864746,966.1999969482422"></path></g><g class="edgeLabels"><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignObject height="0" width="0"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignObject height="0" width="0"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignObject height="0" width="0"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="edgeLabel"></span></div></foreignObject></g></g><g class="edgeLabel"><g transform="translate(0, 0)" class="label"><foreignObject height="0" width="0"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="edgeLabel"></span></div></foreignObject></g></g><g transform="translate(38.38333511352539, 929.1999969482422)" class="edgeLabel"><g transform="translate(-10.5, -12)" class="label"><foreignObject height="24" width="21"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="edgeLabel">NO</span></div></foreignObject></g></g><g transform="translate(172.45416641235352, 354.31666564941406)" class="edgeLabel"><g transform="translate(-12.699996948242188, -12)" class="label"><foreignObject height="24" width="25.399993896484375"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="edgeLabel">YES</span></div></foreignObject></g></g><g transform="translate(113.02916717529297, 1009.6999969482422)" class="edgeLabel"><g transform="translate(-12.699996948242188, -12)" class="label"><foreignObject height="24" width="25.399993896484375"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="edgeLabel">YES</span></div></foreignObject></g></g><g transform="translate(231.87916564941406, 639.5)" class="edgeLabel"><g transform="translate(-10.5, -12)" class="label"><foreignObject height="24" width="21"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="edgeLabel">NO</span></div></foreignObject></g></g><g transform="translate(188.8041648864746, 1090.1999969482422)" class="edgeLabel"><g transform="translate(-12.699996948242188, -12)" class="label"><foreignObject height="24" width="25.399993896484375"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="edgeLabel">YES</span></div></foreignObject></g></g><g transform="translate(262.4916648864746, 929.1999969482422)" class="edgeLabel"><g transform="translate(-10.5, -12)" class="label"><foreignObject height="24" width="21"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="edgeLabel">NO</span></div></foreignObject></g></g></g><g class="nodes"><g transform="translate(176.73749923706055, 19.5)" id="flowchart-READ_LINE-68602" class="node default default"><rect height="39" width="78.85000610351562" y="-19.5" x="-39.42500305175781" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-31.925003051757812, -12)" style="" class="label"><foreignObject height="24" width="63.850006103515625"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="nodeLabel">read line</span></div></foreignObject></g></g><g transform="translate(188.8041648864746, 1308.0750160217285)" id="flowchart-STORE_LINE-68603" class="node default default"><path transform="translate(-41.474998474121094,-34.45852335277169)" d="M 0,9.972348901847793 a 41.474998474121094,9.972348901847793 0,0,0 82.94999694824219 0 a 41.474998474121094,9.972348901847793 0,0,0 -82.94999694824219 0 l 0,48.972348901847795 a 41.474998474121094,9.972348901847793 0,0,0 82.94999694824219 0 l 0,-48.972348901847795" style=""></path><g transform="translate(-33.974998474121094, -12)" style="" class="label"><foreignObject height="24" width="67.94999694824219"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="nodeLabel">store line</span></div></foreignObject></g></g><g transform="translate(262.4916648864746, 1175.40824508667)" id="flowchart-CLEAR_STORED_LINES-68604" class="node default default"><path transform="translate(-50.224998474121094,-48.20824988489072)" d="M 0,11.138833256593816 a 50.224998474121094,11.138833256593816 0,0,0 100.44999694824219 0 a 50.224998474121094,11.138833256593816 0,0,0 -100.44999694824219 0 l 0,74.13883325659381 a 50.224998474121094,11.138833256593816 0,0,0 100.44999694824219 0 l 0,-74.13883325659381" style=""></path><g transform="translate(-42.724998474121094, -24)" style="" class="label"><foreignObject height="48" width="85.44999694824219"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="nodeLabel">clear<br/>line-storage</span></div></foreignObject></g></g><g transform="translate(114.15833282470703, 203.15833282470703)" id="flowchart-CHECK_STARTS_WITH_TS-68605" class="node default default"><polygon style="" transform="translate(-114.15833282470703,114.15833282470703)" class="label-container" points="114.15833282470703,0 228.31666564941406,-114.15833282470703 114.15833282470703,-228.31666564941406 0,-114.15833282470703"></polygon><g transform="translate(-75.15833282470703, -24)" style="" class="label"><foreignObject height="48" width="150.31666564941406"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="nodeLabel">line starts with<br/>full local timestamp?</span></div></foreignObject></g></g><g transform="translate(231.87916564941406, 784.3499984741211)" id="flowchart-CHECK_STARTS_WITH_MARKER-68606" class="node default default"><polygon style="" transform="translate(-107.8499984741211,107.8499984741211)" class="label-container" points="107.8499984741211,0 215.6999969482422,-107.8499984741211 107.8499984741211,-215.6999969482422 0,-107.8499984741211"></polygon><g transform="translate(-68.8499984741211, -24)" style="" class="label"><foreignObject height="48" width="137.6999969482422"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="nodeLabel">line starts with<br/>continuing-marker?</span></div></foreignObject></g></g><g transform="translate(172.45416641235352, 496.90833282470703)" id="flowchart-CHECK_LINES_STORAGE_EMPTY-68607" class="node default default"><polygon style="" transform="translate(-105.59166717529297,105.59166717529297)" class="label-container" points="105.59166717529297,0 211.18333435058594,-105.59166717529297 105.59166717529297,-211.18333435058594 0,-105.59166717529297"></polygon><g transform="translate(-78.59166717529297, -12)" style="" class="label"><foreignObject height="24" width="157.18333435058594"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="nodeLabel">is line-storage empty?</span></div></foreignObject></g></g><g transform="translate(262.4916648864746, 1009.6999969482422)" id="flowchart-YIELD_ENTRY-68608" class="node default default"><rect height="87" width="98.35000610351562" y="-43.5" x="-49.17500305175781" ry="0" rx="0" style="" class="basic label-container"></rect><g transform="translate(-41.67500305175781, -36)" style="" class="label"><foreignObject height="72" width="83.35000610351562"><div xmlns="http://www.w3.org/1999/xhtml" style="display: inline-block; white-space: nowrap;"><span class="nodeLabel">yield<br/>stored lines<br/>as entry</span></div></foreignObject></g></g></g></g></g></svg>
 </div>
-</details></div>
+</details><div class="admonition-future-plans admonition">
+<p class="admonition-title">Future Plans</p>
+<p class="sd-card-text">This will probably change in the future, to be more flexible. If I am able to achieve this, the parsing will change to statemachine parser, that is extendable.
+It is mostly necessary for the default arma error entries, that often need knowledge of lines about 4 lines after the current one to check if they are still part of the entry.</p>
+</div>
+</div>
 </div>
 <section id="record-processing">
 <h3>Record Processing<a class="headerlink" href="#record-processing" title="Permalink to this heading">#</a></h3>
-<div class="sd-card sd-sphinx-override sd-mb-3 sd-shadow-sm docutils">
-<div class="sd-card-body docutils">
+<div class="sd-card sd-sphinx-override sd-mb-3 sd-shadow-md docutils">
+<div class="sd-card-body card-logbook-body docutils">
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p class="sd-card-text">Most Code here will be changed in the near future as it currently is almost hardcoded specifically to Antistasi-logs. It will be changed to be more generic and also easier to extend.</p>
 </div>
 </div>
 </div>
+<section id="generic-records">
+<h4>Generic Records<a class="headerlink" href="#generic-records" title="Permalink to this heading">#</a></h4>
+<div class="sd-card sd-sphinx-override sd-mb-3 sd-shadow-md docutils">
+<div class="sd-card-body card-logbook-body docutils">
+</div>
+</div>
+</section>
+<section id="antistasi-records">
+<h4>Antistasi Records<a class="headerlink" href="#antistasi-records" title="Permalink to this heading">#</a></h4>
+<div class="sd-card sd-sphinx-override sd-mb-3 sd-shadow-md docutils">
+<div class="sd-card-body card-logbook-body docutils">
+</div>
+</div>
+</section>
 </section>
 </section>
 </section>
@@ -638,7 +659,11 @@ Flowchart<div class="sd-summary-down docutils">
 <li><a class="reference internal" href="#header-text-parsing">Header-Text Parsing</a></li>
 <li><a class="reference internal" href="#startup-entries-parsing">Startup-Entries Parsing</a></li>
 <li><a class="reference internal" href="#entries-parsing">Entries Parsing</a><ul>
-<li><a class="reference internal" href="#record-processing">Record Processing</a></li>
+<li><a class="reference internal" href="#record-processing">Record Processing</a><ul>
+<li><a class="reference internal" href="#generic-records">Generic Records</a></li>
+<li><a class="reference internal" href="#antistasi-records">Antistasi Records</a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>

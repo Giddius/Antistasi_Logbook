@@ -1,0 +1,22 @@
+[
+    {
+        "name": "Github Repo",
+        "url": "https://github.com/Giddius/Antistasi_Logbook",
+        "description": "Github repo of Antistasi-Logbook"
+    },
+    {
+        "name": "SQLite",
+        "url": "https://www.sqlite.org/index.html",
+        "description": "Database that is used for Antistasi-Logbook"
+    },
+    {
+        "name": "Antistasi Repo",
+        "url": "https://github.com/official-antistasi-community/A3-Antistasi",
+        "description": "Github repo of Antistasi Mod"
+    },
+    {
+        "name": "Antistasi Steam Page",
+        "url": "https://steamcommunity.com/id/OfficialAntiStasiCommunity/myworkshopfiles/",
+        "description": "Steam Page for the Antistasi Mod"
+    }
+]

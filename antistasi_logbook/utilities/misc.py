@@ -5,10 +5,11 @@
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import re
 from json import JSONEncoder
-from typing import TYPE_CHECKING, Any, Union, Literal, Callable, ClassVar, Optional, Generator
+from typing import TYPE_CHECKING, Any, Union, Literal, Callable, ClassVar, Optional, Generator, TypeVar
 from pathlib import Path
 from datetime import datetime, timedelta
-from functools import total_ordering
+from functools import total_ordering, wraps
+import textwrap
 from collections import ChainMap
 import sys
 # * Third Party Imports --------------------------------------------------------------------------------->
@@ -337,6 +338,41 @@ class EnumLikeModelCache(dict):
 
 def all_subclasses_recursively(klass: type) -> set[type]:
     return set(klass.__subclasses__()).union([s for c in klass.__subclasses__() for s in all_subclasses_recursively(c)])
+
+
+def _collect_caller():
+    caller = []
+    idx = 1
+    while True:
+        try:
+            co = sys._getframe(idx).f_code
+            if not co.co_name:
+                break
+            caller.append((co.co_name, co.co_filename, co.co_firstlineno))
+            idx += 1
+        except Exception:
+            break
+
+    return caller
+
+
+def _log_caller(func_name: str, in_caller: list[tuple[str, str, int]]):
+    text = f"{func_name!r} was called by " + textwrap.indent("\n".join(f"↳ {i[0]!r} {i[1]}:{i[2]}" for i in in_caller), "    ")
+    log.debug(text)
+
+
+_T = TypeVar("_T")
+
+
+def tell_callers(in_func: _T) -> _T:
+
+    @wraps(in_func)
+    def _inner(*args, **kwargs):
+        caller = _collect_caller()
+        _log_caller(in_func.__name__, caller)
+        return in_func(*args, **kwargs)
+
+    return _inner
 
 
 if __name__ == '__main__':

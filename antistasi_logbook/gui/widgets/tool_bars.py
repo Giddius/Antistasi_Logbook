@@ -218,6 +218,8 @@ class LogFileToolBar(BaseToolBar):
 
     def setup_actions(self):
         super().setup_actions()
+        self.add_local_log_file_action = QAction(AllResourceItems.add_local_log_file_image.get_as_icon(), "Add Local Log-File", self)
+        self.addAction(self.add_local_log_file_action)
         self.export_action_widget = DragIconLabel(pixmap=AllResourceItems.txt_file_image.get_as_pixmap(), text="Original File", parent=self)
         self.addWidget(self.export_action_widget)
         self.show_records_action = QAction(AllResourceItems.log_records_tab_icon_image.get_as_icon(), "Show Records", self)

@@ -118,7 +118,7 @@ class DefaultExceptionHandler:
         self.original_threading_except_hook(args)
 
     def handle_except_hook(self, type_, value, traceback):
-        log.error(value, exc_info=True)
+        log.error(value, exc_info=True, stacklevel=2)
         log.error(''.join(format_tb(traceback)))
         self.original_sys_except_hook(type_, value, traceback)
 
