@@ -123,3 +123,7 @@ def ensure_links():
 
 
 ensure_links()
+
+import create_db_diagram
+
+create_db_diagram.from_sphinx_config()

@@ -1,0 +1,99 @@
+{% macro tabledef(table_obj) -%}
+{{ table_obj.name }} [group="{{ table_obj.group }}",
+margin=2.0,
+URL="https://en.wikipedia.org/wiki/Vincent_van_Gogh",
+tooltip="{{ table_obj.name }}",
+label=< <TABLE BGCOLOR="{{ table_obj.background_color }}" BORDER="0" CELLBORDER="0" CELLSPACING="10">
+<TR>
+<TD COLSPAN="3" CELLPADDING="{{ font_data.general_font_size // 2 }}" ALIGN="CENTER" BGCOLOR="{{ table_obj.main_color }}">
+<FONT FACE="{{ table_obj.font }}" POINT-SIZE="{{ font_data.general_font_size * 1.5 }}" COLOR="{{ table_obj.font_color }}">
+{{ table_obj.name }}
+</FONT>
+</TD>
+</TR>
+{% for column in table_obj.column_list -%}
+<TR>
+<TD ALIGN="LEFT" BORDER="0" PORT="{{ column.name }}" CELLPADDING="{{ font_data.general_font_size // 2 }}">
+<FONT COLOR="{{ column.font_color }}" FACE="{{ column.font }}"><BR/>{{ column.name }}<BR/></FONT>
+</TD>
+<TD ALIGN="CENTER" CELLPADDING="{{ font_data.general_font_size // 2 }}">
+<FONT COLOR="{{ column.typus_font_color }}" FACE="{{ column.typus_font }}"><BR/><B>{{ column.field_type }}</B><BR/></FONT>
+</TD>
+<TD ALIGN="LEFT" PORT="{{ column.name }}_typus" CELLPADDING="{{ font_data.general_font_size // 2 }}" BGCOLOR="{{ column.typus_background_color }}">
+<FONT COLOR="{{ column.typus_font_color }}" FACE="{{ column.typus_font }}"><BR/><I>{{ column.field_class_name }}</I><BR/></FONT>
+</TD>
+</TR>
+{% if not loop.last %}
+<HR/>
+{% endif %}
+{% endfor -%}
+</TABLE> >]
+{%- endmacro -%}
+
+digraph "{{ graph_name }}" {{"{"}}
+    fontname = "{{ font_data.general_font }}"
+    fontsize = {{ font_data.general_font_size }}
+    splines = true
+    overlap = false
+    nodesep = 1
+    ranksep = 3
+    compound = true
+    rankdir = "LR"
+    center = true
+    bgcolor = "{{background_color}}"
+    mclimit = 100.0
+    nslimit = 100.0
+    searchsize = 1000
+    packmode = "array_c1"
+    pack = true
+    pad=2.5
+
+
+
+    node [
+        fontname = "{{ font_data.node_font }}"
+        fontsize = {{ font_data.node_font_size }}
+        shape = "plaintext"
+    ]
+
+    edge [
+        fontname = "{{ font_data.edge_font }}"
+        fontsize = {{ font_data.edge_font_size }}
+        penwidth = 5
+    ]
+
+{% for cluster_name, cluster_tables in clusters.items() %}
+subgraph cluster_{{ cluster_name }} {{"{"}}
+label=< <FONT COLOR="white" POINT-SIZE="{{ font_data.general_font_size *2 }}" FACE="{{ font_data.general_font }}">{{ cluster_name }}</FONT> >;
+fillcolor = "#36363636";
+style="filled";
+margin=2.0;
+pad=2.0;
+tooltip="{{ cluster_name.title() }} Tables";
+
+
+{% for cluster_table in cluster_tables %}
+{{ tabledef(cluster_table) }};
+{% endfor %}
+{{"}"}}
+{% endfor %}
+
+{% for table in tables %}
+
+{{ tabledef(table) }}
+
+{% endfor %}
+
+{% for table in all_tables %}
+    {% for foreign_key_column in table.foreign_key_columns %}
+
+{{ table.name }}:{{ foreign_key_column.name }}_typus:e -> {{ foreign_key_column.target_table_node.name }}:{{ foreign_key_column.target_column_node.name }}:w  [minlen=2,weight={{ table.weight }} arrowhead=empty, arrowtail=none, dir=both, color="{{ foreign_key_column.edge_color }}", weight=50];
+
+    {% endfor %}
+{% endfor %}
+
+
+
+
+
+{{"}"}}

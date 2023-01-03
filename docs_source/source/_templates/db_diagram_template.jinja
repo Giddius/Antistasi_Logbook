@@ -1,0 +1,57 @@
+digraph "{{ graph_name }}" {{"{"}}
+    fontname = "{{ font_data.general_font }}"
+    fontsize = {{ font_data.general_font_size }}
+    splines = true
+    overlap = false
+    ranksep = 3
+    nodesep = 3
+    newrank = true
+
+
+    node [
+        fontname = "{{ font_data.node_font }}"
+        fontsize = {{ font_data.node_font_size }}
+        shape = "plaintext"
+    ]
+
+    edge [
+        fontname = "{{ font_data.edge_font }}"
+        fontsize = {{ font_data.edge_font_size }}
+        penwidth = 5
+    ]
+
+
+{% for table in tables %}
+
+{{ table.name }} [label=<
+<TABLE BGCOLOR="{{ table.background_color }}" BORDER="0" CELLBORDER="0" CELLSPACING="10">
+<TR><TD COLSPAN="2" CELLPADDING="{{ font_data.general_font_size // 2 }}" ALIGN="CENTER" BGCOLOR="{{ table.main_color }}">
+<FONT FACE="{{ table.font }}" POINT-SIZE="{{ font_data.general_font_size * 1.5 }}" COLOR="{{ table.font_color }}">
+{{ table.name }}
+</FONT></TD></TR>
+{% for column in table.column_list %}
+<TR><TD ALIGN="LEFT" BORDER="0" PORT="{{ column.name }}" CELLPADDING="{{ font_data.general_font_size // 2 }}">
+<FONT COLOR="{{ column.font_color }}" FACE="{{ column.font }}">{{ column.name }}</FONT>
+</TD><TD ALIGN="LEFT" PORT="{{ column.name }}_typus" CELLPADDING="{{ font_data.general_font_size // 2 }}" BGCOLOR="{{ column.typus_background_color }}">
+<FONT COLOR="{{ column.typus_font_color }}" FACE="{{ column.typus_font }}">{{ column.field_class_name }}</FONT>
+</TD></TR>
+{% endfor %}
+</TABLE>
+>]
+
+{% endfor %}
+
+{% for table in tables %}
+    {% for foreign_key_column in table.foreign_key_columns %}
+
+{{ table.name }}:{{ foreign_key_column.name }}_typus -> {{ foreign_key_column.target_table_node.name }}:{{ foreign_key_column.target_column_node.name }} [
+    label="{{ foreign_key_column.name }}"] [arrowhead=empty, arrowtail=none, dir=both, color="{{ foreign_key_column.edge_color }}"];
+
+    {% endfor %}
+{% endfor %}
+
+
+
+
+
+{{"}"}}
