@@ -46,7 +46,7 @@ pushd %INPATH%
 mkdir %SUB_OUTPUT_FOLDER%
 rem ECHO MODIFYNG FILE %INFILE% WITH DECORATORS
 rem call %DECORATOR_HANDLING_SCRIPT% %FULLINPATH%
-call python -m memory_profiler -o %OUT_FILE_PATH% --include-children %~1
+call python -m memory_profiler -o %OUT_FILE_PATH% --backend psutil --include-children %~1
 
 
 pushd %OLDHOME_FOLDER%

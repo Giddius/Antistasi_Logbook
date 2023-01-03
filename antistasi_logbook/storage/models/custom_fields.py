@@ -216,6 +216,8 @@ class AwareTimeStampField(BigIntegerField):
             return
 
         tz = timezone.utc if self.utc is True else None
+        if isinstance(value, datetime):
+            log.debug("value %r is already a datetime", value)
         return datetime.fromtimestamp((value / self.mult_factor), tz=tz)
 
 

@@ -5,9 +5,9 @@
         "name": "Altis",
         "official": 1,
         "workshop_link": null,
-        "map_image_low_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\altis_thumbnail.png",
-        "map_image_high_resolution": null,
-        "coordinates": null
+        "map_image_low_resolution": "altis_thumb.png",
+        "map_image_high_resolution": "altis.png",
+        "coordinates": "altis_pos.json"
     },
     {
         "dlc": "Apex",
@@ -15,9 +15,9 @@
         "name": "Tanoa",
         "official": 1,
         "workshop_link": null,
-        "map_image_low_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\tanoa_thumbnail.png",
-        "map_image_high_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\tanoa_huge.png",
-        "coordinates": null
+        "map_image_low_resolution": "tanoa_thumbnail.png",
+        "map_image_high_resolution": "tanoa_huge.png",
+        "coordinates": "tanoa_pos.json"
     },
     {
         "dlc": "Contact",
@@ -25,9 +25,9 @@
         "name": "Enoch",
         "official": 1,
         "workshop_link": null,
-        "map_image_low_resolution": null,
-        "map_image_high_resolution": null,
-        "coordinates": null
+        "map_image_low_resolution": "enoch_thumb.png",
+        "map_image_high_resolution": "enoch_check.png",
+        "coordinates": "enoch_pos.json"
     },
     {
         "dlc": "Malden",
@@ -35,9 +35,9 @@
         "name": "Malden",
         "official": 1,
         "workshop_link": null,
-        "map_image_low_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\malden_thumbnail.png",
-        "map_image_high_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\malden_huge.png",
-        "coordinates": null
+        "map_image_low_resolution": "malden_thumb.png",
+        "map_image_high_resolution": "malden.png",
+        "coordinates": "malden_pos.json"
     },
     {
         "dlc": null,
@@ -45,9 +45,9 @@
         "name": "takistan",
         "official": 0,
         "workshop_link": null,
-        "map_image_low_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\takistan_thumbnail.png",
-        "map_image_high_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\takistan_huge.png",
-        "coordinates": null
+        "map_image_low_resolution": "takistan_thumbnail.png",
+        "map_image_high_resolution": "takistan_huge.png",
+        "coordinates": "takistan_pos.json"
     },
     {
         "dlc": null,
@@ -55,9 +55,9 @@
         "name": "vt7",
         "official": 0,
         "workshop_link": "https://steamcommunity.com/workshop/filedetails/?id=1926513010",
-        "map_image_low_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\virolahti_thumbnail.png",
-        "map_image_high_resolution": null,
-        "coordinates": null
+        "map_image_low_resolution": "vt7_thumb.png",
+        "map_image_high_resolution": "vt7.png",
+        "coordinates": "virolahti_pos.json"
     },
     {
         "dlc": null,
@@ -65,9 +65,9 @@
         "name": "sara",
         "official": 0,
         "workshop_link": "https://steamcommunity.com/sharedfiles/filedetails/?id=583544987",
-        "map_image_low_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\sahrani_thumbnail.png",
-        "map_image_high_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\sara_huge.png",
-        "coordinates": null
+        "map_image_low_resolution": "sahrani_thumbnail.png",
+        "map_image_high_resolution": "sara_huge.png",
+        "coordinates": "sahrani_pos.json"
     },
     {
         "dlc": null,
@@ -75,9 +75,9 @@
         "name": "Chernarus_Winter",
         "official": 0,
         "workshop_link": "https://steamcommunity.com/sharedfiles/filedetails/?id=583544987",
-        "map_image_low_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\cherno_winter_thumbnail.png",
-        "map_image_high_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\chernarus_winter_huge.png",
-        "coordinates": "d:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\.venv\\lib\\site-packages\\antistasi_logbook\\data\\coordinates\\chernarus_winter_pos.json"
+        "map_image_low_resolution": "cherno_winter_thumbnail.png",
+        "map_image_high_resolution": "chernarus_winter_huge.png",
+        "coordinates": "chernarus_winter_pos.json"
     },
     {
         "dlc": null,
@@ -85,9 +85,19 @@
         "name": "chernarus_summer",
         "official": 0,
         "workshop_link": "https://steamcommunity.com/sharedfiles/filedetails/?id=583544987",
-        "map_image_low_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\cherno_summer_thumbnail.png",
-        "map_image_high_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\chernarus_summer_huge.png",
-        "coordinates": "d:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\.venv\\lib\\site-packages\\antistasi_logbook\\data\\coordinates\\chernarus_winter_pos.json"
+        "map_image_low_resolution": "cherno_summer_thumbnail.png",
+        "map_image_high_resolution": "chernarus_summer_huge.png",
+        "coordinates": "chernarus_winter_pos.json"
+    },
+    {
+        "dlc": null,
+        "full_name": "Chernarus Autumn",
+        "name": "chernarus",
+        "official": 0,
+        "workshop_link": "https://steamcommunity.com/sharedfiles/filedetails/?id=583544987",
+        "map_image_low_resolution": "cherno_autumn_thumb.png",
+        "map_image_high_resolution": "chernarus_autumn.png",
+        "coordinates": "chernarus_winter_pos.json"
     },
     {
         "dlc": null,
@@ -95,9 +105,9 @@
         "name": "tem_anizay",
         "official": 0,
         "workshop_link": "https://steamcommunity.com/workshop/filedetails/?id=1537973181",
-        "map_image_low_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\anizay_thumbnail.png",
-        "map_image_high_resolution": null,
-        "coordinates": null
+        "map_image_low_resolution": "tem_anizay_thumb.png",
+        "map_image_high_resolution": "tem_anizay.png",
+        "coordinates": "anizay_pos.json"
     },
     {
         "dlc": null,
@@ -105,9 +115,9 @@
         "name": "Tembelan",
         "official": 0,
         "workshop_link": "https://steamcommunity.com/workshop/filedetails/?id=1252091296",
-        "map_image_low_resolution": "D:\\Dropbox\\hobby\\Modding\\Programs\\Github\\My_Repos\\Antistasi_Logbook\\antistasi_logbook\\data\\map_images\\tembelan_thumbnail.png",
-        "map_image_high_resolution": null,
-        "coordinates": null
+        "map_image_low_resolution": "tembelan_thumb.png",
+        "map_image_high_resolution": "tembelan.png",
+        "coordinates": "tembelan_pos.json"
     },
     {
         "dlc": "S.O.G. Prairie Fire",

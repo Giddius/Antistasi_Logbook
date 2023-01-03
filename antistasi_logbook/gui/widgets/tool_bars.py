@@ -28,7 +28,7 @@ from antistasi_logbook.gui.models.log_records_model import LogRecordsModel
 from antistasi_logbook.gui.views.log_records_query_view import LogRecordsQueryView
 from antistasi_logbook.gui.widgets.form_widgets.type_widgets import PathValueField
 from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import AllResourceItems
-
+from antistasi_logbook.gui.widgets.data_tool_widget import LogRecordDataToolWidget
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.gui.application import AntistasiLogbookApplication

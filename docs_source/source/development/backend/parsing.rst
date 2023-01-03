@@ -150,7 +150,7 @@ Meta-Data Parsing
 
             .. tab-item:: Regex
 
-               .. button-link:: https://regex101.com/r/8P312m/1
+               .. button-link:: https://regex101.com/r/8P312m/2
                   :color: primary
                   :shadow:
 
@@ -159,7 +159,7 @@ Meta-Data Parsing
 
                .. code:: python
 
-                  re.compile(r"((?P<text_loading>Loading last campaign ID)|(?P<text_creating>Creating new campaign with ID))\s*(?P<campaign_id>\d+)")
+                  re.compile(r"((?P<text_loading>(Loading last campaign ID)|(Loading campaign with ID))|(?P<text_creating>Creating new campaign with ID))\s*(?P<campaign_id>\d+)")
 
 
       * .. dropdown:: UTC offset of the log-file

@@ -97,7 +97,7 @@ class Parser:
 
             yield RawRecord(rest_lines, utc_offset=utc_offset)
 
-    def __call__(self, context: "LogParsingContext") -> Generator:
+    def __call__(self, context: "LogParsingContext") -> None:
 
         # if self.stop_event.is_set():
         #     return
@@ -122,7 +122,12 @@ class Parser:
         if self.stop_event.is_set():
             return
         log.info("Parsing entries for %r", context._log_file)
-        context.advance_to_not_parsed_line()
+        try:
+
+            context.advance_to_not_parsed_line()
+        except Exception as e:
+            log.exception("exception while advancing to advance_to_not_parsed_line", exc_info=True)
+
         for raw_record in self.parse_entries(context):
 
             processed_record = self.record_processor(raw_record=raw_record)

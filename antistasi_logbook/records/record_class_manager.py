@@ -69,7 +69,7 @@ def new_sorted_set() -> SortedSet:
 
 
 class RecordClassChecker:
-    __slots__ = ("default_record_class", "generic_record_classes", "antistasi_record_classes", "family_handler_table")
+    __slots__ = ("default_record_class", "generic_record_classes", "antistasi_record_classes", "family_handler_table", "cache")
 
     def __init__(self, default_record_class: StoredRecordClass, generic_record_classes: SortedSet[StoredRecordClass], antistasi_record_classes: dict[str, Union[SortedSet[StoredRecordClass], StoredRecordClass]]) -> None:
 
@@ -109,11 +109,11 @@ class RecordClassChecker:
             origin = log_record.origin.record_family
         except AttributeError:
             origin = log_record.record_origin.record_family
-        record_class = self.family_handler_table.get(origin, self._determine_generic_record_class)(log_record)
-        if record_class is None:
-            _out = self.default_record_class.model
-        else:
-            _out = record_class
+            record_class = self.family_handler_table.get(origin, self._determine_generic_record_class)(log_record)
+            if record_class is None:
+                _out = self.default_record_class.model
+            else:
+                _out = record_class
         if isinstance(log_record, RawRecord):
             log_record.record_class = _out
 

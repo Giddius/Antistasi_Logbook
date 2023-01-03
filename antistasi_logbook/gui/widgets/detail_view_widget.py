@@ -20,7 +20,7 @@ import PySide6
 import pyqtgraph as pg
 from PySide6.QtGui import QFont, QColor, QAction, QPixmap, QTextFormat, QTextOption, QFontMetrics, QTextDocument, QTextCharFormat, QDesktopServices, QSyntaxHighlighter
 from PySide6.QtCore import Qt, QUrl, QAbstractTableModel
-from PySide6.QtWidgets import (QMenu, QLabel, QWidget, QGroupBox, QLineEdit, QListView, QTextEdit, QLCDNumber, QFormLayout, QHBoxLayout,
+from PySide6.QtWidgets import (QMenu, QLabel, QWidget, QGroupBox, QLineEdit, QListView, QTextEdit, QLCDNumber, QSlider, QFormLayout, QHBoxLayout,
                                QMessageBox, QPushButton, QVBoxLayout, QApplication, QInputDialog, QProgressBar, QTextBrowser)
 
 # * Third Party Imports --------------------------------------------------------------------------------->
@@ -347,7 +347,7 @@ class GameMapThumbnail(QLabel):
     def mousePressEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
 
         if event.button() == Qt.LeftButton:
-            if self.game_map.name.casefold().startswith("chernarus"):
+            if self.game_map.coordinates is not None:
                 data = self.game_map.coordinates
                 self.high_res_game_map_window = HighResMapImageWidget(self.game_map.map_image_high_resolution, (data["world_size"], data["world_size"]), name=self.game_map.full_name).setup()
 
@@ -385,9 +385,16 @@ class GameMapThumbnail(QLabel):
                 self._comb_window.layout().addWidget(self.high_res_game_map_window)
                 comb_progress_bar = QProgressBar()
                 comb_progress_bar.setMaximum(len(self.high_res_game_map_window._map_symbols))
+                comb_slider = QSlider(Qt.Orientation.Horizontal)
+                comb_slider.setTracking(True)
+                comb_slider.setMinimum(0)
+                comb_slider.setMaximum(100)
+
                 self.high_res_game_map_window.map_symbol_changed.connect(lambda x: comb_progress_bar.setValue(comb_progress_bar.value() + 1), type=Qt.ConnectionType.UniqueConnection)
                 self.high_res_game_map_window.finished_run.connect(comb_progress_bar.reset, type=Qt.ConnectionType.UniqueConnection)
                 self._comb_window.layout().addWidget(comb_progress_bar)
+                self._comb_window.layout().addWidget(comb_slider)
+
                 self._comb_window.show()
 
         return super().mousePressEvent(event)
@@ -617,8 +624,10 @@ class LogFileDetailWidget(BaseDetailWidget):
         self.time_frame_value = ValueLineEdit(text=time_frame_string)
         self.layout.addRow("Time-Frame", self.time_frame_value)
 
-        time_frame_duration_string = seconds2human(self.log_file.time_frame.delta.total_seconds(), min_unit="second")
-
+        if self.log_file.time_frame is not None:
+            time_frame_duration_string = seconds2human(self.log_file.time_frame.delta.total_seconds(), min_unit="second")
+        else:
+            time_frame_duration_string = None
         self.duration_value = ValueLineEdit(text=time_frame_duration_string)
         self.layout.addRow("Duration", self.duration_value)
 

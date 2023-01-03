@@ -16,13 +16,13 @@ from PySide6 import QtCore
 from PySide6.QtCore import Qt, QUrl, Slot, QMimeData, QModelIndex
 
 # * Third Party Imports --------------------------------------------------------------------------------->
-from peewee import Field, Query
+from peewee import Field, Query, prefetch
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.storage.models.models import ModSet, Server, LogFile, Version
+from antistasi_logbook.storage.models.models import ModSet, Server, LogFile, Version, Mod, LogFileAndModJoin
 from antistasi_logbook.storage.models.custom_fields import FakeField
 from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE, BaseQueryDataModel, ModelContextMenuAction
 
@@ -81,6 +81,10 @@ class LogFilesModel(BaseQueryDataModel):
         copy_action.clicked.connect(self.copy_file_to_clipboard)
         menu.add_action(copy_action)
 
+        remove_action = ModelContextMenuAction(item, column, index, text=f"Remove {item.pretty_name} from the DB", parent=menu)
+        remove_action.clicked.connect(self.remove_log_file)
+        menu.add_action(remove_action)
+
     @Slot(object, object, QModelIndex)
     def copy_file_to_clipboard(self, item: LogFile, column: Field, index: QModelIndex):
         clipboard = self.app.clipboard()
@@ -88,6 +92,13 @@ class LogFilesModel(BaseQueryDataModel):
         original_file: Path = item.original_file.to_file()
         data.setUrls([QUrl.fromLocalFile(original_file)])
         clipboard.setMimeData(data)
+
+    @Slot(object, object, QModelIndex)
+    def remove_log_file(self, item: LogFile, column: Field, index: QModelIndex):
+        self.layoutAboutToBeChanged.emit()
+        self.content_items.remove(item)
+        LogFile.delete_by_id(item.id)
+        self.layoutChanged.emit()
 
     @Slot(object, object, QModelIndex)
     def reparse_log_file(self, item: LogFile, column: Field, index: QModelIndex):
@@ -138,7 +149,7 @@ class LogFilesModel(BaseQueryDataModel):
 
     def get_content(self) -> "BaseQueryDataModel":
         def load_up_log_file(in_log_file: LogFile):
-            in_log_file.server = Server.get_by_id(in_log_file.server_id)
+
             in_log_file.game_map = self.backend.database.foreign_key_cache.get_game_map_by_id(in_log_file.game_map_id)
 
             if in_log_file.mod_set_id is not None:
@@ -151,7 +162,7 @@ class LogFilesModel(BaseQueryDataModel):
 
         self.content_items = []
         self.database.connect(True)
-        for log_file in self.backend.thread_pool.map(load_up_log_file, self.get_query().iterator()):
+        for log_file in self.backend.thread_pool.map(load_up_log_file, prefetch(self.get_query(), Server, Version)):
 
             self.content_items.append(log_file)
         self.content_items = self.content_items

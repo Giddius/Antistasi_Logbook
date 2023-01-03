@@ -15,7 +15,7 @@ from collections import Counter
 
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtWidgets import QStyle, QWidget, QGridLayout, QPushButton, QApplication
-
+from statistics import mean, stdev, median, median_grouped
 # * Third Party Imports --------------------------------------------------------------------------------->
 import apsw
 from peewee import Model, fn
@@ -27,7 +27,7 @@ from gidapptools.meta_data.interface import MetaPaths, get_meta_paths
 from gidapptools.general_helper.conversion import bytes2human
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.storage.models.models import Mod, ModSet, LogFile, Message, BaseModel, LogRecord, ArmaFunction, DatabaseMetaData, ArmaFunctionAuthorPrefix, MeanUpdateTimePerLogFile
+from antistasi_logbook.storage.models.models import Mod, ModSet, LogFile, Message, BaseModel, LogRecord, GameMap, ArmaFunction, DatabaseMetaData, ArmaFunctionAuthorPrefix, MeanUpdateTimePerLogFile
 from antistasi_logbook.gui.widgets.debug_widgets import DebugDockWidget, ListOfDictsResult
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
@@ -636,6 +636,58 @@ def show_message_hash_stats():
     return {"raw_size": size, "size": bytes2human(size), "amount": amount}
 
 
+def show_map_coords():
+    app: "AntistasiLogbookApplication" = QApplication.instance()
+    db: "GidSqliteApswDatabase" = app.backend.database
+    with db.connection_context():
+        all_maps = tuple(i for i in GameMap.select().iterator())
+
+        _out = []
+        for game_map in all_maps:
+            _out.append({"name": game_map.name,
+                         "coords": game_map.coordinates})
+    return _out
+
+
+def get_upsmon_init_time():
+    app: "AntistasiLogbookApplication" = QApplication.instance()
+    db: "GidSqliteApswDatabase" = app.backend.database
+    with db.connection_context():
+        all_log_files = tuple(i for i in LogFile.select().where(LogFile.unparsable != True).order_by(LogFile.server_id, -LogFile.created_at).iterator())
+
+    _out = []
+    all_durations = []
+    for log_file in all_log_files:
+        try:
+            upsmon_started = LogRecord.select(LogRecord.recorded_at).join(Message).where((LogRecord.log_file_id == log_file.id) & (LogRecord.message_item.text == "UPSMON init started")).limit(1).tuples()[0][0]
+            upsmon_ended = LogRecord.select(LogRecord.recorded_at).join(Message).where((LogRecord.log_file_id == log_file.id) & (LogRecord.message_item.text == "Background init completed")).limit(1).tuples()[0][0]
+            _out.append({"log_file": log_file.name, "server": log_file.server.name, "seconds": (upsmon_ended - upsmon_started).total_seconds(), "started": upsmon_started.isoformat(), "ended": upsmon_ended.isoformat()})
+            all_durations.append((upsmon_ended - upsmon_started).total_seconds())
+        except IndexError:
+            pass
+
+    mean_duration = mean(all_durations)
+    std_dev_duration = stdev(all_durations)
+    median_duration = median(all_durations)
+    median_grouped_duration = median_grouped(all_durations)
+    _out_file = META_PATHS.debug_dump_dir.joinpath("upsmon_init_times.json")
+    with _out_file.open("w", encoding='utf-8', errors='ignore') as f:
+        _out = {"mean_seconds": mean_duration,
+                "median_seconds": median_duration,
+                "median_grouped": median_grouped_duration,
+                "stdev_seconds": std_dev_duration,
+                "items": _out}
+        json.dump(_out, f, indent=4, default=str)
+    return _out
+
+
+def show_db_file_names():
+    app: "AntistasiLogbookApplication" = QApplication.instance()
+    db: "GidSqliteApswDatabase" = app.backend.database
+
+    return db.connection().db_filename("main")
+
+
 def setup_debug_widget(debug_dock_widget: "DebugDockWidget") -> None:
     log.debug("running setup_debug_widget")
     app: AntistasiLogbookApplication = QApplication.instance()
@@ -665,6 +717,8 @@ def setup_debug_widget(debug_dock_widget: "DebugDockWidget") -> None:
     debug_dock_widget.add_show_func_result_button(mod_hash_short_lengths, "models")
     debug_dock_widget.add_show_func_result_button(mod_dir_lengths, "models")
     debug_dock_widget.add_show_func_result_button(mod_full_path_lengths, "models")
+    debug_dock_widget.add_show_func_result_button(show_map_coords, "models")
+
     debug_dock_widget.add_show_func_result_button(mod_name_lengths, "models")
     debug_dock_widget.add_show_func_result_button(message_text_lengths, "models")
     debug_dock_widget.add_show_func_result_button(get_longest_message, "message")
@@ -676,6 +730,7 @@ def setup_debug_widget(debug_dock_widget: "DebugDockWidget") -> None:
     debug_dock_widget.add_show_func_result_button(show_mean_update_time_per_log_file, "database-meta")
     debug_dock_widget.add_show_func_result_button(all_update_durations, "database-meta")
     debug_dock_widget.add_show_func_result_button(show_cache_stats, "database-meta")
+    debug_dock_widget.add_show_func_result_button(show_db_file_names, "database-meta")
 
     debug_dock_widget.add_show_func_result_button(dump_arma_functions, "setup-data")
     debug_dock_widget.add_show_func_result_button(dump_most_common_messages, "setup-data")
@@ -687,6 +742,7 @@ def setup_debug_widget(debug_dock_widget: "DebugDockWidget") -> None:
     debug_dock_widget.add_show_func_result_button(show_and_dump_meta_attrs, "models")
     debug_dock_widget.add_show_func_result_button(count_error_records_by_group, "queries")
     debug_dock_widget.add_show_func_result_button(count_records_by_group, "queries")
+    debug_dock_widget.add_show_func_result_button(get_upsmon_init_time, "extra")
 
     log.debug("finished setup_debug_widget")
 

@@ -699,7 +699,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
     def _single_update(self) -> None:
         def _run_update():
-            # TODO: Connect update_action to the Stausbar label and shut it down while updating and start it up afterwards
+
             self.menubar.single_update_action.setEnabled(False)
 
             try:
@@ -794,8 +794,6 @@ class AntistasiLogbookMainWindow(QMainWindow):
 
 
 def start_gui() -> int:
-
-    # TODO: Rewrite so everything starts through the app
 
     app = AntistasiLogbookApplication(sys.argv)
     app.message_handler = QtMessageHandler().install()

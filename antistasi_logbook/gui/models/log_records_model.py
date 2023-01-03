@@ -128,7 +128,7 @@ class LogRecordsModel(BaseQueryDataModel):
 
     def get_query(self) -> "Query":
 
-        query = LogRecord.select(LogRecord)
+        query = LogRecord.select(LogRecord, Message).join(Message)
         if self._base_filter_item is not None:
             query = query.where(self._base_filter_item)
         if self.filter_item is not None:

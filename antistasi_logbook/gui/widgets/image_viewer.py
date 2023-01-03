@@ -76,7 +76,7 @@ class ArmaSide(Enum):
 
 class BaseMapSymbolImageItem(pg.ImageItem):
     colored_image: dict[ArmaSide:ArrayLike] = {}
-    tool_tip_template: str = "<b>{name!s}</b> - <u>{side!s}</u> - <i>{description!s}</i>"
+    tool_tip_template: str = "x: {x!s} - y: {y!s} -- <b>{name!s}</b> - <u>{side!s}</u> - <i>{description!s}</i>"
 
     def __init__(self, name: str, x: float, y: float, description: str = None, side: ArmaSide = ArmaSide.CIV, **kwargs):
         self._name = name
@@ -85,6 +85,7 @@ class BaseMapSymbolImageItem(pg.ImageItem):
         self._description = description
         self._side = side
         self._extra_data: dict[str, object] = {}
+        self._time_states: dict[float, tuple["ArmaSide", str]] = {}
         super().__init__(**kwargs)
 
     @property
@@ -284,7 +285,11 @@ class HighResMapImageWidget(pg.GraphicsLayoutWidget):
     def size_multiplier(self) -> float:
         arma_size = QSize(*self._arma_size)
         real_size = QSize(self._high_res_image.width(), self._high_res_image.height())
-        multiplier = self._high_res_image.width() / self._arma_size[0]
+        multiplier_w = self._high_res_image.width() / self._arma_size[0]
+        multiplier_h = self._high_res_image.height() / self._arma_size[1]
+        if multiplier_w != multiplier_h:
+            log.debug("width multiplier (%r) is not the same as height multiplies (%r)", multiplier_w, multiplier_h)
+        multiplier = (multiplier_w + multiplier_h) / 2
         log.debug("arma_size: %r, real_size: %r, multiplier: %r", arma_size, real_size, multiplier)
         return multiplier
 

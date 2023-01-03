@@ -26,7 +26,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 # * Third Party Imports --------------------------------------------------------------------------------->
 import apsw
 from apsw import SQLITE_OK, SQLITE_OPEN_CREATE, SQLITE_OPEN_NOMUTEX, SQLITE_OPEN_READWRITE, SQLITE_CHECKPOINT_TRUNCATE, ConnectionClosedError, ThreadingViolationError
-from peewee import JOIN, Model, DatabaseProxy, chunked
+from peewee import JOIN, Model, DatabaseProxy, chunked, prefetch
 from playhouse.apsw_ext import APSWDatabase
 from playhouse.sqlite_ext import CYTHON_SQLITE_EXTENSIONS
 
@@ -571,7 +571,7 @@ class GidSqliteApswDatabase(APSWDatabase):
         gc.collect()
 
     def get_all_server(self, ordered_by=Server.id) -> tuple[Server]:
-        return tuple(s for s in Server.select(Server, RemoteStorage).join_from(Server, RemoteStorage, on=Server.remote_storage).order_by(ordered_by).iterator())
+        return tuple(s for s in prefetch(Server.select().order_by(ordered_by), RemoteStorage))
 
     def get_log_files(self, server: Server = None, ordered_by=LogFile.id, exclude_unparsable: bool = False) -> tuple[LogFile]:
 
@@ -587,7 +587,7 @@ class GidSqliteApswDatabase(APSWDatabase):
 
             return in_log_file
 
-        query = LogFile.select(LogFile)
+        query = LogFile.select()
         if server is None:
             query = query
         else:
@@ -596,7 +596,7 @@ class GidSqliteApswDatabase(APSWDatabase):
         if exclude_unparsable is True:
             query = query.where((LogFile.unparsable == False))
 
-        _out = tuple(_resolve_game_map_and_version(i) for i in query.order_by(ordered_by).iterator())
+        _out = tuple(_resolve_game_map_and_version(i) for i in prefetch(query.order_by(ordered_by), Server))
 
         return _out
 
@@ -610,11 +610,11 @@ class GidSqliteApswDatabase(APSWDatabase):
                 self._resolve_arma_functions_future = self.record_inserter.thread_pool.submit(self.resolve_all_armafunction_extras)
 
         with self.atomic() as txn:
-            _ = list(afap for afap in ArmaFunctionAuthorPrefix.select())
-            if not ordered_by:
-                return tuple(i for i in ArmaFunction.select(ArmaFunction, ArmaFunctionAuthorPrefix).join_from(ArmaFunction, ArmaFunctionAuthorPrefix).iterator())
 
-            return tuple(i for i in ArmaFunction.select(ArmaFunction, ArmaFunctionAuthorPrefix).join_from(ArmaFunction, ArmaFunctionAuthorPrefix).order_by(ordered_by).iterator())
+            if not ordered_by:
+                return tuple(i for i in prefetch(ArmaFunction.select(), ArmaFunctionAuthorPrefix))
+
+            return tuple(i for i in prefetch(ArmaFunction.select().order_by(ordered_by), ArmaFunctionAuthorPrefix))
 
     def get_all_game_maps(self, ordered_by=GameMap.id) -> tuple[GameMap]:
 
@@ -702,7 +702,7 @@ class GidSqliteApswDatabase(APSWDatabase):
 
     def get_unique_campaign_ids(self) -> tuple[int]:
 
-        _out = set(l.campaign_id for l in LogFile.select().where(LogFile.unparsable == False) if l.campaign_id is not None)
+        _out = set(l.campaign_id for l in LogFile.select(LogFile.campaign_id).where(LogFile.unparsable == False) if l.campaign_id is not None)
         return tuple(sorted(_out))
 
     def resolve_all_armafunction_extras(self) -> None:

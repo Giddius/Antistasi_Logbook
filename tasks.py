@@ -528,3 +528,105 @@ def reset_storage(c):
         CONSOLE.print(f"removing {path.as_posix()!r}")
         send2trash(path)
         CONSOLE.print(f"succesfully removed {path.as_posix()!r}")
+
+
+OUTDATE_PACKAGES_STYLE_TEXT: str = r"""
+
+"""
+
+OUTDATE_PACKAGES_HTML_TEMPLATE: str = r"""
+
+<!doctype html>
+
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Outdated Packages</title>
+    <link rel="stylesheet" href="https://unpkg.com/mvp.css@1.12/mvp.css">
+    <style type="text/css">
+    {{ style_text }}
+    </style>
+</head>
+
+<body>
+<main>
+    <h1>Outdated Packages</h1>
+
+{% for data in [important_data, non_important_data] %}
+    <h2>{{ data.name }}</h2>
+<article>
+{% for item in data.packages %}
+<article>
+<h3>{{ item.name }}</h3>
+
+<article>
+<table>
+<tr>
+<th>current version</th>
+<th>newest version</th>
+
+
+</tr>
+<tr>
+<td>{{ item.version }}</td>
+<td>{{ item.latest_version }}</td>
+
+</tr>
+</table>
+</article>
+<article>
+<samp>
+pip install -U {{ item.name }}
+</samp>
+</article>
+</article>
+{% if not loop.last %}
+<hr>
+{% endif %}
+{% endfor %}
+</article>
+{% if not loop.last %}
+<hr>
+<hr>
+{% endif %}
+{% endfor %}
+
+</main>
+
+</body>
+</html>
+
+"""
+
+
+@task()
+def get_outdated_packages(c):
+    # get-outdated-packages
+    from jinja2 import Environment, BaseLoader
+    project: Project = c.project
+    output_folder = project.base_folder.joinpath("temp")
+    output_folder.mkdir(exist_ok=True, parents=True)
+
+    output_file = output_folder.joinpath("outdated_packages.html")
+    text_output_file = output_file.with_suffix(".txt")
+    result: Result = activator_run(c, command="pip list -o --format json", echo=False, hide=True)
+
+    _important_packages = {i.casefold() for i in ("pyside6", "peewee", "apsw", "pyqtgraph", "webdav4", "sortedcontainers", "pillow", "numpy", "matplotlib", "keyring", "frozendict")}
+
+    def _sort_key(in_item: dict):
+        is_important = in_item["name"].casefold() in _important_packages
+        in_item["is_important"] = is_important
+        return 0 if is_important is True else 1, in_item["name"].casefold()
+
+    data = sorted(json.loads(result.stdout), key=_sort_key)
+    jinja_env = Environment(loader=BaseLoader())
+    jinja_env.globals["style_text"] = OUTDATE_PACKAGES_STYLE_TEXT
+    template = jinja_env.from_string(OUTDATE_PACKAGES_HTML_TEMPLATE)
+    with output_file.open("w", encoding='utf-8', errors='ignore') as f:
+        f.write(template.render(important_data={"name": "Important Packages", "packages": [i for i in data if i["is_important"] is True]}, non_important_data={"name": "Non-Important Packages", "packages": [i for i in data if i["is_important"] is False]}))
+
+    text_output_file.write_text('\n'.join(f"pip install -U {i['name']}" for i in data), encoding='utf-8', errors='ignore')
+
+    c.run(f'"{str(output_file)}"')

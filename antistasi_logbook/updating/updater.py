@@ -333,7 +333,7 @@ class Updater:
         tasks = []
         to_update_log_files = self._get_updated_log_files(server=server)
         if not to_update_log_files:
-            sleep(3.0)
+
             return 0
         self.signaler.send_update_info(len(to_update_log_files) * 2, server.name)
         for log_file in to_update_log_files:
@@ -453,6 +453,7 @@ class Updater:
         log.debug("emiting before_updates_signal")
         self.signaler.send_update_started()
         self.database.foreign_key_cache.preload_all()
+        self.database.connection().execute("PRAGMA incremental_vacuum").fetchall()
 
     def after_updates(self):
         log.debug("emiting after_updates_signal")
@@ -461,6 +462,7 @@ class Updater:
         # self.database.resolve_all_armafunction_extras()
         self.signaler.send_update_finished()
         remote_manager_registry.close()
+        self.database.connection().execute("PRAGMA incremental_vacuum").fetchall()
         self.database.close()
 
     def update(self) -> None:

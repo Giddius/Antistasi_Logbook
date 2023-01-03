@@ -83,7 +83,7 @@ class LogFilesQueryTreeView(BaseQueryTreeView):
 
             return meta_parser.utc_offset is not None
 
-        file_path, _ = QFileDialog.getOpenFileName(caption="Select the Log-File you want to add", filter="Text (*.txt *.log)")
+        file_path, _ = QFileDialog.getOpenFileName(caption="Select the Log-File you want to add", filter="Text (*.txt *.log *.rpt)")
         if not file_path:
             return
         file_path = Path(file_path).resolve()

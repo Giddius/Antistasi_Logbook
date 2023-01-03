@@ -62,17 +62,23 @@ SET CONVERT_SCRIPT_PATH=%OLDHOME_FOLDER%svg_to_png.py
 SET FILE_PATH_SLOPE=%FILE_PATH_BASE%_SLOPE.svg
 SET FILE_PATH_FLAME=%FILE_PATH_BASE%_FLAME.svg
 
+
+
 pushd %INPATH%
 mkdir %SUB_OUTPUT_FOLDER%
 
 call mprof.exe clean
 call mprof.exe run --include-children %~1
 
-call mprof.exe plot -o %FILE_PATH_SLOPE% --slope --title "%_TITLE% SLOPE" --backend svg
+
 call mprof.exe plot -o %FILE_PATH_FLAME% --flame --title "%_TITLE% FLAME" --backend svg
+call mprof.exe plot -o %FILE_PATH_SLOPE% --slope --title "%_TITLE% SLOPE" --backend svg
+
+
+
 call mprof.exe clean
 
-call %CONVERT_SCRIPT_PATH% %FILE_PATH_SLOPE% %FILE_PATH_FLAME%
+call %CONVERT_SCRIPT_PATH% %FILE_PATH_FLAME% %FILE_PATH_SLOPE%
 
 pushd %OLDHOME_FOLDER%
 

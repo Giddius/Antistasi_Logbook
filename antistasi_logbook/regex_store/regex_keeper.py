@@ -35,13 +35,13 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 ONLY_TIME = re.compile(r"[1-2\s]\d\:[0-6]\d\:[0-6]\d(?=\s)")
 
-LOCAL_DATETIME = re.compile(r"\d{4}/[01]\d/[0-3]\d\,\s[0-2]\d\:[0-6]\d\:[0-6]\d(?=\s)")
+LOCAL_DATETIME = re.compile(r"\d{4}/[01]\d/[0-3]\d\,\s+[0-2]*\d\:[0-6]\d\:[0-6]\d(?=\s)")
 
 CONTINUED_RECORD = re.compile(r"\d{4}/[01]\d/[0-3]\d\,\s[0-2]\d\:[0-6]\d\:[0-6]\d" + r"\s+(?P<content>\>{3}\s*.*)")
 
-GENERIC_RECORD = re.compile(r"""(?P<year>\d{4})/(?P<month>[01]\d)/(?P<day>[0-3]\d)\,\s(?P<hour>[0-2]\d)\:(?P<minute>[0-6]\d)\:(?P<second>[0-6]\d)\s(?P<message>.*)""")
+GENERIC_RECORD = re.compile(r"""(?P<year>\d{4})/(?P<month>[01]\d)/(?P<day>[0-3]\d)\,\s+(?P<hour>[0-2]*\d)\:(?P<minute>[0-6]\d)\:(?P<second>[0-6]\d)\s(?P<message>.*)""")
 
-FULL_DATETIME = re.compile(r"""\d{4}/[01]\d/[0-3]\d\,\s[0-2]\d\:[0-6]\d\:[0-6]\d
+FULL_DATETIME = re.compile(r"""\d{4}/[01]\d/[0-3]\d\,\s+[0-2]*\d\:[0-6]\d\:[0-6]\d
                                 \s
                                 (?P<year>\d{4})\-(?P<month>[01]\d)\-(?P<day>[0-3]\d)
                                 \s
@@ -56,7 +56,7 @@ GAME_FILE = re.compile(r"\s+Mission file\:\s*(?P<game_file>.*)")
 
 VERSION = re.compile(r"\s*((MP server version)|(Server version)):\s*(?P<version>.*?)(?=\s|$)")
 
-CAMPAIGN_ID = re.compile(r"((?P<text_loading>Loading last campaign ID)|(?P<text_creating>Creating new campaign with ID))\s*(?P<campaign_id>\d+)")
+CAMPAIGN_ID = re.compile(r"((?P<text_loading>(Loading last campaign ID)|(Loading campaign with ID))|(?P<text_creating>Creating new campaign with ID))\s*(?P<campaign_id>\d+)")
 
 
 MOD_START_INDICATOR = re.compile(r"\=+\sList\sof\smods\s\=+")
@@ -97,7 +97,7 @@ FIRST_FULL_DATETIME = re.compile(r"""^
                                     /
                                     (?P<local_day>[0-3]\d)
                                     \,\s+
-                                    (?P<local_hour>[0-2]\d)
+                                    (?P<local_hour>[0-2]*\d)
                                     \:
                                     (?P<local_minute>[0-6]\d)
                                     \:
@@ -124,6 +124,11 @@ FAULT_ERROR_START = re.compile(r"\s*\=*\s*\-*\s*Exception code\:.*", re.DOTALL)
 class SimpleRegexKeeper:
     """
     Stores all compiled Regexes for parsing.
+
+    Info:
+        The reason for this being a class, is so different regex-pattern collections can be used dynamically.
+
+        The reason for copying each regex is for possible multiprocessing (unknown if needed but does not add to much overhead anyway)
 
     """
 
