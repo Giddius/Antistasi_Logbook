@@ -29,7 +29,7 @@ WARNING
 
 .. highlights::
 
-   It is currently __NOT__ advised to install via `pip install`, because of problems with dependencies (*Peewee* especially) this will __NOT__ result in a working app.
+   It is currently :underline:`NOT` advised to install via `pip install`, because of problems with dependencies (*Peewee* especially) this will **NOT** result in a working app.
 
 
 
