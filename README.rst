@@ -17,12 +17,16 @@ Description
 Installation
 ==================
 
-.. NOTE::
+.. epigraph::
+
+   **INFO**
 
    Currently only available for Windows 10 (x64).
 
 
-.. DANGER::
+.. pull-quote::
+
+   **WARNING**
 
    It is currently not advised to install via `pip install`, because of problems with dependencies (`Peewee` especially) this will not result in a working app, in almost all cases.
 
@@ -32,5 +36,8 @@ Installation
 Links
 ==================
 
-- Full Documentation: `giddius.github.io/Antistasi_Logbook <https://giddius.github.io/Antistasi_Logbook>`_
-- Antistasi Repo: `github.com/official-antistasi-community/A3-Antistasi <https://github.com/official-antistasi-community/A3-Antistasi>`_
+Full Documentation
+   `giddius.github.io/Antistasi_Logbook <https://giddius.github.io/Antistasi_Logbook>`_
+
+Antistasi Repo:
+   `github.com/official-antistasi-community/A3-Antistasi <https://github.com/official-antistasi-community/A3-Antistasi>`_
