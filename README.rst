@@ -11,25 +11,26 @@ Antistasi Logbook
 Description
 ===================
 
-**Antistasi Logbook** is an application to parse and search mainly Log-Files of the Arma 3 Mod **Antistasi**, but can be used to parse other Arma 3 Log-Files too.
+.. include:: /docs_source/source/_data/short_description.txt
+
 
 ==================
 Installation
 ==================
 
-   INFO
-   ^^^^^^^^^
-   .. epigraph::
+INFO
+^^^^^^^^^
+.. epigraph::
 
-      Currently only available for Windows 10 (x64).
+   Currently only available for Windows 10 (x64).
 
 
-   WARNING
-   ^^^^^^^^^^^^
+WARNING
+^^^^^^^^^^^^
 
-   .. highlights::
+.. highlights::
 
-      It is currently **NOT** advised to install via `pip install`, because of problems with dependencies (*Peewee* especially) this will **NOT** result in a working app.
+   It is currently **NOT** advised to install via `pip install`, because of problems with dependencies (*Peewee* especially) this will **NOT** result in a working app.
 
 
 

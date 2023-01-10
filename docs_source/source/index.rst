@@ -10,7 +10,12 @@ Antistasi Logbook
 
 
 
-.. include:: /_data/short_description.txt
+
+
+
+.. highlights::
+
+   .. include:: /_data/short_description.txt
 
 
 .. toctree::
