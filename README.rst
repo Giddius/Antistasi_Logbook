@@ -23,8 +23,9 @@ INFO
 
    Currently only available for Windows 10 (x64).
 
+.. raw:: html
 
-<hr>
+   <hr>
 
 
 WARNING
