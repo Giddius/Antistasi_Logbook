@@ -24,12 +24,11 @@ INFO
    Currently only available for Windows 10 (x64).
 
 
-⚠️WARNING⚠️
+WARNING
 ^^^^^^^^^^^^^^
 
-.. highlights::
-
-   It is currently **NOT** advised to install via `pip install`, because of problems with dependencies (*Peewee* especially) this will **NOT** result in a working app.
+⚠️ It is currently **NOT** advised to install via `pip install`.
+⚠️ The Reason is that there are problems with dependencies (*Peewee* especially) this will **NOT** result in a working app.
 
 
 
