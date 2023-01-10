@@ -38,8 +38,7 @@ WARNING
 
 
 
-> __Warning__
-> This is a warning.
+
 
 ==================
 Links
