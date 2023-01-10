@@ -27,9 +27,9 @@ INFO
 WARNING
 ^^^^^^^^^^^^
 
-.. pull-quote::
+.. highlight::
 
-   It is currently not advised to install via `pip install`, because of problems with dependencies (`Peewee` especially) this will not result in a working app, in almost all cases.
+   It is currently **__NOT__** advised to install via `pip install`, because of problems with dependencies (*Peewee* especially) this will **__NOT__** result in a working app.
 
 
 
