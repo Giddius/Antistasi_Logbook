@@ -45,7 +45,7 @@ if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend
     from antistasi_logbook.storage.models.models import LogFile, RemoteStorage
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -55,7 +55,7 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
@@ -64,7 +64,7 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 META_PATHS: "MetaPaths" = get_meta_paths()
 
 log = get_logger(__name__)
-# endregion[Constants]
+# endregion [Constants]
 
 
 class RemoteManagerRegistry:
@@ -442,10 +442,10 @@ class FakeWebdavManager(AbstractRemoteStorageManager):
     def __repr__(self) -> str:
         return repr(self.__class__.__name__)
 
-        # region[Main_Exec]
+        # region [Main_Exec]
 
 
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

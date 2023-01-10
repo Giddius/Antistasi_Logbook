@@ -3,7 +3,7 @@ This File was auto-generated
 """
 
 
-# region[Imports]
+# region [Imports]
 
 import os
 from enum import Enum, auto, Flag
@@ -18,7 +18,7 @@ from gidapptools.gidapptools_qt.resources.resources_helper import ressource_item
 from gidapptools import get_logger
 from . import antistasi_logbook_resources
 
-# endregion[Imports]
+# endregion [Imports]
 
 log = get_logger(__name__)
 
@@ -127,6 +127,8 @@ COLORING_ICON_2_IMAGE = ressource_item_factory(file_path='coloring_icon_2.svg', 
 
 RECORDORIGIN_TAB_ICON_IMAGE = ressource_item_factory(file_path='recordorigin_tab_icon.svg', qt_path=':/images/recordorigin_tab_icon.svg')
 
+ADD_LOCAL_LOG_FILE_IMAGE = ressource_item_factory(file_path='add_local_log_file.svg', qt_path=':/images/add_local_log_file.svg')
+
 UPDATING_SETTINGS_IMAGE = ressource_item_factory(file_path='updating_settings.svg', qt_path=':/images/updating_settings.svg')
 
 ANTISTASI_LOGBOOK_SPLASH_PREPARING_BACKEND_IMAGE = ressource_item_factory(file_path='antistasi_logbook_splash_preparing_backend.png', qt_path=':/images/antistasi_logbook_splash_preparing_backend.png')
@@ -197,6 +199,7 @@ class AllResourceItems(metaclass=AllResourceItemsMeta):
     hidden_image = HIDDEN_IMAGE
     coloring_icon_2_image = COLORING_ICON_2_IMAGE
     recordorigin_tab_icon_image = RECORDORIGIN_TAB_ICON_IMAGE
+    add_local_log_file_image = ADD_LOCAL_LOG_FILE_IMAGE
     updating_settings_image = UPDATING_SETTINGS_IMAGE
     antistasi_logbook_splash_preparing_backend_image = ANTISTASI_LOGBOOK_SPLASH_PREPARING_BACKEND_IMAGE
     antstasifunction_tab_icon_image = ANTSTASIFUNCTION_TAB_ICON_IMAGE
@@ -213,5 +216,5 @@ class AllResourceItems(metaclass=AllResourceItemsMeta):
         log.info("Missing Ressource Items:\n%s", pp.fmt(missing_items).replace("'", '"'))
 
 
-# if __debug__ is True:
-#     atexit.register(AllResourceItems.dump_missing)
+if __debug__ is True:
+    atexit.register(AllResourceItems.dump_missing)

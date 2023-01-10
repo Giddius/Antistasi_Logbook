@@ -7,7 +7,7 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from typing import TYPE_CHECKING, Any, Union, Callable, Optional
+from typing import TYPE_CHECKING, Any, Union, Callable, Optional, Iterable
 from pathlib import Path
 
 # * Qt Imports --------------------------------------------------------------------------------------->
@@ -44,7 +44,7 @@ if TYPE_CHECKING:
     from antistasi_logbook.gui.widgets.data_tool_widget import BaseDataToolWidget
     from antistasi_logbook.gui.views.base_query_tree_view import CustomContextMenu
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -54,13 +54,13 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
-# endregion[Constants]
+# endregion [Constants]
 INDEX_TYPE = Union[QModelIndex, QPersistentModelIndex]
 
 DATA_ROLE_MAP_TYPE = dict[Union[Qt.ItemDataRole, int], Callable[[INDEX_TYPE], Any]]
@@ -104,6 +104,27 @@ class ModelContextMenuAction(QAction):
     @Slot()
     def on_triggered(self):
         self.clicked.emit(self.item, self.column, self.index)
+
+    def __repr__(self) -> str:
+        """
+        Basic Repr
+        !REPLACE!
+        """
+        return f'{self.__class__.__name__}'
+
+
+class MultiSelectModelContextMenuAction(QAction):
+    clicked = Signal(list, list)
+
+    def __init__(self, items: Iterable[BaseModel], indexes: Iterable[QModelIndex], icon: QIcon = None, text: str = None, parent=None):
+        super().__init__(**{k: v for k, v in dict(icon=icon, text=text, parent=parent).items() if v is not None})
+        self.items = list(items)
+        self.indexes = list(indexes)
+        self.triggered.connect(self.on_triggered)
+
+    @Slot()
+    def on_triggered(self):
+        self.clicked.emit(self.items, self.indexes)
 
     def __repr__(self) -> str:
         """
@@ -690,10 +711,10 @@ class BaseQueryDataModel(QAbstractTableModel):
 
     def __str__(self) -> str:
         return self.name
-# region[Main_Exec]
+# region [Main_Exec]
 
 
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

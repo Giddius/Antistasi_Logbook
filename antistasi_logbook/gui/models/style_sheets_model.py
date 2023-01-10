@@ -28,7 +28,7 @@ from gidapptools.general_helper.string_helper import StringCase, StringCaseConve
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.resources.style_sheets import ALL_STYLE_SHEETS
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -38,13 +38,13 @@ from antistasi_logbook.gui.resources.style_sheets import ALL_STYLE_SHEETS
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
-# endregion[Constants]
+# endregion [Constants]
 
 
 class StyleSheetTag(Enum):
@@ -180,7 +180,7 @@ class StyleSheetsModel(QAbstractTableModel):
     def columnCount(self, parent: Union[PySide6.QtCore.QModelIndex, PySide6.QtCore.QPersistentModelIndex] = ...) -> int:
         return 1
 
-# region[Main_Exec]
+# region [Main_Exec]
 
 
 if __name__ == '__main__':
@@ -188,4 +188,4 @@ if __name__ == '__main__':
     for i in x:
         pp(i.display_data)
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

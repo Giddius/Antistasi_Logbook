@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(0, os.path.abspath('../antistasi_logbook'))
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
-# endregion[Imports]
+# endregion [Imports]
 
 # region [Project_Info]
 

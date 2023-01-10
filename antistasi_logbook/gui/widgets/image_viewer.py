@@ -38,7 +38,7 @@ else:
 if TYPE_CHECKING:
     pass
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -48,7 +48,7 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
@@ -57,7 +57,7 @@ get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 
-# endregion[Constants]
+# endregion [Constants]
 
 
 class ArmaSide(Enum):
@@ -66,6 +66,17 @@ class ArmaSide(Enum):
     GUER = auto()
     WEST = auto()
     EAST = auto()
+
+    @classmethod
+    def _missing_(cls, value: object) -> Self:
+        if isinstance(value, str):
+            mod_value = value.casefold()
+            for member_name, member_value in cls.__members__.items():
+                if member_name.casefold() == mod_value or member_value == mod_value:
+                    return cls(member_value)
+                if isinstance(member_value, str) and member_value.casefold() == mod_value:
+                    return cls(member_value)
+        return super()._missing_(value)
 
     def __str__(self) -> str:
         if self is ArmaSide.CIV:
@@ -114,10 +125,20 @@ class BaseMapSymbolImageItem(pg.ImageItem):
 
     def set_side(self, side: ArmaSide = None):
         if side is not None and side not in self.colored_image:
-            raise ValueError(f"'side' can only be one of {list(self.colored_image)!r}, not {side!r}")
+            raise ValueError(f"'side' can only be one of {list(self.colored_image)!r}, not {side!r} for {self!r}")
         side = side or ArmaSide.CIV
         self._side = side
         self.refresh()
+
+    def state_to_timestamp(self, timestamp: int):
+        states = [(k, v) for k, v in sorted(self._time_states.items(), key=lambda x: x[0]) if int(k) <= timestamp]
+        try:
+            new_state = states[-1]
+            self.set_description(new_state[1][1])
+            self.set_side(new_state[1][0])
+
+        except IndexError:
+            self.set_side(ArmaSide.WEST)
 
     def set_description(self, description: str = None):
         self._description = description
@@ -146,7 +167,8 @@ class BaseMapSymbolImageItem(pg.ImageItem):
 class TownMapSymbolImageItem(BaseMapSymbolImageItem):
     colored_image: dict[ArmaSide: ArrayLike] = {ArmaSide.DESTROYED: get_map_symbol_as_np_array("DESTROYED_TOWN", new_alpha=0.75),
                                                 ArmaSide.GUER: get_map_symbol_as_np_array("GUER_TOWN", new_alpha=0.75),
-                                                ArmaSide.WEST: get_map_symbol_as_np_array("WEST_TOWN", new_alpha=0.75)}
+                                                ArmaSide.WEST: get_map_symbol_as_np_array("WEST_TOWN", new_alpha=0.75),
+                                                ArmaSide.EAST: get_map_symbol_as_np_array("EAST_TOWN", new_alpha=0.75)}
 
     def __init__(self, name: str, x: float, y: float, description: str = None, side: ArmaSide = ArmaSide.WEST, **kwargs):
         super().__init__(name.removeprefix("city_").removeprefix("vill_"), x, y, description, side, **kwargs)
@@ -247,7 +269,6 @@ class OutpostMapSymbolImageItem(BaseMapSymbolImageItem):
 
 class HighResMapImageWidget(pg.GraphicsLayoutWidget):
     map_symbol_changed = Signal(str)
-    finished_run = Signal()
 
     def __init__(self,
                  high_res_local_image: LocalImage,
@@ -262,11 +283,6 @@ class HighResMapImageWidget(pg.GraphicsLayoutWidget):
         self._view: pg.GraphicsView = None
         self._high_res_image: pg.ImageItem = None
         self._map_symbols: dict[str, BaseMapSymbolImageItem] = {}
-        self._last_changed_idx: int = -1
-        self.update_timer = QTimer(self)
-        self.update_timer.setInterval(1 * 1_000)
-        self.update_timer.setTimerType(Qt.CoarseTimer)
-        self.update_timer.timeout.connect(self._mix)
 
     def _setup_view(self):
         self._view: pg.GraphicsView = self.addViewBox()
@@ -304,42 +320,21 @@ class HighResMapImageWidget(pg.GraphicsLayoutWidget):
             self._map_symbols[map_symbol.name] = map_symbol
             self._set_map_symbol_pos(map_symbol)
 
-    def _mix(self, *args, **kwargs):
-        map_symbols = sorted(list(self._map_symbols.values()), key=lambda x: (x.arma_x, x.arma_y))
-        split_idx = len(map_symbols) // 2
-        map_symbols = map_symbols[:split_idx] + sorted(map_symbols[split_idx:], key=lambda x: (x.arma_y, x.arma_x))
-        try:
-            self._last_changed_idx += 1
-
-            map_symbol = map_symbols[self._last_changed_idx]
-            if isinstance(map_symbol, TownMapSymbolImageItem):
-                new_side = random.choices([ArmaSide.GUER, ArmaSide.DESTROYED], weights=(0.95, 0.05), k=1)[0]
-                map_symbol.set_side(new_side)
-                self.map_symbol_changed.emit(f"{map_symbol.name}, {new_side.name}, x={map_symbol.arma_x}, y={map_symbol.arma_y}")
-            else:
-                map_symbol.set_side(ArmaSide.GUER)
-                self.map_symbol_changed.emit(f"{map_symbol.name}, {ArmaSide.GUER.name}, x={map_symbol.arma_x}, y={map_symbol.arma_y}")
-        except IndexError:
-            self.finished_run.emit()
-            for map_symbol in map_symbols:
-                if isinstance(map_symbol, TownMapSymbolImageItem):
-                    map_symbol.set_side(ArmaSide.WEST)
-                else:
-                    map_symbol.set_side(random.choices([ArmaSide.WEST, ArmaSide.EAST], weights=(0.8, 0.2), k=1)[0])
-                self._last_changed_idx = -1
+    def state_to_timestamp(self, timestamp: int):
+        for marker in self._map_symbols.values():
+            marker.state_to_timestamp(timestamp)
 
     def show(self):
         self.resize(QSize(self.screen().size().width() * 0.9, self.screen().size().height() * 0.9))
-        self.update_timer.start()
+
         return super().show()
 
     def close(self):
-        self.update_timer.stop()
         return super().close()
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

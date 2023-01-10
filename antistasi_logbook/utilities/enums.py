@@ -14,7 +14,7 @@ from gidapptools import get_logger
 from gidapptools.meta_data import app_meta, get_meta_info, get_meta_paths
 from gidapptools.general_helper.enums import BaseGidEnum
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -24,9 +24,8 @@ from gidapptools.general_helper.enums import BaseGidEnum
 # region [Logging]
 
 
-
 log = get_logger(__name__)
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 if app_meta.is_setup is False:
@@ -36,17 +35,17 @@ META_PATHS = get_meta_paths()
 META_INFO = get_meta_info()
 
 
-# endregion[Constants]
+# endregion [Constants]
 
 
 class RemoteItemType(BaseGidEnum):
     DIRECTORY = "directory"
     FILE = "file"
 
-# region[Main_Exec]
+# region [Main_Exec]
 
 
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

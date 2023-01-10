@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -39,13 +39,13 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
-# endregion[Constants]
+# endregion [Constants]
 
 
 class DataRow:
@@ -214,10 +214,10 @@ class DataView(QFrame):
         self.rebuild()
         self.setup_border()
         super().repaint()
-# region[Main_Exec]
+# region [Main_Exec]
 
 
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

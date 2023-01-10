@@ -12,7 +12,8 @@ from pathlib import Path
 
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtCore import Qt, QSize
-from PySide6.QtWidgets import QMenu, QWidget, QDockWidget, QMainWindow, QApplication, QStackedWidget
+from PySide6.QtGui import QColor
+from PySide6.QtWidgets import QMenu, QSizePolicy, QWidget, QDockWidget, QMainWindow, QApplication, QStackedWidget
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -25,7 +26,7 @@ if TYPE_CHECKING:
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
     from antistasi_logbook.gui.main_window import AntistasiLogbookMainWindow
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -35,13 +36,13 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
-# endregion[Constants]
+# endregion [Constants]
 
 
 class BaseDockWidget(QDockWidget):
@@ -88,6 +89,14 @@ class BaseDockWidget(QDockWidget):
     @property
     def main_window(self) -> "AntistasiLogbookMainWindow":
         return self.parentWidget()
+
+    @property
+    def is_floating(self) -> bool:
+        return self.isFloating()
+
+    @property
+    def is_docked(self) -> bool:
+        return self.is_floating is False
 
     def show_if_first(self):
         if self.first_shown is False:
@@ -155,8 +164,8 @@ class QueryWidget(BaseDockWidget):
         return QSize(max_width, max_height)
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

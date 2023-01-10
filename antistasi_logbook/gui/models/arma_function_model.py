@@ -25,7 +25,7 @@ from antistasi_logbook.gui.models.base_query_data_model import BaseQueryDataMode
 if TYPE_CHECKING:
     pass
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
@@ -43,7 +43,7 @@ if TYPE_CHECKING:
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 
-# endregion[Constants]
+# endregion [Constants]
 
 
 class ArmaFunctionModel(BaseQueryDataModel):
@@ -56,8 +56,8 @@ class ArmaFunctionModel(BaseQueryDataModel):
         self.filter_item = None
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

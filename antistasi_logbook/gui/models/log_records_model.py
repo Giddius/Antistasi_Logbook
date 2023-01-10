@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from antistasi_logbook.gui.views.base_query_tree_view import CustomContextMenu
     from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -53,13 +53,13 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
-# endregion[Constants]
+# endregion [Constants]
 
 
 def get_qsize_from_font(font: QFont, text: str) -> QSize:
@@ -261,8 +261,8 @@ class LogRecordsModel(BaseQueryDataModel):
         setattr(item, column.name, getattr(self.db_model.get_by_id(item.id), column.name))
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

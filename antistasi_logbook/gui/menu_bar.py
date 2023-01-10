@@ -30,7 +30,7 @@ from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import
 if TYPE_CHECKING:
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -40,14 +40,14 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 
-# endregion[Constants]
+# endregion [Constants]
 
 
 class DataMenuAction(QAction):
@@ -198,10 +198,10 @@ class LogbookMenuBar(BaseMenuBar):
         self.data_menu_actions_group.add_action(self.show_remote_storage_action)
         self.data_menu_actions_group.add_action(self.show_record_classes_action)
         self.data_menu_actions_group.add_action(self.show_mod_sets_action)
-# region[Main_Exec]
+# region [Main_Exec]
 
 
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

@@ -23,7 +23,7 @@ from gidapptools import get_logger
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 log = get_logger(__name__)
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
-# endregion[Constants]
+# endregion [Constants]
 
 
 def _default_now_factory(tz: timezone) -> datetime:
@@ -101,10 +101,10 @@ class TimeClock:
 
         return self.next_trigger
 
-# region[Main_Exec]
+# region [Main_Exec]
 
 
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

@@ -18,6 +18,7 @@ from tempfile import TemporaryDirectory
 from threading import Thread
 from concurrent.futures import Future
 from pprint import pformat
+
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtGui import QColor, QCloseEvent, QDesktopServices
 from PySide6.QtCore import Qt, QSize, QTimer, Signal, QSettings, QByteArray, QTimerEvent
@@ -54,7 +55,7 @@ from antistasi_logbook.gui.main_widget import MainWidget
 from antistasi_logbook.gui.settings_window import SettingsWindow, CredentialsManagmentWindow
 from antistasi_logbook.gui.models.mods_model import ModsModel
 from antistasi_logbook.gui.widgets.tool_bars import BaseToolBar
-from antistasi_logbook.storage.models.models import GameMap
+from antistasi_logbook.storage.models.models import GameMap, LogFile, LogRecord, Server, Version, OriginalLogFile
 from antistasi_logbook.gui.models.version_model import VersionModel
 from antistasi_logbook.gui.widgets.stats_viewer import AvgMapPlayersPlotWidget
 from antistasi_logbook.gui.models.game_map_model import GameMapModel
@@ -75,7 +76,7 @@ if TYPE_CHECKING:
 
     from antistasi_logbook.storage.models.models import BaseModel
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -86,7 +87,7 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
@@ -98,7 +99,7 @@ META_PATHS = get_meta_paths()
 META_INFO = get_meta_info()
 
 
-# endregion[Constants]
+# endregion [Constants]
 
 
 class SecondaryWindow(QWidget):
@@ -195,6 +196,7 @@ class AntistasiLogbookMainWindow(QMainWindow):
         self.dock_widgets.append(dockwidget)
 
     def setup(self) -> None:
+
         self.setContextMenuPolicy(Qt.NoContextMenu)
         qt_material.add_fonts()
         self.set_app_style_sheet(self.current_app_style_sheet)
@@ -820,14 +822,15 @@ def start_gui() -> int:
     _main_window = app.create_main_window(AntistasiLogbookMainWindow)
 
     _main_window.show()
+
     return app.exec()
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 if __name__ == '__main__':
 
     # dotenv.load_dotenv(r"D:\Dropbox\hobby\Modding\Programs\Github\My_Repos\Antistasi_Logbook\antistasi_logbook\nextcloud.env")
     start_gui()
 
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

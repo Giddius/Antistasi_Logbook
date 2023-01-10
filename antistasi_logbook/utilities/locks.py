@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 
-# endregion[Imports]
+# endregion [Imports]
 
 
 log = get_logger(__name__)

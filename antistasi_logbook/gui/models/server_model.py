@@ -10,6 +10,7 @@ Soon.
 import os
 from typing import TYPE_CHECKING, Optional
 from pathlib import Path
+from time import sleep
 
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6 import QtCore
@@ -18,7 +19,7 @@ from PySide6.QtCore import Qt, Slot, QModelIndex
 from PySide6.QtWidgets import QLineEdit, QInputDialog
 
 # * Third Party Imports --------------------------------------------------------------------------------->
-from peewee import Query
+from peewee import Query, prefetch
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -31,7 +32,7 @@ from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE, Field
 if TYPE_CHECKING:
     from antistasi_logbook.gui.views.base_query_tree_view import CustomContextMenu
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -41,7 +42,7 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
@@ -49,7 +50,7 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 
 
-# endregion[Constants]
+# endregion [Constants]
 
 
 def get_int_from_name(name: str, default: int = -1) -> int:
@@ -80,7 +81,7 @@ class ServerModel(BaseQueryDataModel):
         return _out
 
     def get_query(self) -> "Query":
-        query = Server.select(Server, RemoteStorage).join(RemoteStorage).switch(Server)
+        query = Server.select()
         if self.show_local_files_server is False:
             query = query.where((Server.remote_path.is_null(False)))
         if self.filter_item is not None:
@@ -94,7 +95,7 @@ class ServerModel(BaseQueryDataModel):
             return is_main, -name_number
 
         with self.backend.database:
-            self.content_items = sorted(list(self.get_query().execute()), key=_sort_func, reverse=True)
+            self.content_items = sorted(prefetch(self.get_query(), RemoteStorage), key=_sort_func, reverse=True)
             self.original_sort_order = tuple(i.id for i in self.content_items)
 
         return self
@@ -131,8 +132,8 @@ class ServerModel(BaseQueryDataModel):
         self.setData(change_remote_path_index, new_remote_path, role=Qt.DisplayRole)
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

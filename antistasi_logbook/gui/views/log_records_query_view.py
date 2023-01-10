@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from antistasi_logbook.gui.models.log_records_model import LogRecordsModel
     from antistasi_logbook.gui.models.proxy_models.base_proxy_model import BaseProxyModel
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -40,13 +40,13 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
-# endregion[Constants]
+# endregion [Constants]
 
 
 class FontSettingsWindow(QFontDialog):
@@ -198,9 +198,9 @@ class LogRecordsQueryView(BaseQueryTreeView):
         return f"{self.__class__.__name__}"
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

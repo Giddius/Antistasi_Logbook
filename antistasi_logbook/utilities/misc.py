@@ -36,7 +36,7 @@ if TYPE_CHECKING:
     from antistasi_logbook.storage.models.models import BaseModel
 
 
-# endregion[Imports]
+# endregion [Imports]
 
 
 get_dummy_profile_decorator_in_globals()

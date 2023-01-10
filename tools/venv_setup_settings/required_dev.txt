@@ -2,7 +2,7 @@ autoflake
 autopep8
 cairosvg
 dateparser
-https://github.com/pyinstaller/pyinstaller/tarball/develop
+pyinstaller
 invoke
 isort
 line_profiler[all]
@@ -25,7 +25,7 @@ pip-tools
 pipreqs
 tinyaes
 sphinx
-py-spy~=0.3.11
+py-spy
 snakeviz
 djlint
 sphinx
@@ -34,7 +34,8 @@ sphinx-design
 sphinx-copybutton
 sphinxcontrib-mermaid
 sphinx-issues
-
+jinja2
+graphviz
 pygments-style-tomorrow
 furo
 sphinx-inline-tabs

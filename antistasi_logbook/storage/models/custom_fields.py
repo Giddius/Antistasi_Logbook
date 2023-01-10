@@ -48,7 +48,7 @@ try:
 except ImportError:
     lzma = None
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -58,14 +58,14 @@ except ImportError:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 PATH_TYPE: TypeAlias = Union[os.PathLike, str]
-# endregion[Constants]
+# endregion [Constants]
 
 
 class AntistasiLogbookBaseField:
@@ -384,7 +384,7 @@ class PasswordField(BlobField):
             return fernet.decrypt(value).decode(encoding='utf-8', errors='ignore')
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 if __name__ == '__main__':
     pass
-# endregion[Main_Exec]
+# endregion [Main_Exec]

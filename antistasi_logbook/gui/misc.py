@@ -13,7 +13,7 @@ from typing import Union, Iterable
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtCore import Qt, Signal, QObject, QSettings
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -23,13 +23,13 @@ from PySide6.QtCore import Qt, Signal, QObject, QSettings
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
-# endregion[Constants]
+# endregion [Constants]
 
 
 class UserRole(Enum):
@@ -123,9 +123,9 @@ def read_settings(settings_obj: QSettings, key_path: Union[str, Iterable], defau
 
         return _out
 
-# region[Main_Exec]
+# region [Main_Exec]
 
 
 if __name__ == '__main__':
     pass
-# endregion[Main_Exec]
+# endregion [Main_Exec]

@@ -20,7 +20,7 @@ from gidapptools import get_logger
 if TYPE_CHECKING:
     pass
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 
-# endregion[Constants]
+# endregion [Constants]
 GITHUB_CLIENT = Github("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")
 
 
@@ -74,9 +74,9 @@ def get_repo_file_list(url: str, branch_name: str = None):
 # fi = get_repo_file_list("https://github.com/official-antistasi-community/A3-Antistasi")
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

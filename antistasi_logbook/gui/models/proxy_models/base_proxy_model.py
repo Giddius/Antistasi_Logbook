@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from antistasi_logbook.storage.models.models import BaseModel
     from antistasi_logbook.gui.models.base_query_data_model import CustomContextMenu, BaseQueryDataModel
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
@@ -45,7 +45,7 @@ if TYPE_CHECKING:
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 
-# endregion[Constants]
+# endregion [Constants]
 
 
 class BaseProxyModel(QSortFilterProxyModel):
@@ -92,10 +92,10 @@ class BaseProxyModel(QSortFilterProxyModel):
     def __getattr__(self, name: str):
         return getattr(self.sourceModel(), name)
 
-# region[Main_Exec]
+# region [Main_Exec]
 
 
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

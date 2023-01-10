@@ -161,7 +161,7 @@ def setup_game_map(db: "GidSqliteApswDatabase"):
 
 
 def setup_from_data(db: "GidSqliteApswDatabase"):
-    with db:
+    with db.atomic():
         setup_tables(db)
         setup_loglevel(db)
         setup_recordorigin(db)

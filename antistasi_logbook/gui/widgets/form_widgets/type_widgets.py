@@ -40,13 +40,13 @@ from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
-# endregion[Constants]
+# endregion [Constants]
 
 
 @runtime_checkable
@@ -611,8 +611,8 @@ class StyleValueField(QComboBox):
         self.layout.setAlignment(alignment)
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

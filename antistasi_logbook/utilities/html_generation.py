@@ -10,7 +10,7 @@ Soon.
 from typing import Mapping
 from pathlib import Path
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -20,13 +20,13 @@ from pathlib import Path
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
-# endregion[Constants]
+# endregion [Constants]
 
 
 def dict_to_html(in_dict: Mapping, title: str = None) -> str:
@@ -41,10 +41,10 @@ def dict_to_html(in_dict: Mapping, title: str = None) -> str:
     text_lines.append('</dl>')
     return '\n'.join(text_lines)
 
-# region[Main_Exec]
+# region [Main_Exec]
 
 
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

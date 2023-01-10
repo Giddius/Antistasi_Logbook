@@ -13,7 +13,7 @@ from pathlib import Path
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtWidgets import QFrame
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -23,13 +23,13 @@ from PySide6.QtWidgets import QFrame
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
-# endregion[Constants]
+# endregion [Constants]
 
 
 def make_line(direction: Literal["horizontal", "vertical"]):
@@ -40,8 +40,8 @@ def make_line(direction: Literal["horizontal", "vertical"]):
     return line
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

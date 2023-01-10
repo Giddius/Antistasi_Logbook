@@ -18,7 +18,7 @@ from PySide6.QtWidgets import QWidget, QToolBar, QMainWindow, QApplication
 if TYPE_CHECKING:
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -28,13 +28,13 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
-# endregion[Constants]
+# endregion [Constants]
 
 
 class BaseToolBar(QToolBar):
@@ -65,8 +65,8 @@ class BaseToolBar(QToolBar):
         return f'{self.__class__.__name__}'
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

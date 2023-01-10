@@ -62,7 +62,7 @@ else:
 if TYPE_CHECKING:
     from antistasi_logbook.storage.database import GidSqliteApswDatabase, PragmaInfo
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -72,13 +72,13 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
-# endregion[Constants]
+# endregion [Constants]
 
 
 PROFILE_FUNCTION_SIGNATURE = Callable[[str, int], None]
@@ -286,11 +286,11 @@ class SimpleTextReporter(BaseSQLProfileReporter):
 
                 f.write("\n")
                 f.write(("-" * 50) + '\n')
-# region[Main_Exec]
+# region [Main_Exec]
 
 
 if __name__ == '__main__':
     pass
 
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

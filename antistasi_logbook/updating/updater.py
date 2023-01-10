@@ -37,7 +37,7 @@ if TYPE_CHECKING:
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
     from antistasi_logbook.updating.info_item import InfoItem
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -48,7 +48,7 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
@@ -65,7 +65,7 @@ HARD_BANNED_LOG_FILES["mainserver_2"].append("arma3server_x64_2022-09-11_13-08-3
 HARD_BANNED_LOG_FILES["mainserver_1"].append("arma3server_x64_2022-09-11_13-08-37")
 
 
-# endregion[Constants]
+# endregion [Constants]
 
 
 class ThreadSafeCounter:
@@ -549,8 +549,8 @@ class Updater:
         pass
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

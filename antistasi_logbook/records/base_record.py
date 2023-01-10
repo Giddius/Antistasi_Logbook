@@ -42,7 +42,7 @@ if TYPE_CHECKING:
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
     from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -52,13 +52,13 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
-# endregion[Constants]
+# endregion [Constants]
 
 
 # class PrettyAttributeCache:
@@ -225,7 +225,7 @@ class BaseRecord:
                    origin=item.origin,
                    start=item.start,
                    end=item.end,
-                   message=item.message.text,
+                   message=item.message_item.text,
                    recorded_at=item.recorded_at,
                    log_level=item.log_level,
                    marked=item.marked,
@@ -256,7 +256,7 @@ class BaseRecord:
         if name == "record_class":
             return self.__class__
         if name == "server":
-            return Server.get_by_id(self.log_file.server_id)
+            return self.log_file.server
         try:
             return super().__getattr__(name)
         except AttributeError:
@@ -291,8 +291,8 @@ class BaseRecord:
         return f'{self.__class__.__name__}'
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

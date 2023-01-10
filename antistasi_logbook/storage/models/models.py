@@ -489,8 +489,9 @@ class Server(BaseModel):
     def get_remote_files(self) -> Generator["InfoItem", None, None]:
         yield from self.remote_manager.get_files(self.remote_path)
 
+    @profile
     def get_amount_log_files(self) -> int:
-        return LogFile.select().where(LogFile.server_id == self.id).count(self.database)
+        return LogFile.select(LogFile.id).where(LogFile.server_id == self.id).count()
 
     @property
     def full_local_path(self) -> Path:
@@ -582,7 +583,7 @@ class OriginalLogFile(BaseModel):
         )
 
     def unpack_to_temp_file(self) -> Path:
-        temp_folder = META_PATHS.get_new_temp_dir(name=self.server.name)
+        temp_folder = META_PATHS.get_new_temp_dir(name=self.server.name, exists_ok=True)
         full_temp_path = temp_folder.joinpath(f"{self.name}.txt")
         decompressed_data = self.compress_algorithm.decompress(self.file_path.read_bytes())
         full_temp_path.write_text(decompressed_data.decode(encoding='utf-8', errors='ignore'))
@@ -807,20 +808,24 @@ class LogFile(BaseModel):
         return len(difference)
 
     @cached_property
-    def time_frame(self) -> DateTimeFrame:
+    def time_frame(self) -> Optional[DateTimeFrame]:
         # query = LogRecord.select(fn.Min(LogRecord.recorded_at), fn.Max(LogRecord.recorded_at)).where((LogRecord.log_file_id == self.id))
         query_string = """SELECT Min("recorded_at"), Max("recorded_at") FROM "LogRecord" WHERE ("log_file" = ?)"""
         cursor = self.database.connection().execute(query_string, (self.id,))
         min_date_time, max_date_time = cursor.fetchone()
         min_date_time = LogRecord.recorded_at.python_value(min_date_time)
         max_date_time = LogRecord.recorded_at.python_value(max_date_time)
+        if any(_date is None for _date in (min_date_time, max_date_time)):
+            return None
         result = DateTimeFrame(min_date_time, max_date_time)
-        cursor.close()
+
         return result
 
     @cached_property
-    def pretty_time_frame(self) -> str:
+    def pretty_time_frame(self) -> Optional[str]:
         time_frame = self.time_frame
+        if time_frame is None:
+            return None
         return f"{self.format_datetime(time_frame.start)} until {self.format_datetime(time_frame.end)}"
 
     @cached_property
@@ -828,8 +833,10 @@ class LogFile(BaseModel):
         return self.server.pretty_name
 
     @cached_property
-    def pretty_utc_offset(self) -> str:
+    def pretty_utc_offset(self) -> Optional[str]:
         _offset = self.utc_offset
+        if _offset is None:
+            return None
         offset_hours = _offset._offset.total_seconds() / 3600
 
         return f"UTC{offset_hours:+}"
@@ -1104,7 +1111,6 @@ class ModLink(BaseModel):
 
 
 class Mod(BaseModel):
-    full_path = PathField(null=True)
     mod_hash = FixedCharField(null=True, max_length=40)
     mod_hash_short = CharField(null=True, max_length=10)
     mod_dir = CharField(max_length=100)
@@ -1120,7 +1126,7 @@ class Mod(BaseModel):
     class Meta:
         table_name = 'Mod'
         indexes = (
-            (('name', 'mod_dir', 'mod_hash', 'full_path'), True),
+            (('name', 'mod_dir', 'mod_hash', 'mod_hash_short'), True),
         )
 
     @property
@@ -1158,8 +1164,7 @@ class Mod(BaseModel):
         return self.name
 
     def __repr__(self) -> str:
-        full_path = self.full_path.as_posix() if self.full_path is not None else self.full_path
-        return f"{self.__class__.__name__}(name={self.name!r}, default={self.default!r}, official={self.official!r}, mod_dir={self.mod_dir!r}, mod_hash_short={self.mod_hash_short!r}, mod_hash={self.mod_hash}, full_path={full_path!r})"
+        return f"{self.__class__.__name__}(name={self.name!r}, default={self.default!r}, official={self.official!r}, mod_dir={self.mod_dir!r}, mod_hash_short={self.mod_hash_short!r}, mod_hash={self.mod_hash})"
 
     @property
     def pretty_name(self) -> str:
@@ -1168,7 +1173,18 @@ class Mod(BaseModel):
     @classmethod
     def from_raw_mod_data(cls, raw_data: "RawModData") -> tuple["Mod", bool]:
         raw_data.pop("origin")
-        return cls.get_or_create(**raw_data)
+        raw_data.pop("full_path")
+        was_created: bool = False
+        with cls.get_or_create_lock:
+            try:
+                _out = cls.get(**{k: v for k, v in raw_data.items() if k in {'name', 'mod_dir', 'mod_hash', 'mod_hash_short'}})
+            except peewee.DoesNotExist:
+                _out = None
+
+            if _out is None:
+                _out = cls.create(**raw_data)
+                was_created = True
+            return _out, was_created
 
     @ classmethod
     def get_or_create(cls, **kwargs) -> tuple["Mod", bool]:

@@ -26,7 +26,7 @@ from gidapptools.general_helper.meta_helper.single_running_instance import Singl
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.main_window import start_gui
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -36,7 +36,7 @@ from antistasi_logbook.gui.main_window import start_gui
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
@@ -46,7 +46,7 @@ META_INFO = get_meta_info()
 
 log = get_logger(__name__)
 
-# endregion[Constants]
+# endregion [Constants]
 
 
 def main():
@@ -55,9 +55,9 @@ def main():
     sys.exit(exit_code)
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 
 if __name__ == '__main__':
     main()
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

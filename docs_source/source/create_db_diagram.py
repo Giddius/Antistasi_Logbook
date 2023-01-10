@@ -64,7 +64,7 @@ else:
 if TYPE_CHECKING:
     ...
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -74,7 +74,7 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
@@ -86,7 +86,7 @@ MODELS_FILE_PATH: Path = THIS_FILE_DIR.parent.parent.joinpath("antistasi_logbook
 TEMPLATE_PATH: Path = THIS_FILE_DIR.joinpath("_templates", "db_diagram_w_clusters_template.jinja").resolve()
 
 
-# endregion[Constants]
+# endregion [Constants]
 
 
 colors = list({"#565ADB",
@@ -518,9 +518,9 @@ def from_sphinx_config():
     main(MODELS_FILE_PATH, "Antistasi Logbook Database")
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 if __name__ == '__main__':
     main(MODELS_FILE_PATH, "Antistasi Logbook Database")
 
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

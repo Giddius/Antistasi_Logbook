@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     pass
     from antistasi_logbook.storage.models.models import LogRecord
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -41,13 +41,13 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
-# endregion[Constants]
+# endregion [Constants]
 
 ALL_GENERIC_RECORD_CLASSES: DecorateAbleList[type[BaseRecord]] = DecorateAbleList()
 
@@ -500,10 +500,10 @@ class SendTfarRadioRequestResponseEvent(BaseRecord):
 ALL_GENERIC_RECORD_CLASSES: set[type[BaseRecord]] = set(ALL_GENERIC_RECORD_CLASSES)
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 
 
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

@@ -17,7 +17,7 @@ import attr
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools.general_helper.string_helper import string_strip
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -27,13 +27,13 @@ from gidapptools.general_helper.string_helper import string_strip
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
-# endregion[Constants]
+# endregion [Constants]
 
 
 @attr.s(frozen=True, kw_only=True, slots=True, weakref_slot=True, auto_attribs=True, auto_detect=True)
@@ -53,8 +53,8 @@ class RawSQLPhrase:
         return 327670 // (len(self.value_names) + 2)
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

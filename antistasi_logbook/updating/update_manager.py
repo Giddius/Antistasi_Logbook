@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from antistasi_logbook.updating.updater import Updater
     from antistasi_logbook.updating.time_handling import TimeClock
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -32,13 +32,13 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
-# endregion[Constants]
+# endregion [Constants]
 
 
 class UpdateManager(Thread):
@@ -90,8 +90,8 @@ class UpdateManager(Thread):
         log.debug("%s finished shutting down", self)
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

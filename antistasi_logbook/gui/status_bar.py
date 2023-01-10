@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
     from antistasi_logbook.gui.main_window import Backend, AntistasiLogbookMainWindow
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -40,13 +40,13 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
-# endregion[Constants]
+# endregion [Constants]
 
 
 class StupidSignaler(QObject):
@@ -281,8 +281,8 @@ class LogbookStatusBar(QStatusBar):
         return f"{self.__class__.__name__}(main_window={self.main_window!r})"
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

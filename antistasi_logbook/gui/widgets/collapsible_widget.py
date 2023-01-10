@@ -12,8 +12,8 @@ from pathlib import Path
 
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
-from PySide6.QtCore import Qt, QEvent
-from PySide6.QtWidgets import QWidget, QGroupBox, QGridLayout
+from PySide6.QtCore import Qt, QEvent, QSize
+from PySide6.QtWidgets import QWidget, QGroupBox, QGridLayout, QSizePolicy
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -22,7 +22,7 @@ from gidapptools import get_logger
 if TYPE_CHECKING:
     pass
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 
-# endregion[Constants]
+# endregion [Constants]
 
 
 class EmptyPlaceholderWidget(QWidget):
@@ -60,6 +60,7 @@ class CollapsibleGroupBox(QGroupBox):
 
     def __init__(self, text: str = None, content: QWidget = None, start_expanded: bool = True, parent=None):
         super().__init__(parent=parent)
+        self.setSizePolicy(QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.MinimumExpanding)
         self.setLayout(QGridLayout())
         self.layout.setAlignment(Qt.AlignCenter)
         self.setFlat(True)
@@ -139,10 +140,11 @@ class CollapsibleGroupBox(QGroupBox):
 
         if self.has_content is False and self.expanded is True:
             self.set_expanded(False)
-# region[Main_Exec]
 
+
+# region [Main_Exec]
 
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

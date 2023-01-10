@@ -1,1 +1,2 @@
 ..\GidAppTools,gidapptools
+..\GidTasks,gid_tasks

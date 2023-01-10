@@ -12,19 +12,20 @@ import random
 from abc import ABC
 from typing import TYPE_CHECKING, Any, Union, Literal, Optional, Sequence, Generator
 from pathlib import Path
+from datetime import datetime, timedelta, timezone
 from functools import partial
 from collections.abc import Iterable
 from pprint import pprint
 # * Qt Imports --------------------------------------------------------------------------------------->
 import PySide6
 import pyqtgraph as pg
-from PySide6.QtGui import QFont, QColor, QAction, QPixmap, QTextFormat, QTextOption, QFontMetrics, QTextDocument, QTextCharFormat, QDesktopServices, QSyntaxHighlighter
-from PySide6.QtCore import Qt, QUrl, QAbstractTableModel
-from PySide6.QtWidgets import (QMenu, QLabel, QWidget, QGroupBox, QLineEdit, QListView, QTextEdit, QLCDNumber, QSlider, QFormLayout, QHBoxLayout,
+from PySide6.QtGui import QFont, QColor, QPaintEvent, QPainter, QTextItem, QAction, QPixmap, QTextFormat, QTextOption, QFontMetrics, QTextDocument, QTextCharFormat, QDesktopServices, QSyntaxHighlighter
+from PySide6.QtCore import Qt, QUrl, QAbstractTableModel, QPoint, QSize
+from PySide6.QtWidgets import (QMenu, QFrame, QLabel, QStyle, QWidget, QSizePolicy, QScrollArea, QGroupBox, QLineEdit, QListView, QGraphicsSimpleTextItem, QTextEdit, QLCDNumber, QSlider, QFormLayout, QHBoxLayout,
                                QMessageBox, QPushButton, QVBoxLayout, QApplication, QInputDialog, QProgressBar, QTextBrowser)
 
 # * Third Party Imports --------------------------------------------------------------------------------->
-from peewee import Field, DoesNotExist, IntegrityError
+from peewee import Field, DoesNotExist, IntegrityError, prefetch
 
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
@@ -35,7 +36,7 @@ from gidapptools.general_helper.color.color_item import Color
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.errors import InsufficientDataPointsError
 from antistasi_logbook.data.sqf_syntax_data import SQF_BUILTINS_REGEX
-from antistasi_logbook.storage.models.models import Mod, Server, GameMap, LogFile, ModLink, LogRecord, RecordClass, Version
+from antistasi_logbook.storage.models.models import Mod, Server, GameMap, LogFile, ModLink, LogRecord, RecordClass, Version, Message, LogLevel, ArmaFunction, ArmaFunctionAuthorPrefix
 from antistasi_logbook.utilities.gui_utilities import make_line
 from antistasi_logbook.gui.widgets.image_viewer import (ArmaSide, HighResMapImageWidget, TownMapSymbolImageItem, AirportMapSymbolImageItem,
                                                         FactoryMapSymbolImageItem, OutpostMapSymbolImageItem, SeaportMapSymbolImageItem, ResourceMapSymbolImageItem)
@@ -47,12 +48,12 @@ from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from gidapptools.gid_config.interface import GidIniConfig
-
+    from antistasi_logbook.records.antistasi_records import ChangingSidesRecord
     from antistasi_logbook.backend import Backend
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
     from antistasi_logbook.records.base_record import BaseRecord
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -62,13 +63,13 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
-# endregion[Constants]
+# endregion [Constants]
 
 VIEW_ABLE_ITEMS_TYPE = Union["AbstractRecord", "LogRecord", "LogFile", "Server"]
 
@@ -291,7 +292,7 @@ class ValueLineEdit(QLineEdit):
     """
 
     def __init__(self, text: str = None, parent=None):
-        super().__init__(text, parent=parent)
+        super().__init__(text, parent)
         self.setReadOnly(True)
         self.setAlignment(Qt.AlignCenter)
         self.setProperty("display_only", True)
@@ -323,11 +324,47 @@ class MapSymbolImageItem(pg.ImageItem):
         return super().mouseClickEvent(ev)
 
 
+class LabeledSlider(QSlider):
+
+    def get_px_of_secondary_slider_pos(self):
+        return [
+            QStyle.sliderPositionFromValue(self.minimum(), self.maximum(), idx, self.width())
+            for idx in range(self.minimum(), self.maximum() + 1, self.tickInterval())
+        ]
+
+    def paintEvent(self, ev: QPaintEvent) -> None:
+        super().paintEvent(ev)
+        pix_secondary_slider_pos = self.get_px_of_secondary_slider_pos()
+
+        if len(pix_secondary_slider_pos) > 0:
+            painter = QPainter(self)
+            orig_font_size = font = painter.font().pointSize()
+            font = painter.font()
+            font.setPointSize(int(font.pointSize() * 0.90))
+            painter.setFont(font)
+            for x_pos in pix_secondary_slider_pos:
+                text = datetime.fromtimestamp(QStyle.sliderValueFromPosition(self.minimum(), self.maximum(), x_pos, self.width()), tz=timezone.utc).isoformat(sep=" ", timespec="seconds").split("+")[0]
+
+                text_height = painter.fontMetrics().boundingRect(text).height()
+
+                text_width = painter.fontMetrics().boundingRect(text).width()
+
+                painter.drawText(QPoint(x_pos, 0), text)
+
+            font.setPointSize(orig_font_size)
+            painter.setFont(font)
+
+    def sizeHint(self) -> QSize:
+        orig_size_hint = super().sizeHint()
+        return QSize(orig_size_hint.width(), int(orig_size_hint.height() * 1.25))
+
+
 class GameMapThumbnail(QLabel):
 
-    def __init__(self, game_map: GameMap, parent=None):
+    def __init__(self, game_map: GameMap, campaign_id: int = None, parent=None):
         super().__init__(parent=parent)
         self.game_map = game_map
+        self.campaign_id = campaign_id
         self.has_low_res_image = self.game_map.has_low_res_image()
         self.has_high_res_image = self.game_map.has_high_res_image()
         self.original_cursor = self.cursor()
@@ -340,34 +377,57 @@ class GameMapThumbnail(QLabel):
             self.setToolTip("Click to open High-Res Map image")
         self.high_res_game_map_window: QWidget = None
 
-    @property
+    @ property
     def has_content(self) -> bool:
         return self.has_low_res_image
+
+    def collect_states(self) -> None:
+        record_class = RecordClass.get(name="ChangingSidesRecord")
+
+        query = prefetch(LogRecord.select(LogRecord).join_from(LogRecord, LogFile).where((LogFile.campaign_id == self.campaign_id)).where((LogRecord.record_class_id == record_class.id)).order_by(LogRecord.recorded_at), LogFile, RecordClass, Message, LogLevel)
+
+        data = [i.to_record_class() for i in query]
+        try:
+            start = min(i.recorded_at for i in data)
+            end = max(i.recorded_at for i in data)
+        except ValueError:
+            start = data[0].recorded_at
+            end = data[-1].recorded_at
+
+        for item in data:
+            item: "ChangingSidesRecord"
+            time = item.recorded_at.timestamp()
+            side = ArmaSide(item.side.upper())
+
+            name = item.location_name
+            desc = ""
+            self.high_res_game_map_window._map_symbols[name]._time_states[time] = (side, desc)
+        return start, end
 
     def mousePressEvent(self, event: PySide6.QtGui.QMouseEvent) -> None:
 
         if event.button() == Qt.LeftButton:
-            if self.game_map.coordinates is not None:
+            if self.game_map.coordinates is not None and self.campaign_id is not None:
                 data = self.game_map.coordinates
                 self.high_res_game_map_window = HighResMapImageWidget(self.game_map.map_image_high_resolution, (data["world_size"], data["world_size"]), name=self.game_map.full_name).setup()
 
                 for item in data["map_marker"]:
                     name = item["name"]
-                    if name.startswith("outpost"):
+                    if name.casefold().startswith("outpost"):
                         klass = OutpostMapSymbolImageItem
-                        side = random.choices([ArmaSide.EAST, ArmaSide.WEST], weights=(0.1, 0.9), k=1)[0]
-                    elif name.startswith("resource"):
+                        side = ArmaSide.WEST
+                    elif name.casefold().startswith("resource"):
                         klass = ResourceMapSymbolImageItem
-                        side = random.choices([ArmaSide.EAST, ArmaSide.WEST], weights=(0.1, 0.9), k=1)[0]
-                    elif name.startswith("factory"):
+                        side = ArmaSide.WEST
+                    elif name.casefold().startswith("factory"):
                         klass = FactoryMapSymbolImageItem
-                        side = random.choices([ArmaSide.EAST, ArmaSide.WEST], weights=(0.1, 0.9), k=1)[0]
-                    elif name.startswith("airport"):
+                        side = ArmaSide.WEST
+                    elif name.casefold().startswith("airport"):
                         klass = AirportMapSymbolImageItem
-                        side = random.choices([ArmaSide.EAST, ArmaSide.WEST], weights=(0.1, 0.9), k=1)[0]
-                    elif name.startswith("seaport"):
+                        side = ArmaSide.WEST
+                    elif name.casefold().startswith("seaport"):
                         klass = SeaportMapSymbolImageItem
-                        side = random.choices([ArmaSide.EAST, ArmaSide.WEST], weights=(0.1, 0.9), k=1)[0]
+                        side = ArmaSide.WEST
                     else:
                         klass = TownMapSymbolImageItem
                         side = ArmaSide.WEST
@@ -375,6 +435,8 @@ class GameMapThumbnail(QLabel):
                     marker_item.refresh()
                     self.high_res_game_map_window.set_map_symbol(marker_item)
                     marker_item.refresh()
+
+                start, end = self.collect_states()
                 self.high_res_game_map_window.show()
                 self._comb_window = QWidget()
                 self._comb_window.setLayout(QVBoxLayout())
@@ -383,16 +445,20 @@ class GameMapThumbnail(QLabel):
                 self.high_res_game_map_window.map_symbol_changed.connect(comb_label.setText, type=Qt.ConnectionType.UniqueConnection)
                 self._comb_window.layout().addWidget(comb_label)
                 self._comb_window.layout().addWidget(self.high_res_game_map_window)
-                comb_progress_bar = QProgressBar()
-                comb_progress_bar.setMaximum(len(self.high_res_game_map_window._map_symbols))
-                comb_slider = QSlider(Qt.Orientation.Horizontal)
+                current_time_label = QLabel()
+                current_time_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                comb_slider = LabeledSlider(Qt.Orientation.Horizontal)
+                comb_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
+                comb_slider.setTickInterval(int((end - start).total_seconds() / 20))
                 comb_slider.setTracking(True)
-                comb_slider.setMinimum(0)
-                comb_slider.setMaximum(100)
 
-                self.high_res_game_map_window.map_symbol_changed.connect(lambda x: comb_progress_bar.setValue(comb_progress_bar.value() + 1), type=Qt.ConnectionType.UniqueConnection)
-                self.high_res_game_map_window.finished_run.connect(comb_progress_bar.reset, type=Qt.ConnectionType.UniqueConnection)
-                self._comb_window.layout().addWidget(comb_progress_bar)
+                comb_slider.setMinimum(int(start.timestamp()))
+
+                comb_slider.setMaximum(int(end.timestamp()))
+                comb_slider.valueChanged.connect(lambda x: current_time_label.setText(datetime.fromtimestamp(x, tz=timezone.utc).isoformat(sep=" ", timespec="seconds").split("+")[0]))
+                comb_slider.valueChanged.connect(lambda x: comb_slider.setToolTip(datetime.fromtimestamp(x, tz=timezone.utc).isoformat(sep=" ", timespec="seconds").split("+")[0]))
+                comb_slider.valueChanged.connect(self.high_res_game_map_window.state_to_timestamp)
+                self._comb_window.layout().addWidget(current_time_label)
                 self._comb_window.layout().addWidget(comb_slider)
 
                 self._comb_window.show()
@@ -412,18 +478,19 @@ class GameMapThumbnail(QLabel):
 
 class GameMapValue(QWidget):
 
-    def __init__(self, game_map=GameMap, parent=None):
+    def __init__(self, game_map=GameMap, campaign_id: int = None, parent=None):
         super().__init__(parent=parent)
         self.setLayout(QVBoxLayout())
         self.game_map = game_map
         self.game_map_label = ValueLineEdit(self.game_map.full_name)
         self.layout.addWidget(self.game_map_label)
-        self.game_map_thumbnail = GameMapThumbnail(self.game_map)
+        self.game_map_thumbnail = GameMapThumbnail(self.game_map, campaign_id=campaign_id)
 
         self.collapsible_box = CollapsibleGroupBox(text="Thumbnail", content=self.game_map_thumbnail, parent=self)
         self.collapsible_box.no_content_text = "NO THUMBNAIL"
         self.collapsible_box.set_expanded(False)
         self.layout.addWidget(self.collapsible_box)
+        self.game_map_thumbnail.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
     def _get_game_map_pixmap(self) -> Optional[QPixmap]:
         game_map_bytes = self.game_map.map_image_low_resolution
@@ -486,7 +553,7 @@ class ListFormLayout(QVBoxLayout):
             if isinstance(item, ListFormLabel):
                 item.set_font_size_factor(self.font_size_factor)
 
-    @property
+    @ property
     def font_size_factor(self) -> float:
         return self._font_size_factor
 
@@ -521,26 +588,45 @@ class ListFormLayout(QVBoxLayout):
     def add_line(self):
         self.addWidget(make_line("horizontal"))
 
+    def sizeHint(self) -> QSize:
+        orig_size_hint = super().sizeHint()
 
-class BaseDetailWidget(QWidget):
+        heights = []
+        widths = []
+        for i in range(self.count()):
+            item = self.itemAt(i)
+            item_size_hint = item.sizeHint()
+            heights.append(item_size_hint.height())
+            widths.append(item_size_hint.width())
+
+        height = sum(heights) if heights else orig_size_hint.height()
+        width = max(widths) if widths else orig_size_hint.width()
+
+        return QSize(width, height)
+
+
+class BaseDetailWidget(QScrollArea):
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.setWidgetResizable(True)
         self.setLayout(ListFormLayout())
 
-    @property
+    @ property
     def layout(self) -> ListFormLayout:
         return super().layout()
 
-    @property
+    @ property
     def app(self) -> "AntistasiLogbookApplication":
         return QApplication.instance()
 
-    @property
+    @ property
     def backend(self) -> "Backend":
         return self.app.backend
 
-    @property
+    @ property
     def config(self) -> "GidIniConfig":
         return self.backend.config
 
@@ -618,8 +704,10 @@ class LogFileDetailWidget(BaseDetailWidget):
 
         self.modified_at_value = ValueLineEdit(text=self.app.format_datetime(self.log_file.modified_at))
         self.layout.addRow("Modified at", self.modified_at_value)
-
-        time_frame_string = f"{self.app.format_datetime(self.log_file.time_frame.start)} until {self.app.format_datetime(self.log_file.time_frame.end)}"
+        if self.log_file.time_frame is None:
+            time_frame_string = "-"
+        else:
+            time_frame_string = f"{self.app.format_datetime(self.log_file.time_frame.start)} until {self.app.format_datetime(self.log_file.time_frame.end)}"
 
         self.time_frame_value = ValueLineEdit(text=time_frame_string)
         self.layout.addRow("Time-Frame", self.time_frame_value)
@@ -633,9 +721,9 @@ class LogFileDetailWidget(BaseDetailWidget):
 
         self.server_value = ValueLineEdit(text=self.log_file.server.name, parent=self)
         self.layout.addRow("Server", self.server_value)
-
-        self.game_map_value = GameMapValue(self.log_file.game_map, self)
-        self.layout.addRow("Game Map", self.game_map_value)
+        if self.log_file.game_map is not None:
+            self.game_map_value = GameMapValue(self.log_file.game_map, self.log_file.campaign_id, self)
+            self.layout.addRow("Game Map", self.game_map_value)
 
         try:
             version_string = str(self.log_file.version)
@@ -682,7 +770,9 @@ class LogFileDetailWidget(BaseDetailWidget):
         self.header_text_value.setReadOnly(True)
         self.header_text_value.setLineWrapMode(QTextEdit.NoWrap)
         self.header_text_value.setPlainText(self.log_file.header_text)
+        self.header_text_value.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Maximum)
         self.header_text_box = CollapsibleGroupBox("Show Header Text", self.header_text_value, self)
+        self.header_text_box.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         self.header_text_box.set_expanded(False)
         self.layout.addRow('Header Text', self.header_text_box)
 
@@ -813,15 +903,15 @@ def _re_pattern_converter(in_data: Union[str, re.Pattern]):
 class AbstractSyntaxHighlightRule(ABC):
     suffix_remove_pattern = re.compile("HighlightRule", re.IGNORECASE)
 
-    @property
+    @ property
     def name(self) -> str:
         return StringCaseConverter.convert_to(self.suffix_remove_pattern.sub("", self.__class__.__name__), StringCase.SNAKE)
 
-    @property
+    @ property
     def style_format(self) -> QTextFormat:
         return self._style_format
 
-    @property
+    @ property
     def pattern(self) -> re.Pattern:
         return self._pattern
 
@@ -1001,7 +1091,7 @@ class MessageValue(QTextEdit):
         self.raw_text = record.get_data("message")
         self.setPlainText(self.raw_text)
 
-    @property
+    @ property
     def text(self) -> str:
         return self.raw_text
 
@@ -1110,8 +1200,8 @@ class LogRecordDetailView(BaseDetailWidget):
         return f'{self.__class__.__name__}'
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

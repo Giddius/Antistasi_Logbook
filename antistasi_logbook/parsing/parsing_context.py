@@ -44,7 +44,7 @@ if TYPE_CHECKING:
     from antistasi_logbook.parsing.record_processor import RecordInserter, ManyRecordsInsertResult
     from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -54,14 +54,14 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
 get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
-# endregion[Constants]
+# endregion [Constants]
 
 
 LINE_ITERATOR_TYPE = Generator[RecordLine, None, None]
@@ -408,7 +408,7 @@ class LogParsingContext:
         return f"{self.__class__.__name__}(log_file={self._log_file!r})"
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 if __name__ == '__main__':
     pass
-# endregion[Main_Exec]
+# endregion [Main_Exec]

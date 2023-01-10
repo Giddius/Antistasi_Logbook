@@ -37,7 +37,7 @@ import numpy.typing as np_typing
 if TYPE_CHECKING:
     ...
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -47,13 +47,13 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 PATH_TYPE: TypeAlias = Union[os.PathLike, str]
-# endregion[Constants]
+# endregion [Constants]
 
 
 class BaseImageInfo(ABC):
@@ -188,8 +188,8 @@ class LocalImage:
         return f"{self.__class__.__name__}(image_path={self.image_path})"
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

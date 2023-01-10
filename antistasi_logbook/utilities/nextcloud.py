@@ -15,9 +15,7 @@ from webdav4.client import Client as WebdavClient
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 
-# endregion[Imports]
-
-
+# endregion [Imports]
 
 
 log = get_logger(__name__)

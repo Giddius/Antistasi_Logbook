@@ -37,7 +37,7 @@ from antistasi_logbook.gui.resources.antistasi_logbook_resources_accessor import
 if TYPE_CHECKING:
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -47,14 +47,14 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 
-# endregion[Constants]
+# endregion [Constants]
 
 
 class ListOfDictsResultWidget(QTreeWidget):
@@ -524,6 +524,7 @@ class DebugDockWidget(BaseDockWidget):
         self.scroll_area.verticalScrollBar().setSingleStep(self.scroll_area.verticalScrollBar().singleStep() // 4)
         self.content_widget = DebugContentWidget(self)
         self.scroll_area.setWidget(self.content_widget)
+
         self.setWidget(self.scroll_area)
         self.setMinimumSize(50, 300)
         self.resize(600, 600)
@@ -564,10 +565,10 @@ class DebugDockWidget(BaseDockWidget):
         self.fit_minimum_size_to_buttons()
         if button.sizeHint().width() > self.minimumWidth():
             self.fit_minimum_size_to_buttons()
-# region[Main_Exec]
+# region [Main_Exec]
 
 
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

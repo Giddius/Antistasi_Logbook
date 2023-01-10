@@ -9,25 +9,28 @@ Soon.
 # * Standard Library Imports ---------------------------------------------------------------------------->
 import json
 import inspect
+import shutil
 from typing import TYPE_CHECKING
 from pathlib import Path
 from collections import Counter
-
+import zipfile
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6.QtWidgets import QStyle, QWidget, QGridLayout, QPushButton, QApplication
 from statistics import mean, stdev, median, median_grouped
 # * Third Party Imports --------------------------------------------------------------------------------->
 import apsw
-from peewee import Model, fn
+from peewee import Model, fn, prefetch
+from concurrent.futures import Future, wait, ThreadPoolExecutor, ALL_COMPLETED
 from playhouse.shortcuts import model_to_dict
-
+from tempfile import TemporaryDirectory, tempdir
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 from gidapptools.meta_data.interface import MetaPaths, get_meta_paths
 from gidapptools.general_helper.conversion import bytes2human
+from gidapptools.general_helper.timing import time_func
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.storage.models.models import Mod, ModSet, LogFile, Message, BaseModel, LogRecord, GameMap, ArmaFunction, DatabaseMetaData, ArmaFunctionAuthorPrefix, MeanUpdateTimePerLogFile
+from antistasi_logbook.storage.models.models import Mod, ModSet, LogFile, Message, RecordClass, OriginalLogFile, LogLevel, BaseModel, LogRecord, GameMap, ArmaFunction, DatabaseMetaData, ArmaFunctionAuthorPrefix, MeanUpdateTimePerLogFile
 from antistasi_logbook.gui.widgets.debug_widgets import DebugDockWidget, ListOfDictsResult
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
@@ -35,7 +38,7 @@ if TYPE_CHECKING:
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -45,7 +48,7 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
@@ -54,7 +57,7 @@ get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 META_PATHS: MetaPaths = get_meta_paths()
-# endregion[Constants]
+# endregion [Constants]
 
 
 def disable(in_func):
@@ -110,12 +113,15 @@ def show_average_file_size_per_log_file():
     return bytes2human(raw)
 
 
+@time_func(output=log.info)
 def show_amount_messages_compared_to_amount_records():
     app: "AntistasiLogbookApplication" = QApplication.instance()
     db = app.backend.database
-    with db.connection_context() as ctx:
-        amount_messages = Message.select(Message.id).count()
-        amount_records = LogRecord.select(LogRecord.id).count()
+    db.connect(True)
+
+    amount_messages = db.connection().execute('SELECT COUNT("md5_hash") from "Message"').fetchone()[0]
+
+    amount_records = db.connection().execute('SELECT COUNT(*) from "LogRecord"').fetchone()[0]
 
     if amount_records == 0:
         factor = None
@@ -688,6 +694,36 @@ def show_db_file_names():
     return db.connection().db_filename("main")
 
 
+def get_all_flag_capture_completed_records():
+    app: "AntistasiLogbookApplication" = QApplication.instance()
+    db: "GidSqliteApswDatabase" = app.backend.database
+
+    record_class = RecordClass.get(name="FlagCaptureCompleted")
+    query = prefetch(LogRecord.select(LogRecord, LogFile).join_from(LogRecord, LogFile).where((LogFile.campaign_id == 85576) & (LogRecord.record_class_id == record_class.id)), LogFile, RecordClass, Message, LogLevel, ArmaFunction)
+
+    return [i.to_record_class() for i in query]
+
+
+@time_func(output=log.info)
+def export_all_log_files_to_zip():
+    app: "AntistasiLogbookApplication" = QApplication.instance()
+    db: "GidSqliteApswDatabase" = app.backend.database
+    with ThreadPoolExecutor() as pool:
+        all_files: list[Path] = list(pool.map(lambda x: x.to_file(), list(OriginalLogFile.select().iterator())))
+    if not all_files:
+        return None
+    common_path = all_files[0].parent.parent.resolve()
+    dump_folder = META_PATHS.debug_dump_dir.resolve()
+    zip_path = dump_folder.joinpath("all_log_files.zip").resolve()
+
+    zip_path.unlink(missing_ok=True)
+    with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_LZMA, allowZip64=True) as zippy:
+        for orig_file_path in all_files:
+            zippy.write(orig_file_path, orig_file_path.relative_to(common_path))
+
+    return zip_path
+
+
 def setup_debug_widget(debug_dock_widget: "DebugDockWidget") -> None:
     log.debug("running setup_debug_widget")
     app: AntistasiLogbookApplication = QApplication.instance()
@@ -743,12 +779,14 @@ def setup_debug_widget(debug_dock_widget: "DebugDockWidget") -> None:
     debug_dock_widget.add_show_func_result_button(count_error_records_by_group, "queries")
     debug_dock_widget.add_show_func_result_button(count_records_by_group, "queries")
     debug_dock_widget.add_show_func_result_button(get_upsmon_init_time, "extra")
+    debug_dock_widget.add_show_func_result_button(get_all_flag_capture_completed_records, "records")
+    debug_dock_widget.add_show_func_result_button(export_all_log_files_to_zip, "data")
 
     log.debug("finished setup_debug_widget")
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

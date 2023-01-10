@@ -61,7 +61,7 @@ if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend
     from antistasi_logbook.parsing.record_processor import RecordInserter, RecordProcessor
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -71,7 +71,7 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_globals
@@ -83,7 +83,7 @@ META_INFO = get_meta_info()
 log = get_logger(__name__)
 
 
-# endregion[Constants]
+# endregion [Constants]
 
 DEFAULT_DB_NAME = "storage.logbook_db"
 
@@ -272,6 +272,8 @@ class GidSqliteApswDatabase(APSWDatabase):
                           "json_contains": True,
                           "bloomfilter": False,
                           "regexp_function": True}
+
+    # default_extensions = {}
 
     default_db_path = META_PATHS.db_dir if os.getenv('IS_DEV', 'false') == "false" else THIS_FILE_DIR
     start_up_lock = RLock()
@@ -527,7 +529,7 @@ class GidSqliteApswDatabase(APSWDatabase):
             # self.execute_sql("VACUUM;")
             # self.pragma("auto_vacuum", 2, True)
             log.debug("freelist_count: %r", self.pragma("freelist_count"))
-            res = self.pragma("incremental_vacuum", 1000)
+            res = self.pragma("incremental_vacuum", 10000)
             log.debug("incremental_vacuum result: %r", res)
             self.checkpoint()
             self.optimize()
@@ -554,7 +556,7 @@ class GidSqliteApswDatabase(APSWDatabase):
                 # self.execute_sql("VACUUM;")
                 cur = conn.cursor()
                 log.debug("optimizing before closing connection %r", conn)
-                _result = cur.execute("PRAGMA analysis_limit=1000;PRAGMA optimize").fetchall()
+                _result = cur.execute("PRAGMA analysis_limit=10000;PRAGMA optimize").fetchall()
                 log.debug("optimizing result for connection %r: %r", conn, tuple(_result))
                 cur.close()
                 log.debug("Trying to close connection %r", conn)
@@ -720,8 +722,8 @@ class GidSqliteApswDatabase(APSWDatabase):
         return _repr + "(" + attr_text + ")"
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 if __name__ == '__main__':
 
     pass
-# endregion[Main_Exec]
+# endregion [Main_Exec]

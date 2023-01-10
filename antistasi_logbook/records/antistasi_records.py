@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     pass
     from antistasi_logbook.storage.models.models import LogRecord
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -39,14 +39,14 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
-# endregion[Constants]
+# endregion [Constants]
 
 ALL_ANTISTASI_RECORD_CLASSES: DecorateAbleList[type["BaseAntistasiRecord"]] = DecorateAbleList()
 
@@ -813,11 +813,77 @@ class KilledBy(BaseAntistasiRecord):
         return False
 
 
+@ALL_ANTISTASI_RECORD_CLASSES
+class FlagCaptureCompleted(BaseAntistasiRecord):
+    ___specificity___ = 10
+    ___function___ = "A3A_fnc_mrkWIN"
+    __slots__ = ("captured_by_side", "_flag_name", "_flag_ingame_coordinates", "_squad_name", "_player_name")
+    parse_regex = re.compile(r".*(?P<flag_ingame_coordinates>\d{8})\s+\((?P<flag_name>\w+)\)\:.*by\s(((?P<squad_name>.*?\d+\:\d+)?\s\((?P<player_name>.*?)\))|(?P<player_name_no_squad>.*))")
+    extra_detail_views: tuple[str] = ("flag_name", "flag_ingame_coordinates", "squad_name", "player_name")
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.captured_by_side = "GUER"
+        self._flag_name: str = MiscEnum.NOTHING
+        self._flag_ingame_coordinates: str = MiscEnum.NOTHING
+        self._squad_name: str = MiscEnum.NOTHING
+        self._player_name: str = MiscEnum.NOTHING
+
+    def gather_parsed_data(self) -> None:
+        parsed_data = self.parse(self.message)
+        self._flag_name = parsed_data.get("flag_name")
+        self._flag_ingame_coordinates = parsed_data.get("flag_ingame_coordinates")
+        self._squad_name = parsed_data.get("squad_name")
+        if self._squad_name is None:
+            self._player_name = parsed_data.get("player_name_no_squad")
+        else:
+            self._player_name = parsed_data.get("player_name")
+
+    @property
+    def flag_name(self) -> Optional[str]:
+        if self._flag_name is MiscEnum.NOTHING:
+            self.gather_parsed_data()
+
+        return self._flag_name
+
+    @property
+    def flag_ingame_coordinates(self) -> Optional[str]:
+        if self._flag_ingame_coordinates is MiscEnum.NOTHING:
+            self.gather_parsed_data()
+
+        return self._flag_ingame_coordinates
+
+    @property
+    def squad_name(self) -> Optional[str]:
+        if self._squad_name is MiscEnum.NOTHING:
+            self.gather_parsed_data()
+
+        return self._squad_name
+
+    @property
+    def player_name(self) -> Optional[str]:
+        if self._player_name is MiscEnum.NOTHING:
+            self.gather_parsed_data()
+
+        return self._player_name
+
+    @classmethod
+    def parse(cls, message: str) -> dict[str, Any]:
+        message = message.rsplit(" | Client:", 1)[0]
+        return cls.parse_regex.match(message.strip()).groupdict()
+
+    @classmethod
+    def check(cls, log_record: "LogRecord") -> bool:
+        if "Flag capture completed by " in log_record.message:
+            return True
+        return False
+
+
 ALL_ANTISTASI_RECORD_CLASSES: set[type["BaseAntistasiRecord"]] = set(ALL_ANTISTASI_RECORD_CLASSES)
-# region[Main_Exec]
+# region [Main_Exec]
 
 
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

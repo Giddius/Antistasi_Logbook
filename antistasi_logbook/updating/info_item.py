@@ -23,7 +23,7 @@ from antistasi_logbook.utilities.enums import RemoteItemType
 from antistasi_logbook.data.content_types import ContentType
 from antistasi_logbook.utilities.path_utilities import RemotePath
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -33,7 +33,7 @@ from antistasi_logbook.utilities.path_utilities import RemotePath
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
@@ -41,7 +41,7 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 
 log = get_logger(__name__)
-# endregion[Constants]
+# endregion [Constants]
 
 # {'content_language': None,
 #  'content_length': None,
@@ -102,8 +102,8 @@ class InfoItem:
         return attr.asdict(self)
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

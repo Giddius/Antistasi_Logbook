@@ -50,7 +50,7 @@ if TYPE_CHECKING:
     from antistasi_logbook.gui.misc import UpdaterSignaler
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -60,7 +60,7 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
@@ -70,7 +70,7 @@ META_PATHS = get_meta_paths()
 
 
 log = get_logger(__name__)
-# endregion[Constants]
+# endregion [Constants]
 
 
 @attr.s(auto_detect=True, auto_attribs=True, slots=True, frozen=True, kw_only=True)
@@ -355,7 +355,7 @@ class Backend:
         return f"{self.__class__.__name__}(database={self.database!r}, config={self.config!r}, update_signaler={self.update_signaler!r})"
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 if __name__ == '__main__':
     pass
-# endregion[Main_Exec]
+# endregion [Main_Exec]

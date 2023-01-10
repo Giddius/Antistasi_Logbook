@@ -21,6 +21,7 @@ from threading import Semaphore
 from dateparser import parse as date_parse
 from rich import inspect as rinspect
 from rich.console import Console as RichConsole
+from rich.tree import Tree
 from collections import UserString, UserList, UserDict, deque, ChainMap, Counter
 from tempfile import TemporaryDirectory, gettempdir
 from time import sleep, time
@@ -197,7 +198,7 @@ DESIGNER_FILES_FOLDER = THIS_FILE_DIR.joinpath("designer_files")
 RESOURCES_FILE_FOLDER = DESIGNER_FILES_FOLDER.joinpath("resources")
 RESOURCES_FILE = RESOURCES_FILE_FOLDER.joinpath("antistasi_logbook_resources.qrc")
 RAW_WIDGETS_FOLDER = MAIN_MODULE_FOLDER.joinpath("gui", "raw_widgets")
-# endregion[Constants]
+# endregion [Constants]
 
 
 def activator_run(c: Context, command, echo=True, **kwargs) -> Result:
@@ -310,7 +311,7 @@ def _rcc_list_mapping(c, src: Path):
 
 RESOURCE_HEADER_TEXT = """
 
-# region[Imports]
+# region [Imports]
 
 import os
 from enum import Enum, auto, Flag
@@ -325,7 +326,7 @@ from gidapptools.gidapptools_qt.resources.resources_helper import ressource_item
 from gidapptools import get_logger
 from . import antistasi_logbook_resources
 
-# endregion[Imports]
+# endregion [Imports]
 
 log = get_logger(__name__)
 
@@ -611,6 +612,7 @@ def get_outdated_packages(c):
 
     output_file = output_folder.joinpath("outdated_packages.html")
     text_output_file = output_file.with_suffix(".txt")
+    CONSOLE.print("Collecting outdated packages")
     result: Result = activator_run(c, command="pip list -o --format json", echo=False, hide=True)
 
     _important_packages = {i.casefold() for i in ("pyside6", "peewee", "apsw", "pyqtgraph", "webdav4", "sortedcontainers", "pillow", "numpy", "matplotlib", "keyring", "frozendict")}
@@ -620,13 +622,23 @@ def get_outdated_packages(c):
         in_item["is_important"] = is_important
         return 0 if is_important is True else 1, in_item["name"].casefold()
 
+    CONSOLE.print("sorting outdated packages")
+
     data = sorted(json.loads(result.stdout), key=_sort_key)
     jinja_env = Environment(loader=BaseLoader())
     jinja_env.globals["style_text"] = OUTDATE_PACKAGES_STYLE_TEXT
     template = jinja_env.from_string(OUTDATE_PACKAGES_HTML_TEMPLATE)
+    CONSOLE.print("writing output")
+
     with output_file.open("w", encoding='utf-8', errors='ignore') as f:
         f.write(template.render(important_data={"name": "Important Packages", "packages": [i for i in data if i["is_important"] is True]}, non_important_data={"name": "Non-Important Packages", "packages": [i for i in data if i["is_important"] is False]}))
 
-    text_output_file.write_text('\n'.join(f"pip install -U {i['name']}" for i in data), encoding='utf-8', errors='ignore')
+    text_output_file.write_text('\n'.join(f"{i['name']}=={i['latest_version']}" for i in data), encoding='utf-8', errors='ignore')
+    CONSOLE.rule()
+    output_tree = Tree("Output-Files")
+    output_tree.add(output_file.as_posix())
+    output_tree.add(text_output_file.as_posix())
+    CONSOLE.print(output_tree)
+    CONSOLE.rule()
 
     c.run(f'"{str(output_file)}"')

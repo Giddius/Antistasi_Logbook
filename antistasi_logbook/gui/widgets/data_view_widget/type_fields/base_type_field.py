@@ -13,7 +13,7 @@ from pathlib import Path
 # * Gid Imports ----------------------------------------------------------------------------------------->
 from gidapptools import get_logger
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -23,13 +23,13 @@ from gidapptools import get_logger
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
-# endregion[Constants]
+# endregion [Constants]
 
 
 @runtime_checkable
@@ -46,8 +46,8 @@ class TypeFieldProtocol(Protocol):
         ...
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

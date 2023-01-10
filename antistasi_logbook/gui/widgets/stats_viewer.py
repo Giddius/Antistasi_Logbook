@@ -37,7 +37,7 @@ if TYPE_CHECKING:
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
     from antistasi_logbook.records.base_record import BaseRecord
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -47,13 +47,13 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
-# endregion[Constants]
+# endregion [Constants]
 # "white"
 COLORS = ["red", "tan", "blue", "gold", "gray", "lime", "peru", "pink", "plum", "teal", "brown", "coral", "green",
           "olive", "wheat", "bisque", "indigo", "maroon", "orange", "purple", "sienna", "tomato", "yellow"] * 10
@@ -837,8 +837,8 @@ class AvgMapPlayersPlotWidget(pg.PlotWidget):
         return super().closeEvent(event)
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

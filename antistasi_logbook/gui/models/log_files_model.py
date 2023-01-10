@@ -7,10 +7,10 @@ Soon.
 # region [Imports]
 
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Iterable
 from pathlib import Path
 from concurrent.futures import Future
-
+from time import sleep
 # * Qt Imports --------------------------------------------------------------------------------------->
 from PySide6 import QtCore
 from PySide6.QtCore import Qt, QUrl, Slot, QMimeData, QModelIndex
@@ -22,16 +22,17 @@ from peewee import Field, Query, prefetch
 from gidapptools import get_logger
 
 # * Local Imports --------------------------------------------------------------------------------------->
-from antistasi_logbook.storage.models.models import ModSet, Server, LogFile, Version, Mod, LogFileAndModJoin
+from antistasi_logbook.storage.models.models import ModSet, Server, LogFile, Version, Mod, LogFileAndModJoin, RemoteStorage
 from antistasi_logbook.storage.models.custom_fields import FakeField
-from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE, BaseQueryDataModel, ModelContextMenuAction
+from antistasi_logbook.gui.models.base_query_data_model import INDEX_TYPE, BaseQueryDataModel, ModelContextMenuAction, MultiSelectModelContextMenuAction
 
 # * Type-Checking Imports --------------------------------------------------------------------------------->
 if TYPE_CHECKING:
     from antistasi_logbook.storage.models.models import BaseModel
+    from antistasi_logbook.gui.views.log_files_query_view import LogFilesQueryTreeView
     from antistasi_logbook.gui.views.base_query_tree_view import CustomContextMenu
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -41,13 +42,13 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
-# endregion[Constants]
+# endregion [Constants]
 
 
 class LogFilesModel(BaseQueryDataModel):
@@ -81,7 +82,14 @@ class LogFilesModel(BaseQueryDataModel):
         copy_action.clicked.connect(self.copy_file_to_clipboard)
         menu.add_action(copy_action)
 
-        remove_action = ModelContextMenuAction(item, column, index, text=f"Remove {item.pretty_name} from the DB", parent=menu)
+        parent: "LogFilesQueryTreeView" = self.parent()
+        indexes = parent.selectedIndexes()
+
+        items = []
+        for idx in indexes:
+            items.append(self.get(idx)[0])
+
+        remove_action = MultiSelectModelContextMenuAction(set(items), set(indexes), text=f"Remove {item.pretty_name} from the DB", parent=menu)
         remove_action.clicked.connect(self.remove_log_file)
         menu.add_action(remove_action)
 
@@ -93,12 +101,22 @@ class LogFilesModel(BaseQueryDataModel):
         data.setUrls([QUrl.fromLocalFile(original_file)])
         clipboard.setMimeData(data)
 
-    @Slot(object, object, QModelIndex)
-    def remove_log_file(self, item: LogFile, column: Field, index: QModelIndex):
+    @Slot(list, list)
+    def remove_log_file(self, items: Iterable[LogFile], indexes: Iterable[QModelIndex]):
+
         self.layoutAboutToBeChanged.emit()
-        self.content_items.remove(item)
-        LogFile.delete_by_id(item.id)
+        with self.database:
+            for item in items:
+                try:
+                    self.content_items.remove(item)
+                except ValueError as e:
+                    log.debug("encountered %r while removing %r from content_items", e, item)
+
+                LogFile.delete_by_id(item.id)
+            res = self.database.pragma("incremental_vacuum", 10000)
+            log.debug("incremental_vacuum result: %r", res)
         self.layoutChanged.emit()
+        self.parent().clearSelection()
 
     @Slot(object, object, QModelIndex)
     def reparse_log_file(self, item: LogFile, column: Field, index: QModelIndex):
@@ -148,12 +166,13 @@ class LogFilesModel(BaseQueryDataModel):
         return query.order_by(*self.ordered_by)
 
     def get_content(self) -> "BaseQueryDataModel":
+
         def load_up_log_file(in_log_file: LogFile):
 
             in_log_file.game_map = self.backend.database.foreign_key_cache.get_game_map_by_id(in_log_file.game_map_id)
 
-            if in_log_file.mod_set_id is not None:
-                in_log_file.mod_set = ModSet.get_by_id(in_log_file.mod_set_id)
+            # if in_log_file.mod_set_id is not None:
+            #     in_log_file.mod_set = ModSet.get_by_id(in_log_file.mod_set_id)
 
             return in_log_file
 
@@ -162,10 +181,11 @@ class LogFilesModel(BaseQueryDataModel):
 
         self.content_items = []
         self.database.connect(True)
-        for log_file in self.backend.thread_pool.map(load_up_log_file, prefetch(self.get_query(), Server, Version)):
+        for log_file in self.backend.thread_pool.map(load_up_log_file, prefetch(self.get_query(), Server, Version, ModSet, RemoteStorage)):
 
             self.content_items.append(log_file)
         self.content_items = self.content_items
+
         return self
 
     def _get_tool_tip_data(self, index: INDEX_TYPE) -> Any:
@@ -184,10 +204,10 @@ class LogFilesModel(BaseQueryDataModel):
             return f'<b>{item.game_map.pretty_name!s}</b><br><img src="{item.game_map.map_image_low_resolution.image_path!s}">'
 
         return super()._get_tool_tip_data(index)
-# region[Main_Exec]
+# region [Main_Exec]
 
 
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

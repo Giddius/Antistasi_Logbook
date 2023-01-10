@@ -48,7 +48,7 @@ if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend
     from antistasi_logbook.gui.main_window import LogbookSystemTray, AntistasiLogbookMainWindow
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -58,7 +58,7 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
@@ -67,7 +67,7 @@ log = get_logger(__name__)
 META_INFO = get_meta_info()
 META_PATHS = get_meta_paths()
 
-# endregion[Constants]
+# endregion [Constants]
 
 
 class CommandLineArgDoc:
@@ -426,8 +426,8 @@ class AntistasiLogbookApplication(QApplication):
         return f"{self.__class__.__name__}(argvs={self.arguments()[1:]!r})"
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

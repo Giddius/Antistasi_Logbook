@@ -25,7 +25,7 @@ from gidapptools import get_logger
 from antistasi_logbook.utilities.nextcloud import get_username
 from antistasi_logbook.utilities.rich_styles import PANEL_STYLE, PANEL_BORDER_STYLE
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -35,7 +35,7 @@ from antistasi_logbook.utilities.rich_styles import PANEL_STYLE, PANEL_BORDER_ST
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
@@ -43,7 +43,7 @@ THIS_FILE_DIR = Path(__file__).parent.absolute()
 
 
 log = get_logger(__name__)
-# endregion[Constants]
+# endregion [Constants]
 
 
 def clean_path(in_path: Union[str, Path, os.PathLike]) -> Path:
@@ -110,10 +110,10 @@ def url_to_path(url: str) -> Path:
 
     path = urllib_request.url2pathname(netloc + path)
     return Path(path)
-# region[Main_Exec]
+# region [Main_Exec]
 
 
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

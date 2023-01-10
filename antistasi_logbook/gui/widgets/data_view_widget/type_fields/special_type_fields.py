@@ -27,7 +27,7 @@ from gidapptools.general_helper.typing_helper import implements_protocol
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.gui.widgets.data_view_widget.type_fields.base_type_field import TypeFieldProtocol
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -37,13 +37,13 @@ from antistasi_logbook.gui.widgets.data_view_widget.type_fields.base_type_field 
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
-# endregion[Constants]
+# endregion [Constants]
 
 
 @implements_protocol(TypeFieldProtocol)
@@ -134,10 +134,10 @@ class PathTypeField(QPushButton):
         return table
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 
 
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

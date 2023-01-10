@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from antistasi_logbook.gui.application import AntistasiLogbookApplication
     from antistasi_logbook.storage.database import GidSqliteApswDatabase
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -43,7 +43,7 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
@@ -52,7 +52,7 @@ get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
 
-# endregion[Constants]
+# endregion [Constants]
 
 
 @unique
@@ -198,10 +198,10 @@ class PerformanceStatsModel(AbstractStatsModel):
                 _insert_data_point(name, recorded_at, value)
 
         self.time_frame = reduce(add, (i.timeframe for i in self.items.values()))
-# region[Main_Exec]
+# region [Main_Exec]
 
 
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

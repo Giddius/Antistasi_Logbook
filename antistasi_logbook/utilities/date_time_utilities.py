@@ -27,7 +27,7 @@ from gidapptools.general_helper.string_helper import extract_by_map, replace_by_
 # * Local Imports --------------------------------------------------------------------------------------->
 from antistasi_logbook.errors import DurationTimezoneError
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -39,13 +39,13 @@ from antistasi_logbook.errors import DurationTimezoneError
 
 log = get_logger(__name__)
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
-# endregion[Constants]
+# endregion [Constants]
 
 
 DEFAULT_DATE_TIME_FORMAT = "%Y-%m-%d_%H-%M-%S"
@@ -204,7 +204,7 @@ class DateTimeFrame:
         return hash(self.start) + hash(self.end) + hash(self.delta)
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 if __name__ == '__main__':
     pass
-# endregion[Main_Exec]
+# endregion [Main_Exec]

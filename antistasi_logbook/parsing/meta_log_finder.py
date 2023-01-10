@@ -34,7 +34,7 @@ if sys.version_info >= (3, 11):
 else:
     from typing_extensions import Self
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -44,13 +44,13 @@ else:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
-# endregion[Constants]
+# endregion [Constants]
 
 
 class RawModData(TypedDict):
@@ -236,8 +236,8 @@ class MetaFinder:
         return self
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

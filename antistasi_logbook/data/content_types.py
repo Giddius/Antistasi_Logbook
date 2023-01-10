@@ -1,9 +1,9 @@
 # * Standard Library Imports ---------------------------------------------------------------------------->
-from enum import Flag
+from enum import Flag, Enum
 from typing import Any
 
 
-class ContentType(Flag):
+class ContentType(Enum):
     TEXT = "text/plain"
     ZIP = "application/zip"
     OTHER = "other"

@@ -32,7 +32,7 @@ from antistasi_logbook.parsing.foreign_key_cache import ForeignKeyCache
 if TYPE_CHECKING:
     from antistasi_logbook.backend import Backend, GidSqliteApswDatabase
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -43,14 +43,14 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
 get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
-# endregion[Constants]
+# endregion [Constants]
 
 RECORD_CLASS_TYPE = Union[type[BaseRecord], type["BaseRecord"]]
 
@@ -109,11 +109,11 @@ class RecordClassChecker:
             origin = log_record.origin.record_family
         except AttributeError:
             origin = log_record.record_origin.record_family
-            record_class = self.family_handler_table.get(origin, self._determine_generic_record_class)(log_record)
-            if record_class is None:
-                _out = self.default_record_class.model
-            else:
-                _out = record_class
+        record_class = self.family_handler_table.get(origin, self._determine_generic_record_class)(log_record)
+        if record_class is None:
+            _out = self.default_record_class.model
+        else:
+            _out = record_class
         if isinstance(log_record, RawRecord):
             log_record.record_class = _out
 
@@ -216,10 +216,10 @@ class RecordClassManager:
     def reset(self) -> None:
         self._default_record_class = None
         self._record_class_checker = self.get_record_checker()
-# region[Main_Exec]
+# region [Main_Exec]
 
 
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

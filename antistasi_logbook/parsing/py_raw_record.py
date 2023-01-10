@@ -20,7 +20,7 @@ from gidapptools.general_helper.timing import get_dummy_profile_decorator_in_glo
 from antistasi_logbook.storage.models.models import LogFile, Message, LogRecord
 from antistasi_logbook.parsing.raw_sql_phrase import RawSQLPhrase
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -30,14 +30,14 @@ from antistasi_logbook.parsing.raw_sql_phrase import RawSQLPhrase
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
 get_dummy_profile_decorator_in_globals()
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 log = get_logger(__name__)
-# endregion[Constants]
+# endregion [Constants]
 
 
 class RawRecord:
@@ -153,8 +153,8 @@ class RawRecord:
             return self.lines == o.lines and self.content == o.content and self.record_origin == o.record_origin and self.start == o.start and self.end == o.end
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]

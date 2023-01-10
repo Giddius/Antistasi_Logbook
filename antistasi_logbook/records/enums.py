@@ -15,7 +15,7 @@ from pathlib import Path
 if TYPE_CHECKING:
     from antistasi_logbook.storage.models.models import RecordOrigin
 
-# endregion[Imports]
+# endregion [Imports]
 
 # region [TODO]
 
@@ -25,13 +25,13 @@ if TYPE_CHECKING:
 # region [Logging]
 
 
-# endregion[Logging]
+# endregion [Logging]
 
 # region [Constants]
 
 THIS_FILE_DIR = Path(__file__).parent.absolute()
 
-# endregion[Constants]
+# endregion [Constants]
 
 
 @ unique
@@ -118,8 +118,8 @@ class MessageTypus(Enum):
     SQF = auto()
 
 
-# region[Main_Exec]
+# region [Main_Exec]
 if __name__ == '__main__':
     pass
 
-# endregion[Main_Exec]
+# endregion [Main_Exec]
