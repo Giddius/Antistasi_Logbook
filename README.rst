@@ -17,7 +17,7 @@ Description
 Installation
 ==================
 
-INFO
+*INFO*
 ^^^^^^^^^
 
 .. highlights::
@@ -29,7 +29,7 @@ INFO
    <hr>
 
 
-WARNING
+**WARNING**
 ^^^^^^^^^^^^
 
 .. highlights::
