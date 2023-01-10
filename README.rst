@@ -17,19 +17,19 @@ Description
 Installation
 ==================
 
-INFO
-^^^^^^^^^
-.. epigraph::
+   INFO
+   ^^^^^^^^^
+   .. epigraph::
 
-   Currently only available for Windows 10 (x64).
+      Currently only available for Windows 10 (x64).
 
 
-WARNING
-^^^^^^^^^^^^
+   WARNING
+   ^^^^^^^^^^^^
 
-.. highlights::
+   .. highlights::
 
-   It is currently :underline:`NOT` advised to install via `pip install`, because of problems with dependencies (*Peewee* especially) this will **NOT** result in a working app.
+      It is currently **NOT** advised to install via `pip install`, because of problems with dependencies (*Peewee* especially) this will **NOT** result in a working app.
 
 
 
