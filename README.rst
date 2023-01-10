@@ -11,7 +11,7 @@ Antistasi Logbook
 Description
 ===================
 
-.. include:: docs_source/source/_data/short_description.txt
+.. include:: ./docs_source/source/_data/short_description.txt
 
 
 ==================
