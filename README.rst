@@ -20,7 +20,7 @@ Installation
 INFO
 ^^^^^^^^^
 
-.. code::
+.. highlights::
 
    Currently only available for Windows 10 (x64).
 
@@ -36,10 +36,10 @@ WARNING
 
    It is currently **NOT** advised to install via `pip install`, because of problems with dependencies (*Peewee* especially) this will **NOT** result in a working app.
 
-.. raw::
 
-   > __Warning__
-   > This is a warning.
+
+> __Warning__
+> This is a warning.
 
 ==================
 Links
